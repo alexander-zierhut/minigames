@@ -49,7 +49,7 @@ export async function launchBrowser({ width = 1400, height = 900, mobile = false
         `--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, `--window-size=${Math.max(width, 500)},${height}`, "about:blank",
     ], { stdio: "ignore" });
     let target = null;
-    for (let i = 0; i < 60 && !target; i++) {
+    for (let i = 0; i < 240 && !target; i++) {          // a 2-core CI runner with 4 Chromes up needs a while
         try {
             const list = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
             target = list.find((t) => t.type === "page");
