@@ -36,5 +36,11 @@ const Rules = (() => {
     const index = (n, x, y) => y * n + x;
     const inside = (n, x, y) => x >= 0 && y >= 0 && x < n && y < n;
 
-    return { base, pass, index, inside };
+    // rules modules register themselves by game key so bots and headless tools can find
+    // them without the DOM-bound engine (games.js)
+    const byGame = {};
+    const register = (key, rules) => { byGame[key] = rules; return rules; };
+    const of = (key) => byGame[key];
+
+    return { base, pass, index, inside, register, of };
 })();

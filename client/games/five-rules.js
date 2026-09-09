@@ -72,3 +72,4 @@ const FiveRules = (() => {
 
     return { create, ownerOf, isLegal, legalMoves, place, settle, conclude, lineThrough, bestRow };
 })();
+Rules.register("five", FiveRules);

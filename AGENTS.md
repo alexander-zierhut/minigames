@@ -43,8 +43,11 @@ Scripts, in order (each defines the global named in brackets):
 | `client/games/chain.js` | `ChainView`, `ChainGame` | Chain React board/animation/HUD numbers + registration |
 | `client/games/five-rules.js` | `FiveRules` | Five Wins rules, pure |
 | `client/games/five.js` | `FiveView`, `FiveGame` | Five Wins view + registration (smallest game: the template) |
+| `client/bots.js` | `Bots` | bot registry, the toolset bots play with, headless playout |
+| `client/bots/<id>/bot.js` | (registers) | one folder per bot: `bot.js`, generated `benchmark.js`, `bot.test.mjs` |
 | `client/skins.js` | `Skins` | look per device: body class, player names |
 | `client/settings.js` | `Settings` | settings form ↔ config, picker cards, persistence, summary |
+| `client/opponent.js` | `Opponent` | bot picker modal (bot, difficulty, score), choice per game |
 | `client/reactions.js` | `Reactions` | emoji reactions bar + floating layer |
 | `client/app.js` | (none) | flow, room protocol, session restore, wiring, boot |
 
@@ -88,8 +91,8 @@ to try things").
 
 - **Title** (`#screen-menu`): title "ALZlper's Minigames", section *Online* with
   `Create room` + `Join room` (`#join-panel` with the code field appears on Join room),
-  section *Offline* with `Play on this device`, and the global **Look** control. Never
-  scrolls on a phone.
+  section *Offline* with `Play on this device` and `Play against a bot`, and the global
+  **Look** control. Never scrolls on a phone.
 - **Lobby** (`#screen-lobby`), same screen for local and online (`app.mode`): room code +
   Share/Copy (online only), one `.lobby-player` card per seat from `#tpl-lobby-player`
   (online only), the game picker (one `.game-card[data-game]` per registered game, built
@@ -98,6 +101,9 @@ to try things").
 - **Game** (`#screen-game`): board + HUD ("hut"). Result overlay: `Rematch`, `Look at
   board` (hides it; `#result-fab` brings it back), `Change game` (→ lobby). The HUD has
   `Rematch` and `Back to room` too.
+- `app.mode` ∈ `local | bot | online`. Bot mode is the offline lobby with an extra
+  *Opponent* row (`#btn-opponent` → `#bot-modal`); clicking a game card there opens the
+  picker for that game (`Settings.init({ onSelectGame })`). You are seat 0, the bot seat 1.
 - `app.phase` ∈ `menu | lobby | game`; `app.gameNo` increments per started game (local
   too); `startPlayerFor(g) = (g - 1) % players` → seat 0 starts game 1, then alternate.
 
@@ -343,16 +349,75 @@ the log emits too so a chat could mirror it). Current events and payloads:
 player, chain}` (one wave), `reaction {emoji, theirs}`, `log {text, cls}`.
 Adding sounds = a new `client/sounds.js` with `Bus.on(...)` calls and one script tag.
 
-## Seats and future bots / more players
+## Seats, bots and more players
 
-`app.seats[p] = { kind }` is built per game from `app.me`: `local` (this device moves for
-it) or `remote`. `hooks.mayPlay(p)` = local seat + connected. A bot would be a third kind:
-in `hooks.onTurn(p)` check `app.seats[p].kind === "bot"`, pick a move with the pure rules
-(`rules.legalMoves(state, p)`, apply `place/settle/conclude` on a copy to evaluate) and
-call `Game.play(i)` after a short delay — nothing else changes. Player count is
-`config.players` (fixed at 2 by `Settings.read()`); rules, `Rules.pass`, `Clock`, HUD and
-lobby cards are written for N, the CSS has colours for 4 seats, the protocol needs the
-relay described in net.js.
+`app.seats[p] = { kind }` is built per game by `makeSeats`: `local` (this device moves for
+it), `remote` (the friend) or `bot`. `hooks.mayPlay(p)` = local seat + connected;
+`hooks.onTurn(p)` calls `botTurn(p)` for a bot seat: after `THINK_MS` (350 ms, so it doesn't
+feel instant) it asks the bot instance for a move on a **clone** of the state, re-checks
+that the same game is still on that turn (`gameNo`, phase, busy, over), falls back to a
+random legal move if the bot throws or answers illegally, then `Game.play(i)` like a click.
+`hooks.names` shows the bot's name on its seat. Player count is `config.players` (fixed at
+2 by `Settings.read()`); rules, `Rules.pass`, `Clock`, HUD and lobby cards are written for
+N, the CSS has colours for 4 seats, the protocol needs the relay described in net.js.
+
+## Bots (`client/bots.js`, `client/bots/<id>/`)
+
+Bots are pure and headless: no DOM, only the game's rules module + the toolset. The same
+code runs in the browser and in Node (`tools/headless.mjs` loads util, rules, bots.js and
+every bot folder into a bare VM — script list parsed from `index.html`).
+
+- **Registry**: `Bots.register({ id, name, game, version, description, difficulties:
+  [{ id, label }, …], create(tools) })` (validated: slug id, ≥ 1 difficulty, create fn).
+  `Bots.get/list/forGame(game)`, `Bots.benchmarkOf(id)`. Rules modules register themselves
+  (`Rules.register("chain", ChainRules)` → `Rules.of(key)`) so bots find them without the
+  DOM-bound engine.
+- **Instance**: `Bots.create(id, { me, difficulty, seed, players })` → `{ def, tools,
+  difficulty, move(state) }`. `create(tools)` runs once per game and may keep state
+  (caches, opening books); `move(state)` returns a cell index or a Promise of one.
+- **Toolset** (`Bots.tools(game, opts)`): `game, rules, me, players, difficulty, seed`,
+  seeded `random()/randInt/pick/shuffle` (mulberry32: same seed → same game, which is how
+  random bots are unit-tested), `legalMoves(state, p)`, `isLegal`, `clone`,
+  `apply(state, i)` (place + settle + conclude on a copy → the position after the move,
+  with `over/winner`), `outcome(state)`, `opponents(p)`, `deadline(ms)` for time-boxed
+  search. Rules modules are also reachable directly (`tools.rules`: chain `tally`,
+  `readyCells`…; five `lineThrough`, `bestRow`). Add generic helpers here, game-specific
+  analysis in the rules module — never in a bot.
+- **Playout**: `Bots.playout(game, config, seats, { maxMoves })` runs a full headless game
+  (seats = instances or `state → move` functions) → `{ over, winner, moves, history }`.
+- **Tests** (all in `npm run test:unit`): `tests/unit/bots.test.mjs` covers the framework
+  and a **conformance suite every registered bot must pass** for every difficulty: only
+  legal moves in 300 seeded random positions, deterministic per seed, finishes full games
+  as either colour, < 50 ms per move. Each bot folder has its own `bot.test.mjs` (the
+  glob `client/bots/**/*.test.mjs`) for what makes that bot that bot (Random: covers every
+  legal cell, roughly uniform, seed reproduces a whole game). A real bot's tests should
+  prove strength facts: beats Random by a margin, blocks an open four, takes a win in one,
+  never worse than depth-1 greedy, etc. (VM realm: compare arrays via `JSON.stringify`.)
+- **Benchmark** (`npm run benchmark` = `tools/benchmark.mjs [id…]`): every bot plays a
+  seeded series against the Random bot of its game (chain 100 games 6×6, five 200 games
+  9×9, both colours, highest difficulty) → score = win rate in % (draw = ½) plus
+  `games, opponent, avgMoves, version, commit, at`, written to
+  `client/bots/<id>/benchmark.js` (`Bots.benchmark(id, result)`; `at/commit` kept when the
+  numbers didn't change so a re-run never diffs). Those files are listed in `index.html`,
+  so the score is baked into the page; `Opponent` shows it ("47 % vs Random") in the
+  picker and the lobby summary. `.github/workflows/benchmark.yml` runs it on pushes to
+  `main` that touch `client/bots/**` (not the benchmark files), `bots.js`, the rules or the
+  tools, and opens an auto-merging PR (branch `bot-benchmark`) with the new files (branch
+  protection needs the `test` check, so a direct push isn't possible; auto-merge is
+  enabled on the repo and Actions may create PRs). Random ≈ 50 % is the baseline.
+- **UI**: `Opponent` (client/opponent.js) renders `#bot-modal` for the selected game: one
+  `.bot-option` per bot (name, description, score badge or "not rated"), the `#bot-difficulty`
+  segmented control (hidden with a single difficulty), remembers `{ id, difficulty }` per
+  game in `localStorage["chainreact.bots"]`, `Opponent.current(game)` / `summary(game)`.
+
+### How to add a bot
+1. `client/bots/<id>/bot.js` with `Bots.register({...})` — copy `random-five`. Use
+   `tools.random`, never `Math.random` (tests and the benchmark rely on seeds). Long
+   searches: check `tools.deadline(...)` or return a Promise that yields via `setTimeout`.
+2. `client/bots/<id>/bot.test.mjs` with the facts that make the bot good (see above).
+3. Two script tags in `index.html` after the existing bots: `bot.js` and `benchmark.js`.
+4. `npm run benchmark <id>` locally (or let the workflow do it) — commit `benchmark.js`.
+5. `npm test`; the conformance suite and the e2e bot flow run automatically.
 
 ## Emoji reactions (`client/reactions.js`)
 
@@ -367,7 +432,8 @@ colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
 
 ## Tests (`npm test` = unit + e2e; CI runs both before every deploy and on every PR)
 
-- **Unit** (`npm run test:unit`, Node's built-in runner, `tests/unit/*.test.mjs`):
+- **Unit** (`npm run test:unit`, Node's built-in runner, `tests/unit/*.test.mjs` +
+  `client/bots/**/*.test.mjs`; `bots.test.mjs` = framework + bot conformance, see Bots):
   `rules.test.mjs` runs the pure rules in a bare `vm` context (no DOM; 2- and 3-player
   rotation, elimination, legalMoves, draw). `dom.mjs` loads `index.html` + every client
   script except `app.js` into jsdom (script list parsed from index.html; `Element.animate`
@@ -390,7 +456,8 @@ colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
   tab mid-game without goodbye and returns by link; rematch asked while the friend was
   away; host's tab dies, guest goes back to the room, host returns → both in the lobby;
   a corrupted guest board is rebuilt from the host; a board that keeps differing sends
-  both back to the room; both type the same new code at once), `dist` (built bundle: hashed assets only,
+  both back to the room; both type the same new code at once), `bot` (offline vs bot: picker with score, bot moves
+  by itself, rematch), `dist` (built bundle: hashed assets only,
   preloader, playable). Files run 2 at a time; each launches its own Chrome. `B.blank()`
   navigates to about:blank (a closed tab); outline colours transition for .25s → wait
   before reading computed styles. Any new join/rejoin behaviour gets a scenario in

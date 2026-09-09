@@ -19,6 +19,7 @@ const Settings = (() => {
     let game = null;             // selected game key
     const sizeFor = {};          // remembered board size per game
     let onChange = () => {};
+    let onSelectGame = () => {}; // a game card was clicked (not a mirrored / restored selection)
     let silent = false;          // true while writing the friend's settings into the form
 
     const def = () => Games.get(game);
@@ -145,7 +146,7 @@ const Settings = (() => {
             card.innerHTML = `<span class="game-preview ${key}">${tiles}</span><span class="game-name"></span><span class="game-desc"></span>`;
             card.querySelector(".game-name").textContent = d.title;
             card.querySelector(".game-desc").textContent = d.desc;
-            card.addEventListener("click", () => selectGame(key));
+            card.addEventListener("click", () => { selectGame(key); onSelectGame(key); });
             picker.appendChild(card);
         }
     }
@@ -155,6 +156,7 @@ const Settings = (() => {
 
     function init(handlers) {
         onChange = handlers.onChange || onChange;
+        onSelectGame = handlers.onSelectGame || onSelectGame;
         renderPicker();
         $("btn-settings").addEventListener("click", open);
         $("btn-settings-done").addEventListener("click", close);

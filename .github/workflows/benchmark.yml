@@ -1,0 +1,56 @@
+# Runs the bot benchmark when a bot (or the rules/toolset it plays with) changed and opens
+# an auto-merging pull request with the updated client/bots/<id>/benchmark.js files, so
+# the score shown in the bot picker is baked into the deployed page. The benchmark is
+# seeded and deterministic: an unchanged bot never produces a diff (and no PR).
+name: Bot benchmark
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "client/bots/**"
+      - "!client/bots/**/benchmark.js"
+      - "client/bots.js"
+      - "client/games/rules.js"
+      - "client/games/*-rules.js"
+      - "tools/benchmark.mjs"
+      - "tools/headless.mjs"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: benchmark
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    name: benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run the benchmark
+        run: node tools/benchmark.mjs | tee "$GITHUB_STEP_SUMMARY"
+      - name: Open a pull request with the new scores
+        id: pr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: bot-benchmark
+          delete-branch: true
+          commit-message: "Bot benchmark: updated scores"
+          title: "Bot benchmark: updated scores"
+          body: |
+            Scores from `tools/benchmark.mjs` for the bots changed in ${{ github.sha }}.
+            Merging bakes them into the bot picker on the next deploy.
+          add-paths: client/bots/**/benchmark.js
+      - name: Merge automatically once the tests pass
+        if: steps.pr.outputs.pull-request-number
+        run: gh pr merge --auto --squash "${{ steps.pr.outputs.pull-request-number }}"
+        env:
+          GH_TOKEN: ${{ github.token }}

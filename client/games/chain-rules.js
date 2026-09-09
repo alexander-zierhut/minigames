@@ -123,3 +123,4 @@ const ChainRules = (() => {
 
     return { create, ownerOf, isLegal, legalMoves, place, settle, conclude, tally, readyCells, chainStopped, detonate, land };
 })();
+Rules.register("chain", ChainRules);

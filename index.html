@@ -53,7 +53,10 @@
             </div>
             <div class="section">
                 <div class="section-title">Offline</div>
-                <button class="btn big" id="btn-local">Play on this device</button>
+                <div class="btn-row">
+                    <button class="btn big" id="btn-local">Play on this device</button>
+                    <button class="btn big" id="btn-bot">Play against a bot</button>
+                </div>
             </div>
         </div>
 
@@ -92,6 +95,13 @@
             <div class="game-picker" id="game-picker"></div>
             <p class="tagline small" id="menu-tagline"></p>
         </div>
+
+        <!-- bot mode only: which bot, which difficulty (opens #bot-modal) -->
+        <button class="settings-summary" id="btn-opponent" hidden>
+            <span class="gear-icon">🤖</span>
+            <span id="opponent-summary">Opponent</span>
+            <span class="chev">›</span>
+        </button>
 
         <button class="settings-summary" id="btn-settings">
             <span class="gear-icon">⚙</span>
@@ -239,6 +249,21 @@
     </div>
 </div>
 
+<!-- ===================== BOT PICKER (offline, "Play against a bot") ===================== -->
+<div id="bot-modal" class="modal" hidden>
+    <div class="menu-card bot-card">
+        <h1 class="title small">Choose your opponent</h1>
+        <p class="tagline small" id="bot-modal-game"></p>
+        <!-- one .bot-option per bot that plays the selected game, built by opponent.js -->
+        <div class="bot-list" id="bot-list"></div>
+        <div class="skin-row" id="bot-difficulty-row">
+            <span class="skin-label">Difficulty</span>
+            <div class="seg" id="bot-difficulty"></div>
+        </div>
+        <button class="btn primary" id="btn-bot-done">Play against this bot</button>
+    </div>
+</div>
+
 <!-- ===================== GAME OVER ===================== -->
 <div id="overlay" hidden>
     <div class="overlay-card">
@@ -284,8 +309,14 @@
 <script src="client/games/chain.js"></script>
 <script src="client/games/five-rules.js"></script>
 <script src="client/games/five.js"></script>
+<script src="client/bots.js"></script>
+<script src="client/bots/random-chain/bot.js"></script>
+<script src="client/bots/random-chain/benchmark.js"></script>
+<script src="client/bots/random-five/bot.js"></script>
+<script src="client/bots/random-five/benchmark.js"></script>
 <script src="client/skins.js"></script>
 <script src="client/settings.js"></script>
+<script src="client/opponent.js"></script>
 <script src="client/reactions.js"></script>
 <script src="client/app.js"></script>
 </body>

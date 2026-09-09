@@ -40,6 +40,7 @@ test("game: compact HUD, board outline visible, reactions inside the viewport, n
     assert.equal(await M.ev("getComputedStyle(document.getElementById('hut')).display"), "flex");
     assert.equal(await M.ev("getComputedStyle(document.querySelector('.sign')).display"), "none", "compact HUD hides the sign");
     assert.ok(await M.ev("document.getElementById('react-bar').classList.contains('collapsed')"), "reaction bar starts collapsed");
+    await M.waitFor("document.getElementById('react-layer').style.top !== ''", { what: "reaction layer placed" });
     await M.click("#react-toggle");
     await M.click('#react-bar button[data-e="🔥"]');
     const layer = JSON.parse(await M.ev("JSON.stringify(document.getElementById('react-layer').getBoundingClientRect())"));

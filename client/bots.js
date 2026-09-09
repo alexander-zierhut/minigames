@@ -1,0 +1,126 @@
+/* Bots: the registry and the toolset a bot plays with.
+
+   A bot is pure and headless: it never touches the DOM, so the same code runs in the
+   browser (a seat of kind "bot", see app.js) and in Node (unit tests, benchmark). It
+   only ever sees the pure rules module of its game plus the helpers below.
+
+   Bots.register({
+       id: "random-chain",            // folder name under client/bots/
+       name: "Random", game: "chain", version: 1,
+       description: "…",
+       difficulties: [{ id: "normal", label: "Normal" }],   // at least one; shown in the UI
+       create(tools) { return { move(state) { … return cellIndex; } }; },
+   })
+
+   create(tools) is called once per game and returns an instance; move(state) may return
+   the cell index or a Promise of it (long searches should yield with setTimeout or use
+   tools.deadline). The instance may keep state across moves (caches, opening books).
+   The benchmark workflow writes client/bots/<id>/benchmark.js, which calls
+   Bots.benchmark(id, result) so the score is baked into the deployed page. */
+
+"use strict";
+
+const Bots = (() => {
+    const defs = {};
+    const order = [];
+    const results = {};          // id -> benchmark result (from the generated benchmark.js files)
+
+    /* ---------- seeded random numbers (mulberry32): same seed, same game ---------- */
+    function rng(seed) {
+        let a = (seed >>> 0) || 0x9e3779b9;
+        return () => {
+            a = (a + 0x6d2b79f5) >>> 0;
+            let t = a;
+            t = Math.imul(t ^ (t >>> 15), t | 1);
+            t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    /* ---------- registry ---------- */
+    function validate(def) {
+        const fail = (msg) => { throw new Error(`Bots.register(${def && def.id}): ${msg}`); };
+        if (!def || typeof def !== "object") fail("definition missing");
+        if (!/^[a-z0-9-]{2,40}$/.test(def.id || "")) fail("id must be a folder-safe slug");
+        if (typeof def.name !== "string" || !def.name.trim()) fail("name missing");
+        if (typeof def.game !== "string" || !def.game) fail("game missing");
+        if (!Array.isArray(def.difficulties) || def.difficulties.length === 0) fail("difficulties must list at least one { id, label }");
+        for (const d of def.difficulties) if (!d || typeof d.id !== "string" || typeof d.label !== "string") fail("difficulty needs id and label");
+        if (typeof def.create !== "function") fail("create(tools) missing");
+        if (defs[def.id]) fail("registered twice");
+    }
+    function register(def) {
+        validate(def);
+        defs[def.id] = def;
+        order.push(def.id);
+        return def;
+    }
+    const get = (id) => defs[id];
+    const list = () => order.map((id) => defs[id]);
+    const forGame = (game) => list().filter((b) => b.game === game);
+    function benchmark(id, result) { results[id] = result; }
+    const benchmarkOf = (id) => results[id] || null;
+
+    /* ---------- toolset ---------- */
+    // rules: the game's pure rules module; me: the bot's seat; seed: for reproducible games
+    function tools(game, { rules = Rules.of(game), me = 1, seed = 1, difficulty = "normal", players = 2 } = {}) {
+        if (!rules) throw new Error(`no rules registered for game "${game}"`);
+        const random = rng(seed);
+        const t = {
+            game, rules, me, players, difficulty, seed,
+            random,
+            randInt: (n) => Math.floor(random() * n),
+            pick: (arr) => (arr.length ? arr[Math.floor(random() * arr.length)] : undefined),
+            shuffle(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; },
+            legalMoves: (state, p = state.current) => rules.legalMoves(state, p),
+            isLegal: (state, i, p = state.current) => rules.isLegal(state, i, p),
+            clone: (state) => JSON.parse(JSON.stringify(state)),
+            // the state after `i` is played by the current player (place + settle + conclude), on a copy
+            apply(state, i) {
+                const s = t.clone(state);
+                const p = s.current;
+                if (!rules.isLegal(s, i, p)) throw new Error(`illegal move ${i} for player ${p}`);
+                rules.place(s, i, p);
+                rules.settle(s, p);
+                const r = rules.conclude(s, p);
+                if (r) { s.over = true; s.winner = r.winner; s.finishWhy = r.why; }
+                return s;
+            },
+            outcome: (state) => ({ over: !!state.over, winner: state.over ? state.winner : null }),
+            opponents: (p = me) => Array.from({ length: players }, (_, k) => k).filter((k) => k !== p),
+            // time budget helper for searching bots: const d = tools.deadline(200); while (!d.expired()) …
+            deadline(ms) { const end = Date.now() + ms; return { expired: () => Date.now() >= end, left: () => Math.max(0, end - Date.now()) }; },
+        };
+        return t;
+    }
+
+    // a ready-to-play instance of a registered bot
+    function create(id, options = {}) {
+        const def = get(id);
+        if (!def) throw new Error(`unknown bot "${id}"`);
+        const difficulty = def.difficulties.some((d) => d.id === options.difficulty) ? options.difficulty : def.difficulties[0].id;
+        const t = tools(def.game, { ...options, difficulty });
+        const instance = def.create(t) || {};
+        if (typeof instance.move !== "function") throw new Error(`bot "${id}" returned no move()`);
+        return { def, tools: t, difficulty, move: (state) => instance.move(state) };
+    }
+
+    /* ---------- headless playout (tests, benchmark) ---------- */
+    // seats: one player per seat: a bot instance (from create) or a function state -> move
+    async function playout(game, config, seats, { maxMoves = 2000, rules = Rules.of(game) } = {}) {
+        const state = rules.create({ players: seats.length, ...config }, Rules.base({ players: seats.length, ...config }));
+        for (let moves = 0; !state.over && moves < maxMoves; moves++) {
+            const seat = seats[state.current];
+            const i = await (typeof seat === "function" ? seat(state) : seat.move(state));
+            if (!rules.isLegal(state, i, state.current)) throw new Error(`seat ${state.current} played illegal move ${i}`);
+            const p = state.current;
+            rules.place(state, i, p);
+            rules.settle(state, p);
+            const r = rules.conclude(state, p);
+            if (r) { state.over = true; state.winner = r.winner; state.finishWhy = r.why; }
+        }
+        return { over: state.over, winner: state.over ? state.winner : null, moves: state.history.length, history: state.history.slice(), state };
+    }
+
+    return { register, get, list, forGame, benchmark, benchmarkOf, tools, create, playout, rng, validate };
+})();

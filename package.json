@@ -2,13 +2,16 @@
   "name": "alzlper-minigames",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "php -S 127.0.0.1:8000 -t .",
     "build": "node build.mjs",
     "test": "npm run test:unit && npm run test:e2e",
-    "test:unit": "node --test --test-concurrency=4 'tests/unit/**/*.test.mjs'",
-    "test:e2e": "node --test --test-concurrency=2 --test-timeout=240000 'tests/e2e/**/*.test.mjs'"
+    "test:unit": "node --test --test-concurrency=4 'tests/unit/**/*.test.mjs' 'client/bots/**/*.test.mjs'",
+    "test:e2e": "node --test --test-concurrency=2 --test-timeout=240000 'tests/e2e/**/*.test.mjs'",
+    "benchmark": "node tools/benchmark.mjs"
   },
   "devDependencies": {
     "esbuild": "0.24.2",

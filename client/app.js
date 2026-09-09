@@ -10,7 +10,8 @@
 
     /* ================= state ================= */
     const app = {
-        mode: "local",          // "local" | "online"
+        mode: "local",          // "local" | "bot" | "online"   (bot = offline against a bot)
+        bot: null,              // bot mode: { id, difficulty, instance } for the running game
         phase: "menu",          // "menu" | "lobby" | "game"
         me: -1,                 // my seat (player number) online; -1 = not assigned yet / local mode.
                                 // Seats are sticky for the room visit; the transport role (host/guest) may swap.
@@ -33,8 +34,12 @@
     const friendHere = () => Net.connected && !app.opponentLeft;   // a "leave" arrives before the connection drops
     const live = () => !online() || friendHere();                  // the game may run (clock, input)
     const seatIsLocal = (p) => !!app.seats[p] && app.seats[p].kind === "local";
+    const seatIsBot = (p) => !!app.seats[p] && app.seats[p].kind === "bot";
     const otherPlayer = (p, players = 2) => (p + 1) % players;
-    const makeSeats = (players) => Array.from({ length: players }, (_, p) => ({ kind: online() && p !== app.me ? "remote" : "local" }));
+    // who moves for each seat: this device, the friend, or a bot (bot mode: you are seat 0)
+    const makeSeats = (players) => Array.from({ length: players }, (_, p) => ({
+        kind: online() ? (p === app.me ? "local" : "remote") : (app.mode === "bot" && p > 0 ? "bot" : "local"),
+    }));
     const playerColor = (p) => `var(--c${p})`;
     const isHost = () => Net.role === "host";     // transport role: the host is the room's source of truth
     // take a seat (room creation, session restore, or assigned by the host in `state`)
@@ -59,15 +64,18 @@
         const wrap = $("board-wrap");
         const size = Math.floor(Math.min(wrap.clientWidth, wrap.clientHeight)) - 10;
         if (size > 0) document.documentElement.style.setProperty("--board", size + "px");
-        requestAnimationFrame(Reactions.place);
+        Reactions.place();                               // layout is synchronous: the board rect is final here
     }
 
     /* ================= lobby ================= */
     function renderLobby() {
         const names = Skins.names();
         const players = Settings.read().players;
-        $("lobby-kind").textContent = online() ? "Room" : "Local game";
-        $("lobby-code").textContent = online() ? (Net.code || "…") : "Same device";
+        const bot = app.mode === "bot";
+        $("lobby-kind").textContent = online() ? "Room" : bot ? "Against a bot" : "Local game";
+        $("lobby-code").textContent = online() ? (Net.code || "…") : bot ? "You vs bot" : "Same device";
+        $("btn-opponent").hidden = !bot;
+        if (bot) $("opponent-summary").textContent = Opponent.summary(Settings.game);
         $("lobby-share").hidden = !online();
         $("lobby-players").hidden = !online();
         const box = $("lobby-players");
@@ -84,7 +92,7 @@
         }
         const start = $("btn-start");
         if (!online()) {
-            start.disabled = false;
+            start.disabled = bot && !Opponent.current(Settings.game);
             start.textContent = "Start game";
             $("lobby-status").textContent = "";
         } else if (!friendHere()) {
@@ -97,12 +105,14 @@
         $("btn-lobby-back").textContent = online() ? "Leave room" : "Back";
     }
 
-    function openLocalLobby() {
+    // offline lobby: two people on this device, or you against a bot
+    function openLocalLobby(withBot) {
         Net.leave();
-        app.mode = "local";
+        app.mode = withBot ? "bot" : "local";
         app.me = -1;
         app.gameNo = 0;
         app.config = null;
+        app.bot = null;
         clearSession();
         show("lobby");
     }
@@ -168,10 +178,11 @@
 
     /* ================= engine hooks ================= */
     const hooks = {
-        get names() { return Skins.names(); },
-        // may this device move for player p right now? (a bot seat would be handled in onTurn instead)
+        // player names for the HUD: the skin's colour names; a bot seat shows the bot's name
+        get names() { return Skins.names().map((n, p) => (seatIsBot(p) && app.bot ? app.bot.def.name : n)); },
+        // may this device move for player p right now? (bot seats move in onTurn)
         mayPlay: (p) => seatIsLocal(p) && live(),
-        turnHint: (p) => !online() ? "to move" : (p === app.me ? "your move" : "waiting for opponent…"),
+        turnHint: (p) => seatIsBot(p) ? "thinking…" : !online() ? "to move" : (p === app.me ? "your move" : "waiting for opponent…"),
         onCellClick: (i) => {
             const st = Game.state;
             if (st.busy || st.over || !hooks.mayPlay(st.current) || !Game.isLegal(i, st.current)) return;
@@ -182,7 +193,8 @@
         onTurn: (p) => {
             Clock.setActive(p);
             if (live()) Clock.resume();
-            processIncoming();
+            if (seatIsBot(p)) botTurn(p);
+            else processIncoming();
         },
         onBusy: (busy) => {
             if (busy) { Clock.pause(); return; }
@@ -208,6 +220,26 @@
         Game.finish(otherPlayer(p, Game.state.players), "Out of time!");
     }
 
+    /* ================= bot seat ================= */
+    const THINK_MS = 350;      // a bot answering instantly feels wrong
+
+    // the bot's move: ask its instance on a copy of the state, then play it like a click
+    function botTurn(p) {
+        const gameNo = app.gameNo;
+        const bot = app.bot;
+        if (!bot) return;
+        const stillOn = () => app.phase === "game" && gameNo === app.gameNo && app.bot === bot && !Game.state.over && !Game.state.busy && Game.state.current === p;
+        setTimeout(async () => {
+            if (!stillOn()) return;
+            let i;
+            try { i = await bot.move(bot.tools.clone(Game.state)); }
+            catch (e) { console.error(`bot ${bot.def.id} failed`, e); Log.add(`${bot.def.name} crashed — picking a random move.`, "x"); }
+            if (!stillOn()) return;
+            if (!Game.isLegal(i, p)) i = bot.tools.pick(bot.tools.legalMoves(Game.state, p));
+            if (i !== undefined) Game.play(i);
+        }, THINK_MS);
+    }
+
     /* ================= game lifecycle ================= */
     function startGame(cfg, startPlayer) {
         app.rev++;
@@ -215,6 +247,11 @@
         const def = Games.get(cfg.game);
         Game = def.engine;
         app.seats = makeSeats(cfg.players || 2);
+        if (app.mode === "bot") {
+            const choice = Opponent.current(cfg.game);
+            app.bot = choice ? Bots.create(choice.id, { me: 1, difficulty: choice.difficulty, seed: Date.now() >>> 0, players: cfg.players || 2 }) : null;
+            if (!app.bot) app.seats[1].kind = "local";                     // no bot for this game: play both sides
+        } else app.bot = null;
         document.body.className = document.body.className.replace(/\bgame-\S+/g, "").trim();
         document.body.classList.add("game-" + def.key);
         $("sign-title").textContent = def.title.toUpperCase();
@@ -524,7 +561,9 @@
     });
     $("join-code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-join").click(); });
     $("join-code").addEventListener("input", () => { $("join-code").value = Net.normalizeCode($("join-code").value); });
-    $("btn-local").addEventListener("click", openLocalLobby);
+    $("btn-local").addEventListener("click", () => openLocalLobby(false));
+    $("btn-bot").addEventListener("click", () => openLocalLobby(true));
+    $("btn-opponent").addEventListener("click", () => Opponent.open(Settings.game));
 
     // lobby
     $("btn-share").addEventListener("click", async () => {
@@ -563,7 +602,12 @@
     /* ================= boot ================= */
     Preload.textures();
     Skins.init({ onChange: () => { Game.render(); renderLobby(); } });
-    Settings.init({ onChange: (cfg) => { if (online()) Net.send({ t: "lobby", s: cfg }); } });
+    Settings.init({
+        onChange: (cfg) => { if (online()) Net.send({ t: "lobby", s: cfg }); },
+        // in bot mode picking a game asks which bot to play against
+        onSelectGame: (key) => { if (app.mode === "bot" && app.phase === "lobby") Opponent.open(key); },
+    });
+    Opponent.init({ onDone: () => renderLobby() });
     Reactions.init({ onSend: (e) => { if (online()) Net.send({ t: "react", e }); } });
 
     const roomFromUrl = Net.normalizeCode(new URLSearchParams(location.search).get("room"));
