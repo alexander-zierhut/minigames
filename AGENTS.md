@@ -9,7 +9,8 @@ for adding a new game (the most likely future task).
 A static site with nostalgic two-player minigames the owner played on a Minecraft
 server in 2015: **Chain React** (screenshot `2015-07-02_17.19.52.png` in the repo root)
 and **Five Wins** (gomoku without gravity). Hosted as plain files on S3 at
-`https://alzlper.com/chain-react/` — the code must never assume that URL; share links
+`https://minigames.alzlper.com/` (GitHub: `alexander-zierhut/minigames`, remote `github`;
+the old `origin` points at the owner's Gitea) — the code must never assume that URL; share links
 are built from `location.href`.
 
 No build step, no bundler, no backend, no framework. Vanilla JS in classic scripts
