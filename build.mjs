@@ -60,7 +60,9 @@ if (/client\//.test(html)) throw new Error("index.html still references client/ 
 writeFileSync(join(DIST, "index.html"), html);
 
 /* ---- optional extras ---- */
-for (const f of ["favicon.ico", "robots.txt"]) if (existsSync(join(ROOT, f))) copyFileSync(join(ROOT, f), join(DIST, f));
+for (const f of ["favicon.ico", "favicon-16x16.png", "favicon-32x32.png", "apple-touch-icon.png", "icon-192.png", "icon-512.png", "robots.txt"]) {
+    if (existsSync(join(ROOT, f))) copyFileSync(join(ROOT, f), join(DIST, f));
+}
 
 const size = (p) => (readFileSync(p).length / 1024).toFixed(1) + " KB";
 console.log(`dist/index.html\ndist/${ASSETS}/${jsName}  ${size(join(DIST, ASSETS, jsName))}\ndist/${ASSETS}/${cssName}  ${size(join(DIST, ASSETS, cssName))}\n${Object.keys(texMap).length} textures`);
