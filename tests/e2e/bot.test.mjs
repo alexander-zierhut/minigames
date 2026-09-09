@@ -23,7 +23,7 @@ test("bot lobby: opponent row, picking a game opens the bot picker with score an
     assert.equal(await B.ev("document.getElementById('bot-difficulty-row').hidden"), true, "single difficulty: no control");
     await B.click("#btn-bot-done");
     assert.equal(await B.ev("document.getElementById('bot-modal').hidden"), true);
-    assert.match(await B.text("opponent-summary"), /^Random · [\d.]+ % vs Random$/);
+    assert.match(await B.text("opponent-summary"), /^Random · [\d.]+ % vs Random( · [\d.]+ % puzzles)?$/);
 });
 
 test("five wins against Random: the bot moves by itself, HUD shows its name, game ends", async () => {

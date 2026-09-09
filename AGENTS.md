@@ -410,6 +410,29 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   segmented control (hidden with a single difficulty), remembers `{ id, difficulty }` per
   game in `localStorage["chainreact.bots"]`, `Opponent.current(game)` / `summary(game)`.
 
+- **Puzzles = perfect-move test sets** (`tests/puzzles/<game>/`): positions whose best
+  move(s) were PROVEN by a solver (`solver.mjs`, exhaustive minimax / proven threat search),
+  generated deterministically by `node tests/puzzles/<game>/generate.mjs` into
+  `puzzles.json` (`{ game, generated, solver, puzzles: [{ id, config, history, toMove, best,
+  value, depth, tags, note }] }`; `history` replays from an empty board, `best` = all
+  optimal moves, `value` from the mover's view, tags like `win-in-1`, `must-block`,
+  `avoid-loss`, `win-in-2`, `endgame-exhaustive`). Each folder has `solver.test.mjs` (the
+  solver on hand-made positions + the set's consistency) and a README with the guarantee
+  and the limits. `tools/puzzles.mjs` replays a puzzle (`positionOf`) and grades a bot
+  (`evaluateBot` → solved/total/pct, per tag, failures); `tests/unit/puzzles.test.mjs`
+  checks every set (≥ 100, replayable, legal best moves) and prints every bot's score; the
+  benchmark stores it as `puzzles: { solved, total, pct, chance }` in `benchmark.js`
+  (`chance` = what random picking scores on that set — small boards have few legal
+  moves, so Random gets ~22 % on the chain set; read scores against it). **No test and no
+  workflow ever requires 100 % or any fixed puzzle score to pass the build or deploy**
+  (owner's rule): the shared test only checks the sets, real bots assert their own
+  thresholds on `evaluateBot` in `bot.test.mjs`, set below the level they actually reach.
+  The owner's view: puzzles are the right yardstick while bots are weak; once bots are
+  strong, head-to-head series matter more — both numbers are kept and both show in the
+  picker badge and the lobby summary. A natural next step once there are several real
+  bots: a round-robin "battle of bots" (every bot vs every other, both colours) with an
+  Elo-style rating instead of only "vs Random".
+
 ### How to add a bot
 1. `client/bots/<id>/bot.js` with `Bots.register({...})` — copy `random-five`. Use
    `tools.random`, never `Math.random` (tests and the benchmark rely on seeds). Long
@@ -417,7 +440,8 @@ every bot folder into a bare VM — script list parsed from `index.html`).
 2. `client/bots/<id>/bot.test.mjs` with the facts that make the bot good (see above).
 3. Two script tags in `index.html` after the existing bots: `bot.js` and `benchmark.js`.
 4. `npm run benchmark <id>` locally (or let the workflow do it) — commit `benchmark.js`.
-5. `npm test`; the conformance suite and the e2e bot flow run automatically.
+5. `npm test`; the conformance suite, the puzzle grading and the e2e bot flow run
+   automatically. Add `evaluateBot` thresholds (per tag if useful) to the bot's tests.
 
 ## Emoji reactions (`client/reactions.js`)
 

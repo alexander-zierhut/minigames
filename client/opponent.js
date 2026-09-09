@@ -31,6 +31,7 @@ const Opponent = (() => {
         if (c.def.difficulties.length > 1) parts.push(c.def.difficulties.find((d) => d.id === c.difficulty).label);
         const b = Bots.benchmarkOf(c.id);
         if (b) parts.push(`${b.score} % vs Random`);
+        if (b && b.puzzles) parts.push(`${b.puzzles.pct} % puzzles`);
         return parts.join(" · ");
     }
 
@@ -50,10 +51,13 @@ const Opponent = (() => {
             el.className = "bot-option" + (def.id === selected.id ? " selected" : "");
             el.dataset.bot = def.id;
             const b = Bots.benchmarkOf(def.id);
-            el.innerHTML = `<span class="bot-name"></span><span class="bot-score">${b ? `<b>${b.score} %</b>vs Random` : "not rated"}</span><span class="bot-desc"></span>`;
+            const badge = b ? `<b>${b.score} %</b>vs Random` + (b.puzzles ? `<i>${b.puzzles.pct} % puzzles</i>` : "") : "not rated";
+            el.innerHTML = `<span class="bot-name"></span><span class="bot-score">${badge}</span><span class="bot-desc"></span>`;
             el.querySelector(".bot-name").textContent = def.name;
             el.querySelector(".bot-desc").textContent = def.description || "";
-            el.title = b ? `Win rate against the Random bot over ${b.games} games (${b.at})` : "No benchmark yet";
+            el.title = b
+                ? `Win rate against the Random bot over ${b.games} games (${b.at})` + (b.puzzles ? `; perfect moves found in ${b.puzzles.solved} of ${b.puzzles.total} puzzles (random picking: ${b.puzzles.chance} %)` : "")
+                : "No benchmark yet";
             el.addEventListener("click", () => { selected = { id: def.id, difficulty: def.difficulties[0].id }; renderList(); });
             list.appendChild(el);
         }
