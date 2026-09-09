@@ -294,6 +294,24 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   Start is disabled before the connection actually drops), `ping`/`pong` every 3 s, 12 s
   silence → lost → the guest redials. `rematch` with `g <= gameNo` is ignored
   (duplicates). Handlers live in `HANDLERS` in app.js.
+- **ICE servers / TURN** (`iceServers()` in net.js): STUN alone cannot connect two players
+  who are both on mobile data (carrier-grade NAT; the owner hit this on the go). So every
+  `open()` fetches the ICE list (STUN + TURN with credentials) from the owner's **Metered**
+  account's credentials API (`alzlper.metered.live`, credential-scoped API key, free plan
+  0.5 GB/month — plenty, a move is a few bytes; WebRTC relays only without a direct path),
+  exactly as Metered documents for browser apps. Cached 20 min; on failure/timeout (4 s)
+  STUN-only is used (tests and local dev work either way). The endpoint is stored in
+  `RELAY_SRC` reversed + base64 (`relayUrl()`) so crawlers grepping for `turn:` or the key parameter
+  don't harvest it; it is not a secret and the owner doesn't mind the free account —
+  just don't publish it in an obvious place (no `turn.json`, no plain string). Metered has
+  no domain restriction and the owner explicitly rejected a rotation workflow as unreliable.
+  The Peer is created asynchronously (`createPeer`, guarded by `openGen` so a room left
+  meanwhile is ignored). After 3 dials whose data channel never opened while the host is
+  registered (`channelFailures`, or repeated `webrtc` errors) the status becomes `error`
+  with a plain hint to try Wi‑Fi.
+- **Guest dial handshake**: the guest listens for data from the start (under load the
+  host's first message can arrive before the guest's own `open` event) and attaches once
+  the channel is open *and* the host sent `welcome` (a host `ping` counts too).
 - Statuses: `idle, connecting, waiting, connected, reconnecting, signaling, error`.
   `signaling` = broker socket dropped (tab suspended); an established DataConnection
   keeps working without the broker → no in-game banner for it. `everConnected` picks the

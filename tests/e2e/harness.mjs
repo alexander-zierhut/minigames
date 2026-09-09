@@ -107,9 +107,18 @@ export async function launchBrowser({ width = 1400, height = 900, mobile = false
                 let v = false;
                 try { v = await B.ev(expr); } catch (e) { /* retry */ }
                 if (v) return v;
-                if (Date.now() - t0 > timeout) throw new Error(`timeout waiting for: ${what}`);
+                if (Date.now() - t0 > timeout) throw new Error(`timeout waiting for: ${what}\n  page: ${await B.diag()}`);
                 await sleep(every);
             }
+        },
+        // what the page is doing right now (appended to timeout errors; a screenshot lands in E2E_SHOTS)
+        async diag() {
+            let info = "?";
+            try {
+                info = await B.ev(`JSON.stringify({ screen: document.querySelector('.screen:not([hidden])')?.id, net: typeof Net === 'undefined' ? null : { status: Net.status, role: Net.role, code: Net.code, connected: Net.connected }, lobby: document.getElementById('lobby-status')?.textContent, banner: document.getElementById('net-banner')?.hidden === false ? document.getElementById('net-banner-text').textContent : null, log: [...document.querySelectorAll('#log div')].map(d => d.textContent).slice(0, 3) })`);
+                await B.screenshot(`timeout-${Date.now()}.png`);
+            } catch (e) { /* page gone */ }
+            return info;
         },
         // ---- game helpers ----
         click: (sel) => B.ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error("no element " + ${JSON.stringify(sel)}); e.click(); return true; })()`),
