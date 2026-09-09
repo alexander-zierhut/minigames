@@ -252,11 +252,16 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   `you` (its old seat if free, else the free one), mirrors settings, starts/continues
   the game, answers `sync`. `rematch: true` = "I pressed Rematch while you were away"
   and is handled like a `rematch` message, so a request never gets lost.
-- **Full room**: the guest's dial carries `metadata {seat}`. A newcomer while a friend is
-  connected gets `full` and is closed (its status becomes `error` "This room is full…",
-  no retry loop) — unless it carries the connected friend's seat: then it is that friend
-  back on a new connection (refresh before the old one was noticed dead) and the stale
-  connection is replaced. Connection handlers check `conn === c` for that reason.
+- **Accepting a guest**: the guest's dial carries `metadata {seat}`; once the data
+  channel is open the host answers `welcome` (the guest attaches only then) or `full`.
+  A newcomer while a friend is connected gets `full` — unless it carries the connected
+  friend's seat (that friend back on a new connection after a refresh) or the old
+  connection has stopped answering pings (> 6 s): then the stale one is replaced.
+  `full` is not final on the guest: it shows "This room is full…" (status `error`) and
+  quietly redials every 5 s, because the "friend" may be its own stale connection the
+  host hasn't noticed as dead yet (a slow CI machine hit exactly that). Connection
+  handlers check `conn === c` so a replaced connection's close is ignored. A dial that
+  gets no data channel within 8 s is closed and retried.
 - A former host whose id was taken over while its tab slept (`unavailable-id` with
   `everConnected`) joins as guest at once; only a fresh page (refresh) retries the claim.
 - **Newest intent wins** (`app.rev`): every phase change (start, rematch, back to room)
@@ -278,7 +283,7 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
 - Share link = `<page URL without query>?room=CODE`; `?room=` on load auto-joins;
   `history.replaceState` keeps `?room=` in the URL while in a room.
 - Messages (JSON over one reliable DataConnection; game messages carry `g` = gameNo):
-  `hello`, `state`, `full` (transport level, host → rejected newcomer), `lobby {s}` (settings changed), `start {config, g}` (host started),
+  `hello`, `state`, `welcome`/`full` (transport level, host → guest on accept/reject), `lobby {s}` (settings changed), `start {config, g}` (host started),
   `start-request` (guest asks; host is authoritative), `tolobby` (either side; abandons a
   running game), `sync {g, history, clocks}` (on (re)connect / on gaps: the shorter side
   replays the missing tail; deferred in `app.pendingSync` while animating), `move {i, n,

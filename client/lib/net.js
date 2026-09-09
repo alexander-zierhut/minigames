@@ -40,6 +40,7 @@ const Net = (() => {
     let hostClaimTries = 0;
     let dialAttempts = 0;
     let hostMissing = 0;        // consecutive dials that found no host at the broker
+    let roomFull = false;       // the host turned us away; keep the message while retrying quietly
     let lastPong = 0;
     const timers = { ping: null, retry: null, signaling: null };
 
@@ -147,14 +148,22 @@ const Net = (() => {
     function dial() {
         if (!wantConnection || !peer || peer.destroyed || isOpen()) return;
         dialAttempts++;
-        if (everConnected) setStatus("reconnecting", dialAttempts > 1 ? `Reconnecting to your friend… (try ${dialAttempts})` : "Reconnecting to your friend…");
+        if (roomFull) { /* keep "room is full" on screen while we quietly try again */ }
+        else if (everConnected) setStatus("reconnecting", dialAttempts > 1 ? `Reconnecting to your friend… (try ${dialAttempts})` : "Reconnecting to your friend…");
         else setStatus("connecting", dialAttempts > 1 ? "Your friend isn't in the room yet. Waiting…" : "Looking for the room…");
         const metadata = handlers.metadata ? handlers.metadata() : {};   // e.g. my seat, for the host's full-room check
         const c = peer.connect(PREFIX + code, { reliable: true, metadata });
         let opened = false;
-        c.on("open", () => { opened = true; attach(c); });
+        // the host answers the open channel with welcome (attach) or full (turned away)
+        const first = (msg) => {
+            if (!msg || typeof msg !== "object") return;
+            c.removeListener("data", first);
+            if (msg.t === "welcome") attach(c);
+            else if (msg.t === "full") { try { c.close(); } catch (e) {} onFull(); }
+        };
+        c.on("open", () => { opened = true; c.on("data", first); });
         c.on("error", () => {});
-        after("retry", 4000, () => {                     // host not there yet: try again
+        after("retry", 8000, () => {                     // no data channel in time: try again
             if (!opened && wantConnection) { try { c.close(); } catch (e) {} dial(); }
         });
     }
@@ -166,7 +175,8 @@ const Net = (() => {
         if (isOpen()) {
             const seat = c.metadata && c.metadata.seat;
             const same = seat >= 0 && conn.metadata && conn.metadata.seat === seat;
-            if (!same) {
+            const silent = Date.now() - lastPong > PING_EVERY * 2;     // the old connection stopped answering
+            if (!same && !silent) {
                 try { c.send({ t: "full" }); } catch (e) {}
                 setTimeout(() => { try { c.close(); } catch (e) {} }, 300);
                 return;
@@ -175,6 +185,7 @@ const Net = (() => {
             conn = null;
             try { stale.close(); } catch (e) {}
         }
+        try { c.send({ t: "welcome" }); } catch (e) {}      // the guest attaches only after this
         attach(c);
     }
 
@@ -183,13 +194,14 @@ const Net = (() => {
         everConnected = true;
         dialAttempts = 0;
         hostMissing = 0;
+        roomFull = false;
         lastPong = Date.now();
         clearTimer("retry");
         c.on("data", (msg) => {
             if (!msg || typeof msg !== "object" || conn !== c) return;
             if (msg.t === "ping") { send({ t: "pong" }); return; }
             if (msg.t === "pong") { lastPong = Date.now(); return; }
-            if (msg.t === "full") { onFull(); return; }
+            if (msg.t === "welcome") return;
             if (handlers.onMessage) handlers.onMessage(msg);
         });
         c.on("close", () => { if (conn === c) onLost("closed"); });      // a replaced connection must not count
@@ -204,13 +216,13 @@ const Net = (() => {
         if (handlers.onOpen) handlers.onOpen(role);
     }
 
-    // the host already has a friend: stop trying, the app shows the message until Leave
+    // the host already has a friend. Not final: the "friend" may be our own stale connection
+    // that the host hasn't noticed as dead yet, so keep trying quietly behind the message.
     function onFull() {
-        wantConnection = false;
-        clearTimer("ping");
-        clearTimer("retry");
-        conn = null;
+        if (!wantConnection) return;
+        roomFull = true;
         setStatus("error", "This room is full — two players are already in it.");
+        after("retry", 5000, dial);
     }
 
     function onLost(reason) {
@@ -266,6 +278,7 @@ const Net = (() => {
         for (const name of Object.keys(timers)) clearTimer(name);
         if (conn) { try { conn.close(); } catch (e) {} }
         conn = null;
+        roomFull = false;
         dropPeer();
         role = null;
         setStatus("idle", "");
