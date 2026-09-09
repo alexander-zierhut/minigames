@@ -11,7 +11,13 @@
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
-    <link href="client/main.css" rel="stylesheet">
+    <!-- stylesheets are concatenated in this order by build.mjs -->
+    <link rel="stylesheet" href="client/css/base.css">
+    <link rel="stylesheet" href="client/css/menu.css">
+    <link rel="stylesheet" href="client/css/game.css">
+    <link rel="stylesheet" href="client/css/skin-mc.css">
+    <link rel="stylesheet" href="client/games/chain.css">
+    <link rel="stylesheet" href="client/games/five.css">
 </head>
 <body>
 
@@ -76,30 +82,14 @@
             </div>
         </div>
 
-        <div class="lobby-players" id="lobby-players">
-            <div class="lobby-player p0" id="lp-0"><span class="cube p0"></span><span class="lp-name">Cyan</span><span class="lp-status" id="lp-0-status"></span></div>
-            <div class="lobby-player p1" id="lp-1"><span class="cube p1"></span><span class="lp-name">Amber</span><span class="lp-status" id="lp-1-status"></span></div>
-        </div>
+        <!-- one card per seat, from #tpl-lobby-player -->
+        <div class="lobby-players" id="lobby-players"></div>
         <div class="lobby-status" id="lobby-status"></div>
 
         <div class="section">
             <div class="section-title">Game</div>
-            <div class="game-picker" id="game-picker">
-                <button class="game-card selected" data-game="chain">
-                    <span class="game-preview chain">
-                        <i></i><i></i><i></i><i class="p0"></i><i class="p1"></i><i></i><i></i><i></i><i></i>
-                    </span>
-                    <span class="game-name">Chain React</span>
-                    <span class="game-desc">Explosions & chain reactions</span>
-                </button>
-                <button class="game-card" data-game="five">
-                    <span class="game-preview five">
-                        <i class="p0"></i><i></i><i class="p1"></i><i class="p1"></i><i class="p0"></i><i></i><i></i><i></i><i class="p0"></i>
-                    </span>
-                    <span class="game-name">Five Wins</span>
-                    <span class="game-desc">Five in a row, no gravity</span>
-                </button>
-            </div>
+            <!-- one card per registered game, built by settings.js -->
+            <div class="game-picker" id="game-picker"></div>
             <p class="tagline small" id="menu-tagline"></p>
         </div>
 
@@ -144,27 +134,13 @@
                 </div>
                 <div class="turn-mini">
                     <div><span id="round-mini">Round 1</span></div>
-                    <div id="mini-line2">chain <b id="chain-mini">0</b> / best <b id="best-mini">0</b></div>
+                    <div id="mini-line2"></div>
                 </div>
                 <button class="gear" id="gear" aria-label="Menu">☰</button>
             </div>
 
-            <div class="players">
-                <div class="player p0" id="p-0">
-                    <div class="player-head"><span class="cube p0"></span> <span id="p0-name">Cyan</span> <span class="you" id="p0-you" hidden>you</span></div>
-                    <div class="clock" id="clock-0" hidden>3:00</div>
-                    <div class="stat"><span id="lbl-cells-0">Cells</span><b id="p0-cells">0</b></div>
-                    <div class="stat"><span id="lbl-pieces-0">Pieces</span><b id="p0-pieces">0</b></div>
-                    <div class="bar"><div class="bar-fill p0" id="p0-bar" style="width:0%"></div><span id="p0-pct">0%</span></div>
-                </div>
-                <div class="player p1" id="p-1">
-                    <div class="player-head"><span class="cube p1"></span> <span id="p1-name">Amber</span> <span class="you" id="p1-you" hidden>you</span></div>
-                    <div class="clock" id="clock-1" hidden>3:00</div>
-                    <div class="stat"><span id="lbl-cells-1">Cells</span><b id="p1-cells">0</b></div>
-                    <div class="stat"><span id="lbl-pieces-1">Pieces</span><b id="p1-pieces">0</b></div>
-                    <div class="bar"><div class="bar-fill p1" id="p1-bar" style="width:0%"></div><span id="p1-pct">0%</span></div>
-                </div>
-            </div>
+            <!-- one card per seat, from #tpl-player -->
+            <div class="players" id="players"></div>
 
             <div class="chain-box" id="chain-box">
                 <div class="stat"><span>Current chain</span><b id="chain-now">0</b></div>
@@ -187,7 +163,7 @@
         </aside>
     </div>
 
-    <!-- emoji reactions (YouTube-live style, bottom right corner) -->
+    <!-- emoji reactions: bar in the top-right corner, floating layer placed by reactions.js -->
     <div id="react-layer" aria-hidden="true"></div>
     <div id="react-bar" class="collapsed">
         <div class="react-list">
@@ -214,6 +190,7 @@
 </section>
 
 <!-- ===================== SETTINGS ===================== -->
+<!-- rows with data-setting="…" are shown only for games listing that key in `settings` -->
 <div id="settings-modal" class="modal" hidden>
     <div class="menu-card settings-card">
         <h1 class="title small">Settings</h1>
@@ -222,11 +199,11 @@
                 <span>Board size <small id="size-hint"></small></span>
                 <span class="inline"><input type="number" id="set-size" min="3" max="25" step="1" value="6" autocomplete="off"><small>× same</small></span>
             </label>
-            <label class="row" id="row-winlen">
+            <label class="row" id="row-winlen" data-setting="winLen">
                 <span>In a row to win</span>
                 <span class="inline"><input type="number" id="set-winlen" min="3" max="25" step="1" value="5" autocomplete="off"><small>stones</small></span>
             </label>
-            <label class="row" id="row-speed">
+            <label class="row" id="row-speed" data-setting="speed">
                 <span>Animation speed</span>
                 <select id="set-speed" autocomplete="off">
                     <option value="1100">Slow</option>
@@ -249,7 +226,7 @@
                 <span>Custom minutes</span>
                 <input type="number" id="set-timer-custom" min="0.5" max="120" step="0.5" value="3" autocomplete="off">
             </label>
-            <label class="row" id="row-chain">
+            <label class="row" id="row-chain" data-setting="chainRule">
                 <span>Win on a long chain</span>
                 <span class="inline">
                     <input type="checkbox" id="set-chain" autocomplete="off">
@@ -279,11 +256,37 @@
 
 <div id="toast" hidden></div>
 
+<!-- ===================== TEMPLATES ("{k}" = player number) ===================== -->
+<template id="tpl-player">
+    <div class="player p{k}" id="p-{k}">
+        <div class="player-head"><span class="cube p{k}"></span> <span id="p{k}-name"></span> <span class="you" id="p{k}-you" hidden>you</span></div>
+        <div class="clock" id="clock-{k}" hidden>3:00</div>
+        <div class="stat"><span id="lbl-cells-{k}">Cells</span><b id="p{k}-cells">0</b></div>
+        <div class="stat"><span id="lbl-pieces-{k}">Pieces</span><b id="p{k}-pieces">0</b></div>
+        <div class="bar"><div class="bar-fill p{k}" id="p{k}-bar" style="width:0%"></div><span id="p{k}-pct">0%</span></div>
+    </div>
+</template>
+<template id="tpl-lobby-player">
+    <div class="lobby-player p{k}" id="lp-{k}"><span class="cube p{k}"></span><span class="lp-name"></span><span class="lp-status" id="lp-{k}-status"></span></div>
+</template>
+
+<!-- scripts are concatenated in this order by build.mjs; every file defines one global -->
 <script src="client/vendor/peerjs.min.js"></script>
-<script src="client/game.js"></script>
-<script src="client/five.js"></script>
-<script src="client/clock.js"></script>
-<script src="client/net.js"></script>
+<script src="client/lib/util.js"></script>
+<script src="client/lib/bus.js"></script>
+<script src="client/lib/log.js"></script>
+<script src="client/lib/clock.js"></script>
+<script src="client/lib/net.js"></script>
+<script src="client/lib/preload.js"></script>
+<script src="client/games/rules.js"></script>
+<script src="client/games.js"></script>
+<script src="client/games/chain-rules.js"></script>
+<script src="client/games/chain.js"></script>
+<script src="client/games/five-rules.js"></script>
+<script src="client/games/five.js"></script>
+<script src="client/skins.js"></script>
+<script src="client/settings.js"></script>
+<script src="client/reactions.js"></script>
 <script src="client/app.js"></script>
 </body>
 </html>

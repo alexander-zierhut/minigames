@@ -1,0 +1,75 @@
+/* ============================================================
+   Five Wins board: n×n square tiles, round stones (classic) or
+   diamond/gold blocks on quartz (MC skins), winning line jumps.
+   ============================================================ */
+#board.five {
+    --five-gap: calc(var(--board) / var(--n) * 0.12);
+    grid-template-columns: repeat(var(--n), 1fr);
+    grid-template-rows: repeat(var(--n), 1fr);
+    gap: var(--five-gap);
+    padding: var(--five-gap);
+}
+.stone {
+    position: relative;
+    background: var(--panel);
+    border-radius: 22%;
+    box-shadow: inset 0 0 0 2px var(--line);
+    cursor: pointer;
+    transition: box-shadow .15s, background .15s;
+}
+.stone.can-place:hover { box-shadow: inset 0 0 0 2px #5a68a8; background: var(--panel2); }
+.stone.locked { cursor: not-allowed; }
+.stone::after {
+    content: "";
+    position: absolute; inset: 14%;
+    border-radius: 50%;
+    opacity: 0;
+    transform: scale(.3);
+    transition: opacity .15s, transform .15s;
+}
+.stone.taken::after { opacity: 1; transform: scale(1); background: var(--block); box-shadow: 0 0 12px color-mix(in srgb, var(--pc) 55%, transparent); }
+.stone.drop::after { animation: stone-drop .28s cubic-bezier(.2,1.4,.4,1); }
+@keyframes stone-drop { 0% { transform: scale(1.8); opacity: 0; } 60% { transform: scale(.92); opacity: 1; } 100% { transform: scale(1); } }
+
+/* winning line: the stones jump up and down in a wave (like the MC blocks did) */
+.stone.win { z-index: 2; overflow: visible; box-shadow: inset 0 0 0 3px var(--pc), 0 0 18px var(--pc); }
+.stone.win::after {
+    animation: stone-jump .9s cubic-bezier(.3,0,.2,1) infinite;
+    animation-delay: calc(var(--k, 0) * .12s);
+}
+@keyframes stone-jump {
+    0%   { transform: translateY(0) scale(1); filter: brightness(1); }
+    30%  { transform: translateY(-55%) scale(1.12); filter: brightness(1.6); }
+    55%  { transform: translateY(0) scale(.95, .9); filter: brightness(1.1); }
+    70%  { transform: translateY(-12%) scale(1); }
+    100% { transform: translateY(0) scale(1); filter: brightness(1); }
+}
+
+/* last move: static white ring (owner: no animation) */
+.stone .last-marker { inset: 10%; border-radius: 50%; }
+
+.game-preview.five i { border-radius: 50%; }
+body.game-five .chain-box { display: none !important; }
+
+/* ---- Minecraft board (both MC skins): quartz tiles on obsidian, blocks as stones ---- */
+:is(.skin-mc, .skin-mcboard) #board.five {
+    background-image: var(--tex-shell); background-size: calc(var(--board) / var(--n)) calc(var(--board) / var(--n)); image-rendering: pixelated;
+    --five-gap: calc(var(--board) / var(--n) * 0.08);
+}
+:is(.skin-mc, .skin-mcboard) .stone {
+    border-radius: 0; box-shadow: none;
+    background: var(--tex-quartz); background-size: cover; image-rendering: pixelated;
+    transition: filter .1s; /* no background transition: the classic hover colour must never bleed in */
+}
+:is(.skin-mc, .skin-mcboard) .stone.can-place:hover {
+    filter: brightness(1.15); box-shadow: none;
+    background: var(--tex-quartz); background-size: cover;
+}
+:is(.skin-mc, .skin-mcboard) .stone::after { inset: 0; border-radius: 0; background-size: cover; image-rendering: pixelated; box-shadow: none; }
+:is(.skin-mc, .skin-mcboard) .stone.taken::after { background: var(--tex-p); background-size: cover; box-shadow: none; }
+:is(.skin-mc, .skin-mcboard) .stone.win { box-shadow: inset 0 0 0 3px #fff, 0 0 18px var(--pc); }
+/* white is invisible on quartz: red ring with a black halo */
+:is(.skin-mc, .skin-mcboard) .stone .last-marker {
+    border-radius: 0; inset: 4%; border-color: #ff2d2d;
+    box-shadow: 0 0 0 2px #000, inset 0 0 0 2px #000, 0 0 10px rgba(255,45,45,.9);
+}

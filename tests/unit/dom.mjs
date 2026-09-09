@@ -1,13 +1,17 @@
-/* Loads index.html + the engine scripts into jsdom so the engines can be unit-tested
-   against the real HUD markup. app.js is not loaded (it needs PeerJS, ResizeObserver…). */
+/* Loads index.html + every client script except app.js into jsdom, so the engines,
+   HUD, clock, settings … can be unit-tested against the real markup. app.js is left
+   out because it boots the app (PeerJS, ResizeObserver, texture preload). */
 import { JSDOM } from "jsdom";
 import { readFileSync } from "node:fs";
 
 const ROOT = new URL("../../", import.meta.url).pathname;
-const SCRIPTS = ["client/game.js", "client/five.js", "client/clock.js", "client/net.js"];
+const HTML = readFileSync(ROOT + "index.html", "utf8");
+export const SCRIPTS = [...HTML.matchAll(/<script src="(client\/[^"]+)"><\/script>/g)]
+    .map((m) => m[1])
+    .filter((f) => !f.includes("/vendor/") && f !== "client/app.js");
 
 export function loadDom() {
-    const html = readFileSync(ROOT + "index.html", "utf8").replace(/<script src="[^"]+"><\/script>/g, "");
+    const html = HTML.replace(/<script src="[^"]+"><\/script>/g, "");
     const dom = new JSDOM(html, { runScripts: "dangerously", pretendToBeVisual: true, url: "http://localhost/" });
     const w = dom.window;
     // Web Animations API is not in jsdom: resolve immediately
@@ -20,7 +24,7 @@ export function loadDom() {
     return w;
 }
 
-export const NAMES = ["Cyan", "Amber"];
+export const NAMES = ["Cyan", "Amber", "Lime", "Rose"];
 
 export function hooks(extra = {}) {
     const calls = { turns: [], busy: [], finish: null, moves: [] };

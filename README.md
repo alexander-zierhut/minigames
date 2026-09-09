@@ -1,12 +1,10 @@
-# Chain React & Five Wins
+# ALZlper's Minigames
 
-Two nostalgic two-player minigames in one static page.
+Two nostalgic two-player minigames in one static page: **Chain React** (fill a cell, it
+explodes into its neighbours, take the whole board) and **Five Wins** (five in a row, no
+gravity). Live at https://minigames.alzlper.com/.
 
-- **Chain React:** place pieces in cells; a full cell explodes into its neighbours and
-  can set off long chains. Take the whole board to win.
-- **Five Wins:** place a stone anywhere on the grid. First to get five in a row wins.
-
-Static site, no build step, no backend. Create a room once, share the link, then pick
+Static site, no backend, no framework. Create a room once, share the link, then pick
 games and settings together in the room lobby; rematch or switch games without new links.
 
 ## Play
@@ -14,37 +12,35 @@ games and settings together in the room lobby; rematch or switch games without n
 - **On one device:** two people share a screen or phone.
 - **Online:** one player creates a room and shares the link (or the 5-letter code).
   Both players typing the same code also works. Uses PeerJS: the public PeerJS broker
-  only brokers the handshake, then the game runs peer to peer.
+  only brokers the handshake, then the game runs peer to peer. A page refresh, leaving
+  and coming back by the same link, even the room creator leaving — the room survives
+  as long as one player is in it, and everybody keeps their colour.
 
 Settings (board size, animation speed, chess-style timer, chain-win rule, stones in a
-row) are shared live in the room lobby; either player can change them. The look (Classic,
-MC board, Minecraft) is a per-device choice on the title screen. A page refresh rejoins
-the room and re-syncs the game. Emoji reactions for trash talk are in the top-right corner.
+row) are shared live in the room lobby; either player can change them. The look
+(Classic, MC board, Minecraft) is a per-device choice. Emoji reactions for trash talk
+are in the top-right corner.
 
 ## Develop & test
 
 ```
 npm install        # dev tools only (jsdom, esbuild)
 npm run dev        # http://localhost:8000 (needs php) — or any static file server
-npm test           # unit tests (jsdom) + end-to-end tests (headless Chrome)
+npm test           # unit tests (jsdom + pure rules) and end-to-end tests (headless Chrome)
 npm run build      # hashed bundle in dist/
 ```
 
 CI runs the whole suite on every push and pull request; `main` deploys only after a
-green run and requires the check to merge.
+green run and requires the check to merge. `AGENTS.md` documents the architecture, the
+room protocol and how to add a game.
 
-## Deploy
+## Layout
 
-Upload `index.html` and the `client/` folder to any static host (S3, GitHub Pages, …).
-Share links are built from the page's own URL, so it works under any path.
-
-## Files
-
-- `client/game.js`  Chain React rules, board rendering, explosion animation
-- `client/five.js`  Five Wins engine
-- `client/clock.js` per-player chess clock (pauses during animations)
-- `client/net.js`   PeerJS room transport with reconnects
-- `client/app.js`   title screen, lobby, local and online flow, rematch
-- `client/main.css` classic skin, plus the Minecraft skin under `body.skin-mc`
-- `client/textures/` 16×16 block textures used by the Minecraft skin
-- `client/vendor/peerjs.min.js` PeerJS 1.5.4
+- `index.html` — markup, templates, and the ordered list of stylesheets and scripts
+- `client/lib/` — `util`, `bus` (events), `log`, `clock`, `net` (PeerJS rooms), `preload`
+- `client/games.js` — game registry, the engine shell every game shares, HUD renderer
+- `client/games/` — per game: pure `<key>-rules.js`, `<key>.js` (view + registration), `<key>.css`
+- `client/skins.js`, `client/settings.js`, `client/reactions.js`, `client/app.js` (flow, room protocol)
+- `client/css/` — base tokens, menu/lobby, game screen, Minecraft skins
+- `client/textures/` — 16×16 block textures used by the Minecraft skins
+- `tests/unit`, `tests/e2e`, `build.mjs`, `.github/workflows/ci.yml`

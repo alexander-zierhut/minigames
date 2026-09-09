@@ -1,0 +1,242 @@
+/* ============================================================
+   Game screen: layout, generic board (turn outline, last-move
+   marker), HUD (compact on phones, full beside the board on
+   desktop), result overlay, net banner, emoji reactions
+   ============================================================ */
+#app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100dvh;
+    overflow: hidden;
+}
+#board-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+#board {
+    width: var(--board);
+    height: var(--board);
+    position: relative;
+    display: grid;
+    background: var(--bg2);
+    touch-action: manipulation;
+    user-select: none;
+    /* whose turn: outline in the active player's colour (#board.turn-p<k>) */
+    outline: 4px solid transparent;
+    outline-offset: 1px;
+    transition: outline-color .25s, box-shadow .25s;
+}
+#board:is(.turn-p0, .turn-p1, .turn-p2, .turn-p3) {
+    outline-color: var(--pc);
+    box-shadow: 0 0 22px color-mix(in srgb, var(--pc) 45%, transparent);
+}
+
+/* last move: every cell has a .last-marker child; the engine adds .last to the newest cell.
+   Games restyle it (chain: static border, five: ring). Hidden once the game is over. */
+.last-marker {
+    display: none;
+    position: absolute; inset: 6%;
+    border: 3px solid #fff;
+    border-radius: 18%;
+    box-shadow: 0 0 0 2px rgba(0,0,0,.7), inset 0 0 0 2px rgba(0,0,0,.7), 0 0 12px rgba(255,255,255,.8);
+    pointer-events: none; z-index: 2;
+}
+.last .last-marker { display: block; }
+#board.over .last-marker { display: none; }
+
+/* ---- HUD ("hut"), mobile first: compact, never scrolls ---- */
+#hut {
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 8px 10px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: var(--panel);
+    border-top: 2px solid var(--line);
+}
+#hut .sign, #hut .log, #hut .chain-box, #hut .stat, #hut .controls { display: none; }
+#hut.show-controls .controls { display: flex; }
+
+.sign { text-align: center; }
+.sign-title { font-weight: 900; letter-spacing: 3px; font-size: 20px; }
+.sign-sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+.turn-box {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 10px;
+    background: var(--bg2);
+    border: 2px solid var(--pc, var(--line));
+    border-radius: 10px;
+    box-shadow: 0 0 14px color-mix(in srgb, var(--pc, transparent) 35%, transparent);
+    transition: box-shadow .3s, border-color .3s;
+}
+.turn-box.busy .turn-hint::after { content: " · chain reaction!"; color: #ff9b3d; }
+.turn-block { width: 32px; height: 32px; border-radius: 30%; background: var(--block); }
+.turn-name { font-weight: 800; font-size: 16px; }
+.turn-hint { font-size: 11px; color: var(--muted); }
+.turn-mini { margin-left: auto; text-align: right; font-size: 11px; color: var(--muted); line-height: 1.3; }
+.turn-mini b { color: #ff9b3d; }
+.gear {
+    font-size: 18px; line-height: 1;
+    background: var(--panel2); color: var(--text); border: 2px solid var(--line); border-radius: 8px;
+    width: 36px; height: 36px; cursor: pointer; padding: 0;
+}
+
+.players { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.player {
+    padding: 6px 10px;
+    background: var(--bg2);
+    border: 2px solid var(--pc-dark, var(--line));
+    border-radius: 10px;
+    font-size: 13px;
+}
+.player.active { border-color: var(--pc); }
+.player-head { font-weight: 800; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; }
+.you { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: var(--accent); color: #fff; margin-left: auto; }
+.clock { font-variant-numeric: tabular-nums; font-weight: 800; font-size: 18px; color: var(--muted); margin: 2px 0; }
+.clock.running { color: var(--text); }
+.clock.low { color: #ff5d5d; }
+.clock.running.low { animation: blink .6s steps(1) infinite; }
+
+.stat { display: flex; justify-content: space-between; padding: 1px 0; }
+.stat span { color: var(--muted); }
+.stat b { color: var(--text); }
+.bar { position: relative; margin-top: 3px; height: 16px; background: #0a0d17; border-radius: 6px; overflow: hidden; }
+.bar-fill { height: 100%; transition: width .4s ease; background: linear-gradient(90deg, var(--pc-dark), var(--pc)); }
+.bar span { position: absolute; inset: 0; text-align: center; font-size: 11px; line-height: 16px; color: #fff; text-shadow: 0 1px 2px #000; font-weight: 800; }
+
+.chain-box { padding: 6px 10px; background: var(--bg2); border: 2px solid var(--line); border-radius: 10px; font-size: 13px; }
+.chain-box #chain-now { color: #ff9b3d; }
+.chain-box.hot { border-color: #ff6a00; box-shadow: 0 0 12px rgba(255,106,0,.6); }
+
+.net-box { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); padding: 0 4px; }
+.net-dot { width: 9px; height: 9px; border-radius: 50%; background: #666; }
+.net-dot.connected { background: #3ddc84; box-shadow: 0 0 6px #3ddc84; }
+.net-dot.waiting, .net-dot.connecting { background: #ffcc33; }
+.net-dot.reconnecting, .net-dot.error { background: #ff5d5d; animation: blink .8s steps(1) infinite; }
+.net-code { margin-left: auto; font-weight: 700; letter-spacing: 1px; }
+
+.log {
+    font-size: 12px; color: var(--text);
+    background: var(--bg2); border: 2px solid var(--line); border-radius: 10px;
+    padding: 6px 10px; min-height: 54px; max-height: 72px; overflow: hidden;
+    display: flex; flex-direction: column-reverse; gap: 2px;
+}
+.log > :is(.p0, .p1, .p2, .p3) { color: var(--pc); }
+.log .x { color: #ff9b3d; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding-top: 4px; }
+
+#net-banner {
+    position: fixed; left: 50%; top: 12px; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px;
+    background: #2a1a1a; border: 2px solid #ff5d5d; border-radius: 10px;
+    padding: 8px 14px; font-size: 13px; z-index: 40; max-width: 92vw;
+    box-shadow: 0 10px 30px rgba(0,0,0,.6);
+}
+@media (max-width: 899px) { #net-banner { top: 58px; } }  /* keep clear of the reaction toggle */
+
+/* ---- result overlay + "Show result" floating button ---- */
+#overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.72);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 50; animation: fadein .4s;
+}
+.overlay-card {
+    background: var(--panel); border: 2px solid var(--line); border-radius: 18px;
+    box-shadow: 0 20px 60px #000;
+    padding: 26px 28px; text-align: center;
+    display: flex; flex-direction: column; align-items: center; gap: 12px; width: min(92vw, 360px);
+}
+.overlay-block { width: 72px; height: 72px; border-radius: 30%; animation: spin 2.4s linear infinite; }
+.overlay-block:is(.p0, .p1, .p2, .p3) { background: var(--block); box-shadow: 0 0 24px color-mix(in srgb, var(--pc) 60%, transparent); }
+.overlay-block.draw { background: linear-gradient(135deg, var(--c0), var(--c1)); }
+@keyframes spin { from { transform: rotateY(0) } to { transform: rotateY(360deg) } }
+.overlay-title { font-size: 28px; font-weight: 900; }
+.overlay-sub { font-size: 14px; color: var(--muted); white-space: pre-line; }
+.overlay-actions { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.overlay-actions .btn { width: 100%; }
+#result-fab {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+    z-index: 45; box-shadow: 0 10px 30px rgba(0,0,0,.6);
+    animation: fab-in .3s ease-out;
+}
+@keyframes fab-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* ---- desktop: HUD beside the board, thicker obsidian ---- */
+@media (min-width: 900px) and (min-aspect-ratio: 1/1) {
+    :root { --pad-f: 1; --gap-f: 1; }
+    #app { flex-direction: row; justify-content: center; align-items: center; gap: 24px; padding: 2vh 16px; }
+    #board-wrap { flex: 1 1 auto; height: 100%; width: auto; }
+    #board { border-radius: 16px; }
+    #hut {
+        width: 340px; flex: 0 0 340px; max-height: 100%; overflow: auto;
+        border: 2px solid var(--line); border-radius: 16px; padding: 14px; gap: 10px;
+    }
+    #hut .sign, #hut .chain-box { display: block; }
+    #hut .stat, #hut .controls { display: flex; }
+    #hut .log { display: flex; max-height: 110px; min-height: 80px; }
+    .turn-mini, .gear { display: none; }
+    .turn-box { gap: 12px; padding: 8px 12px; }
+    .turn-block { width: 40px; height: 40px; }
+    .turn-name { font-size: 18px; }
+    .turn-hint { font-size: 12px; }
+    .player { padding: 8px 10px; }
+    .bar { margin-top: 6px; }
+    .overlay-card { width: auto; min-width: 420px; max-width: 560px; padding: 28px 36px; }
+    .overlay-actions { flex-direction: row; width: auto; }
+    .overlay-actions .btn { width: auto; white-space: nowrap; }
+    #result-fab { bottom: 28px; }
+}
+
+/* ---- emoji reactions: small, short, in the corner, never on the board ---- */
+#react-bar {
+    position: fixed; right: 10px; top: 10px; z-index: 46;
+    display: flex; align-items: center; gap: 6px;
+}
+#react-bar .react-list {
+    display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end;
+    max-width: min(420px, calc(100vw - 70px));
+    padding: 4px; background: rgba(0,0,0,.45); border: 2px solid var(--line); border-radius: 12px;
+    backdrop-filter: blur(4px);
+    transition: opacity .15s, transform .15s;
+}
+#react-bar.collapsed .react-list { opacity: 0; transform: translateX(8px) scale(.95); pointer-events: none; }
+#react-bar .react-list button {
+    width: 34px; height: 34px; font-size: 20px; line-height: 1;
+    background: transparent; border: 0; border-radius: 8px; cursor: pointer; padding: 0;
+    color: var(--text);
+    transition: transform .08s, background .1s;
+}
+#react-bar .react-list button:hover { background: rgba(255,255,255,.12); transform: scale(1.15); }
+#react-bar .react-list button:active { transform: scale(.9); }
+#react-bar .react-list button.chip { font-size: 14px; font-weight: 900; letter-spacing: 1px; color: #ff5d5d; border: 2px solid #ff5d5d; }
+#react-toggle {
+    width: 40px; height: 40px; font-size: 20px; line-height: 1; padding: 0;
+    background: var(--panel2); border: 2px solid var(--line); border-radius: 50%; cursor: pointer;
+    box-shadow: 0 6px 20px rgba(0,0,0,.5);
+}
+/* the layer is positioned by reactions.js; emojis fall down inside it */
+#react-layer { position: fixed; left: 0; top: 60px; width: 60px; height: 260px; z-index: 44; pointer-events: none; overflow: visible; }
+.react-float {
+    position: absolute; left: 50%; top: 0;
+    font-size: 30px; line-height: 1;
+    transform: translateX(-50%);
+    will-change: transform, opacity;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.6));
+}
+.react-float.chip {
+    font-size: 16px; font-weight: 900; letter-spacing: 1px;
+    color: #fff; background: #ff5d5d; border-radius: 8px; padding: 3px 8px;
+}
+.react-float.theirs::after {
+    content: ""; position: absolute; left: 50%; top: -6px; width: 6px; height: 6px; border-radius: 50%;
+    transform: translateX(-50%); background: var(--their-color, #fff);
+}

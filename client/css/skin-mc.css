@@ -1,0 +1,164 @@
+/* ============================================================
+   Minecraft skins.
+   1. "Minecraft BOARD" part, shared by body.skin-mcboard (classic
+      UI + textured board) and body.skin-mc: texture variables,
+      obsidian board shell, textured player blocks in HUD/picker.
+      Per-game board rules live in games/<key>.css.
+   2. "Minecraft UI" part, body.skin-mc only: one unified dark
+      look (dimmed dirt background, dark-oak panels, MC stone
+      buttons, white text with the classic MC shadow).
+   Textures are 16×16 and always image-rendering: pixelated.
+   ============================================================ */
+.skin-mc, .skin-mcboard {
+    --tex-shell:      url("../textures/obsidian.png");
+    --tex-glass:      url("../textures/glass_white.png");
+    --tex-glass-p0:   url("../textures/glass_light_blue.png");
+    --tex-glass-p1:   url("../textures/glass_yellow.png");
+    --tex-lamp-off:   url("../textures/redstone_lamp_off.png");
+    --tex-lamp-on:    url("../textures/redstone_lamp_on.png");
+    --tex-p0:         url("../textures/diamond_block.png");
+    --tex-p1:         url("../textures/gold_block.png");
+    --tex-quartz:     url("../textures/quartz_block_side.png");
+    --tex-planks:     url("../textures/planks_big_oak.png");
+    --tex-dirt:       url("../textures/dirt.png");
+}
+/* per-player textures, exposed as --tex-p / --tex-glass-p like the colours in base.css
+   (seats 2 and 3 need their own block textures before a 4-player mode) */
+:is(.skin-mc, .skin-mcboard) .p0 { --tex-p: var(--tex-p0); --tex-glass-p: var(--tex-glass-p0); }
+:is(.skin-mc, .skin-mcboard) .p1 { --tex-p: var(--tex-p1); --tex-glass-p: var(--tex-glass-p1); }
+
+:is(.skin-mc, .skin-mcboard) #board {
+    border-radius: 0;
+    background-image: var(--tex-shell); background-size: var(--unit) var(--unit); image-rendering: pixelated;
+    box-shadow: 0 0 0 2px #000, 0 0 60px rgba(0,0,0,.9) inset;
+}
+:is(.skin-mc, .skin-mcboard) #board:is(.turn-p0, .turn-p1, .turn-p2, .turn-p3) {
+    box-shadow: 0 0 0 2px #000, 0 0 60px rgba(0,0,0,.9) inset, 0 0 22px var(--pc);
+}
+:is(.skin-mc, .skin-mcboard) .last-marker { border-radius: 0; }
+
+/* the player blocks in the HUD / overlay / picker show the real textures */
+:is(.skin-mc, .skin-mcboard) :is(.turn-block, .cube, .overlay-block) {
+    border-radius: 0; background-image: var(--tex-p); background-size: cover; image-rendering: pixelated;
+    border: 2px solid #000; box-shadow: none;
+}
+:is(.skin-mc, .skin-mcboard) .overlay-block.draw { background: linear-gradient(135deg, var(--c0), var(--c1)); }
+:is(.skin-mc, .skin-mcboard) .game-preview i { box-shadow: none; background: var(--tex-glass); background-size: cover; image-rendering: pixelated; border-radius: 3px; }
+:is(.skin-mc, .skin-mcboard) .game-preview i:is(.p0, .p1, .p2, .p3) { background: var(--tex-p); background-size: cover; box-shadow: none; }
+
+/* ============================================================
+   Minecraft UI (body.skin-mc only)
+   ============================================================ */
+.skin-mc {
+    --bg: #1a1410;
+    --bg2: rgba(0,0,0,.62);
+    --panel: #2b2118;
+    --panel2: #141414;
+    --line: #0a0a0a;
+    --text: #ffffff;
+    --muted: #b8b8b8;
+    --accent: #ffff55;
+    --c0: #5fe8f0; --c0-dark: #2fb9c5;
+    --c1: #f6d12b; --c1-dark: #c9a11a;
+    --font: "Courier New", Courier, monospace;
+    --mc-shadow: 2px 2px 0 rgba(0,0,0,.85);
+    --mc-title: #ffff55;
+    --mc-title-shadow: 2px 2px 0 #3f3f15;
+    font-weight: 700;
+}
+.skin-mc body, .skin-mc { background: #1a1410; }
+.skin-mc #screen-menu, .skin-mc #screen-lobby, .skin-mc #app, .skin-mc #screen-game {
+    background: linear-gradient(rgba(0,0,0,.72), rgba(0,0,0,.72)), var(--tex-dirt);
+    background-size: auto, 40px 40px;
+    image-rendering: pixelated;
+}
+.skin-mc * { text-shadow: var(--mc-shadow); }
+.skin-mc select, .skin-mc option, .skin-mc input { text-shadow: none; }
+.skin-mc .btn, .skin-mc select, .skin-mc input, .skin-mc .menu-card, .skin-mc .turn-box, .skin-mc .player,
+.skin-mc .chain-box, .skin-mc .log, .skin-mc .overlay-card, .skin-mc .gear, .skin-mc #hut, .skin-mc .bar,
+.skin-mc .game-card, .skin-mc .game-preview, .skin-mc .sign, .skin-mc #net-banner, .skin-mc #toast, .skin-mc .you,
+.skin-mc .lobby-player, .skin-mc .seg { border-radius: 0; }
+
+/* panels: dark oak planks, dimmed, black border with a subtle wood inner line */
+.skin-mc .menu-card, .skin-mc .overlay-card, .skin-mc #hut {
+    background: linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), var(--tex-planks);
+    background-size: auto, 48px 48px;
+    image-rendering: pixelated;
+    border: 3px solid #000;
+    box-shadow: inset 0 0 0 2px #3a2a1c, 0 16px 50px rgba(0,0,0,.7);
+}
+.skin-mc #hut { border-width: 3px 0 0 0; box-shadow: inset 0 0 0 2px #3a2a1c, 0 -10px 30px rgba(0,0,0,.6); }
+/* inner boxes: uniform near-black */
+.skin-mc .turn-box, .skin-mc .player, .skin-mc .chain-box, .skin-mc .log, .skin-mc .sign, .skin-mc .game-card,
+.skin-mc .net-box, .skin-mc .lobby-player {
+    background: rgba(0,0,0,.62);
+    border: 2px solid #000;
+    box-shadow: inset 0 0 0 1px #3a3a3a;
+}
+.skin-mc .net-box { padding: 6px 10px; }
+.skin-mc .sign { padding: 8px 10px; }
+
+/* text */
+.skin-mc .title, .skin-mc .room-code, .skin-mc .sign-title, .skin-mc .overlay-title, .skin-mc .game-name {
+    background: none; color: var(--mc-title); text-shadow: var(--mc-title-shadow);
+}
+.skin-mc .section-title, .skin-mc .tagline, .skin-mc .hint, .skin-mc .overlay-sub, .skin-mc .sign-sub, .skin-mc .game-desc,
+.skin-mc .turn-hint, .skin-mc .turn-mini, .skin-mc .stat span, .skin-mc .net-box, .skin-mc .clock { color: var(--muted); }
+.skin-mc .settings .row { color: #fff; }
+.skin-mc .lobby-status, .skin-mc .turn-name, .skin-mc .player-head, .skin-mc .stat b, .skin-mc .log { color: #fff; }
+.skin-mc .log .x, .skin-mc .turn-mini b, .skin-mc .chain-box #chain-now { color: #ffaa00; }
+.skin-mc .clock.running { color: #fff; } .skin-mc .clock.low { color: #ff5555; }
+.skin-mc .you { background: #3a3a3a; color: #fff; border: 1px solid #000; }
+
+/* MC stone buttons: gray face, black outline, light top-left / dark bottom-right bevel */
+.skin-mc .btn {
+    color: #fff; text-shadow: var(--mc-shadow);
+    font-weight: 700; letter-spacing: 0;
+    background: #6f6f6f;
+    border: 2px solid #000;
+    box-shadow: inset 2px 2px 0 #a8a8a8, inset -2px -2px 0 #3d3d3d;
+    transition: none;
+}
+.skin-mc .btn:hover { background: #7a7fb0; box-shadow: inset 2px 2px 0 #b3b6d8, inset -2px -2px 0 #3f4160; color: #ffffa0; }
+.skin-mc .btn:active { transform: translateY(1px); box-shadow: inset -2px -2px 0 #a8a8a8, inset 2px 2px 0 #3d3d3d; }
+.skin-mc .btn.primary { background: #6f6f6f; }
+.skin-mc .btn.ghost { background: #4a4a4a; box-shadow: inset 2px 2px 0 #7a7a7a, inset -2px -2px 0 #262626; }
+.skin-mc .btn.ghost:hover { background: #5c5f80; }
+.skin-mc .btn:disabled { background: #3a3a3a; color: #a0a0a0; box-shadow: inset 2px 2px 0 #555, inset -2px -2px 0 #222; }
+.skin-mc .gear { background: #6f6f6f; border: 2px solid #000; box-shadow: inset 2px 2px 0 #a8a8a8, inset -2px -2px 0 #3d3d3d; color: #fff; }
+.skin-mc .seg { border-color: #000; background: rgba(0,0,0,.62); }
+.skin-mc .seg button { color: #b8b8b8; }
+.skin-mc .seg button.selected { background: #6f6f6f; color: #fff; box-shadow: inset 2px 2px 0 #a8a8a8, inset -2px -2px 0 #3d3d3d; }
+
+/* MC text fields: black with a light gray outline */
+.skin-mc select, .skin-mc input[type="number"], .skin-mc input[type="text"], .skin-mc #join-code {
+    background: #000; color: #fff; border: 2px solid #a0a0a0;
+}
+.skin-mc #join-code::placeholder { color: #707070; }
+.skin-mc input[type="checkbox"] { accent-color: #55ff55; }
+
+/* game cards */
+.skin-mc .game-card { color: #fff; }
+.skin-mc .game-card:hover { border-color: #a0a0a0; box-shadow: inset 0 0 0 1px #a0a0a0; }
+.skin-mc .game-card.selected { border-color: #fff; box-shadow: inset 0 0 0 1px #fff, 0 0 0 2px #000; }
+.skin-mc .game-preview { background: var(--tex-shell); background-size: 16px 16px; image-rendering: pixelated; padding: 3px; }
+
+/* HUD details */
+.skin-mc .turn-box { border-color: var(--pc, #000); box-shadow: inset 0 0 0 1px #3a3a3a, 0 0 12px color-mix(in srgb, var(--pc, transparent) 45%, transparent); }
+.skin-mc .player { border-color: var(--pc-dark, #000); }
+.skin-mc .player.active { border-color: var(--pc); }
+.skin-mc .lobby-player { border-color: var(--pc-dark, #000); }
+.skin-mc .bar { background: #000; border: 2px solid #3a3a3a; }
+.skin-mc .bar-fill { background: linear-gradient(var(--pc-light), var(--pc) 50%, var(--pc-dark)); }
+.skin-mc .chain-box.hot { border-color: #ffaa00; box-shadow: 0 0 12px rgba(255,170,0,.6); }
+.skin-mc #net-banner { background: #1a0a0a; border: 2px solid #ff5555; }
+.skin-mc #toast { background: #000; border: 2px solid #a0a0a0; }
+.skin-mc #overlay { background: rgba(0,0,0,.75); }
+.skin-mc #react-bar .react-list, .skin-mc #react-toggle { border-radius: 0; border-color: #000; background: rgba(0,0,0,.7); }
+.skin-mc .loader-title { background: none; color: var(--mc-title); text-shadow: var(--mc-title-shadow); }
+.skin-mc .loader-bar { border-radius: 0; border-color: #000; background: #000; }
+.skin-mc .loader-fill { background: #55ff55; }
+
+@media (min-width: 900px) and (min-aspect-ratio: 1/1) {
+    .skin-mc #hut { border-width: 3px; }
+}

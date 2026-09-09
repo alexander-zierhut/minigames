@@ -1,10 +1,11 @@
-/* Chess-style clock: each player has a fixed budget. Only the current player's clock
-   runs, and it pauses while explosions animate. */
+/* Chess-style clock: every player has the same budget, only the current player's
+   clock runs. The app pauses it while animations run and while the friend is away.
+   Elements: #clock-<k> inside the HUD player cards (missing ones are skipped). */
 
 "use strict";
 
 const Clock = (() => {
-    let remaining = [0, 0];
+    let remaining = [];     // ms per player
     let active = -1;        // player whose clock is running, -1 = none
     let paused = true;
     let lastTick = 0;
@@ -12,25 +13,24 @@ const Clock = (() => {
     let onFlag = null;      // (player) => void
     let enabled = false;
 
-    const $ = (id) => document.getElementById(id);
-
     function fmt(ms) {
         const s = Math.max(0, Math.ceil(ms / 1000));
         const m = Math.floor(s / 60);
-        const r = s % 60;
-        if (ms < 10000 && ms > 0) return `${m}:${String(r).padStart(2, "0")}.${Math.floor((ms % 1000) / 100)}`;
-        return `${m}:${String(r).padStart(2, "0")}`;
+        const r = String(s % 60).padStart(2, "0");
+        if (ms < 10000 && ms > 0) return `${m}:${r}.${Math.floor((ms % 1000) / 100)}`;
+        return `${m}:${r}`;
     }
 
     function render() {
-        for (let k = 0; k < 2; k++) {
-            const el = $(`clock-${k}`);
+        remaining.forEach((ms, k) => {
+            const el = Util.$(`clock-${k}`);
+            if (!el) return;
             el.hidden = !enabled;
-            if (!enabled) continue;
-            el.textContent = fmt(remaining[k]);
+            if (!enabled) return;
+            el.textContent = fmt(ms);
             el.classList.toggle("running", active === k && !paused);
-            el.classList.toggle("low", remaining[k] < 20000);
-        }
+            el.classList.toggle("low", ms < 20000);
+        });
     }
 
     function tick() {
@@ -40,18 +40,18 @@ const Clock = (() => {
         lastTick = now;
         if (remaining[active] <= 0) {
             remaining[active] = 0;
-            const p = active;
+            const flagged = active;
             stop();
-            render();
-            if (onFlag) onFlag(p);
+            if (onFlag) onFlag(flagged);
             return;
         }
         render();
     }
 
-    function setup(seconds, flagHandler) {
+    // seconds <= 0 disables the clock (hidden, never flags)
+    function setup(seconds, flagHandler, players = 2) {
         enabled = seconds > 0;
-        remaining = [seconds * 1000, seconds * 1000];
+        remaining = new Array(players).fill(seconds * 1000);
         onFlag = flagHandler;
         active = -1;
         paused = true;

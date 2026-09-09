@@ -81,15 +81,64 @@ test("back to room from one side moves both; host switches game; guest follows",
     await A.waitFor("ChainGame.state.history.length === 1", { what: "host got guest move" });
 });
 
-test("rematch handshake and leave banner", { skip: !ONLINE }, async () => {
+test("rematch handshake", { skip: !ONLINE }, async () => {
     await A.click("#btn-restart");
     await B.waitFor("document.getElementById('overlay-again').textContent === 'Accept rematch'", { what: "guest sees rematch request" });
     await B.click("#btn-restart");
     await A.waitFor("ChainGame.state.history.length === 0 && !ChainGame.state.over", { what: "host in rematch" });
     await B.waitFor("ChainGame.state.history.length === 0", { what: "guest in rematch" });
     assert.equal((await A.state()).current, 0, "game 3: host starts again");
-    await B.click("#btn-menu"); await sleep(300);      // guest to lobby
+    await A.move(0);
+    await B.waitFor("ChainGame.state.history.length === 1", { what: "guest got host move" });
+});
+
+test("host refreshes mid-game: reclaims the room, guest reconnects, game continues", { skip: !ONLINE }, async () => {
+    await A.goto(`${server.url}?room=${code}`);
+    await A.waitFor("Net.connected", { timeout: 40000, what: "host reconnected" });
+    assert.equal(await A.ev("Net.role"), "host");
+    await A.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-game' && ChainGame.state.history.length === 1", { what: "host board restored" });
+    assert.equal(await A.ev("document.getElementById('p0-you').hidden"), false, "host keeps seat 0");
+    await B.waitFor("Net.connected", { what: "guest sees host again" });
+    await sleep(300);
+    await B.move(15);                                   // guest's turn (seat 1)
+    await A.waitFor("ChainGame.state.history.length === 2", { what: "host got move after its refresh" });
+});
+
+test("guest leaves the room and comes back by link: same seat, board restored", { skip: !ONLINE }, async () => {
+    await B.click("#btn-menu"); await sleep(300);       // guest to lobby (takes the host along)
+    await A.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-lobby'", { what: "host in lobby" });
     await B.click("#btn-lobby-back");                   // guest leaves the room
-    await A.waitFor("!document.getElementById('net-banner').hidden || document.getElementById('lobby-status').textContent.includes('left')", { timeout: 10000, what: "host informed" });
+    await A.waitFor("document.getElementById('lobby-status').textContent.includes('left')", { timeout: 10000, what: "host informed" });
+    assert.equal(await B.screen(), "screen-menu");
+    assert.equal(await A.ev("document.getElementById('btn-start').disabled"), true, "host can't start without the friend");
+    await B.goto(`${server.url}?room=${code}`);
+    await B.waitFor("Net.connected", { timeout: 40000, what: "guest back" });
+    await A.waitFor("Net.connected", { what: "host sees guest" });
+    await B.waitFor("!document.getElementById('lp-1').classList.contains('absent') && document.getElementById('lp-1').textContent.includes('(you)')", { what: "guest has seat 1 again" });
+    await A.click("#btn-start");
+    await B.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-game'", { what: "guest in game 4" });
+    assert.equal((await B.state()).current, 1, "game 4: guest (seat 1) starts");
+    await B.move(0);
+    await A.waitFor("ChainGame.state.history.length === 1", { what: "host got move" });
+});
+
+test("host leaves; the guest takes over the room; the host returns by link as guest with its old seat", { skip: !ONLINE }, async () => {
+    await A.click("#btn-menu"); await sleep(300);
+    await A.click("#btn-lobby-back");                   // host leaves the room for good
+    await B.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-lobby'", { what: "guest in lobby" });
+    await B.waitFor("Net.role === 'host' && Net.status === 'waiting'", { timeout: 40000, what: "guest took over hosting" });
+    assert.equal(await B.ev("document.getElementById('lp-1').textContent.includes('(you)')"), true, "guest keeps seat 1 as host");
+    await A.goto(`${server.url}?room=${code}`);
+    await A.waitFor("Net.connected", { timeout: 40000, what: "former host joined as guest" });
+    assert.equal(await A.ev("Net.role"), "guest");
+    await A.waitFor("document.getElementById('lp-0').textContent.includes('(you)')", { what: "former host gets seat 0 back" });
+    await B.waitFor("Net.connected", { what: "new host sees the friend" });
+    await sleep(300);
+    await A.click("#btn-start");                        // guest asks the new host to start
+    await A.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-game'", { what: "game started by the new host" });
+    await B.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-game'", { what: "new host in game" });
+    assert.equal((await A.state()).current, 0, "game 5 in this room: seat 0 starts");
+    await A.move(5);
+    await B.waitFor("ChainGame.state.history.length === 1", { what: "new host got the move" });
     assert.deepEqual(A.errors, []); assert.deepEqual(B.errors, []);
 });

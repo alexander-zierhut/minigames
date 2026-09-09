@@ -1,399 +1,443 @@
 # ALZlper's Minigames — agent context
 
-Read this before touching anything. It captures how the site works, the decisions
+Read this before touching anything. It describes how the site is built, the decisions
 already made with the owner, the traps that cost time before, and a step-by-step guide
-for adding a new game (the most likely future task).
+for adding a new game (the most likely future task). Keep it accurate: when you change
+behaviour, protocol keys, files or events, update the matching section here.
 
 ## What this is
 
 A static site with nostalgic two-player minigames the owner played on a Minecraft
-server in 2015: **Chain React** (screenshot `2015-07-02_17.19.52.png` in the repo root)
-and **Five Wins** (gomoku without gravity). Hosted as plain files on S3 at
-`https://minigames.alzlper.com/` (GitHub: `alexander-zierhut/minigames`, remote `github`;
-the old `origin` points at the owner's Gitea) — the code must never assume that URL; share links
-are built from `location.href`.
+server in 2015: **Chain React** and **Five Wins** (gomoku without gravity). Hosted as
+plain files on Scaleway Object Storage at `https://minigames.alzlper.com/` (GitHub
+`alexander-zierhut/minigames`, git remote `github`; the old `origin` points at the
+owner's Gitea). The code must never assume that URL; share links are built from
+`location.href`.
 
-No build step, no bundler, no backend, no framework. Vanilla JS in classic scripts
-(not ES modules), loaded in this order in `index.html`:
-`vendor/peerjs.min.js` → `game.js` → `five.js` → `clock.js` → `net.js` → `app.js`.
-Each file exposes one global (`ChainGame`, `FiveGame`, `Clock`, `Net`) via an IIFE.
-`app.js` wires everything and holds the active engine in a local `Game` variable.
+No framework, no backend, no bundler at development time. Vanilla JS in classic scripts
+(not ES modules), each file an IIFE that defines exactly one global. The source runs
+unbundled straight from `index.html` + `client/`; `build.mjs` concatenates for deploy.
 
-Local dev: `php -S 127.0.0.1:8000 -t .` from the repo root `/workspace/Development/private/minigames` (port 8080 is taken on the
-owner's machine by something unrelated). Any static file server works; the source runs
-unbundled straight from `index.html` + `client/`.
+Local dev: `npm run dev` (= `php -S 127.0.0.1:8000 -t .`; port 8080 is taken on the
+owner's machine) or any static file server from the repo root.
+
+## Files and load order
+
+`index.html` lists the stylesheets and scripts; **build.mjs and the unit-test loader
+read that list**, so adding a file = adding one tag there, nothing else to configure.
+
+Scripts, in order (each defines the global named in brackets):
+
+| File | Global | Role |
+| --- | --- | --- |
+| `client/vendor/peerjs.min.js` | `Peer` | PeerJS 1.5.4, vendored (no CDN at runtime) |
+| `client/lib/util.js` | `Util` | `$`, `sleep`, `clamp`, `restartClass`, fail-safe storage `load/save/remove`, `fromTemplate`, `toast` |
+| `client/lib/bus.js` | `Bus` | event bus `on/off/emit` (see Events) |
+| `client/lib/log.js` | `Log` | the HUD event log (`add(text, cls)`, `clear()`, 6 lines) |
+| `client/lib/clock.js` | `Clock` | chess clock for N players |
+| `client/lib/net.js` | `Net` | PeerJS room transport |
+| `client/lib/preload.js` | `Preload` | first-visit texture preload with `#loader` bar |
+| `client/games/rules.js` | `Rules` | base state + turn passing shared by all rules modules |
+| `client/games.js` | `Games`, `Engine`, `Hud` | registry, the engine shell every game shares, HUD renderer |
+| `client/games/chain-rules.js` | `ChainRules` | Chain React rules, pure (no DOM) |
+| `client/games/chain.js` | `ChainView`, `ChainGame` | Chain React board/animation/HUD numbers + registration |
+| `client/games/five-rules.js` | `FiveRules` | Five Wins rules, pure |
+| `client/games/five.js` | `FiveView`, `FiveGame` | Five Wins view + registration (smallest game: the template) |
+| `client/skins.js` | `Skins` | look per device: body class, player names |
+| `client/settings.js` | `Settings` | settings form ↔ config, picker cards, persistence, summary |
+| `client/reactions.js` | `Reactions` | emoji reactions bar + floating layer |
+| `client/app.js` | (none) | flow, room protocol, session restore, wiring, boot |
+
+Stylesheets, in order: `client/css/base.css` (tokens, player colour variables, buttons,
+inputs, modal, toast, loader) → `client/css/menu.css` (title, lobby, picker, settings)
+→ `client/css/game.css` (game layout, generic board, HUD, overlay, banner, reactions)
+→ `client/css/skin-mc.css` (Minecraft board part shared by both MC skins + Minecraft
+UI part) → `client/games/chain.css` → `client/games/five.css` (each game's board,
+classic first, then its MC-skin rules).
+
+Other: `client/textures/*.png` — 16×16 Mojang block textures from the owner's own
+1.12.2 jar (personal use; MC skins stay opt-in). Only textures referenced from CSS are
+kept. `README.md` is the short public readme; `CLAUDE.md` just imports this file.
+`server/` (a 2022 PHP stub) was deleted; don't bring it back.
 
 ## Build & deploy
 
-- `node build.mjs` (or `npm run build`) writes `dist/`: `index.html` +
-  `assets/app.<hash>.js` (all client scripts concatenated in `index.html` order, minified
-  with esbuild via `npx` when available) + `assets/main.<hash>.css` (texture urls
-  rewritten) + `assets/textures/<name>.<hash>.png`. Hashes are content hashes → cache
-  busting by filename. `dist/` is git-ignored.
-- `.github/workflows/ci.yml` runs the test suite on every push/PR; on `main` the deploy
-  job follows a green test job: build, then
-  `aws s3 sync` the assets with `Cache-Control: public, max-age=31536000, immutable`,
-  then `index.html` with `no-cache`, then delete old hashed assets. Target: Scaleway
-  Object Storage bucket `minigames.alzlper.com`, region `nl-ams`, endpoint
-  `https://s3.nl-ams.scw.cloud`. Credentials come from repo secrets `SCW_ACCESS_KEY` /
-  `SCW_SECRET_KEY`: a **non-expiring API key of the IAM application `minigames-website`**
-  (id `300c3839-68e5-4fc9-9a66-9321af7ffe1e`, policy `minigames-website-policy` =
-  ObjectStorageFullAccess on project `zierhut-p` 829778ff…), same pattern as the owner's
-  other sites (e.g. `alexzierhut-website`). The bucket policy has three statements:
-  owner user id full access, deploy application full access, `*` GetObject.
-- Bucket is in website mode (index + error document `index.html`), same policy shape as
-  the owner's other sites (`alzlper.com`, `blog.alzlper.com`). DNS: CNAME the domain to
-  `minigames.alzlper.com.s3-website.nl-ams.scw.cloud` (TLS via Scaleway Edge Services).
-- Adding a new client script: put its `<script src="client/…">` tag in `index.html` —
-  the build picks up all `client/` script tags in order; nothing else to configure.
-
-## Files
-
-- `index.html` — screens as `<section class="screen">`: `#screen-menu`, `#screen-lobby`,
-  `#screen-game`; plus `#settings-modal`, `#overlay` (result), `#result-fab`,
-  `#react-bar`/`#react-layer`, `#net-banner`, `#toast`.
-- `client/app.js` — game registry (`GAMES`), skins (`SKINS`), settings, screens, room
-  lobby, hooks into the engine, online protocol, reactions, session restore, `fitBoard`.
-- `client/game.js` — `ChainGame` engine (rules, DOM board, explosion animation, replay).
-- `client/five.js` — `FiveGame` engine (same interface, gomoku).
-- `client/clock.js` — `Clock`: chess clock (setup/setActive/pause/resume/stop/snapshot/restore).
-- `client/net.js` — `Net`: PeerJS room transport (open/send/leave/retryNow + status callbacks).
-- `client/main.css` — classic skin (default) → desktop media query → picker/five/fab →
-  "Minecraft BOARD" block (shared by both MC skins) → "Minecraft UI" block → reactions.
-- `client/textures/*.png` — 16×16 Mojang block textures from the owner's own 1.12.2 jar
-  (personal use; MC skins stay opt-in "so I don't get sued").
-- `client/vendor/peerjs.min.js` — PeerJS 1.5.4, vendored (no CDN at runtime).
-- `README.md` — short public readme. `CLAUDE.md` just imports this file.
-- `server/` (a 2022 PHP Ratchet stub) was deleted as unused. Don't bring it back.
+- `npm run build` (= `node build.mjs`) writes `dist/`: `index.html` + `assets/app.<hash>.js`
+  (all client scripts in `index.html` order, esbuild-minified when available) +
+  `assets/main.<hash>.css` (all stylesheets concatenated, `../textures/x.png` rewritten
+  to hashed names) + `assets/textures/<name>.<hash>.png` + the icon files. Hashes are
+  content hashes → cache busting by filename. Env: `DIST_DIR`, `SKIP_MINIFY=1`.
+- `.github/workflows/ci.yml`: job `test` (npm ci → unit → e2e) on push to `main`, PRs
+  and manual; job `deploy` (`needs: test`, pushes to `main` only): build, `aws s3 sync`
+  assets with `Cache-Control: public, max-age=31536000, immutable`, root files with
+  1-day cache, `index.html` with `no-cache`, then `--delete` sync of stale files.
+  Bucket `minigames.alzlper.com`, region `nl-ams`, endpoint `https://s3.nl-ams.scw.cloud`.
+  Credentials: repo secrets `SCW_ACCESS_KEY` / `SCW_SECRET_KEY` = non-expiring API key of
+  IAM application `minigames-website` (id `300c3839-68e5-4fc9-9a66-9321af7ffe1e`, policy
+  `minigames-website-policy` = ObjectStorageFullAccess on project `zierhut-p`
+  829778ff…), same pattern as the owner's other sites. Bucket policy: owner user full
+  access, that application full access, `*` GetObject. Website mode (index + error
+  document `index.html`); DNS CNAME to `minigames.alzlper.com.s3-website.nl-ams.scw.cloud`.
+- Branch protection on `main` requires the `test` check for PRs (admins not enforced,
+  so the owner can push directly).
 
 ## Flow: title → room lobby → game (the "party" model)
 
-Owner asked for this explicitly after playtesting ("we sent 3–4 links just to try
-things"). One room, one link, the whole evening.
+One room, one link, the whole evening (owner's request after "we sent 3–4 links just
+to try things").
 
-- **Title screen** (`#screen-menu`): title "ALZlper's Minigames" (owner's MC name),
-  section *Online* with `Create room` + `Join room` (the code field `#join-panel` only
-  appears after pressing Join room), section *Offline* with `Play on this device`, and
-  the global **Look** (skin) segmented control. Nothing else. Must never scroll on a phone.
-- **Lobby** (`#screen-lobby`) is the same screen for local and online (`app.mode`):
-  room code + Share/Copy (online only), player cards (online only), game picker
-  (`.game-card[data-game]`), settings summary button → `#settings-modal`, `Start game`,
-  `Leave room`/`Back`.
-- **Game** (`#screen-game`): board + HUD ("hut"). After a game the result overlay offers
-  `Rematch` (same config), `Look at board` (hides overlay, `#result-fab` brings it back),
-  `Change game` (→ lobby). The HUD has `Rematch` and `Back to room` too.
-- `app.phase` ∈ `menu | lobby | game`. `app.gameNo` increments per started game (local
-  too). `startPlayerFor(g) = (g + 1) % 2` → host (player 0) starts game 1, then alternate.
+- **Title** (`#screen-menu`): title "ALZlper's Minigames", section *Online* with
+  `Create room` + `Join room` (`#join-panel` with the code field appears on Join room),
+  section *Offline* with `Play on this device`, and the global **Look** control. Never
+  scrolls on a phone.
+- **Lobby** (`#screen-lobby`), same screen for local and online (`app.mode`): room code +
+  Share/Copy (online only), one `.lobby-player` card per seat from `#tpl-lobby-player`
+  (online only), the game picker (one `.game-card[data-game]` per registered game, built
+  by `Settings.init`), settings summary button → `#settings-modal`, Look control,
+  `Start game`, `Leave room`/`Back`.
+- **Game** (`#screen-game`): board + HUD ("hut"). Result overlay: `Rematch`, `Look at
+  board` (hides it; `#result-fab` brings it back), `Change game` (→ lobby). The HUD has
+  `Rematch` and `Back to room` too.
+- `app.phase` ∈ `menu | lobby | game`; `app.gameNo` increments per started game (local
+  too); `startPlayerFor(g) = (g - 1) % players` → seat 0 starts game 1, then alternate.
 
-### Shared lobby state (online)
-- Any settings change by either player (`settingsChanged()`) sends `lobby {s}`; the
-  receiver writes it into its form via `writeSettings()` with `app.applyingRemote = true`
-  so it doesn't echo back. A toast says "Settings updated by your friend".
-- Starting is **host-authoritative**: host's Start sends `start {config, g}` and starts;
-  the guest's Start sends `start-request`, the host then starts. Start is disabled until
-  the friend is connected.
-- `tolobby` from either side brings both back to the lobby (a running game is abandoned).
-- On every (re)connect the host sends `state {phase, settings, config, g}` — the single
-  source of truth for a (re)joining guest: lobby → mirror settings; game → start that
-  game if not already in it, then exchange `sync`.
+## Settings (`client/settings.js`)
 
-## Settings
+Form in `#settings-modal` (opened from the lobby summary, closed by Done / backdrop;
+number inputs are clamped on `change` and on close, never on `input`, so typing "12"
+doesn't snap at "1"). Persisted in `localStorage["chainreact.settings"]` together with
+`sizeFor` (remembered board size per game). Inputs have `autocomplete="off"` (Firefox
+restores form values on reload).
 
-Live in `#settings-modal` (opened from the lobby's summary button, closed by Done or
-backdrop click; number inputs are clamped on close / `change`, never on `input`, so
-typing "12" doesn't snap at "1"). Persisted in `localStorage["chainreact.settings"]`
-(inputs have `autocomplete="off"` because Firefox restores form values on reload).
-- Board size: free number, per-game min/max from the registry, remembered per game in
-  `sizeFor`. Chain 3–12 (default 6), Five 5–25 (default 9; min = win length).
-- Animation speed (chain only): Slow 1100 / Normal 750 / Fast 350 ms → `--speed`.
-- Timer per player: Off (default) / 1 / 3 / 5 / 10 min / custom minutes.
-- Win on a long chain (chain only, off by default; owner dislikes it but wanted it):
-  N explosions, default 15.
-- In a row to win (five only): 3–25, default 5.
-- `readSettings()` returns the config object that becomes `app.config` for a game.
-  The **skin is NOT a setting** — see below.
+- Shared rows: board size (limits from the game's `size` + optional `minSize(cfg)`),
+  timer per player (Off default / 1 / 3 / 5 / 10 min / custom minutes).
+- Game rows carry `data-setting="<key>"`; a row is shown when the selected game lists
+  the key in its `settings` array. Today: `winLen` (five: 3–25, default 5, also the
+  board's minimum), `speed` (chain: Slow 1100 / Normal 750 / Fast 350 ms), `chainRule`
+  (chain: win on N explosions, off by default, N default 15; owner dislikes the rule but
+  wanted it available). Game inputs are described once in `FIELDS`.
+- `Settings.read()` returns the **config** a game starts with: `{ game, players: 2, n,
+  timer, timerSel, timerCustom, winLen, speed, chainRule, chainLen }`. Engines get it as
+  `config` (plus `startPlayer`) and read only what they need.
+- Summary text: `n × n` · `describeRules(cfg)` parts · timer · `describeOptions(cfg)` parts
+  (e.g. "7 × 7 · 5 in a row · 3 min timer", "4 × 4 · no timer · 15-chain wins").
+- Any change → `onChange(config)` → app sends `lobby {s}` to the friend. `Settings.write`
+  runs silently (no echo) when applying the friend's settings.
+- The **look is not a setting** (see Skins).
 
-## Skins (three, per device)
+## Skins (`client/skins.js`, per device)
 
-Global `#skin-seg` control on the title screen, stored in `localStorage["chainreact.skin"]`,
-never sent to the friend, never in the settings modal (owner asked for both).
-- **Classic** (default; owner's favourite — don't touch its look): dark navy UI, cyan vs
-  amber, rounded cells, lamps as dots. Names "Cyan"/"Amber".
+`.skin-seg` control on the title screen and in the lobby (`Skins.init` wires both),
+stored in `localStorage["chainreact.skin"]`, never sent to the friend, never in the
+settings modal. The DOM is identical for every skin; a body class switches the CSS and
+`Skins.names()` gives the player names.
+- **Classic** (default, owner's favourite — don't touch its look): dark navy UI, cyan vs
+  amber, rounded cells, lamps as dots. Names "Cyan"/"Amber" (seats 2/3: "Lime"/"Rose").
 - **MC board** (`body.skin-mcboard`): classic UI, Minecraft textures on the board, flying
   pieces, sparks, HUD player blocks and picker previews. Names "Diamond"/"Gold".
 - **Minecraft** (`body.skin-mc`): board part + full MC-style UI: dimmed dirt background,
   dark-oak plank panels with black border, near-black inner boxes, MC stone buttons
   (gray face, black outline, light top-left / dark bottom-right bevel, blue hover), black
-  text fields with gray outline, white text with MC drop shadow, yellow `#ffff55` titles.
-  Owner rejected the earlier light-wood "sign" look as unreadable — keep it dark/unified.
-- In `main.css` the "Minecraft BOARD" section uses `:is(.skin-mc, .skin-mcboard)` and is
-  shared; the "Minecraft UI" section is `.skin-mc` only. The DOM is identical for all
-  skins; colours come from CSS vars (`--c0/--c1` player colours, `--panel`, `--line`…).
-  `SKINS` in `app.js` maps skin → player names + body class.
+  text fields, white text with MC drop shadow, yellow `#ffff55` titles. Owner rejected an
+  earlier light-wood look as unreadable — keep it dark/unified.
 
-## Chain React rules (agreed with the owner)
+### Player colours in CSS (how 4 seats stay cheap)
+`base.css` defines `--c<k>`, `--c<k>-dark/-light/-bg` for seats 0–3 and the rules
+`.p<k>, .turn-p<k> { --pc … --pc-bg }` plus `--block` (the shiny radial gradient). Every
+other rule uses `var(--pc)` etc. and never a seat number: a cell with class `p1`, a
+`.player` card, a `.log` line, `#board.turn-p0`… all pick up their own colour. The engine
+also adds `taken` to owned cells (`.cell.taken`, `.stone.taken`) so "owned" styling
+doesn't need `:is(.p0,.p1,…)`. MC skins do the same with `--tex-p` / `--tex-glass-p`
+(`skin-mc.css`); seats 2/3 have no block textures yet. Glows use `color-mix()`.
 
-- Two players alternate. A move = place one piece in an empty cell or one you own.
-- Cell capacity = number of orthogonal neighbours: corner 2, edge 3, inner 4. When
-  `count >= cap` the cell explodes: loses `cap` pieces, gives one to each neighbour,
+## Game engine interface (`client/games.js`)
+
+`Games.register(def)` creates an engine from `def.rules` + `def.view` and stores the
+definition (`Games.get(key)`, `Games.has`, `Games.keys()` in registration order; the first
+registered game is the default). app.js holds the active engine in `Game` and only uses:
+
+| Member | Contract |
+| --- | --- |
+| `state` (getter) | Current state object: `n, players, current, round, history, movesBy, busy, over, winner (-1 = draw/none), finishWhy, cells` + game keys (chain: `chainNow, chainBest, explosions, chainRule, chainLen`; five: `winLen, winLine`). |
+| `newGame(config, hooks)` | Builds state via `rules.create`, board DOM via `view.build`, HUD cards via `Hud.build(players)`, clears the log, hides the overlay, logs "New game. X starts.", renders, calls `hooks.onTurn`. |
+| `play(i) → Promise<bool>` | A move by the current player (own click, relayed friend move). `false` if busy/illegal. Sets busy, `rules.place`, `hooks.onMoveApplied`, `await view.animateMove(ctx, i, me)`, `rules.conclude` → `finish` or next turn (`hooks.onTurn`). Bails out if `state.over` became true during the animation. |
+| `replay(history)` | Applies moves instantly with `rules.place/settle/conclude` — the same functions the animated path uses — then renders and finishes or calls `onTurn`. Determinism here keeps two clients in sync. |
+| `finish(winner, why)` | Ends the game (also called by app.js for flag falls / remote timeouts): logs, renders, fills `#overlay-*` (title, `why` + `view.summary(state)`), emits `game:finish`, calls `onBusy(false)`, `onFinish`. |
+| `abandon()` | Marks a running game over without a result (Back to room). |
+| `render()` | No-op until a board exists. Renders every cell (shared classes `p<k>`, `taken`, `last`, `can-place`/`locked`, then `view.renderCell`) and the HUD. |
+| `isLegal(i, player)` | Pure check via the rules. |
+
+Hooks app.js passes (`hooks` object in app.js): `names` (getter → names for the current
+skin), `mayPlay(p)` (may this device move for p now: local seat + connected), `turnHint(p)`,
+`onCellClick(i)`, `onMoveApplied(i, p)`, `onTurn(p)`, `onBusy(bool)`, `onFinish(winner, why)`.
+
+`Hud.build(players)` clones `#tpl-player` per seat (ids `p-{k}`, `p{k}-name`, `p{k}-you`,
+`clock-{k}`, `lbl-cells-{k}`, `p{k}-cells`, `lbl-pieces-{k}`, `p{k}-pieces`, `p{k}-bar`,
+`p{k}-pct`); it rebuilds only when the seat count changes and builds 2 cards at load.
+`Hud.render(state, hooks, model)` writes round label, turn box (`.turn-box p<k> [busy]`),
+`#board` classes `turn-p<k>` / `over`, turn name/hint, and per player the two stats, bar
+and `leading`/`active`. The model comes from `view.hud(state)` (see the guide).
+
+## Chain React rules (agreed with the owner; `chain-rules.js`)
+
+- Players alternate. A move = one piece in an empty cell or one you own.
+- Cell capacity = orthogonal neighbours: corner 2, edge 3, inner 4. `count >= cap` →
+  the cell explodes: loses `cap` pieces (empty → unowned), gives one to each neighbour,
   converting them to the mover's colour.
-- Explosions resolve **wave by wave**: all cells at/over capacity explode together, all
-  landings apply, then the next wave. Chain length = explosions in one move.
-- Win: after both moved at least once, the opponent has zero cells. The chain loop also
-  stops as soon as the board is single-coloured (`boardDecided()`), else it loops forever.
-- Optional chain-win rule and chess clock (see Settings). The clock pauses during
-  explosion animations and while disconnected; flag fall = loss.
+- Waves: all full cells explode together (`readyCells` → `detonate`, which also counts
+  the chain), all landings apply (`land`), repeat. `settle` does that instantly; the view
+  interleaves the same steps with animation. The loop stops when nothing is full, when
+  the board is decided (`boardDecided`: everyone has moved and ≤ 1 owner is left — it
+  would loop forever otherwise) or when the chain rule is reached.
+- `conclude`: chain rule win → "Chain reaction of N explosions!"; else once everyone has
+  moved and only one player is `alive` (owns a cell, or hasn't moved yet) → that player
+  wins "Took over the whole board!"; else `Rules.pass` (eliminated players are skipped —
+  relevant only with 3+ players).
+- Clock pauses during animations and while disconnected; flag fall = loss.
 
-### Visual layout (matches the screenshot)
+### Visual layout (`chain.js`, matches the 2015 screenshot)
 Each cell is a 3×3 block: corners glass, centre glass when empty / owner's block when
-owned, and **lamps only on sides that have a neighbour** (glass otherwise). Lit lamps =
-piece count. Cells are separated by an obsidian gap; `--gap-f`/`--pad-f` in block units:
-mobile gap 0.5 / rim 0, desktop (`min-width: 900px and min-aspect-ratio: 1/1`) gap 1 /
-rim 1 (owner asked: thinner only on mobile).
+owned, **lamps only on sides that have a neighbour** (glass otherwise). Lit lamps =
+piece count. Cells sit on an obsidian gap; `--gap-f`/`--pad-f` in block units: mobile
+gap 0.5 / rim 0, desktop (`min-width: 900px and min-aspect-ratio: 1/1`) gap 1 / rim 1
+(owner: thinner only on mobile).
 
 ### Explosion animation (owner loves it — don't dumb it down)
-Per wave in `resolveChainAnimated`: 1. **prime** (`.prime`, cells blink white like lit
-TNT, `speed*0.6`) → 2. **blast** (`.boom` flash + ring, `#board.shake`, 16 debris sparks
-via Web Animations API in `spawnDebris`) → 3. **fly** (`.fly` sprites arc with rotation,
-`speed*1.25`) → 4. **land** (`.land` pulse) + `speed*0.35` pause. First version was "way
-too fast"; owner wanted it "wuchtiger" like TNT — current tuning is approved.
-`replay(history)` applies moves instantly with the same rule functions (`detonate`,
-`land`, `concludeMove`). Animated and instant paths must stay identical or online
-clients desync.
+`ChainView.animateMove` per wave: 1. **prime** (`.prime`, full cells blink like lit TNT,
+`speed*0.6`) → 2. **blast** (`.boom` flash + ring, `#board.shake`, 16 debris sparks via
+Web Animations API in `spawnDebris`) → 3. **fly** (`.fly` sprites arc with rotation,
+`speed*1.25`) → 4. **land** (`.land` pulse) + `speed*0.35` pause. Speed comes from
+`config.speed` (view state, not rules) and is also set as `--speed`. The tuning is
+approved ("wuchtiger" like TNT).
 
-## Five Wins rules
+## Five Wins rules (`five-rules.js`)
 
-n×n board. Place anywhere on an empty cell. `winLen` **or more** in a row (4 directions)
-wins; winning stones get `.win` + a per-stone `--k` index and jump in a wave
-(`stone-jump`) — owner asked for the "blocks jumping" from MC. Full board = draw
-(`finish(-1, …)`, overlay "Draw!"). HUD shows stones placed and each player's best row
-as the bar. MC skins: quartz tiles (`quartz_block_side.png`) on obsidian, diamond/gold
-blocks as stones. Hover must keep the texture (no background transition on textured
-tiles — a flicker bug once).
+n×n board. Place on any empty cell. `winLen` **or more** in a row (4 directions) wins;
+winning stones get `.win` + `--k` and jump in a wave (`stone-jump`, the MC blocks
+jumping). Full board = draw (`winner -1`, overlay "Draw!"). HUD: stones placed, best row
+as the bar. MC skins: quartz tiles on obsidian, diamond/gold blocks as stones; hover
+keeps the texture (no background transition on textured tiles — a flicker bug once).
 
 ## Board / HUD layout rules
 
-- **Whose turn**: engines toggle `turn-p0`/`turn-p1` on `#board` in `renderHut`; CSS draws
-  a 4px outline in the active colour. `fitBoard` subtracts 10px so the outline is never
-  clipped, even on a full-width phone board.
-- **Last move**: every cell/stone has a `.last-marker` child; the engine adds `.last` to
-  the cell of the newest `history` entry. Chain: static thin white border at the cell
-  edge (owner: no animation). Five: pulsing ring — white on classic, **red** on the MC
-  skins (white was invisible on quartz). Hidden while a chain cell primes/booms.
-- **Skin control** exists twice (title screen and lobby) as `.skin-seg`; `applySkin`
-  syncs all instances.
+- **Whose turn**: `#board.turn-p<k>` → 4px outline in the active colour. `fitBoard`
+  subtracts 10px so the outline is never clipped on a full-width phone board.
+- **Last move**: every cell has a `.last-marker` child; the engine adds `.last` to the
+  newest history cell. Chain: static thin white border at the cell edge. Five: static
+  white ring, **red** on MC skins (white is invisible on quartz). Owner: no marker
+  animation. Hidden while a chain cell primes/booms and once the game is over
+  (`#board.over`).
+- Board size = min(wrapper width, height) − 10 → `--board` (`fitBoard` in app.js, on
+  resize and when `#hut` resizes). The page must **never scroll** on mobile: the HUD sits
+  below the board in a compact two-row form (controls behind ☰); desktop shows the full
+  HUD beside the board (sign, stats, log, controls). `body.game-<key>` lets CSS hide
+  game-specific boxes (`body.game-five .chain-box`); `#board` gets the game key as class.
 
-Board size is computed in `fitBoard()` (app.js) as min(wrapper width, height) → `--board`.
-The page must **never scroll** on mobile (vertically or horizontally): the HUD sits below
-the board in a compact two-row form, controls behind the ☰ button; desktop shows the
-full HUD beside the board (sign, stats, log, controls). HUD elements are shared by all
-games; engines write their own labels into `#lbl-cells-k`, `#lbl-pieces-k`,
-`#mini-line2`; `#sign-title` comes from the registry; `body.game-<key>` classes let CSS
-hide game-specific boxes (e.g. `body.game-five .chain-box`). `#board` gets the game key
-as class (`chain` / `five`).
+## Online play (`client/lib/net.js` + protocol in `app.js`)
 
-## Online play (PeerJS)
-
-- Room code: 5 chars from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`; `normalizeCode` maps
-  O→0, I/L→1. Peer id = `chainreact-v1-<CODE>`.
-- Whoever claims the room peer id first is host; on `unavailable-id` the other becomes
-  guest — so "Create room" and "both type the same code" share `Net.open`. With
-  `preferHost` (page refresh of a former host) the claim is retried 4× first.
+- Room code: 5 chars from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`; `normalizeCode` maps O→0,
+  I/L→1. Peer id = `chainreact-v1-<CODE>`.
+- **Transport role**: whoever claims the room peer id is `host`; on `unavailable-id` the
+  other becomes `guest` and dials the host — so "Create room" and "both type the same
+  code" share `Net.open(code, handlers, preferredRole)`. `handlers.preferHost` (a former
+  host refreshing) retries the claim 4× before giving in. A guest whose dials hit
+  `peer-unavailable` twice **takes over** the room id (`claimHost`), so the room lives
+  on as long as anyone is in it and a host who left can come back by the same link (it
+  then joins as guest). Roles can therefore swap; the app never derives seats from them.
+- **Seats** (`app.me`, player number 0/1) are sticky for a room visit: creator = 0,
+  session restore = saved seat, a joining guest gets one from the host. Handshake on
+  every (re)connect: guest → `hello {seat}` (−1 = none) → host answers `state {you, phase,
+  settings, config, g}` (+ `sync` in a game) → guest takes `you` (its old seat if free,
+  else the free one), mirrors settings, starts/continues the game, answers `sync`.
 - Share link = `<page URL without query>?room=CODE`; `?room=` on load auto-joins;
   `history.replaceState` keeps `?room=` in the URL while in a room.
-- Protocol (JSON over one reliable DataConnection; game messages carry `g` = gameNo):
-  `state`, `lobby`, `start`, `start-request`, `tolobby` (room flow, above);
-  `sync {g, history, clocks}` on (re)connect / on gaps (receiver replays the missing
-  tail; deferred in `app.pendingSync` while animating);
-  `move {i, n, g}` (`n` = history length before the move; queued in `app.incoming`,
-  applied when idle and `n` matches, else request a sync);
-  `timeout {p}` (only the owner of the flagged clock decides, clocks drift);
-  `rematch {g}` (both must press); `react {e}`; `leave` (sent 250 ms before closing);
-  `ping`/`pong` every 3 s, 12 s silence → lost → redial.
+- Messages (JSON over one reliable DataConnection; game messages carry `g` = gameNo):
+  `hello`, `state`, `lobby {s}` (settings changed), `start {config, g}` (host started),
+  `start-request` (guest asks; host is authoritative), `tolobby` (either side; abandons a
+  running game), `sync {g, history, clocks}` (on (re)connect / on gaps: the shorter side
+  replays the missing tail; deferred in `app.pendingSync` while animating), `move {i, n,
+  g}` (`n` = history length before the move; queued in `app.incoming`, applied when idle
+  and `n` matches, else a sync is requested), `timeout {p}` (only the owner of the
+  flagged clock decides — clocks drift), `rematch {g}` (both must press), `react {e}`,
+  `leave` (sent 250 ms before closing), `ping`/`pong` every 3 s, 12 s silence → lost →
+  the guest redials. Handlers live in `HANDLERS` in app.js.
 - Statuses: `idle, connecting, waiting, connected, reconnecting, signaling, error`.
-  `signaling` = broker socket dropped (tab suspended). An established DataConnection
-  keeps working without the broker → no in-game banner for it; the lobby cares.
-  `everConnected` picks wording ("isn't here yet" vs "seems to be away"); `ERROR_TEXT`
-  maps PeerJS error types to plain sentences. `visibilitychange`/`online` → `retryNow()`;
-  a destroyed peer is re-created (host re-claims its id).
-- Page refresh: `sessionStorage["chainreact.session"]` = code, role, gameNo, phase,
-  config, history, clocks. With matching `?room=` the board is rebuilt from it, then
-  the host's `state` + `sync` fill in the rest.
+  `signaling` = broker socket dropped (tab suspended); an established DataConnection
+  keeps working without the broker → no in-game banner for it. `everConnected` picks the
+  wording ("isn't here yet" vs "seems to be away"); `ERROR_TEXT` maps PeerJS error types
+  to plain sentences. `visibilitychange`/`online` → `Net.retryNow()`.
+- Page refresh: `sessionStorage["chainreact.session"]` = code, me (seat), role, gameNo,
+  phase, config, history, clocks. With a matching `?room=` the board is rebuilt from it
+  (`replay`), then the handshake fills in the rest.
+- Growing to 4 players: the host keeps one connection per guest and relays (see the
+  comment at the top of net.js); the handshake already assigns seats per connection.
 
 ### Gotchas already hit
 - Host: the `connection` event fires before the data channel is open → attach on
   `c.on("open")` (or `c.open`), else the first `send` is silently dropped.
-- `enterRoom` must reset `app.config`/`gameNo` (a leftover local config once made the
-  host skip starting).
-- `Game.render()` runs from net callbacks; engines guard it until a board exists.
-- Headless tests: pick the CDP target with `type === "page"`; disable the cache
-  (PHP's server sends no cache headers, Chrome heuristically caches JS).
-- `pkill -f <pattern>` kills your own shell if the pattern is in the command line; use
-  `pkill -f "[c]r-A"` style or just new ports/profiles.
+- `peer.destroy()` emits `close` synchronously → peer handlers check they still belong
+  to the current peer (`bindPeer`), otherwise a demoted host re-scheduled its claim.
+- `enterRoom` resets `app.config`/`gameNo` (a leftover local config once made the host
+  skip starting).
+- `Game.render()` runs from net callbacks; the engine guards it until a board exists.
+- Headless tests: pick the CDP target with `type === "page"`; disable the cache.
+- `pkill -f <pattern>` kills your own shell if the pattern is in the command line.
 
-## Emoji reactions
+## Events (`Bus`)
 
-`#react-bar` top-right, always starts collapsed behind the 😜 toggle; emojis + "L"/"EZ"/
-"GG" chips. `#react-layer` is positioned by `placeReactionLayer()` (called from
-`fitBoard`): **right next to the board** when there is ≥ 66px of space (desktop), else in
-the free strip above the full-width board (or below it if that's bigger) — never over
-the board, never off-screen (owner's rules). Emojis drift slightly right → left while
-falling the layer's height. `floatReaction()` drops a small element (~2 s,
-wobble, fade, max 14 on screen). Spam is allowed on purpose (~8/s; receiver accepts one
-per 100 ms and only values from its own set). Friend's reactions get a dot in their
+Fire-and-forget notifications for observers (a future sound module subscribes here;
+the log emits too so a chat could mirror it). Current events and payloads:
+`game:new {game, config}`, `game:move {game, cell, player}` (a piece was placed),
+`game:turn {game, player}`, `game:finish {game, winner, why}`, `chain:explode {cells,
+player, chain}` (one wave), `reaction {emoji, theirs}`, `log {text, cls}`.
+Adding sounds = a new `client/sounds.js` with `Bus.on(...)` calls and one script tag.
+
+## Seats and future bots / more players
+
+`app.seats[p] = { kind }` is built per game from `app.me`: `local` (this device moves for
+it) or `remote`. `hooks.mayPlay(p)` = local seat + connected. A bot would be a third kind:
+in `hooks.onTurn(p)` check `app.seats[p].kind === "bot"`, pick a move with the pure rules
+(`rules.legalMoves(state, p)`, apply `place/settle/conclude` on a copy to evaluate) and
+call `Game.play(i)` after a short delay — nothing else changes. Player count is
+`config.players` (fixed at 2 by `Settings.read()`); rules, `Rules.pass`, `Clock`, HUD and
+lobby cards are written for N, the CSS has colours for 4 seats, the protocol needs the
+relay described in net.js.
+
+## Emoji reactions (`client/reactions.js`)
+
+`#react-bar` top-right, starts collapsed behind the 😜 toggle; emojis + "L"/"EZ"/"GG"
+chips. `Reactions.place()` (called after every `fitBoard`) puts `#react-layer` **right
+next to the board** when there is ≥ 66px of space (desktop), else in the free strip
+above the full-width board (or below it if that's bigger) — never over the board, never
+off-screen. Emojis drift right → left while falling the layer's height (~2 s, wobble,
+fade, max 14 on screen). Spam is allowed on purpose (~8/s; the receiver accepts one per
+100 ms and only values from its own button set). Friend's reactions get a dot in their
 colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
 
 ## Tests (`npm test` = unit + e2e; CI runs both before every deploy and on every PR)
 
-- **Unit** (`npm run test:unit`, Node's built-in runner, `tests/unit/*.test.mjs`): the
-  engines run inside jsdom with the real `index.html` markup (`tests/unit/dom.mjs` loads
-  game/five/clock/net scripts, polyfills `Element.animate`). Covers chain rules (caps,
-  waves, board-decided stop, win, chain rule, replay == play), five rules (all line
-  directions, winLen, gap fill, draw, replay), clock (active/pause/flag/restore), room
-  codes, and the build (`SKIP_MINIFY=1 DIST_DIR=<tmp> node build.mjs`, hashed names,
-  deterministic). Cross-realm arrays: compare via `JSON.stringify`, not `deepStrictEqual`.
-  Clock tests must call `C.setup(0)` + `w.close()` or the interval keeps the file alive.
+- **Unit** (`npm run test:unit`, Node's built-in runner, `tests/unit/*.test.mjs`):
+  `rules.test.mjs` runs the pure rules in a bare `vm` context (no DOM; 2- and 3-player
+  rotation, elimination, legalMoves, draw). `dom.mjs` loads `index.html` + every client
+  script except `app.js` into jsdom (script list parsed from index.html; `Element.animate`
+  polyfilled) for `chain.test.mjs` (caps, waves, board-decided stop, win, chain rule,
+  replay == play, hooks, HUD), `five.test.mjs`, `clock.test.mjs` (call `C.setup(0)` +
+  `w.close()` at the end or the interval keeps the file alive), `net.test.mjs` (codes),
+  `build.test.mjs` (`SKIP_MINIFY=1 DIST_DIR=<tmp>`; hashed names, icons, deterministic).
+  Cross-realm arrays: compare via `JSON.stringify`, not `deepStrictEqual`.
 - **E2E** (`npm run test:e2e`, `tests/e2e/*.test.mjs`): `harness.mjs` starts a static
-  server (port 0) and headless Chrome via CDP (no Playwright; Node 22 global
-  `WebSocket`/`fetch`; Chrome path from `$CHROME` or `google-chrome`). Helpers: `goto`
-  (waits for scripts + texture preloader), `ev`, `click/set/check`, `move(i)`/`idle()`,
-  `state()`, `randomGame()`, `noScroll()`, `emulate(w,h)`, `screenshot(name)` (to
-  `tests/e2e/shots/`, git-ignored; uploaded as artifact on CI failure). Specs:
-  `local-flow` (menu → lobby → both games → overlay/look/rematch/change game),
-  `settings` (clamping, rows, persistence, timer pause), `skins` (computed styles per
-  skin), `mobile` (360×780: no scroll, outline visible, reactions inside viewport,
-  stacked overlay buttons), `online` (two browsers through the real PeerJS broker:
-  join by link, settings mirror, guest start, move sync, reactions, refresh resync,
-  tolobby, switch game, rematch, leave; `SKIP_ONLINE=1` skips), `dist` (built bundle:
-  hashed assets only, preloader, playable). Files run 2 at a time; each launches its
-  own Chrome on a random port. Outline colours transition for .25s → wait before
-  reading computed styles.
-- **CI** (`.github/workflows/ci.yml`): job `test` (npm ci → unit → e2e) on push to
-  `main`, PRs and manual; job `deploy` `needs: test` and only runs for pushes to `main`.
-  Branch protection on `main` requires the `test` status check (strict) for merging
-  PRs; admins are not enforced so the owner can still push directly.
+  server (port 0) and headless Chrome via CDP (no Playwright; Node 22 `WebSocket`/`fetch`;
+  Chrome from `$CHROME` or `google-chrome`). Helpers: `goto` (waits for scripts + the
+  preloader), `ev`, `click/set/check/text`, `move(i)`/`idle()`, `state()`, `randomGame()`,
+  `noScroll()`, `emulate(w,h)`, `screenshot(name)` (to `tests/e2e/shots/`, git-ignored;
+  uploaded as artifact on CI failure), `waitFor`. Specs: `local-flow`, `settings`,
+  `skins` (computed styles per skin), `mobile` (360×780), `online` (two browsers through
+  the real PeerJS broker: join by link, settings mirror, guest start, move sync,
+  reactions, guest refresh, tolobby, switch game, rematch, **host refresh, guest leave +
+  rejoin, host leave → guest takes over → host returns as guest**; `SKIP_ONLINE=1`
+  skips), `dist` (built bundle: hashed assets only, preloader, playable). Files run 2 at
+  a time; each launches its own Chrome. Outline colours transition for .25s → wait
+  before reading computed styles.
 
 ## Owner preferences
 
 - Writes English and German; either is fine in replies.
 - Wants things to look nice; approved: classic skin, HUD contrast, explosion, compact
   mobile HUD, unified dark MC UI, settings modal, room flow. Keep mobile non-scrolling.
-- Prefers several small JS files over one big one.
+  Layout need not be pixel-perfect, behaviour and texts must not change unasked.
+- Prefers several small JS files over one big one; no framework.
 - Two friends only — no matchmaking, no accounts, no own server.
 
 ---
 
 # How to add a new game (step by step)
 
-Adding a game touches exactly four places: a new engine file, one registry entry, the
-picker card in the lobby, and CSS for the board. Everything else (rooms, lobby sync,
-start/rematch/tolobby, reconnect + replay, clock, reactions, session restore, skins,
-HUD) is generic and keeps working if the engine honours the interface below.
+A game is three files (rules, view + registration, CSS) plus two tags in `index.html`.
+Rooms, lobby sync, start/rematch/tolobby, reconnect + replay, clock, reactions, session
+restore, skins, HUD cards, settings persistence and the picker are generic.
 
-## 1. Engine file `client/<key>.js`
+## 1. Rules `client/games/<key>-rules.js` (pure — no DOM, no settings)
 
-Copy `client/five.js` as the template (it is the smallest complete engine) and expose a
-global `<Name>Game` IIFE returning:
+Expose a global `<Name>Rules` returning these functions (copy `five-rules.js`):
 
-```js
-return { state, newGame, play, replay, finish, render, isLegal, log };
-```
-
-| Member | Contract |
+| Function | Contract |
 | --- | --- |
-| `state` | Plain object, read by app.js: `n`, `current` (0/1), `busy`, `over`, `winner` (-1 draw), `history` (array of move ids in play order), `movesBy [a,b]`. Add whatever else you need. |
-| `newGame(config, hooks)` | Reset state from `config` (`n`, `startPlayer`, plus your own keys from settings), set `--n` CSS var, build the board DOM inside `#board` (set `board.className = "<key>"`), clear `#log`, hide `#overlay`, log "New game. X starts.", `render()`, call `hooks.onTurn(state.current)`. |
-| `play(i) → Promise` | The move entry point (own click or opponent's relayed move). Return `false` if `busy` or illegal. Set `busy = true` + `hooks.onBusy(true)`, apply the move, `hooks.onMoveApplied(i, me)`, animate, then either `finish(...)` or switch `current`, `busy = false`, `hooks.onBusy(false)`, `render()`, `hooks.onTurn(current)`. Bail out early if `state.over` became true during an await (the friend may have left / gone to the lobby). |
-| `replay(history)` | Apply moves **instantly** (no awaits) with the exact same rule functions `play` uses; then `render()`, and `finish` or `hooks.onTurn`. Used after reconnect / refresh. Determinism here is what keeps two clients in sync. |
-| `finish(winner, why)` | `over = true`, `busy = false`, log, `render()`, fill `#overlay-block` (class `p0`/`p1`/`draw`), `#overlay-title`, `#overlay-sub`, show `#overlay`, then `hooks.onBusy(false)` and `hooks.onFinish(winner, why)`. app.js also calls this directly for clock flag falls and remote timeouts. |
-| `render()` | Must no-op until the board exists (`if (!hooks.names \|\| cellEls.length !== state.cells.length) return;`). Renders every cell and the HUD (see 4). Called by app.js on skin change, net status change, sync. |
-| `isLegal(i, player)` | Pure check, no side effects. app.js uses it before sending a move and when validating the opponent's move. |
-| `log(msg, cls)` | Prepend a line to `#log` (classes `p0`, `p1`, `x`), keep ≤ 6. Copy from five.js. |
+| `create(config, base)` | Return `Object.assign(base, { cells, …your keys })`. `base` comes from `Rules.base(config)` (n, players, current, round, history, movesBy, busy, over, winner, finishWhy). Read your own keys from `config` (they arrive from `Settings.read()` on both sides). |
+| `ownerOf(state, i)` | Owner of cell i (-1 = none). Drives the shared `p<k>`/`taken` classes. |
+| `isLegal(state, i, player)` | Pure; `false` when `state.over`. |
+| `legalMoves(state, player)` | Array of cell ids (for bots and tests). |
+| `place(state, i, player)` | Apply the move: `history.push(i)`, `movesBy[player]++`, your board change. |
+| `settle(state, player)` | Resolve everything that follows a placement instantly (chain waves; no-op for five). |
+| `conclude(state, player)` | Return `{ winner, why }` (winner -1 = draw) or `Rules.pass(state[, alive])` and return `null`. |
 
-Hooks the engine receives (all optional but use them): `names` (getter → `[name0, name1]`
-for the current skin), `mayPlay(p)` (false when online and it's not my colour → mark
-cells `locked` instead of `can-place`), `turnHint(p)` ("your move" / "waiting…"),
-`onCellClick(i)` (attach to each cell — app.js decides whether to play and sends the
-move online), `onMoveApplied`, `onTurn(p)`, `onBusy(bool)`, `onFinish`.
+A move must be a single integer (encode from/to as `from * n*n + to` if needed): `move`,
+`sync` and the session assume `history` is an array of numbers. Player numbers are
+0…players-1; names/colours come from the skin.
 
-Rules of thumb:
-- A move must be a single integer `i` (cell index). If your game needs more (e.g. from/to),
-  encode it into one integer (`from * n*n + to`) — `move`, `sync` and the session all
-  assume `history` is an array of numbers.
-- Keep animations inside `play`; keep `state.busy` true while they run (the clock pauses
-  on `onBusy(true)`, incoming opponent moves are queued until `onBusy(false)`).
-- Never read settings directly; everything comes in through `config`.
-- Player 0 vs 1 only. Colours/names come from the skin, not the game.
+## 2. View + registration `client/games/<key>.js`
 
-## 2. Registry entry in `client/app.js`
+Expose `<Name>View` with:
+
+| Function | Contract |
+| --- | --- |
+| `build(board, state, config, onClick)` | Create one element per cell inside `board` (append a `<div class="last-marker">` child to each), wire `click → onClick(i)`, return the element array. Set CSS vars you need (chain sets `--speed`). |
+| `renderCell(el, state, i)` | Game-specific classes only (the engine already set `p<k>`, `taken`, `last`, `can-place`, `locked`). |
+| `hud(state)` | Return `{ round: "Move 3", players: [{ stats: [[label, value], [label, value]], bar: 0..1, barText, leading }], line2?, drawHint? }`; write your own extra HUD boxes here (chain writes `#chain-now` etc. and `#mini-line2`). |
+| `summary(state)` | Second line of the result overlay ("12 moves"). |
+| `animateMove(ctx, i, player) → Promise` | Show the move. `ctx` gives `state`, `cells`, `board()`, `names()`, `renderCell(i)`, `renderHud()`, `render()`. Use the rules' step functions for anything that changes state so the instant path (`settle`) stays identical. Return early if `state.over` after an `await`. Emit `Bus` events for sounds. |
+
+Then register:
 
 ```js
-<key>: {
-    title: "Nice Name",
-    tagline: "One sentence shown under the picker.",
-    engine: <Name>Game,
-    sizeMin: 5, sizeMax: 19, defaultSize: 9,   // board-size input limits
-    hasSpeed: false,      // show the animation-speed row
-    hasChainRule: false,  // show the chain-win row
-    hasWinLen: false,     // show the "in a row to win" row (min board size = winLen)
-},
+const <Name>Game = Games.register({
+    key: "<key>", title: "Nice Name",
+    tagline: "One sentence under the picker.", desc: "Short card subtitle",
+    preview: "...01....",                   // 9 chars: "." empty, digit = player
+    size: { min: 5, max: 19, default: 9 },  // board-size input limits
+    minSize: (cfg) => 5,                    // optional, may depend on cfg (five: winLen)
+    settings: [],                           // data-setting keys of rows to show
+    describeRules: (cfg) => [],             // optional summary parts before the timer
+    describeOptions: (cfg) => [],           // optional summary parts after the timer
+    rules: <Name>Rules, view: <Name>View,
+});
 ```
 
-If the game needs its own setting: add a `<label class="row" id="row-<x>">` to
-`#settings-modal` in `index.html`, read it in `readSettings()`, write it in
-`writeSettings()` (that's what mirrors it to the friend), hide/show the row in
-`selectGame()` via a new `hasX` flag, and mention it in `renderSummary()` and
-`describe()`-style texts if useful. Because `readSettings()` output *is* the config,
-the engine sees it as `config.<x>` on both sides automatically.
+The picker card is generated from this entry (no HTML to add). Keep the picker at ≤ 2
+cards per row (`.game-picker` grid is `1fr 1fr`; with 3+ games consider
+`repeat(auto-fit, minmax(150px, 1fr))`) and re-check the 360×780 lobby doesn't scroll.
 
-## 3. Picker card in `index.html` (inside `#game-picker` in the lobby)
+A new setting: add a `<label class="row" data-setting="<key>">` to `#settings-modal`,
+an entry in `FIELDS` in settings.js (`{ key, el, type: "int"|"bool", min, max, def }`),
+list the key in the game's `settings`. It is read into the config, persisted, mirrored
+to the friend and visible to the engine as `config.<key>` automatically.
 
-```html
-<button class="game-card" data-game="<key>">
-    <span class="game-preview <key>"> <i></i>×9 with some <i class="p0"></i>/<i class="p1"></i> </span>
-    <span class="game-name">Nice Name</span>
-    <span class="game-desc">Short subtitle</span>
-</button>
-```
+## 3. CSS `client/games/<key>.css`
 
-The 3×3 preview is pure CSS; add `.game-preview.<key> i { … }` if the default square
-tiles don't fit (five uses circles). Keep the picker at ≤ 2 cards per row (the grid is
-`1fr 1fr`; with 3+ games consider `repeat(auto-fit, minmax(150px, 1fr))`) and re-check
-that the lobby still doesn't scroll on a 360×780 phone.
+`#board.<key>` grid (see `#board.five`) using `--board` and `--n`; your cell classes
+(five uses `.stone`, chain `.cell` + `.tile`). Colours via `var(--pc)`, `var(--pc-dark)`,
+`var(--block)` on `.taken` cells — never a seat number. Then the MC-skin rules under
+`:is(.skin-mc, .skin-mcboard)` (textures via `var(--tex-p)`, no rounded corners,
+`image-rendering: pixelated`, **no background transitions on textured tiles**). Hide
+HUD boxes you don't want with `body.game-<key> …`. New texture: extract from
+`~/.minecraft/versions/1.12.2/1.12.2.jar` (`assets/minecraft/textures/blocks/<name>.png`,
+16×16) into `client/textures/` and add a `--tex-<x>` var in `skin-mc.css`.
 
-## 4. HUD labels and CSS
+## 4. Tags in `index.html`
 
-- In your `renderHut()` write: `#round-label` and `#round-mini` (e.g. "Move 12"),
-  `#turn-box` class `turn-box p<current>` (+ ` busy`), `#turn-name`, `#turn-hint`
-  (use `hooks.turnHint`), per player `#p{k}-name`, `#lbl-cells-{k}` / `#p{k}-cells`,
-  `#lbl-pieces-{k}` / `#p{k}-pieces`, `#p{k}-bar` width + `#p{k}-pct` text, classes
-  `leading`/`active` on `#p-{k}`, and `#mini-line2` (second line on the mobile HUD).
-  The chain-stats box is chain-only: hide it with `body.game-<key> .chain-box
-  { display: none !important; }`.
-- Board CSS: `#board.<key>` grid layout (see `#board.five`) using `--board` and `--n`;
-  cell classes of your choice (five uses `.stone`, chain `.cell`/`.tile`). Provide the
-  classic look first, then add `:is(.skin-mc, .skin-mcboard) …` rules in the
-  "Minecraft BOARD" section (textures for empty/p0/p1, no rounded corners, pixelated).
-  Do **not** put background transitions on textured tiles.
-- If a game needs a new texture, extract it from `~/.minecraft/versions/1.12.2/1.12.2.jar`
-  (`assets/minecraft/textures/blocks/<name>.png`, 16×16) into `client/textures/` and add
-  a `--tex-<x>` var in the `.skin-mc, .skin-mcboard` block.
-- `body.game-<key>` is set by `startGame`; use it for any game-specific HUD tweaks.
+`<link rel="stylesheet" href="client/games/<key>.css">` after `five.css`;
+`<script src="client/games/<key>-rules.js">` and `<script src="client/games/<key>.js">`
+after `five.js` and before `skins.js`. Build and unit tests pick them up from there.
 
-## 5. Script tag and load order
+## 5. Checklist before calling it done
 
-Add `<script src="client/<key>.js"></script>` after `five.js` and before `clock.js` in
-`index.html` (the engine global must exist before `app.js` builds `GAMES`).
-
-## 6. Checklist before calling it done
-
-- Local: lobby → pick game → Start → play to a win **and** to a draw (if possible) →
-  overlay shows the right text → Rematch → Back to room → switch to another game.
-- Online with two headless browsers (see testing recipe): guest sees the host's picker
-  change; guest presses Start; moves sync both ways; guest refreshes mid-game and gets the
-  board back via `replay`; both press Rematch; one presses Back to room.
+- Unit: rules in `tests/unit/rules.test.mjs` (no DOM) and an engine spec like
+  `five.test.mjs` (win, draw if possible, replay == play, HUD texts).
+- Local: lobby → pick game → Start → play to a win **and** a draw → overlay text →
+  Rematch → Back to room → switch to another game.
+- Online with two headless browsers (`tests/e2e/online.test.mjs`): guest sees the host's
+  picker change; guest presses Start; moves sync both ways; guest refresh gets the board
+  back via `replay`; both press Rematch; one presses Back to room.
 - Timer on: clock pauses during your animations, flag fall ends the game on both sides.
 - Phone viewport 360×780: lobby, game and result overlay don't scroll; HUD labels fit.
 - All three skins: board readable, MC textures don't flicker on hover.
-- No `Runtime.exceptionThrown` in either browser. Update this file (registry, rules,
-  any new protocol/config keys) and `README.md`.
+- No `Runtime.exceptionThrown` in either browser. Update this file and `README.md`.
