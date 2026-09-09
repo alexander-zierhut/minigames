@@ -25,6 +25,8 @@ test("build writes hashed assets and a rewritten index.html", () => {
             assert.ok(existsSync(join(dist, "assets", "textures", m[1])), `texture ${m[1]} exists`);
             assert.match(m[1], /\.[0-9a-f]{10}\.png$/, "texture is hashed");
         }
+        // icons referenced from index.html are copied
+        for (const m of html.matchAll(/href="([^"]+\.(?:ico|png))"/g)) assert.ok(existsSync(join(dist, m[1])), `${m[1]} copied to dist`);
         // bundle contains every client script and parses
         const bundle = readFileSync(join(dist, "assets", js), "utf8");
         for (const g of ["ChainGame", "FiveGame", "Clock", "Net", "Peer"]) assert.ok(bundle.includes(g), `bundle contains ${g}`);
