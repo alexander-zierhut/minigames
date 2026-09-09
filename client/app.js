@@ -691,7 +691,45 @@
     document.addEventListener("visibilitychange", () => { if (!document.hidden && app.mode === "online") Net.retryNow(); });
     window.addEventListener("online", () => { if (app.mode === "online") Net.retryNow(); });
 
+    /* ================= texture preload (first visit) ================= */
+    // Browsers only fetch CSS background images once an element uses them, so the
+    // Minecraft textures would pop in on the first click. Collect every image url from
+    // the stylesheet and fetch them up front, with a small progress bar if it takes a moment.
+    function preloadTextures() {
+        const urls = new Set();
+        for (const sheet of document.styleSheets) {
+            let rules;
+            try { rules = sheet.cssRules; } catch (e) { continue; }
+            const base = sheet.href || location.href;
+            for (const rule of rules) {
+                for (const m of (rule.cssText || "").matchAll(/url\(["']?([^"')]+\.(?:png|jpg|webp|gif))["']?\)/g)) {
+                    try { urls.add(new URL(m[1], base).href); } catch (e) {}
+                }
+            }
+        }
+        const list = [...urls];
+        if (list.length === 0) return Promise.resolve();
+        const loader = $("loader"), fill = $("loader-fill"), text = $("loader-text");
+        let done = 0;
+        const showTimer = setTimeout(() => { loader.hidden = false; }, 120); // no flash when everything is cached
+        const update = () => {
+            const pct = Math.round(done / list.length * 100);
+            fill.style.width = pct + "%";
+            text.textContent = `Loading textures… ${done}/${list.length}`;
+        };
+        update();
+        const one = (u) => new Promise((res) => {
+            const img = new Image();
+            img.onload = img.onerror = () => { done++; update(); res(); };
+            img.src = u;
+        });
+        const all = Promise.all(list.map(one));
+        const timeout = new Promise((res) => setTimeout(res, 6000)); // never block the game on a slow image
+        return Promise.race([all, timeout]).then(() => { clearTimeout(showTimer); loader.hidden = true; });
+    }
+
     /* ================= boot ================= */
+    preloadTextures();
     loadSkin();
     loadSettings();
     selectGame(selectedGame, false);
