@@ -5,7 +5,7 @@
    Games.register(def) wraps them into an engine with one uniform interface:
 
      state (getter)   newGame(config, hooks)   play(i) -> Promise<bool>   replay(history)
-     finish(winner, why)   abandon()   render()   isLegal(i, player)
+     finish(winner, why)   abandon()   render()   isLegal(i, player)   hash()
 
    app.js only ever talks to that interface, so adding a game never touches app.js. */
 
@@ -123,6 +123,14 @@ const Engine = (() => {
             if (hooks.onFinish) hooks.onFinish(winner, why);
         }
 
+        // fingerprint of everything that matters for play; two clients in sync agree on it
+        function hash() {
+            const str = JSON.stringify([state.cells, state.current, state.over, state.winner, state.movesBy]);
+            let h = 0x811c9dc5;                                        // FNV-1a, 32 bit
+            for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+            return h;
+        }
+
         // stop a running game without a result (back to the room while playing)
         function abandon() {
             if (!state.over && state.history.length) state.over = true;
@@ -155,7 +163,7 @@ const Engine = (() => {
 
         return {
             get state() { return state; },
-            newGame, play, replay, finish, abandon, render,
+            newGame, play, replay, finish, abandon, render, hash,
             isLegal: (i, player) => rules.isLegal(state, i, player),
         };
     }

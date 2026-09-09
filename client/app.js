@@ -17,6 +17,10 @@
         seats: [],              // per player: { kind: "local" | "remote" }  (a bot would be another kind)
         config: null,           // config of the running / last game
         gameNo: 0,              // increments per game in this room (local too)
+        rev: 0,                 // room-state revision: +1 per phase change (start, rematch, back to room).
+                                // On reconnect the higher revision wins, whoever hosts.
+        syncSentAt: -1,         // history length of my last sync message (-1 = none since my last move)
+        rebuiltAt: null,        // "gameNo:length" of my last rebuild from the host (second time = give up)
         rematchMine: false,
         rematchTheirs: false,
         incoming: [],           // queued friend moves while we animate
@@ -122,6 +126,7 @@
         app.mode = "online";
         app.me = seat;
         app.gameNo = 0;
+        app.rev = 0;
         app.config = null;
         app.opponentLeft = false;
         Clock.stop();
@@ -138,6 +143,7 @@
             onOpen: onPeerOpen,
             onClose: () => { Clock.pause(); renderNetBox(); renderLobby(); },
             onMessage,
+            metadata: () => ({ seat: app.me }),
         }, preferHost === false ? "guest" : undefined);
         $("lobby-code").textContent = finalCode;
         setUrlRoom(finalCode);
@@ -169,10 +175,10 @@
         onCellClick: (i) => {
             const st = Game.state;
             if (st.busy || st.over || !hooks.mayPlay(st.current) || !Game.isLegal(i, st.current)) return;
-            if (online()) Net.send({ t: "move", i, n: st.history.length, g: app.gameNo });
+            if (online()) Net.send({ t: "move", i, n: st.history.length, g: app.gameNo, h: Game.hash() });
             Game.play(i);
         },
-        onMoveApplied: () => saveSession(),
+        onMoveApplied: () => { app.syncSentAt = -1; saveSession(); },
         onTurn: (p) => {
             Clock.setActive(p);
             if (live()) Clock.resume();
@@ -204,6 +210,7 @@
 
     /* ================= game lifecycle ================= */
     function startGame(cfg, startPlayer) {
+        app.rev++;
         app.config = cfg;
         const def = Games.get(cfg.game);
         Game = def.engine;
@@ -261,6 +268,7 @@
     // back to the room lobby to pick another game / settings (either player may do it)
     function backToLobby(announce) {
         if (announce && online()) Net.send({ t: "tolobby" });
+        app.rev++;
         Clock.stop();
         Game.abandon();
         $("overlay").hidden = true;
@@ -277,19 +285,40 @@
        everybody's colour. */
     function onPeerOpen(role) {
         app.opponentLeft = false;
+        app.syncSentAt = -1;
         renderNetBox();
         renderLobby();
         $("net-banner").hidden = true;
-        if (role === "guest") Net.send({ t: "hello", seat: app.me });
+        if (role === "guest") Net.send({ t: "hello", seat: app.me, ...roomState() });
         if (app.phase === "game" && !Game.state.over) Clock.resume();
     }
 
+    // what both sides tell each other on (re)connect; `rematch` = I pressed Rematch while you were away
+    function roomState() {
+        return {
+            rev: app.rev, phase: app.phase === "game" ? "game" : "lobby", config: app.config, g: app.gameNo,
+            rematch: app.phase === "game" && Game.state.over && app.rematchMine,
+        };
+    }
     function sendState(guestSeat) {
-        Net.send({ t: "state", you: guestSeat, phase: app.phase === "game" ? "game" : "lobby", settings: Settings.read(), config: app.config, g: app.gameNo });
+        Net.send({ t: "state", you: guestSeat, settings: Settings.read(), ...roomState() });
     }
     function sendSync() {
         if (!app.config || app.phase !== "game") return;
-        Net.send({ t: "sync", g: app.gameNo, history: Game.state.history.slice(), clocks: Clock.snapshot() });
+        app.syncSentAt = Game.state.history.length;
+        Net.send({ t: "sync", g: app.gameNo, history: Game.state.history.slice(), clocks: Clock.snapshot(), h: Game.hash() });
+    }
+    // the friend's phase is newer than mine (my last phase change never reached them, or theirs never reached me)
+    function adoptRoomState(msg) {
+        app.gameNo = msg.g || app.gameNo;
+        if (msg.phase === "game" && msg.config) {
+            if (app.phase !== "game" || msg.g !== app.gameNo) startGame(msg.config, startPlayerFor(app.gameNo));
+            Log.add("Joined your friend's game.", "x");
+        } else if (app.phase !== "lobby") {
+            backToLobby(false);
+            toast("Your friend went back to the room");
+        }
+        app.rev = msg.rev;
     }
 
     const inThisGame = (msg) => msg.g === app.gameNo && app.phase === "game";
@@ -299,26 +328,34 @@
         hello(msg) {
             if (!isHost()) return;
             const seat = msg.seat >= 0 && msg.seat !== app.me ? msg.seat : otherPlayer(app.me);
+            if (msg.rev > app.rev) adoptRoomState(msg);       // the guest's phase is newer: follow it before answering
             sendState(seat);
             if (app.phase === "game") sendSync();
+            if (msg.rematch) HANDLERS.rematch({ g: app.gameNo + 1 });
         },
-        // from the host on every (re)connect: take my seat, mirror settings, join a running game
+        // from the host on every (re)connect: take my seat, mirror settings, follow the host's phase
+        // (the host already adopted mine if it was newer, so ties are the normal case)
         state(msg) {
             if (isHost()) return;
             if (msg.you >= 0 && msg.you !== app.me) setSeat(msg.you);
             Settings.write(msg.settings);
-            if (msg.phase === "game" && msg.config) {
-                if (app.phase !== "game" || msg.g !== app.gameNo) {
-                    app.gameNo = msg.g;
-                    startGame(msg.config, startPlayerFor(app.gameNo));
-                    Log.add("Connected to host.", "x");
+            if (msg.rev >= app.rev) {
+                if (msg.phase === "game" && msg.config) {
+                    if (app.phase !== "game" || msg.g !== app.gameNo) {
+                        app.gameNo = msg.g;
+                        startGame(msg.config, startPlayerFor(app.gameNo));
+                        Log.add("Connected to host.", "x");
+                    }
+                    app.rev = msg.rev;
+                    sendSync();
+                } else {
+                    app.gameNo = msg.g || app.gameNo;
+                    if (app.phase !== "lobby") backToLobby(false);
+                    app.rev = msg.rev;
+                    renderLobby();
                 }
-                sendSync();
-            } else {
-                app.gameNo = msg.g || app.gameNo;
-                if (app.phase !== "lobby") backToLobby(false);
-                renderLobby();
             }
+            if (msg.rematch) HANDLERS.rematch({ g: app.gameNo + 1 });
         },
         lobby(msg) {                                  // the friend changed game / settings
             Settings.write(msg.s);
@@ -350,6 +387,7 @@
             Game.finish(otherPlayer(msg.p, Game.state.players), "Out of time!");
         },
         rematch(msg) {
+            if (msg.g <= app.gameNo || app.phase !== "game") return;   // stale / duplicate request
             app.rematchTheirs = true;
             if (app.rematchMine) { beginRematch(msg.g); return; }
             toast("Opponent wants a rematch");
@@ -384,27 +422,57 @@
             if (m.n > st.history.length) { sendSync(); return; }
             app.incoming.shift();
             if (seatIsLocal(st.current) || !Game.isLegal(m.i, st.current)) { sendSync(); return; }
+            if (m.h !== undefined && m.h !== Game.hash()) { sendSync(); return; }   // boards differ: sort it out first
             Game.play(m.i);
             return;
         }
     }
 
-    // the longer history wins; the shorter side replays the missing tail
+    /* Sync = the friend's move history + state hash. The longer history wins when the shorter one
+       is its prefix (the short side replays the tail). Anything else is a desync: the guest rebuilds
+       the game from the host's history; if the boards still differ after that, both go back to the
+       room rather than playing two different games. */
     function applySync(msg) {
-        const mine = Game.state.history;
         const theirs = msg.history || [];
+        const mine = Game.state.history;
         const common = Math.min(mine.length, theirs.length);
-        for (let k = 0; k < common; k++) if (mine[k] !== theirs[k]) { Log.add("Move history differs, keeping the longer one.", "x"); break; }
+        for (let k = 0; k < common; k++) if (mine[k] !== theirs[k]) { resolveDesync(msg); return; }
         if (theirs.length > mine.length) {
             Game.replay(theirs.slice(mine.length));
             if (msg.clocks) Clock.restore(msg.clocks);
             saveSession();
-        } else if (mine.length > theirs.length) {
+        } else if (theirs.length < mine.length) {
+            // I am ahead. If I already told the host and it still doesn't have my moves, it rejected them.
+            if (!isHost() && app.syncSentAt === mine.length) { resolveDesync(msg); return; }
             sendSync();
+            afterSync();
+            return;
         }
+        if (msg.h !== undefined && Game.state.history.length === theirs.length && msg.h !== Game.hash()) { resolveDesync(msg); return; }
+        afterSync();
+    }
+    function afterSync() {
         if (!Game.state.over) { Clock.setActive(Game.state.current); if (Net.connected) Clock.resume(); }
         Game.render();
         processIncoming();
+    }
+    function resolveDesync(msg) {
+        if (isHost()) { sendSync(); return; }                  // the guest rebuilds from us
+        const key = `${app.gameNo}:${(msg.history || []).length}`;
+        if (app.rebuiltAt === key) {                            // rebuilt once already and still different: give up
+            Log.add("Out of sync with your friend.", "x");
+            toast("Game out of sync — back to the room");
+            backToLobby(true);
+            return;
+        }
+        startGame(app.config, startPlayerFor(app.gameNo));
+        app.rebuiltAt = key;
+        app.rev--;                                              // a rebuild is not a new phase
+        Game.replay(msg.history || []);
+        if (msg.clocks) Clock.restore(msg.clocks);
+        Log.add("Re-synced with the host.", "x");
+        sendSync();
+        afterSync();
     }
 
     /* ================= net UI ================= */
@@ -434,7 +502,7 @@
     function saveSession() {
         if (!online()) return;
         Util.save(sessionStorage, SESSION_KEY, {
-            code: Net.code, me: app.me, role: Net.role, gameNo: app.gameNo, phase: app.phase, config: app.config,
+            code: Net.code, me: app.me, role: Net.role, gameNo: app.gameNo, rev: app.rev, phase: app.phase, config: app.config,
             history: app.phase === "game" ? Game.state.history.slice() : [], clocks: Clock.snapshot(),
         });
     }
@@ -512,6 +580,7 @@
             Clock.pause();
             Log.add("Rejoining room " + roomFromUrl + "…", "x");
         }
+        app.rev = session.rev || 0;
     } else if (roomFromUrl) {
         enterRoom(roomFromUrl, false);
     } else {

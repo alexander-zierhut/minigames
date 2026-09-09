@@ -92,6 +92,8 @@ export async function launchBrowser({ width = 1400, height = 900, mobile = false
             for (let i = 0; i < 50; i++) { if (await B.ev("document.getElementById('loader').hidden")) break; await sleep(100); }
             await sleep(150);
         },
+        // leave the app without any goodbye (closing the tab), keeping the browser for a later goto
+        async blank() { await send("Page.navigate", { url: "about:blank" }); await sleep(300); },
         async emulate(w, h) { await send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: true }); B.width = w; B.height = h; await sleep(200); },
         async screenshot(name) {
             const dir = process.env.E2E_SHOTS || join(ROOT, "tests", "e2e", "shots");

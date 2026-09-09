@@ -164,6 +164,7 @@ registered game is the default). app.js holds the active engine in `Game` and on
 | `replay(history)` | Applies moves instantly with `rules.place/settle/conclude` — the same functions the animated path uses — then renders and finishes or calls `onTurn`. Determinism here keeps two clients in sync. |
 | `finish(winner, why)` | Ends the game (also called by app.js for flag falls / remote timeouts): logs, renders, fills `#overlay-*` (title, `why` + `view.summary(state)`), emits `game:finish`, calls `onBusy(false)`, `onFinish`. |
 | `abandon()` | Marks a running game over without a result (Back to room). |
+| `hash()` | 32-bit fingerprint of cells/current/over/winner/movesBy; equal on two clients that are in sync (used by `move`/`sync`). |
 | `render()` | No-op until a board exists. Renders every cell (shared classes `p<k>`, `taken`, `last`, `can-place`/`locked`, then `view.renderCell`) and the HUD. |
 | `isLegal(i, player)` | Pure check via the rules. |
 
@@ -246,21 +247,48 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   then joins as guest). Roles can therefore swap; the app never derives seats from them.
 - **Seats** (`app.me`, player number 0/1) are sticky for a room visit: creator = 0,
   session restore = saved seat, a joining guest gets one from the host. Handshake on
-  every (re)connect: guest → `hello {seat}` (−1 = none) → host answers `state {you, phase,
-  settings, config, g}` (+ `sync` in a game) → guest takes `you` (its old seat if free,
-  else the free one), mirrors settings, starts/continues the game, answers `sync`.
+  every (re)connect: guest → `hello {seat, rematch}` (seat −1 = none) → host answers
+  `state {you, phase, settings, config, g, rematch}` (+ `sync` in a game) → guest takes
+  `you` (its old seat if free, else the free one), mirrors settings, starts/continues
+  the game, answers `sync`. `rematch: true` = "I pressed Rematch while you were away"
+  and is handled like a `rematch` message, so a request never gets lost.
+- **Full room**: the guest's dial carries `metadata {seat}`. A newcomer while a friend is
+  connected gets `full` and is closed (its status becomes `error` "This room is full…",
+  no retry loop) — unless it carries the connected friend's seat: then it is that friend
+  back on a new connection (refresh before the old one was noticed dead) and the stale
+  connection is replaced. Connection handlers check `conn === c` for that reason.
+- A former host whose id was taken over while its tab slept (`unavailable-id` with
+  `everConnected`) joins as guest at once; only a fresh page (refresh) retries the claim.
+- **Newest intent wins** (`app.rev`): every phase change (start, rematch, back to room)
+  bumps a room-state revision on both sides. `hello` and `state` carry `rev, phase,
+  config, g`; a host whose guest reports a higher `rev` adopts the guest's phase before
+  answering (`adoptRoomState`), a guest follows the host when `rev` is equal or higher.
+  So "one tab died, the other went back to the room / started a rematch, the tab comes
+  back" never drags anybody back into a stale game, whoever ends up hosting. The
+  revision is part of the session, so a refresh keeps it.
+- **Desync detection** (`Game.hash()`: FNV-1a over cells/current/over/winner/movesBy):
+  `move` carries the sender's hash before the move, `sync` the sender's hash. A move
+  whose hash doesn't match is not applied; a sync is requested instead. `applySync`:
+  identical prefix + longer history → the short side replays the tail; a prefix
+  mismatch, a hash mismatch at equal length, or the host still lacking moves the guest
+  already sent (`app.syncSentAt`) → `resolveDesync`: the host just re-sends its sync,
+  the guest rebuilds the game from the host's history (`app.rebuiltAt` remembers the
+  attempt). A second mismatch at the same point → both back to the room with a toast,
+  never two different games.
 - Share link = `<page URL without query>?room=CODE`; `?room=` on load auto-joins;
   `history.replaceState` keeps `?room=` in the URL while in a room.
 - Messages (JSON over one reliable DataConnection; game messages carry `g` = gameNo):
-  `hello`, `state`, `lobby {s}` (settings changed), `start {config, g}` (host started),
+  `hello`, `state`, `full` (transport level, host → rejected newcomer), `lobby {s}` (settings changed), `start {config, g}` (host started),
   `start-request` (guest asks; host is authoritative), `tolobby` (either side; abandons a
   running game), `sync {g, history, clocks}` (on (re)connect / on gaps: the shorter side
   replays the missing tail; deferred in `app.pendingSync` while animating), `move {i, n,
   g}` (`n` = history length before the move; queued in `app.incoming`, applied when idle
   and `n` matches, else a sync is requested), `timeout {p}` (only the owner of the
   flagged clock decides — clocks drift), `rematch {g}` (both must press), `react {e}`,
-  `leave` (sent 250 ms before closing), `ping`/`pong` every 3 s, 12 s silence → lost →
-  the guest redials. Handlers live in `HANDLERS` in app.js.
+  `leave` (sent 250 ms before closing; the app then treats the friend as gone at once —
+  Start is disabled before the connection actually drops), `ping`/`pong` every 3 s, 12 s
+  silence → lost → the guest redials. `rematch` with `g <= gameNo` is ignored
+  (duplicates). Handlers live in `HANDLERS` in app.js.
 - Statuses: `idle, connecting, waiting, connected, reconnecting, signaling, error`.
   `signaling` = broker socket dropped (tab suspended); an established DataConnection
   keeps working without the broker → no in-game banner for it. `everConnected` picks the
@@ -333,11 +361,17 @@ colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
   uploaded as artifact on CI failure), `waitFor`. Specs: `local-flow`, `settings`,
   `skins` (computed styles per skin), `mobile` (360×780), `online` (two browsers through
   the real PeerJS broker: join by link, settings mirror, guest start, move sync,
-  reactions, guest refresh, tolobby, switch game, rematch, **host refresh, guest leave +
-  rejoin, host leave → guest takes over → host returns as guest**; `SKIP_ONLINE=1`
-  skips), `dist` (built bundle: hashed assets only, preloader, playable). Files run 2 at
-  a time; each launches its own Chrome. Outline colours transition for .25s → wait
-  before reading computed styles.
+  reactions, guest refresh, tolobby, switch game, rematch, host refresh, guest leave +
+  rejoin, host leave → guest takes over → host returns as guest; `SKIP_ONLINE=1` skips),
+  `online-edge` (third player → room full; both refresh in the lobby; guest closes the
+  tab mid-game without goodbye and returns by link; rematch asked while the friend was
+  away; host's tab dies, guest goes back to the room, host returns → both in the lobby;
+  a corrupted guest board is rebuilt from the host; a board that keeps differing sends
+  both back to the room; both type the same new code at once), `dist` (built bundle: hashed assets only,
+  preloader, playable). Files run 2 at a time; each launches its own Chrome. `B.blank()`
+  navigates to about:blank (a closed tab); outline colours transition for .25s → wait
+  before reading computed styles. Any new join/rejoin behaviour gets a scenario in
+  `online-edge` — the owner wants joining to feel rock solid.
 
 ## Owner preferences
 
