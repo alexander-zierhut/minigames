@@ -3,7 +3,7 @@
    reaction toggle or the board on a phone. */
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { startServer, launchBrowser } from "./harness.mjs";
+import { startServer, launchBrowser, sleep } from "./harness.mjs";
 
 let server, B, M;
 before(async () => { server = await startServer(); B = await launchBrowser(); await B.goto(server.url); });
@@ -59,6 +59,38 @@ test("volume, sound set and category toggles persist across a reload; never in t
     await B.set("pref-volume", 30); await B.set("pref-soundset", "auto"); await B.check("pref-snd-turn", true);
     await B.click("#btn-prefs-done");
     assert.deepEqual(B.errors, []);
+});
+
+test("sounds: locked until a gesture, cues follow the game, mute silences, nothing throws in any set", async () => {
+    await B.click("#btn-local"); await B.selectGame("chain");
+    await B.click("#btn-settings"); await B.set("set-size", 4); await B.set("set-speed", 350); await B.click("#btn-settings-done");
+    await B.click("#btn-start");
+    assert.equal(await B.ev("Sound.unlocked"), false, "no audio before the first gesture");
+    await B.move(5);
+    assert.equal(await B.ev("Sound.log.length"), 1, "the cue is remembered even while audio is still locked");
+    await B.ev("window.dispatchEvent(new PointerEvent('pointerdown')); true");   // the browser's autoplay rule: a gesture first
+    assert.equal(await B.ev("Sound.unlocked"), true);
+    assert.equal(await B.ev("Sound.set"), "classic");
+    await B.ev("Sound.play('turn'); true");
+    // corner cell 0 explodes on the second piece: place → fuse → blast
+    await B.move(0); await B.move(5); await B.move(0);
+    const names = await B.ev("JSON.stringify(Sound.log.map(l => l.name))");
+    assert.match(names, /"place","prime","explode"/, `chain cues in order (${names})`);
+    // the Minecraft set decodes real files; the classic set synthesizes — neither throws
+    await B.click("#prefs-btn"); await B.set("pref-soundset", "mc"); await B.click("#btn-prefs-done");
+    assert.equal(await B.ev("Sound.set"), "mc");
+    await B.move(6);                                          // an empty cell (1 and 4 were taken by the blast)
+    for (let k = 0; k < 100 && !B.requests.some((u) => u.endsWith(".ogg")); k++) await sleep(100);
+    assert.ok(B.requests.some((u) => u.endsWith(".ogg")), "sound files are fetched once the Minecraft set is used");
+    assert.equal(await B.ev("Sound.log[Sound.log.length - 1].set"), "mc");
+    await B.click("#prefs-btn"); await B.set("pref-volume", 0); await B.click("#btn-prefs-done");
+    const before = await B.ev("Sound.log.length");
+    await B.move(2);
+    assert.equal(await B.ev("Sound.log.length"), before, "volume 0 plays nothing");
+    await B.click("#prefs-btn"); await B.set("pref-volume", 30); await B.set("pref-soundset", "auto"); await B.click("#btn-prefs-done");
+    await B.click("#btn-menu");
+    assert.deepEqual(B.errors, []);
+    assert.deepEqual(B.failedRequests, []);
 });
 
 test("phone: the button stays clear of the cards, the board and the reaction toggle", async () => {

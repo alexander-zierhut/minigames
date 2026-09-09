@@ -607,6 +607,7 @@
     Preload.textures();
     Skins.init({ onChange: () => { Game.render(); renderLobby(); } });
     Prefs.init({});
+    Sound.init({ seats: () => app.seats.map((s) => s.kind) });
     Settings.init({
         onChange: (cfg) => { if (online()) Net.send({ t: "lobby", s: cfg }); },
         // in bot mode picking a game asks which bot to play against

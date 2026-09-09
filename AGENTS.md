@@ -37,6 +37,7 @@ Scripts, in order (each defines the global named in brackets):
 | `client/lib/clock.js` | `Clock` | chess clock for N players |
 | `client/lib/net.js` | `Net` | PeerJS room transport |
 | `client/lib/preload.js` | `Preload` | first-visit texture preload with `#loader` bar |
+| `client/lib/sound.js` | `Sound` | Bus events → sound cues; synthesized Classic set, Minecraft files (see Sounds) |
 | `client/games/rules.js` | `Rules` | base state + turn passing shared by all rules modules |
 | `client/games.js` | `Games`, `Engine`, `Hud` | registry, the engine shell every game shares, HUD renderer |
 | `client/games/chain-rules.js` | `ChainRules` | Chain React rules, pure (no DOM) |
@@ -61,7 +62,10 @@ classic first, then its MC-skin rules).
 
 Other: `client/textures/*.png` — 16×16 Mojang block textures from the owner's own
 1.12.2 jar (personal use; MC skins stay opt-in). Only textures referenced from CSS are
-kept. `README.md` is the short public readme; `CLAUDE.md` just imports this file.
+kept. `client/sounds/*.ogg` — Minecraft sounds from the owner's own installation
+(`~/.minecraft/assets/indexes/*.json` maps `minecraft/sounds/<path>.ogg` to
+`~/.minecraft/assets/objects/<hash[0:2]>/<hash>`; personal use), only the files
+`Sound.FILES` references. `README.md` is the short public readme; `CLAUDE.md` just imports this file.
 `server/` (a 2022 PHP stub) was deleted; don't bring it back.
 
 ## Build & deploy
@@ -69,8 +73,10 @@ kept. `README.md` is the short public readme; `CLAUDE.md` just imports this file
 - `npm run build` (= `node build.mjs`) writes `dist/`: `index.html` + `assets/app.<hash>.js`
   (all client scripts in `index.html` order, esbuild-minified when available) +
   `assets/main.<hash>.css` (all stylesheets concatenated, `../textures/x.png` rewritten
-  to hashed names) + `assets/textures/<name>.<hash>.png` + the icon files. Hashes are
-  content hashes → cache busting by filename. Env: `DIST_DIR`, `SKIP_MINIFY=1`.
+  to hashed names) + `assets/textures/<name>.<hash>.png` + `assets/sounds/<name>.<hash>.ogg`
+  (every `client/sounds/<file>` string in the JS bundle is rewritten to the hashed path —
+  that is how `Sound.FILES` finds them) + the icon files. Hashes are content hashes →
+  cache busting by filename. Env: `DIST_DIR`, `SKIP_MINIFY=1`.
 - `.github/workflows/ci.yml`: job `test` (npm ci → unit → e2e) on push to `main`, PRs
   and manual; job `deploy` (`needs: test`, pushes to `main` only): build, `aws s3 sync`
   assets with `Cache-Control: public, max-age=31536000, immutable`, root files with
@@ -366,12 +372,43 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
 
 ## Events (`Bus`)
 
-Fire-and-forget notifications for observers (a future sound module subscribes here;
-the log emits too so a chat could mirror it). Current events and payloads:
+Fire-and-forget notifications for observers (the sound module subscribes here; the
+log emits too so a chat could mirror it). Current events and payloads:
 `game:new {game, config}`, `game:move {game, cell, player}` (a piece was placed),
-`game:turn {game, player}`, `game:finish {game, winner, why}`, `chain:explode {cells,
+`game:turn {game, player}`, `game:finish {game, winner, why}`, `chain:prime {cells,
+player, ms}` (full cells start blinking; `ms` = how long), `chain:explode {cells,
 player, chain}` (one wave), `reaction {emoji, theirs}`, `log {text, cls}`.
-Adding sounds = a new `client/sounds.js` with `Bus.on(...)` calls and one script tag.
+`Sound` subscribes to all of them (below).
+
+## Sounds (`client/lib/sound.js`)
+
+`Sound.init({ seats, player })` subscribes to the Bus; `seats()` returns the seat kinds
+(`app.seats.map(s => s.kind)`) and is the only thing the module knows about the game.
+- **Mapping** (`Sound.map(event, data, kinds)`, pure): `game:move` → `place`;
+  `chain:prime` → `prime` (the fuse, stopped after `ms`); `chain:explode` → `explode`
+  (gain and pitch grow a little with the chain length); `game:finish` → `win` / `lose`
+  from the local human's perspective (`Sound.me(kinds)`: exactly one local seat among
+  non-local ones — online or against a bot; otherwise −1 → neutral `over`, also for a
+  draw; local two-on-one-device and spectators therefore hear `over`); `game:turn` →
+  `turn` only when the seat is local and someone else (friend/bot) just moved; `reaction`
+  → `reaction` (theirs a bit lower); `chat` → `chat` for other people's lines only.
+- **Gate**: `Prefs.volume` (0 = silent; gain = `(volume/100)^1.6`) and the category of the
+  cue (`Sound.CATEGORY`: place → moves, prime/explode → explosions, win/lose/over →
+  results, turn → turn, reaction → reactions, chat → chat). What passes lands in
+  `Sound.log` (last 30 `{ name, set, at }`, the e2e hook) and goes to the player.
+- **Sets**: `Sound.set` = `Prefs.soundSet` or, on `auto`, `classic` for the Classic look and
+  `mc` for both Minecraft looks. `classic` synthesizes everything with WebAudio (short
+  tones and filtered noise, deterministic noise buffer); `mc` plays `Sound.FILES`
+  (stone1 = place, fuse = prime, explode1 = explode, levelup = win, anvil_land = lose,
+  bass = over, pling = turn, pop = reaction, orb = chat), fetched + decoded lazily
+  (all preloaded on unlock when the set is `mc`; a cue whose file isn't decoded yet is
+  skipped, never delayed).
+- **Autoplay rule**: the `AudioContext` is created on the first `pointerdown`/`keydown`/
+  `touchstart` (`Sound.unlocked`); until then cues are logged but inaudible. Tests
+  dispatch a `PointerEvent("pointerdown")` on `window`. `Sound.state` = the context state.
+  A page without `AudioContext` (jsdom) never throws — the player is a no-op.
+- "Play a test sound" in the preferences modal plays `turn`. The whole module is
+  fail-safe: any player exception is swallowed.
 
 ## Seats, bots and more players
 
@@ -501,7 +538,8 @@ colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
   polyfilled) for `chain.test.mjs` (caps, waves, board-decided stop, win, chain rule,
   replay == play, hooks, HUD), `five.test.mjs`, `clock.test.mjs` (call `C.setup(0)` +
   `w.close()` at the end or the interval keeps the file alive), `net.test.mjs` (codes),
-  `prefs.test.mjs` (defaults, clamping, persistence, form wiring),
+  `prefs.test.mjs` (defaults, clamping, persistence, form wiring), `sound.test.mjs`
+  (event → cue mapping with a fake player, perspective, prefs gate, sound sets),
   `build.test.mjs` (`SKIP_MINIFY=1 DIST_DIR=<tmp>`; hashed names, icons, deterministic).
   Cross-realm arrays: compare via `JSON.stringify`, not `deepStrictEqual`.
 - **E2E** (`npm run test:e2e`, `tests/e2e/*.test.mjs`): `harness.mjs` starts a static
@@ -510,7 +548,8 @@ colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
   preloader), `ev`, `click/set/check/text`, `move(i)`/`idle()`, `state()`, `randomGame()`,
   `noScroll()`, `emulate(w,h)`, `screenshot(name)` (to `tests/e2e/shots/`, git-ignored;
   uploaded as artifact on CI failure), `waitFor`. Specs: `local-flow`, `settings`,
-  `prefs` (⚙ on every screen, look sync, persistence, phone: clear of cards/board/😜,
+  `prefs` (⚙ on every screen, look sync, persistence, sounds: locked until a gesture,
+  cues logged in order, mc files fetched, mute; phone: clear of cards/board/😜,
   landscape), `skins` (computed styles per skin), `mobile` (360×780), `online` (two browsers through
   the real PeerJS broker: join by link, settings mirror, guest start, move sync,
   reactions, guest refresh, tolobby, switch game, rematch, host refresh, guest leave +
@@ -521,7 +560,7 @@ colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
   a corrupted guest board is rebuilt from the host; a board that keeps differing sends
   both back to the room; both type the same new code at once), `bot` (offline vs bot: picker with score, bot moves
   by itself, rematch), `dist` (built bundle: hashed assets only,
-  preloader, playable). Files run 2 at a time; each launches its own Chrome. `B.blank()`
+  preloader, playable, hashed sound files fetched after the audio unlock). Files run 2 at a time; each launches its own Chrome. `B.blank()`
   navigates to about:blank (a closed tab); outline colours transition for .25s → wait
   before reading computed styles. Any new join/rejoin behaviour gets a scenario in
   `online-edge` — the owner wants joining to feel rock solid.

@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { startServer, launchBrowser, ROOT } from "./harness.mjs";
+import { startServer, launchBrowser, ROOT, sleep } from "./harness.mjs";
 
 let server, B, dist;
 before(async () => {
@@ -30,8 +30,14 @@ test("built site loads only hashed assets, preloads textures, plays", async () =
     await B.click("#btn-local"); await B.selectGame("chain");
     await B.click("#btn-settings"); await B.set("set-size", 3); await B.set("set-speed", 350); await B.click("#btn-settings-done");
     await B.click("#btn-start");
+    await B.ev("window.dispatchEvent(new PointerEvent('pointerdown')); true");   // unlock audio: the mc set fetches its sound files
     const r = await B.randomGame();
     assert.equal(r.over, true);
+    for (let k = 0; k < 100 && !B.requests.some((u) => u.endsWith(".ogg")); k++) await sleep(100);
+    const oggs = B.requests.filter((u) => u.endsWith(".ogg"));
+    assert.ok(oggs.length >= 8, `sound files fetched from the built site (${oggs.length})`);
+    assert.ok(oggs.every((u) => /\/assets\/sounds\/[a-z0-9_]+\.[0-9a-f]{10}\.ogg$/.test(u)), "sounds are hashed");
+    assert.ok(!B.requests.some((u) => u.includes("/client/")), "still nothing from client/");
     assert.deepEqual(B.errors, []);
     assert.deepEqual(B.failedRequests, []);
     await B.selectSkin("classic");

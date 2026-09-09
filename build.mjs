@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /* Build: writes dist/ with one hashed JS bundle (all client scripts in index.html
-   order, minified with esbuild when available), one hashed CSS file (all client
-   stylesheets in index.html order, texture urls rewritten), hashed textures and a
-   rewritten index.html. Hashed filenames = cache busting: index.html is served with
+   order, minified with esbuild when available; sound paths rewritten), one hashed CSS
+   file (all client stylesheets in index.html order, texture urls rewritten), hashed
+   textures, hashed sounds and a rewritten index.html. Hashed filenames = cache busting: index.html is served with
    no-cache, assets are immutable. Env: DIST_DIR (default dist/), SKIP_MINIFY=1. */
 
 import { createHash } from "node:crypto";
@@ -20,6 +20,7 @@ const read = (rel) => readFileSync(join(ROOT, rel), "utf8");
 
 rmSync(DIST, { recursive: true, force: true });
 mkdirSync(join(DIST, ASSETS, "textures"), { recursive: true });
+mkdirSync(join(DIST, ASSETS, "sounds"), { recursive: true });
 
 let html = read("index.html");
 
@@ -29,6 +30,14 @@ for (const f of readdirSync(join(ROOT, "client/textures"))) {
     const buf = readFileSync(join(ROOT, "client/textures", f));
     texMap[f] = hashedName(f, buf);
     writeFileSync(join(DIST, ASSETS, "textures", texMap[f]), buf);
+}
+
+/* ---- sounds: hash each file (referenced from client/lib/sound.js as client/sounds/<name>.ogg) ---- */
+const soundMap = {};
+for (const f of existsSync(join(ROOT, "client/sounds")) ? readdirSync(join(ROOT, "client/sounds")) : []) {
+    const buf = readFileSync(join(ROOT, "client/sounds", f));
+    soundMap[f] = hashedName(f, buf);
+    writeFileSync(join(DIST, ASSETS, "sounds", soundMap[f]), buf);
 }
 
 /* ---- css: concatenate in index.html order, rewrite texture urls, hash ---- */
@@ -46,6 +55,10 @@ writeFileSync(join(DIST, ASSETS, cssName), css);
 const scriptTags = [...html.matchAll(/<script src="(client\/[^"]+)"><\/script>\n?/g)];
 if (scriptTags.length === 0) throw new Error("no client script tags found in index.html");
 let bundle = scriptTags.map((m) => read(m[1])).join("\n;\n");
+bundle = bundle.replace(/client\/sounds\/([A-Za-z0-9_.-]+)/g, (m, f) => {
+    if (!soundMap[f]) throw new Error(`JS references unknown sound ${f}`);
+    return `${ASSETS}/sounds/${soundMap[f]}`;
+});
 if (!process.env.SKIP_MINIFY) {
     const local = join(ROOT, "node_modules", ".bin", "esbuild");
     const [cmd, pre] = existsSync(local) ? [local, []] : ["npx", ["--yes", "esbuild@0.24.2"]];
@@ -73,4 +86,4 @@ writeFileSync(join(DIST, "index.html"), html);
 for (const f of ROOT_EXTRAS) if (existsSync(join(ROOT, f))) copyFileSync(join(ROOT, f), join(DIST, f));
 
 const size = (p) => (readFileSync(p).length / 1024).toFixed(1) + " KB";
-console.log(`dist/index.html\ndist/${ASSETS}/${jsName}  ${size(join(DIST, ASSETS, jsName))}\ndist/${ASSETS}/${cssName}  ${size(join(DIST, ASSETS, cssName))}\n${Object.keys(texMap).length} textures`);
+console.log(`dist/index.html\ndist/${ASSETS}/${jsName}  ${size(join(DIST, ASSETS, jsName))}\ndist/${ASSETS}/${cssName}  ${size(join(DIST, ASSETS, cssName))}\n${Object.keys(texMap).length} textures, ${Object.keys(soundMap).length} sounds`);
