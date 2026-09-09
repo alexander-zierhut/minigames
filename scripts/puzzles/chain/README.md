@@ -10,7 +10,7 @@ Files:
 - `solver.mjs` — `solve(state, { depth, nodes })` for a `ChainRules` state (2 players,
   chain rule off). Pure, no DOM; re-implements the rules on typed arrays for speed
   (`solver.test.mjs` checks them against the real module on thousands of random moves).
-- `generate.mjs` — `node tests/puzzles/chain/generate.mjs [--verbose]` rebuilds
+- `generate.mjs` — `node scripts/puzzles/chain/generate.mjs [--verbose]` rebuilds
   `puzzles.json` deterministically (seeded playouts + hand-crafted positions, fixed node
   budgets, no wall-clock decisions). ~30 s on a laptop. The `generated` date is kept when
   the puzzles did not change, so a re-run never creates a diff.

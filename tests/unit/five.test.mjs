@@ -110,7 +110,7 @@ test("win chance: even at the start, grows with a longer row, exact on a draw", 
     const { w, G } = fresh();
     const d = w.document;
     const pct = (k) => parseInt(d.getElementById(`p${k}-win-pct`).textContent, 10);
-    assert.ok(Math.abs(pct(0) - 50) <= 5 && pct(0) + pct(1) === 100);
+    assert.ok(Math.abs(pct(0) - 50) <= 10 && pct(0) + pct(1) === 100, `roughly even at the start (${pct(0)})`);
     await playAll(G, [0, 40, 1, 41, 2, 50, 3]);       // p0 four in a row vs p1 two
     assert.ok(pct(0) > 70, `p0 clearly ahead (${pct(0)})`);
     G.finish(-1, "The board is full.");

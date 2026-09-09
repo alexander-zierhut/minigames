@@ -426,15 +426,18 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   segmented control (hidden with a single difficulty), remembers `{ id, difficulty }` per
   game in `localStorage["chainreact.bots"]`, `Opponent.current(game)` / `summary(game)`.
 
-- **Puzzles = perfect-move test sets** (`tests/puzzles/<game>/`): positions whose best
-  move(s) were PROVEN by a solver (`solver.mjs`, exhaustive minimax / proven threat search),
-  generated deterministically by `node tests/puzzles/<game>/generate.mjs` into
-  `puzzles.json` (`{ game, generated, solver, puzzles: [{ id, config, history, toMove, best,
+- **Puzzles = perfect-move test sets** (`tests/puzzles/<game>/puzzles.json`): positions whose
+  best move(s) were PROVEN by a solver (`scripts/puzzles/<game>/solver.mjs`, exhaustive
+  minimax / proven threat search), generated deterministically by
+  `scripts/puzzles/<game>/generate.mjs` (`npm run puzzles`) into `puzzles.json` (`{ game, generated, solver, puzzles: [{ id, config, history, toMove, best,
   value, depth, tags, note }] }`; `history` replays from an empty board, `best` = all
   optimal moves, `value` from the mover's view, tags like `win-in-1`, `must-block`,
-  `avoid-loss`, `win-in-2`, `endgame-exhaustive`). Each folder has `solver.test.mjs` (the
-  solver on hand-made positions + the set's consistency) and a README with the guarantee
-  and the limits. `tools/puzzles.mjs` replays a puzzle (`positionOf`) and grades a bot
+  `avoid-loss`, `win-in-2`, `endgame-exhaustive`; note the sets differ slightly: chain's
+  `avoid-loss` means "loses to the immediate reply", five's "loses by force"). Each test
+  folder has `solver.test.mjs` (the solver on hand-made positions + the set's consistency,
+  re-solving every puzzle), each script folder a README with the guarantee and the limits.
+  `scripts/puzzles/verify.mjs` (`npm run puzzles:verify`) re-proves the tactical puzzles
+  with a solver-independent one-ply check and prints the blind-random baseline. `tools/puzzles.mjs` replays a puzzle (`positionOf`) and grades a bot
   (`evaluateBot` → solved/total/pct, per tag, failures); `tests/unit/puzzles.test.mjs`
   checks every set (≥ 100, replayable, legal best moves) and prints every bot's score; the
   benchmark stores it as `puzzles: { solved, total, pct, chance }` in `benchmark.js`
@@ -503,6 +506,13 @@ colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
   navigates to about:blank (a closed tab); outline colours transition for .25s → wait
   before reading computed styles. Any new join/rejoin behaviour gets a scenario in
   `online-edge` — the owner wants joining to feel rock solid.
+
+## Folders that are never deployed
+
+`docs/` (`docs/bots.md` = bot system reference and the list of current bots — keep it in
+step with the code), `scripts/` (puzzle solvers/generators, verify, screenshot tour),
+`tools/` (headless loader, puzzle runner, benchmark), `tests/`. The deploy uploads `dist/`
+only; `build.mjs` bundles nothing outside `index.html`'s tags and `client/textures`.
 
 ## Owner preferences
 

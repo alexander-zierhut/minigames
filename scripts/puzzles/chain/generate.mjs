@@ -3,7 +3,7 @@
    proven by solver.mjs. Deterministic: seeded playouts (mulberry32 via Bots.rng), fixed
    node budgets, no wall-clock decisions, so re-running produces the same file.
 
-   Usage: node tests/puzzles/chain/generate.mjs [--verbose]
+   Usage: node scripts/puzzles/chain/generate.mjs [--verbose]
 
    Pipeline: seeded random / "careful" playouts on 3×3 … 6×6 boards → sample positions →
    solve (exhaustive on 3×3/4×4, depth-limited on 5×5/6×6) → keep only proven positions
@@ -14,7 +14,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { loadHeadless } from "../../../tools/headless.mjs";
 import { solve, fromState, apply, legalMoves, winsNow, losesNow, canonicalKey } from "./solver.mjs";
 
-const OUT = new URL("./puzzles.json", import.meta.url).pathname;
+const OUT = new URL("../../../tests/puzzles/chain/puzzles.json", import.meta.url).pathname;
 const verbose = process.argv.includes("--verbose");
 const { Rules, ChainRules, Bots } = loadHeadless();
 

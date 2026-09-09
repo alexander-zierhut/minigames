@@ -218,7 +218,7 @@ const Hud = (() => {
             $(`p${k}-pieces`).textContent = m.stats[1][1];
             $(`p${k}-bar`).style.width = Math.round(m.bar * 100) + "%";
             $(`p${k}-pct`).textContent = m.barText;
-            const win = model.win ? Math.round(model.win[k] * 100) : null;   // win chance, same on every client
+            const win = model.win ? (k === 0 ? Math.round(model.win[0] * 100) : 100 - Math.round(model.win[0] * 100)) : null;   // win chance; the two always add to 100
             $(`p${k}-win-row`).hidden = win === null;
             if (win !== null) { $(`p${k}-win`).style.width = win + "%"; $(`p${k}-win-pct`).textContent = `${win} % win`; }
             $(`p-${k}`).classList.toggle("leading", !!m.leading);

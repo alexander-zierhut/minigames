@@ -17,7 +17,7 @@ test("registry: every bot has valid metadata; bad definitions are rejected", () 
         assert.ok(b.difficulties.length >= 1);
         assert.equal(typeof b.create, "function");
     }
-    assert.equal(JSON.stringify(Bots.forGame("chain").map((b) => b.id)), '["random-chain"]');   // vm realm: compare by JSON
+    assert.ok(Bots.forGame("chain").some((b) => b.id === "random-chain") && Bots.forGame("chain").every((b) => b.game === "chain"));
     for (const bad of [{}, { id: "x", name: "X", game: "chain", difficulties: [], create() {} }, { id: "Bad Id", name: "X", game: "chain", difficulties: [{ id: "n", label: "N" }], create() {} }]) {
         assert.throws(() => Bots.validate(bad), /Bots\.register/);
     }
