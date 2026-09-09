@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="theme-color" content="#0f1320">
+    <title>ALZlper's Minigames</title>
+    <link href="client/main.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- ===================== TITLE / MENU ===================== -->
+<section id="screen-menu" class="screen">
+    <div class="menu-card">
+        <h1 class="title">ALZlper's Minigames</h1>
+        <p class="tagline">Chain React and Five Wins. Create a room once, then play, rematch and switch games together.</p>
+
+        <div class="menu-actions">
+            <div class="section">
+                <div class="section-title">Online</div>
+                <div class="btn-row">
+                    <button class="btn primary big" id="btn-create">Create room</button>
+                    <button class="btn big" id="btn-join-open">Join room</button>
+                </div>
+                <div id="join-panel" hidden>
+                    <div class="join-row">
+                        <input id="join-code" placeholder="ROOM CODE" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false">
+                        <button class="btn primary" id="btn-join">Join</button>
+                    </div>
+                    <p class="hint">Enter your friend's code. Both typing the same new code works too.</p>
+                </div>
+            </div>
+            <div class="section">
+                <div class="section-title">Offline</div>
+                <button class="btn big" id="btn-local">Play on this device</button>
+            </div>
+        </div>
+
+        <div class="skin-row">
+            <span class="skin-label">Look</span>
+            <div class="seg skin-seg">
+                <button data-skin="classic" class="selected">Classic</button>
+                <button data-skin="mcboard">MC board</button>
+                <button data-skin="mc">Minecraft</button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===================== LOBBY (room) ===================== -->
+<section id="screen-lobby" class="screen" hidden>
+    <div class="menu-card lobby-card">
+        <div class="lobby-head">
+            <div>
+                <div class="label" id="lobby-kind">Room</div>
+                <div class="room-code" id="lobby-code">—</div>
+            </div>
+            <div class="lobby-actions" id="lobby-share">
+                <button class="btn small primary" id="btn-share">Share link</button>
+                <button class="btn small" id="btn-copy-code">Copy code</button>
+            </div>
+        </div>
+
+        <div class="lobby-players" id="lobby-players">
+            <div class="lobby-player p0" id="lp-0"><span class="cube p0"></span><span class="lp-name">Cyan</span><span class="lp-status" id="lp-0-status"></span></div>
+            <div class="lobby-player p1" id="lp-1"><span class="cube p1"></span><span class="lp-name">Amber</span><span class="lp-status" id="lp-1-status"></span></div>
+        </div>
+        <div class="lobby-status" id="lobby-status"></div>
+
+        <div class="section">
+            <div class="section-title">Game</div>
+            <div class="game-picker" id="game-picker">
+                <button class="game-card selected" data-game="chain">
+                    <span class="game-preview chain">
+                        <i></i><i></i><i></i><i class="p0"></i><i class="p1"></i><i></i><i></i><i></i><i></i>
+                    </span>
+                    <span class="game-name">Chain React</span>
+                    <span class="game-desc">Explosions & chain reactions</span>
+                </button>
+                <button class="game-card" data-game="five">
+                    <span class="game-preview five">
+                        <i class="p0"></i><i></i><i class="p1"></i><i class="p1"></i><i class="p0"></i><i></i><i></i><i></i><i class="p0"></i>
+                    </span>
+                    <span class="game-name">Five Wins</span>
+                    <span class="game-desc">Five in a row, no gravity</span>
+                </button>
+            </div>
+            <p class="tagline small" id="menu-tagline"></p>
+        </div>
+
+        <button class="settings-summary" id="btn-settings">
+            <span class="gear-icon">⚙</span>
+            <span id="settings-summary">Settings</span>
+            <span class="chev">›</span>
+        </button>
+
+        <div class="skin-row compact">
+            <span class="skin-label">Look</span>
+            <div class="seg skin-seg">
+                <button data-skin="classic" class="selected">Classic</button>
+                <button data-skin="mcboard">MC board</button>
+                <button data-skin="mc">Minecraft</button>
+            </div>
+        </div>
+
+        <button class="btn primary big" id="btn-start">Start game</button>
+        <button class="btn ghost" id="btn-lobby-back">Leave</button>
+    </div>
+</section>
+
+<!-- ===================== GAME ===================== -->
+<section id="screen-game" class="screen" hidden>
+    <div id="app">
+        <div id="board-wrap">
+            <div id="board"></div>
+        </div>
+
+        <aside id="hut">
+            <div class="sign">
+                <div class="sign-title" id="sign-title">CHAIN REACT</div>
+                <div class="sign-sub" id="round-label">Round 1</div>
+            </div>
+
+            <div class="turn-box" id="turn-box">
+                <div class="turn-block" id="turn-block"></div>
+                <div class="turn-text">
+                    <div class="turn-name" id="turn-name">Cyan</div>
+                    <div class="turn-hint" id="turn-hint">to move</div>
+                </div>
+                <div class="turn-mini">
+                    <div><span id="round-mini">Round 1</span></div>
+                    <div id="mini-line2">chain <b id="chain-mini">0</b> / best <b id="best-mini">0</b></div>
+                </div>
+                <button class="gear" id="gear" aria-label="Menu">☰</button>
+            </div>
+
+            <div class="players">
+                <div class="player p0" id="p-0">
+                    <div class="player-head"><span class="cube p0"></span> <span id="p0-name">Cyan</span> <span class="you" id="p0-you" hidden>you</span></div>
+                    <div class="clock" id="clock-0" hidden>3:00</div>
+                    <div class="stat"><span id="lbl-cells-0">Cells</span><b id="p0-cells">0</b></div>
+                    <div class="stat"><span id="lbl-pieces-0">Pieces</span><b id="p0-pieces">0</b></div>
+                    <div class="bar"><div class="bar-fill p0" id="p0-bar" style="width:0%"></div><span id="p0-pct">0%</span></div>
+                </div>
+                <div class="player p1" id="p-1">
+                    <div class="player-head"><span class="cube p1"></span> <span id="p1-name">Amber</span> <span class="you" id="p1-you" hidden>you</span></div>
+                    <div class="clock" id="clock-1" hidden>3:00</div>
+                    <div class="stat"><span id="lbl-cells-1">Cells</span><b id="p1-cells">0</b></div>
+                    <div class="stat"><span id="lbl-pieces-1">Pieces</span><b id="p1-pieces">0</b></div>
+                    <div class="bar"><div class="bar-fill p1" id="p1-bar" style="width:0%"></div><span id="p1-pct">0%</span></div>
+                </div>
+            </div>
+
+            <div class="chain-box" id="chain-box">
+                <div class="stat"><span>Current chain</span><b id="chain-now">0</b></div>
+                <div class="stat"><span>Longest chain</span><b id="chain-best">0</b></div>
+                <div class="stat"><span>Explosions total</span><b id="explosions">0</b></div>
+            </div>
+
+            <div class="net-box" id="net-box" hidden>
+                <span class="net-dot" id="net-dot"></span>
+                <span id="net-text">Connected</span>
+                <span class="net-code" id="net-code"></span>
+            </div>
+
+            <div class="log" id="log"></div>
+
+            <div class="controls" id="game-controls">
+                <button class="btn" id="btn-restart">Rematch</button>
+                <button class="btn" id="btn-menu">Back to room</button>
+            </div>
+        </aside>
+    </div>
+
+    <!-- emoji reactions (YouTube-live style, bottom right corner) -->
+    <div id="react-layer" aria-hidden="true"></div>
+    <div id="react-bar" class="collapsed">
+        <div class="react-list">
+            <button data-e="😂">😂</button>
+            <button data-e="🔥">🔥</button>
+            <button data-e="💀">💀</button>
+            <button data-e="🤡">🤡</button>
+            <button data-e="😱">😱</button>
+            <button data-e="👏">👏</button>
+            <button data-e="😎">😎</button>
+            <button data-e="🫡">🫡</button>
+            <button data-e="L" class="chip">L</button>
+            <button data-e="EZ" class="chip">EZ</button>
+            <button data-e="GG" class="chip">GG</button>
+        </div>
+        <button id="react-toggle" aria-label="Reactions">😜</button>
+    </div>
+
+    <div id="net-banner" hidden>
+        <span id="net-banner-text">Connection lost. Reconnecting…</span>
+        <button class="btn small" id="btn-net-retry" hidden>Retry</button>
+        <button class="btn small ghost" id="btn-net-leave">Leave</button>
+    </div>
+</section>
+
+<!-- ===================== SETTINGS ===================== -->
+<div id="settings-modal" class="modal" hidden>
+    <div class="menu-card settings-card">
+        <h1 class="title small">Settings</h1>
+        <div class="settings">
+            <label class="row">
+                <span>Board size <small id="size-hint"></small></span>
+                <span class="inline"><input type="number" id="set-size" min="3" max="25" step="1" value="6" autocomplete="off"><small>× same</small></span>
+            </label>
+            <label class="row" id="row-winlen">
+                <span>In a row to win</span>
+                <span class="inline"><input type="number" id="set-winlen" min="3" max="25" step="1" value="5" autocomplete="off"><small>stones</small></span>
+            </label>
+            <label class="row" id="row-speed">
+                <span>Animation speed</span>
+                <select id="set-speed" autocomplete="off">
+                    <option value="1100">Slow</option>
+                    <option value="750" selected>Normal</option>
+                    <option value="350">Fast</option>
+                </select>
+            </label>
+            <label class="row">
+                <span>Timer per player</span>
+                <select id="set-timer" autocomplete="off">
+                    <option value="0" selected>Off</option>
+                    <option value="60">1 min</option>
+                    <option value="180">3 min</option>
+                    <option value="300">5 min</option>
+                    <option value="600">10 min</option>
+                    <option value="custom">Custom…</option>
+                </select>
+            </label>
+            <label class="row" id="row-timer-custom" hidden>
+                <span>Custom minutes</span>
+                <input type="number" id="set-timer-custom" min="0.5" max="120" step="0.5" value="3" autocomplete="off">
+            </label>
+            <label class="row" id="row-chain">
+                <span>Win on a long chain</span>
+                <span class="inline">
+                    <input type="checkbox" id="set-chain" autocomplete="off">
+                    <input type="number" id="set-chain-len" min="5" max="99" value="15" autocomplete="off" disabled>
+                    <small>explosions</small>
+                </span>
+            </label>
+        </div>
+        <button class="btn primary" id="btn-settings-done">Done</button>
+    </div>
+</div>
+
+<!-- ===================== GAME OVER ===================== -->
+<div id="overlay" hidden>
+    <div class="overlay-card">
+        <div class="overlay-block" id="overlay-block"></div>
+        <div class="overlay-title" id="overlay-title">Amber wins!</div>
+        <div class="overlay-sub" id="overlay-sub"></div>
+        <div class="overlay-actions">
+            <button class="btn primary" id="overlay-again">Rematch</button>
+            <button class="btn" id="overlay-look">Look at board</button>
+            <button class="btn ghost" id="overlay-menu">Change game</button>
+        </div>
+    </div>
+</div>
+<button id="result-fab" class="btn primary" hidden>Show result</button>
+
+<div id="toast" hidden></div>
+
+<script src="client/vendor/peerjs.min.js"></script>
+<script src="client/game.js"></script>
+<script src="client/five.js"></script>
+<script src="client/clock.js"></script>
+<script src="client/net.js"></script>
+<script src="client/app.js"></script>
+</body>
+</html>
