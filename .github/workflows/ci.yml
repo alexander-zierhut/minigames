@@ -73,7 +73,15 @@ jobs:
             --cache-control "public, max-age=31536000, immutable" \
             --size-only
 
-      # 2. then the entry point, which must always be fetched fresh
+      # 2. root files next to index.html (favicons, manifest): short cache, may change
+      - name: Upload root files
+        run: |
+          aws s3 sync dist "s3://$BUCKET" \
+            --endpoint-url "$S3_ENDPOINT" \
+            --exclude "assets/*" --exclude "index.html" \
+            --cache-control "public, max-age=86400"
+
+      # 3. then the entry point, which must always be fetched fresh
       - name: Upload index.html
         run: |
           aws s3 cp dist/index.html "s3://$BUCKET/index.html" \
@@ -81,13 +89,12 @@ jobs:
             --content-type "text/html; charset=utf-8" \
             --cache-control "no-cache, max-age=0, must-revalidate"
 
-      # 3. finally drop assets no longer referenced (old hashes)
-      - name: Remove old assets
+      # 4. finally drop anything no longer in dist (old hashed assets, removed files)
+      - name: Remove stale files
         run: |
           aws s3 sync dist "s3://$BUCKET" \
             --endpoint-url "$S3_ENDPOINT" \
-            --delete --size-only \
-            --exclude "*" --include "assets/*" --include "index.html"
+            --delete --size-only
 
       - name: Summary
         run: |
