@@ -36,8 +36,11 @@ unbundled straight from `index.html` + `client/`.
   then `index.html` with `no-cache`, then delete old hashed assets. Target: Scaleway
   Object Storage bucket `minigames.alzlper.com`, region `nl-ams`, endpoint
   `https://s3.nl-ams.scw.cloud`. Credentials come from repo secrets `SCW_ACCESS_KEY` /
-  `SCW_SECRET_KEY` (an IAM API key of the owner's user; the bucket policy grants the
-  owner's user id full access and `*` read).
+  `SCW_SECRET_KEY`: a **non-expiring API key of the IAM application `minigames-website`**
+  (id `300c3839-68e5-4fc9-9a66-9321af7ffe1e`, policy `minigames-website-policy` =
+  ObjectStorageFullAccess on project `zierhut-p` 829778ff…), same pattern as the owner's
+  other sites (e.g. `alexzierhut-website`). The bucket policy has three statements:
+  owner user id full access, deploy application full access, `*` GetObject.
 - Bucket is in website mode (index + error document `index.html`), same policy shape as
   the owner's other sites (`alzlper.com`, `blog.alzlper.com`). DNS: CNAME the domain to
   `minigames.alzlper.com.s3-website.nl-ams.scw.cloud` (TLS via Scaleway Edge Services).
