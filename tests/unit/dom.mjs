@@ -2,7 +2,7 @@
    HUD, clock, settings … can be unit-tested against the real markup. app.js is left
    out because it boots the app (PeerJS, ResizeObserver, texture preload). */
 import { JSDOM } from "jsdom";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 
 const ROOT = new URL("../../", import.meta.url).pathname;
 const HTML = readFileSync(ROOT + "index.html", "utf8");
@@ -17,6 +17,7 @@ export function loadDom() {
     // Web Animations API is not in jsdom: resolve immediately
     w.Element.prototype.animate = function () { return { finished: Promise.resolve(), onfinish: null, cancel() {} }; };
     for (const f of SCRIPTS) {
+        if (!existsSync(ROOT + f)) continue;                 // generated benchmark.js of a brand-new bot may not exist yet
         const el = w.document.createElement("script");
         el.textContent = readFileSync(ROOT + f, "utf8");
         w.document.body.appendChild(el);

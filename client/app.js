@@ -249,7 +249,9 @@
         app.seats = makeSeats(cfg.players || 2);
         if (app.mode === "bot") {
             const choice = Opponent.current(cfg.game);
-            app.bot = choice ? Bots.create(choice.id, { me: 1, difficulty: choice.difficulty, seed: Date.now() >>> 0, players: cfg.players || 2 }) : null;
+            // seed: fresh per game so the bot varies; tests pin it via sessionStorage["chainreact.botseed"]
+            const seed = (Number(Util.load(sessionStorage, "chainreact.botseed")) || Date.now()) + app.gameNo;
+            app.bot = choice ? Bots.create(choice.id, { me: 1, difficulty: choice.difficulty, seed: seed >>> 0, players: cfg.players || 2 }) : null;
             if (!app.bot) app.seats[1].kind = "local";                     // no bot for this game: play both sides
         } else app.bot = null;
         document.body.className = document.body.className.replace(/\bgame-\S+/g, "").trim();

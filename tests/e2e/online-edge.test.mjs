@@ -62,15 +62,19 @@ test("guest closes the tab mid-game without a goodbye; the host waits; the guest
     await A.waitFor("ChainGame.state.history.length === 2", { what: "host got the move" });
 });
 
+// seeded pseudo-random for deterministic "play it out" loops (mulberry32, same as Bots.rng)
+function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
 test("rematch asked while the friend was away is not lost", { skip: !ONLINE }, async () => {
-    // finish the game quickly: 4x4, p0 (host) to move after 2 moves? play it out with random moves on both sides
+    // finish the game: play it out with seeded random legal moves on both sides
+    const rnd = rng(77);
     for (;;) {
         const st = await A.state();
         if (st.over) break;
         const X = st.current === 0 ? A : B;
         const legal = st.cells.map((c, i) => (c.owner === -1 || c.owner === st.current ? i : -1)).filter((i) => i >= 0);
         const n = st.history.length;
-        await X.move(legal[Math.floor(Math.random() * legal.length)]);
+        await X.move(legal[Math.floor(rnd() * legal.length)]);
         const other = X === A ? B : A;
         await other.waitFor(`ChainGame.state.history.length > ${n} || ChainGame.state.over`, { what: "move relayed" });
         await other.idle();

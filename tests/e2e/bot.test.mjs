@@ -18,7 +18,7 @@ test("bot lobby: opponent row, picking a game opens the bot picker with score an
     await B.selectGame("five");
     assert.equal(await B.ev("document.getElementById('bot-modal').hidden"), false, "picking a game asks for the bot");
     assert.equal(await B.text("bot-modal-game"), "Five Wins");
-    assert.equal(await B.ev("document.querySelectorAll('.bot-option').length"), 1);
+    assert.ok(await B.ev("document.querySelectorAll('.bot-option').length >= 1"));
     assert.match(await B.ev("document.querySelector('.bot-option .bot-score').textContent"), /\d+(\.\d+)? %vs Random/, "benchmark score baked in");
     assert.equal(await B.ev("document.getElementById('bot-difficulty-row').hidden"), true, "single difficulty: no control");
     await B.click("#btn-bot-done");

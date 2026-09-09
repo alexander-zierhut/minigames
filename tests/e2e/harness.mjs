@@ -84,6 +84,8 @@ export async function launchBrowser({ width = 1400, height = 900, mobile = false
         },
         async goto(url) {
             await send("Page.navigate", { url });
+            // deterministic bots in tests: the app seeds a bot from sessionStorage["chainreact.botseed"] when present
+            await send("Runtime.evaluate", { expression: "try { sessionStorage.setItem('chainreact.botseed', '4242'); } catch (e) {}" }).catch(() => {});
             for (let i = 0; i < 100; i++) {
                 await sleep(200);
                 try { if (await B.ev("typeof FiveGame !== 'undefined' && typeof Net !== 'undefined' && !!document.getElementById('btn-local')")) break; } catch (e) { /* not ready */ }
@@ -133,15 +135,15 @@ export async function launchBrowser({ width = 1400, height = 900, mobile = false
         state: async () => JSON.parse(await B.ev(`JSON.stringify((document.body.classList.contains('game-five') ? FiveGame : ChainGame).state)`)),
         selectSkin: (k) => B.click(`.skin-seg button[data-skin=${k}]`),
         selectGame: (k) => B.click(`.game-card[data-game=${k}]`),
-        // random legal play until the game is over
-        async randomGame(maxMoves = 400) {
+        // seeded "random" legal play until the game is over: the same seed always produces the same game
+        async randomGame(maxMoves = 400, seed = 12345) {
             return JSON.parse(await B.ev(`(async () => {
                 const G = document.body.classList.contains('game-five') ? FiveGame : ChainGame;
-                const five = G === FiveGame; let m = 0;
+                const five = G === FiveGame; let m = 0; const rnd = Bots.rng(${seed});
                 while (!G.state.over && m < ${maxMoves}) {
                     const me = G.state.current; const legal = [];
                     G.state.cells.forEach((c, i) => { if (five ? c === -1 : (c.owner === -1 || c.owner === me)) legal.push(i); });
-                    document.querySelectorAll('#board > .cell, #board > .stone')[legal[Math.floor(Math.random() * legal.length)]].click(); m++;
+                    document.querySelectorAll('#board > .cell, #board > .stone')[legal[Math.floor(rnd() * legal.length)]].click(); m++;
                     await new Promise(r => { const t = setInterval(() => { if (!G.state.busy) { clearInterval(t); r(); } }, 30); });
                 }
                 return JSON.stringify({ over: G.state.over, moves: m, winner: G.state.winner });
