@@ -179,6 +179,7 @@ const FiveGame = (() => {
         tb.className = "turn-box p" + p;
         boardEl().classList.toggle("turn-p0", !state.over && p === 0);
         boardEl().classList.toggle("turn-p1", !state.over && p === 1);
+        boardEl().classList.toggle("over", state.over);
         $("turn-name").textContent = state.over && state.winner < 0 ? "Draw" : names[p];
         $("turn-hint").textContent = state.over
             ? (state.winner >= 0 ? `${names[state.winner]} won` : "no space left")

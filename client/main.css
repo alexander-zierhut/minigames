@@ -475,6 +475,10 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent);
     padding: 26px 28px; text-align: center;
     display: flex; flex-direction: column; align-items: center; gap: 12px; width: min(92vw, 360px);
 }
+@media (min-width: 900px) and (min-aspect-ratio: 1/1) {
+    .overlay-card { width: auto; min-width: 420px; max-width: 560px; padding: 28px 36px; }
+    .overlay-actions .btn { white-space: nowrap; }
+}
 .overlay-block { width: 72px; height: 72px; border-radius: 30%; animation: spin 2.4s linear infinite; }
 .overlay-block.p0 { background: radial-gradient(circle at 35% 30%, #b8f6fb, var(--c0) 45%, var(--c0-dark)); box-shadow: 0 0 24px rgba(53,213,229,.6); }
 .overlay-block.p1 { background: radial-gradient(circle at 35% 30%, #ffe1a8, var(--c1) 45%, var(--c1-dark)); box-shadow: 0 0 24px rgba(255,166,43,.6); }
@@ -875,7 +879,9 @@ body.game-five .chain-box { display: none !important; }
     inset: 0; border: 2px solid rgba(255,255,255,.75); border-radius: inherit;
     box-shadow: 0 0 0 1px rgba(0,0,0,.5); animation: none;
 }
-.stone .last-marker { inset: 10%; border-radius: 50%; }
+.stone .last-marker { inset: 10%; border-radius: 50%; animation: none; }
+/* no marker once the game is over: it would fight the winning-line animation */
+#board.over .last-marker { display: none; }
 :is(.skin-mc, .skin-mcboard) .last-marker { border-radius: 0; }
 :is(.skin-mc, .skin-mcboard) .cell .last-marker { inset: 0; }
 /* five on MC skins: white is invisible on quartz -> red ring with black halo */
