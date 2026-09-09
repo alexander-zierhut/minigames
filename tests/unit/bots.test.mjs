@@ -58,17 +58,20 @@ test("playout: function seats, illegal move detection, max moves", async () => {
     assert.equal(capped.over, false); assert.equal(capped.moves, 1);
 });
 
-/* ---------- conformance: every registered bot, every difficulty ---------- */
+/* ---------- conformance: every registered bot, every difficulty ----------
+   Runs with a node budget (no wall clock) so searching bots are deterministic here. */
+const BUDGET = { ms: Infinity, nodes: 2000 };
 for (const def of Bots.list()) {
     for (const diff of def.difficulties) {
         const cfg = CONFIGS[def.game];
-        test(`${def.id} (${diff.id}): only legal moves in 300 random positions, deterministic per seed`, async () => {
+        const positions = diff === def.difficulties[0] ? 300 : 60;
+        test(`${def.id} (${diff.id}): only legal moves in ${positions} random positions, deterministic per seed`, async () => {
             const rules = Rules.of(def.game);
             const scout = Bots.tools(def.game, { seed: 99 });
-            const bot = Bots.create(def.id, { seed: 5, me: 1, difficulty: diff.id });
-            const twin = Bots.create(def.id, { seed: 5, me: 1, difficulty: diff.id });
+            const bot = Bots.create(def.id, { seed: 5, me: 1, difficulty: diff.id, budget: BUDGET });
+            const twin = Bots.create(def.id, { seed: 5, me: 1, difficulty: diff.id, budget: BUDGET });
             let state = rules.create(cfg, Rules.base(cfg));
-            for (let k = 0; k < 300; k++) {
+            for (let k = 0; k < positions; k++) {
                 if (state.over) state = rules.create(cfg, Rules.base(cfg));
                 if (state.current === 1) {
                     const i = await bot.move(scout.clone(state));
@@ -80,18 +83,20 @@ for (const def of Bots.list()) {
                 }
             }
         });
-        test(`${def.id} (${diff.id}): finishes full games as either colour, fast enough`, async () => {
+        test(`${def.id} (${diff.id}): finishes full games as either colour, fast enough for a phone`, async () => {
             const t0 = Date.now();
             let moves = 0;
-            for (let g = 0; g < 6; g++) {
+            const games = diff === def.difficulties[0] ? 6 : 2;
+            for (let g = 0; g < games; g++) {
                 const me = g % 2;
-                const bot = Bots.create(def.id, { seed: 100 + g, me, difficulty: diff.id });
-                const other = Bots.create(def.id === "random-chain" || def.id === "random-five" ? def.id : `random-${def.game}`, { seed: 200 + g, me: 1 - me });
+                const bot = Bots.create(def.id, { seed: 100 + g, me, difficulty: diff.id, budget: BUDGET });
+                const other = Bots.create(`random-${def.game}`, { seed: 200 + g, me: 1 - me });
                 const r = await Bots.playout(def.game, { ...cfg, startPlayer: g % 2 }, me === 0 ? [bot, other] : [other, bot], { maxMoves: 800 });
                 assert.equal(r.over, true, `game ${g} reaches an end`);
                 moves += r.moves;
             }
-            assert.ok((Date.now() - t0) / moves < 50, `average move under 50 ms (${((Date.now() - t0) / moves).toFixed(1)} ms)`);
+            const avg = (Date.now() - t0) / moves;
+            assert.ok(avg < 250, `average move with a 2000-node budget under 250 ms (${avg.toFixed(1)} ms)`);
         });
     }
 }

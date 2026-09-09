@@ -41,7 +41,7 @@ export function positionOf(H, puzzle) {
 const game = (puzzle) => puzzle.id.split("-")[0];
 
 // grade one bot on its game's puzzles: { solved, total, pct, byTag: { tag: { solved, total } }, failures: [{ id, got, best }] }
-export async function evaluateBot(H, botId, { difficulty, seed = 1, set } = {}) {
+export async function evaluateBot(H, botId, { difficulty, seed = 1, set, budget } = {}) {
     const def = H.Bots.get(botId);
     if (!def) throw new Error(`unknown bot ${botId}`);
     const data = set || loadPuzzles(def.game);
@@ -51,7 +51,7 @@ export async function evaluateBot(H, botId, { difficulty, seed = 1, set } = {}) 
     for (const puzzle of data.puzzles) {
         const state = positionOf(H, puzzle);
         chance += puzzle.best.length / H.Rules.of(def.game).legalMoves(state, state.current).length;
-        const bot = H.Bots.create(botId, { me: state.current, difficulty, seed: seed + result.total, players: state.players });
+        const bot = H.Bots.create(botId, { me: state.current, difficulty, seed: seed + result.total, players: state.players, budget });
         const got = await bot.move(bot.tools.clone(state));
         const ok = puzzle.best.includes(got);
         result.total++;

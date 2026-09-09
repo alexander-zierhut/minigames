@@ -372,9 +372,17 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   `Bots.get/list/forGame(game)`, `Bots.benchmarkOf(id)`. Rules modules register themselves
   (`Rules.register("chain", ChainRules)` → `Rules.of(key)`) so bots find them without the
   DOM-bound engine.
-- **Instance**: `Bots.create(id, { me, difficulty, seed, players })` → `{ def, tools,
-  difficulty, move(state) }`. `create(tools)` runs once per game and may keep state
+- **Instance**: `Bots.create(id, { me, difficulty, seed, players, budget })` → `{ def,
+  tools, difficulty, move(state) }`. `create(tools)` runs once per game and may keep state
   (caches, opening books); `move(state)` returns a cell index or a Promise of one.
+- **Budgets** (the reason strong bots stay phone-friendly and tests stay deterministic):
+  every difficulty may declare `thinkMs` (≤ 5000; the per-move time in the app, default
+  50). `tools.budget = { ms, nodes }`: the app uses the time (`nodes: Infinity`), the
+  conformance tests and the benchmark pass a **node budget** (`ms: Infinity`, 2 000 resp.
+  20 000 nodes) so a searching bot gives identical answers on any machine. Bots take
+  `const d = tools.deadline()` per move and `d.tick()` per searched node, stop when it
+  returns true (iterative deepening keeps the last finished depth), and `await
+  tools.yield()` every few thousand nodes on long levels so the page stays responsive.
 - **Toolset** (`Bots.tools(game, opts)`): `game, rules, me, players, difficulty, seed`,
   seeded `random()/randInt/pick/shuffle` (mulberry32: same seed → same game, which is how
   random bots are unit-tested), `legalMoves(state, p)`, `isLegal`, `clone`,
@@ -396,7 +404,8 @@ every bot folder into a bare VM — script list parsed from `index.html`).
 - **Benchmark** (`npm run benchmark` = `tools/benchmark.mjs [id…]`): every bot plays a
   seeded series against the Random bot of its game (chain 100 games 6×6, five 200 games
   9×9, both colours, highest difficulty) → score = win rate in % (draw = ½) plus
-  `games, opponent, avgMoves, version, commit, at`, written to
+  `games, opponent, avgMoves, version, commit, at` (60 chain / 100 five games, 20 000-node
+  budget per move so the series is deterministic), written to
   `client/bots/<id>/benchmark.js` (`Bots.benchmark(id, result)`; `at/commit` kept when the
   numbers didn't change so a re-run never diffs). Those files are listed in `index.html`,
   so the score is baked into the page; `Opponent` shows it ("47 % vs Random") in the
@@ -438,7 +447,8 @@ every bot folder into a bare VM — script list parsed from `index.html`).
    `tools.random`, never `Math.random` (tests and the benchmark rely on seeds). Long
    searches: check `tools.deadline(...)` or return a Promise that yields via `setTimeout`.
 2. `client/bots/<id>/bot.test.mjs` with the facts that make the bot good (see above).
-3. Two script tags in `index.html` after the existing bots: `bot.js` and `benchmark.js`.
+3. Two script tags in `index.html` right after the `<!-- bots: <game> -->` anchor line:
+   `bot.js` and `benchmark.js` (create an empty `benchmark.js` until the first run).
 4. `npm run benchmark <id>` locally (or let the workflow do it) — commit `benchmark.js`.
 5. `npm test`; the conformance suite, the puzzle grading and the e2e bot flow run
    automatically. Add `evaluateBot` thresholds (per tag if useful) to the bot's tests.

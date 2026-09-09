@@ -10,8 +10,10 @@ import { execSync } from "node:child_process";
 import { loadHeadless, ROOT } from "./headless.mjs";
 import { evaluateBot } from "./puzzles.mjs";
 
-const SERIES = { chain: { games: 100, config: { n: 6, chainRule: false }, maxMoves: 600 }, five: { games: 200, config: { n: 9, winLen: 5 }, maxMoves: 200 } };
+const SERIES = { chain: { games: 60, config: { n: 6, chainRule: false }, maxMoves: 600 }, five: { games: 100, config: { n: 9, winLen: 5 }, maxMoves: 200 } };
 const BASELINE = { chain: "random-chain", five: "random-five" };
+// node budget instead of wall clock: the same bot always gets the same numbers (no CI drift, no diff)
+const BUDGET = { ms: Infinity, nodes: 20000 };
 
 const H = loadHeadless();
 const { Bots } = H;
@@ -30,14 +32,14 @@ for (const def of bots) {
     for (let g = 0; g < series.games; g++) {
         const mySeat = g % 2;                                    // alternate colours; seat 0 starts game 1, seat 1 game 2 …
         const startPlayer = g % 2;
-        const me = Bots.create(def.id, { seed: 1000 + g, me: mySeat, difficulty: def.difficulties[def.difficulties.length - 1].id });
+        const me = Bots.create(def.id, { seed: 1000 + g, me: mySeat, difficulty: def.difficulties[def.difficulties.length - 1].id, budget: BUDGET });
         const other = Bots.create(baselineId, { seed: 5000 + g, me: 1 - mySeat });
         const seats = mySeat === 0 ? [me, other] : [other, me];
         const r = await Bots.playout(def.game, { ...series.config, startPlayer }, seats, { maxMoves: series.maxMoves });
         if (r.winner === mySeat) points += 1; else if (r.winner === null || r.winner < 0) points += 0.5;
         moves += r.moves;
     }
-    const puzzles = await evaluateBot(H, def.id, { seed: 7, difficulty: def.difficulties[def.difficulties.length - 1].id });   // null until a puzzle set exists
+    const puzzles = await evaluateBot(H, def.id, { seed: 7, difficulty: def.difficulties[def.difficulties.length - 1].id, budget: BUDGET });   // null until a puzzle set exists
     const result = {
         score: Math.round(points / series.games * 1000) / 10,       // win rate vs Random, %
         games: series.games, opponent: baselineId, difficulty: def.difficulties[def.difficulties.length - 1].id,
