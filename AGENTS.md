@@ -20,8 +20,28 @@ Each file exposes one global (`ChainGame`, `FiveGame`, `Clock`, `Net`) via an II
 `app.js` wires everything and holds the active engine in a local `Game` variable.
 
 Local dev: `php -S 127.0.0.1:8000 -t .` from the repo root `/workspace/Development/private/minigames` (port 8080 is taken on the
-owner's machine by something unrelated). Any static file server works. Deploy = upload
-`index.html` + `client/`.
+owner's machine by something unrelated). Any static file server works; the source runs
+unbundled straight from `index.html` + `client/`.
+
+## Build & deploy
+
+- `node build.mjs` (or `npm run build`) writes `dist/`: `index.html` +
+  `assets/app.<hash>.js` (all client scripts concatenated in `index.html` order, minified
+  with esbuild via `npx` when available) + `assets/main.<hash>.css` (texture urls
+  rewritten) + `assets/textures/<name>.<hash>.png`. Hashes are content hashes → cache
+  busting by filename. `dist/` is git-ignored.
+- `.github/workflows/deploy.yml` runs on every push to `main` (and manually): build, then
+  `aws s3 sync` the assets with `Cache-Control: public, max-age=31536000, immutable`,
+  then `index.html` with `no-cache`, then delete old hashed assets. Target: Scaleway
+  Object Storage bucket `minigames.alzlper.com`, region `nl-ams`, endpoint
+  `https://s3.nl-ams.scw.cloud`. Credentials come from repo secrets `SCW_ACCESS_KEY` /
+  `SCW_SECRET_KEY` (an IAM API key of the owner's user; the bucket policy grants the
+  owner's user id full access and `*` read).
+- Bucket is in website mode (index + error document `index.html`), same policy shape as
+  the owner's other sites (`alzlper.com`, `blog.alzlper.com`). DNS: CNAME the domain to
+  `minigames.alzlper.com.s3-website.nl-ams.scw.cloud` (TLS via Scaleway Edge Services).
+- Adding a new client script: put its `<script src="client/…">` tag in `index.html` —
+  the build picks up all `client/` script tags in order; nothing else to configure.
 
 ## Files
 
