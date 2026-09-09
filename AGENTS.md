@@ -229,6 +229,13 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
 
 - **Whose turn**: `#board.turn-p<k>` → 4px outline in the active colour. `fitBoard`
   subtracts 10px so the outline is never clipped on a full-width phone board.
+- **Win chance**: every player card has a `.win-bar` ("62 % win") fed by
+  `Bots.estimator(game)` — the strongest registered bot that offers `estimate(state,
+  tools)` (probability that player 0 wins; cheap, deterministic, exact when over), else the
+  rules module's `estimate` heuristic (chain: material share; five: best rows²). Computed
+  locally on every client from the same state, so both sides see the same numbers online
+  too. Phones show only the win bar (`#hut .stat-bar` hidden), desktop shows the game's
+  stat bar (cells % / best row) and the win bar. Only for 2 players.
 - **Last move**: every cell has a `.last-marker` child; the engine adds `.last` to the
   newest history cell. Chain: static thin white border at the cell edge. Five: static
   white ring, **red** on MC skins (white is invisible on quartz). Owner: no marker

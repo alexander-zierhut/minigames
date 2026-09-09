@@ -33,6 +33,8 @@ test("local lobby: game picker, settings summary, start", async () => {
     assert.equal(await B.screen(), "screen-game");
     assert.equal(await B.text("sign-title"), "CHAIN REACT");
     assert.equal(await B.ev("document.querySelectorAll('#board > .cell').length"), 16);
+    assert.equal(await B.ev("getComputedStyle(document.querySelector('#p-0 .stat-bar')).display"), "block", "desktop keeps the cells bar");
+    assert.equal(await B.ev("getComputedStyle(document.querySelector('#p-0 .win-bar')).display"), "block", "and adds the win chance");
 });
 
 test("chain react: play to the end, overlay, look at board, rematch alternates starter", async () => {

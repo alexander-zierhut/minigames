@@ -121,6 +121,19 @@ const ChainRules = (() => {
         return null;
     }
 
-    return { create, ownerOf, isLegal, legalMoves, place, settle, conclude, tally, readyCells, chainStopped, detonate, land };
+    // fallback win estimate (probability that player 0 wins) when no bot offers a better one:
+    // material share, pieces counting a bit more than cells; critical cells add a little
+    function estimate(state) {
+        if (state.over) return state.winner < 0 ? 0.5 : state.winner === 0 ? 1 : 0;
+        const t = tally(state);
+        const total = t.reduce((a, x) => a + x.pieces, 0);
+        if (total === 0 || state.movesBy.some((m) => m === 0)) return 0.5;
+        let crit = [0, 0];
+        for (const c of state.cells) if (c.owner >= 0 && c.count >= c.cap - 1) crit[c.owner] += 1;
+        const material = (t[0].pieces - t[1].pieces) / total + 0.5 * (t[0].cells - t[1].cells) / state.cells.length + 0.05 * (crit[0] - crit[1]);
+        return 1 / (1 + Math.exp(-3 * material));
+    }
+
+    return { create, ownerOf, isLegal, legalMoves, place, settle, conclude, tally, readyCells, chainStopped, detonate, land, estimate };
 })();
 Rules.register("chain", ChainRules);

@@ -10,6 +10,7 @@
        description: "…",
        difficulties: [{ id: "normal", label: "Normal", thinkMs: 50 }],   // at least one; shown in the UI
        create(tools) { return { move(state) { … return cellIndex; } }; },
+       estimate(state, tools) { … return probabilityThatPlayer0Wins; },   // optional, cheap, deterministic
    })
 
    create(tools) is called once per game and returns an instance; move(state) may return
@@ -65,6 +66,19 @@ const Bots = (() => {
     const forGame = (game) => list().filter((b) => b.game === game);
     function benchmark(id, result) { results[id] = result; }
     const benchmarkOf = (id) => results[id] || null;
+
+    // win-chance estimator for a game: probability that player 0 wins, from the strongest
+    // registered bot that offers estimate(state, tools) (highest benchmark score first),
+    // else the rules module's own heuristic. Used by the HUD after every move.
+    function estimator(game) {
+        const rules = Rules.of(game);
+        const withEstimate = forGame(game).filter((b) => typeof b.estimate === "function")
+            .sort((a, b) => ((benchmarkOf(b.id) || {}).score || 0) - ((benchmarkOf(a.id) || {}).score || 0));
+        const def = withEstimate[0];
+        const t = def ? tools(game, { seed: 0, budget: { ms: 15, nodes: 500 } }) : null;
+        const fn = def ? (state) => def.estimate(state, t) : rules && rules.estimate ? rules.estimate : () => 0.5;
+        return (state) => Math.min(1, Math.max(0, Number(fn(state)) || 0));
+    }
 
     /* ---------- toolset ---------- */
     // rules: the game's pure rules module; me: the bot's seat; seed: for reproducible games;
@@ -138,5 +152,5 @@ const Bots = (() => {
         return { over: state.over, winner: state.over ? state.winner : null, moves: state.history.length, history: state.history.slice(), state };
     }
 
-    return { register, get, list, forGame, benchmark, benchmarkOf, tools, create, playout, rng, validate };
+    return { register, get, list, forGame, benchmark, benchmarkOf, estimator, tools, create, playout, rng, validate };
 })();

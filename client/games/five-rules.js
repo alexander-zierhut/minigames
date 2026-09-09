@@ -70,6 +70,15 @@ const FiveRules = (() => {
         return null;
     }
 
-    return { create, ownerOf, isLegal, legalMoves, place, settle, conclude, lineThrough, bestRow };
+    // fallback win estimate (probability that player 0 wins) when no bot offers a better one:
+    // longest rows relative to winLen, squared so a four counts far more than two twos
+    function estimate(state) {
+        if (state.over) return state.winner < 0 ? 0.5 : state.winner === 0 ? 1 : 0;
+        const r0 = bestRow(state, 0) / state.winLen, r1 = bestRow(state, 1) / state.winLen;
+        const edge = r0 * r0 - r1 * r1 + (state.current === 0 ? 0.03 : -0.03);
+        return 1 / (1 + Math.exp(-4 * edge));
+    }
+
+    return { create, ownerOf, isLegal, legalMoves, place, settle, conclude, lineThrough, bestRow, estimate };
 })();
 Rules.register("five", FiveRules);

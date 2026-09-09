@@ -128,3 +128,16 @@ test("HUD reflects counts, turn and last-move marker", async () => {
     assert.equal(d.querySelectorAll(".cell.last").length, 1);
     assert.ok(d.querySelectorAll(".cell")[5].classList.contains("last"));
 });
+
+test("win chance: 50/50 at the start, adds up to 100, follows material, exact when over", async () => {
+    const { w, G } = fresh({ n: 4 });
+    const d = w.document;
+    const pct = (k) => parseInt(d.getElementById(`p${k}-win-pct`).textContent, 10);
+    assert.equal(d.getElementById("p0-win-row").hidden, false);
+    assert.equal(pct(0), 50); assert.equal(pct(1), 50);
+    await G.play(5); await G.play(15); await G.play(5); await G.play(15); await G.play(5);   // p0 3 pieces vs p1 2
+    assert.equal(pct(0) + pct(1), 100);
+    assert.ok(pct(0) > 50, `p0 ahead (${pct(0)})`);
+    G.finish(1, "x");
+    assert.equal(pct(1), 100); assert.equal(pct(0), 0);
+});

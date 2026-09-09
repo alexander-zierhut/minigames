@@ -288,7 +288,8 @@
         <div class="clock" id="clock-{k}" hidden>3:00</div>
         <div class="stat"><span id="lbl-cells-{k}">Cells</span><b id="p{k}-cells">0</b></div>
         <div class="stat"><span id="lbl-pieces-{k}">Pieces</span><b id="p{k}-pieces">0</b></div>
-        <div class="bar"><div class="bar-fill p{k}" id="p{k}-bar" style="width:0%"></div><span id="p{k}-pct">0%</span></div>
+        <div class="bar stat-bar"><div class="bar-fill p{k}" id="p{k}-bar" style="width:0%"></div><span id="p{k}-pct">0%</span></div>
+        <div class="bar win-bar" id="p{k}-win-row" hidden><div class="bar-fill p{k}" id="p{k}-win" style="width:50%"></div><span id="p{k}-win-pct">50 % win</span></div>
     </div>
 </template>
 <template id="tpl-lobby-player">

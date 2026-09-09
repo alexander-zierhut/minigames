@@ -39,6 +39,9 @@ test("game: compact HUD, board outline visible, reactions inside the viewport, n
     assert.ok(b.left >= 4 && b.right <= 356, `board leaves room for the 4px turn outline (${b.left}..${b.right})`);
     assert.equal(await M.ev("getComputedStyle(document.getElementById('hut')).display"), "flex");
     assert.equal(await M.ev("getComputedStyle(document.querySelector('.sign')).display"), "none", "compact HUD hides the sign");
+    assert.equal(await M.ev("getComputedStyle(document.querySelector('#p-0 .stat-bar')).display"), "none", "phone: cells bar replaced by the win chance");
+    assert.equal(await M.ev("getComputedStyle(document.querySelector('#p-0 .win-bar')).display"), "block");
+    assert.match(await M.text("p0-win-pct"), /^\d+ % win$/);
     assert.ok(await M.ev("document.getElementById('react-bar').classList.contains('collapsed')"), "reaction bar starts collapsed");
     await M.waitFor("document.getElementById('react-layer').style.top !== ''", { what: "reaction layer placed" });
     await M.click("#react-toggle");

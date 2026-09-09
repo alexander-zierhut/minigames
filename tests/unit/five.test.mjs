@@ -105,3 +105,14 @@ test("HUD: best row, stones, draw title", async () => {
     assert.equal(d.getElementById("overlay-title").textContent, "Draw!");
     assert.ok(d.getElementById("board").classList.contains("over"));
 });
+
+test("win chance: even at the start, grows with a longer row, exact on a draw", async () => {
+    const { w, G } = fresh();
+    const d = w.document;
+    const pct = (k) => parseInt(d.getElementById(`p${k}-win-pct`).textContent, 10);
+    assert.ok(Math.abs(pct(0) - 50) <= 5 && pct(0) + pct(1) === 100);
+    await playAll(G, [0, 40, 1, 41, 2, 50, 3]);       // p0 four in a row vs p1 two
+    assert.ok(pct(0) > 70, `p0 clearly ahead (${pct(0)})`);
+    G.finish(-1, "The board is full.");
+    assert.equal(pct(0), 50); assert.equal(pct(1), 50);
+});

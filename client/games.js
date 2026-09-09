@@ -51,6 +51,7 @@ const Engine = (() => {
         function newGame(config, h) {
             hooks = h || hooks;
             state = rules.create(config, Rules.base(config));
+            estimate = null;
             document.documentElement.style.setProperty("--n", state.n);
             const el = board();
             el.className = def.key;
@@ -157,8 +158,15 @@ const Engine = (() => {
             view.renderCell(el, state, i);
         }
 
+        let estimate = null;                 // win-chance estimator, picked once per game
         function renderHud() {
-            Hud.render(state, hooks, view.hud(state));
+            const model = view.hud(state);
+            if (!estimate) estimate = typeof Bots !== "undefined" ? Bots.estimator(def.key) : null;
+            if (estimate) {
+                const p0 = estimate(state);
+                model.win = state.players === 2 ? [p0, 1 - p0] : null;
+            }
+            Hud.render(state, hooks, model);
         }
 
         return {
@@ -185,7 +193,8 @@ const Hud = (() => {
     }
 
     /* model (from view.hud): { round: "Round 3", players: [{ stats: [[label, value], [label, value]],
-       bar: 0..1, barText, leading }], line2?: text for the mobile HUD's second line } */
+       bar: 0..1, barText, leading }], line2?: text for the mobile HUD's second line };
+       the engine adds win: [p0, p1] (win chance from Bots.estimator) */
     function render(state, hooks, model) {
         const names = hooks.names;
         const p = state.current;
@@ -209,6 +218,9 @@ const Hud = (() => {
             $(`p${k}-pieces`).textContent = m.stats[1][1];
             $(`p${k}-bar`).style.width = Math.round(m.bar * 100) + "%";
             $(`p${k}-pct`).textContent = m.barText;
+            const win = model.win ? Math.round(model.win[k] * 100) : null;   // win chance, same on every client
+            $(`p${k}-win-row`).hidden = win === null;
+            if (win !== null) { $(`p${k}-win`).style.width = win + "%"; $(`p${k}-win-pct`).textContent = `${win} % win`; }
             $(`p-${k}`).classList.toggle("leading", !!m.leading);
             $(`p-${k}`).classList.toggle("active", !state.over && p === k);
         });
