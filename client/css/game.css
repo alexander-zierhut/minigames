@@ -18,6 +18,8 @@
     justify-content: center;
     align-items: center;
 }
+/* phones: keep the board below the corner buttons (⚙ left, reactions right) */
+@media (max-width: 899px) { #board-wrap { padding-top: 52px; } }
 #board {
     width: var(--board);
     height: var(--board);

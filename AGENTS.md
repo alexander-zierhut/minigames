@@ -46,6 +46,7 @@ Scripts, in order (each defines the global named in brackets):
 | `client/bots.js` | `Bots` | bot registry, the toolset bots play with, headless playout |
 | `client/bots/<id>/bot.js` | (registers) | one folder per bot: `bot.js`, generated `benchmark.js`, `bot.test.mjs` |
 | `client/skins.js` | `Skins` | look per device: body class, player names |
+| `client/prefs.js` | `Prefs` | per-device preferences (⚙ top-left): look, sound volume / categories |
 | `client/settings.js` | `Settings` | settings form ↔ config, picker cards, persistence, summary |
 | `client/opponent.js` | `Opponent` | bot picker modal (bot, difficulty, score), choice per game |
 | `client/reactions.js` | `Reactions` | emoji reactions bar + floating layer |
@@ -92,7 +93,8 @@ to try things").
 - **Title** (`#screen-menu`): title "ALZlper's Minigames", section *Online* with
   `Create room` + `Join room` (`#join-panel` with the code field appears on Join room),
   section *Offline* with `Play on this device` and `Play against a bot`, and the global
-  **Look** control. Never scrolls on a phone.
+  **Look** control. Never scrolls on a phone. The ⚙ preferences button (see
+  Preferences) floats top-left on every screen.
 - **Lobby** (`#screen-lobby`), same screen for local and online (`app.mode`): room code +
   Share/Copy (online only), one `.lobby-player` card per seat from `#tpl-lobby-player`
   (online only), the game picker (one `.game-card[data-game]` per registered game, built
@@ -131,12 +133,27 @@ restores form values on reload).
   runs silently (no echo) when applying the friend's settings.
 - The **look is not a setting** (see Skins).
 
+## Preferences (`client/prefs.js`, per device — the ⚙ button)
+
+`#prefs-btn` (class `corner-btn`, fixed top-left, on every screen) opens `#prefs-modal`:
+the **Look** control (a third `.skin-seg`, kept in sync by `Skins`), the **Sound** rows
+(master volume slider `#pref-volume`, default 30 %; sound set `#pref-soundset`: follow
+the look / Classic / Minecraft; one checkbox per category `#pref-snd-<cat>`, categories
+in `Prefs.CATEGORIES` = moves, explosions, results, turn, reactions, chat). Stored in
+`localStorage["chainreact.prefs"]` (`Prefs.get()` → `{ volume, soundSet, sounds: {…} }`,
+`Prefs.set(patch)` merges, clamps, persists, refills the form and calls `onChange`).
+Never sent to the room, never part of `Settings.read()`. Layout rules: on phones
+(`max-width: 899px`) `#screen-menu`/`#screen-lobby` get `padding-top: 56px` and
+`#board-wrap` `padding-top: 52px` so cards and the board start below the two corner
+buttons (⚙ left, 😜 right); `fitBoard` subtracts the wrapper's padding. `#net-banner`
+already sits at 58px on phones. The MC skin restyles `.corner-btn` like `#react-toggle`.
+
 ## Skins (`client/skins.js`, per device)
 
-`.skin-seg` control on the title screen and in the lobby (`Skins.init` wires both),
-stored in `localStorage["chainreact.skin"]`, never sent to the friend, never in the
-settings modal. The DOM is identical for every skin; a body class switches the CSS and
-`Skins.names()` gives the player names.
+`.skin-seg` control on the title screen, in the lobby and in the preferences modal
+(`Skins.init` wires every instance), stored in `localStorage["chainreact.skin"]`, never
+sent to the friend, never in the settings modal. The DOM is identical for every skin; a
+body class switches the CSS and `Skins.names()` gives the player names.
 - **Classic** (default, owner's favourite — don't touch its look): dark navy UI, cyan vs
   amber, rounded cells, lamps as dots. Names "Cyan"/"Amber" (seats 2/3: "Lime"/"Rose").
 - **MC board** (`body.skin-mcboard`): classic UI, Minecraft textures on the board, flying
@@ -484,6 +501,7 @@ colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
   polyfilled) for `chain.test.mjs` (caps, waves, board-decided stop, win, chain rule,
   replay == play, hooks, HUD), `five.test.mjs`, `clock.test.mjs` (call `C.setup(0)` +
   `w.close()` at the end or the interval keeps the file alive), `net.test.mjs` (codes),
+  `prefs.test.mjs` (defaults, clamping, persistence, form wiring),
   `build.test.mjs` (`SKIP_MINIFY=1 DIST_DIR=<tmp>`; hashed names, icons, deterministic).
   Cross-realm arrays: compare via `JSON.stringify`, not `deepStrictEqual`.
 - **E2E** (`npm run test:e2e`, `tests/e2e/*.test.mjs`): `harness.mjs` starts a static
@@ -492,7 +510,8 @@ colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
   preloader), `ev`, `click/set/check/text`, `move(i)`/`idle()`, `state()`, `randomGame()`,
   `noScroll()`, `emulate(w,h)`, `screenshot(name)` (to `tests/e2e/shots/`, git-ignored;
   uploaded as artifact on CI failure), `waitFor`. Specs: `local-flow`, `settings`,
-  `skins` (computed styles per skin), `mobile` (360×780), `online` (two browsers through
+  `prefs` (⚙ on every screen, look sync, persistence, phone: clear of cards/board/😜,
+  landscape), `skins` (computed styles per skin), `mobile` (360×780), `online` (two browsers through
   the real PeerJS broker: join by link, settings mirror, guest start, move sync,
   reactions, guest refresh, tolobby, switch game, rematch, host refresh, guest leave +
   rejoin, host leave → guest takes over → host returns as guest; `SKIP_ONLINE=1` skips),

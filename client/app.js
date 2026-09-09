@@ -60,9 +60,13 @@
         if (name === "lobby") renderLobby();
     }
     // the board is a square of min(wrapper width, height) minus room for the turn outline
+    // (the wrapper's padding keeps it clear of the corner buttons on phones)
     function fitBoard() {
         const wrap = $("board-wrap");
-        const size = Math.floor(Math.min(wrap.clientWidth, wrap.clientHeight)) - 10;
+        const cs = getComputedStyle(wrap);
+        const h = wrap.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
+        const w = wrap.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+        const size = Math.floor(Math.min(w, h)) - 10;
         if (size > 0) document.documentElement.style.setProperty("--board", size + "px");
         Reactions.place();                               // layout is synchronous: the board rect is final here
     }
@@ -602,6 +606,7 @@
     /* ================= boot ================= */
     Preload.textures();
     Skins.init({ onChange: () => { Game.render(); renderLobby(); } });
+    Prefs.init({});
     Settings.init({
         onChange: (cfg) => { if (online()) Net.send({ t: "lobby", s: cfg }); },
         // in bot mode picking a game asks which bot to play against

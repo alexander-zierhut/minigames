@@ -93,6 +93,19 @@ select, input[type="number"], input[type="text"], #join-code {
     font-size: 14px;
 }
 input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); }
+input[type="range"] { accent-color: var(--accent); width: 100%; margin: 0; }
+
+/* ---- corner buttons: ⚙ preferences top-left (every screen); the reaction toggle
+   top-right is styled in game.css. Cards and the board keep clear of them on phones. ---- */
+.corner-btn {
+    position: fixed; left: 10px; top: 10px; z-index: 46;
+    width: 40px; height: 40px; font-size: 20px; line-height: 1; padding: 0;
+    background: var(--panel2); color: var(--text); border: 2px solid var(--line); border-radius: 50%;
+    cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,.5);
+    transition: transform .08s, background .15s;
+}
+.corner-btn:hover { background: #2b3556; }
+.corner-btn:active { transform: scale(.94); }
 
 /* ---- player cube (HUD, lobby) ---- */
 .cube { width: 14px; height: 14px; display: inline-block; border-radius: 30%; background: var(--pc); }

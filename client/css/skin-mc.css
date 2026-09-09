@@ -104,7 +104,7 @@
 }
 .skin-mc .section-title, .skin-mc .tagline, .skin-mc .hint, .skin-mc .overlay-sub, .skin-mc .sign-sub, .skin-mc .game-desc,
 .skin-mc .turn-hint, .skin-mc .turn-mini, .skin-mc .stat span, .skin-mc .net-box, .skin-mc .clock { color: var(--muted); }
-.skin-mc .settings .row { color: #fff; }
+.skin-mc :is(.settings, .prefs-rows) .row { color: #fff; }
 .skin-mc .lobby-status, .skin-mc .turn-name, .skin-mc .player-head, .skin-mc .stat b, .skin-mc .log { color: #fff; }
 .skin-mc .log .x, .skin-mc .turn-mini b, .skin-mc .chain-box #chain-now { color: #ffaa00; }
 .skin-mc .clock.running { color: #fff; } .skin-mc .clock.low { color: #ff5555; }
@@ -154,7 +154,10 @@
 .skin-mc #net-banner { background: #1a0a0a; border: 2px solid #ff5555; }
 .skin-mc #toast { background: #000; border: 2px solid #a0a0a0; }
 .skin-mc #overlay { background: rgba(0,0,0,.75); }
-.skin-mc #react-bar .react-list, .skin-mc #react-toggle { border-radius: 0; border-color: #000; background: rgba(0,0,0,.7); }
+.skin-mc #react-bar .react-list, .skin-mc #react-toggle, .skin-mc .corner-btn { border-radius: 0; border-color: #000; background: rgba(0,0,0,.7); }
+.skin-mc .corner-btn:hover { background: #3a3a3a; }
+.skin-mc input[type="range"] { accent-color: #55ff55; }
+.skin-mc .pref-toggles input[type="checkbox"] { accent-color: #55ff55; }
 .skin-mc .loader-title { background: none; color: var(--mc-title); text-shadow: var(--mc-title-shadow); }
 .skin-mc .loader-bar { border-radius: 0; border-color: #000; background: #000; }
 .skin-mc .loader-fill { background: #55ff55; }

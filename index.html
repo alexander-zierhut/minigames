@@ -30,6 +30,9 @@
     </div>
 </div>
 
+<!-- ===================== PREFERENCES (⚙ top-left on every screen; this device only) ===================== -->
+<button id="prefs-btn" class="corner-btn" aria-label="Preferences" title="Preferences">⚙</button>
+
 <!-- ===================== TITLE / MENU ===================== -->
 <section id="screen-menu" class="screen">
     <div class="menu-card">
@@ -249,6 +252,46 @@
     </div>
 </div>
 
+<!-- ===================== PREFERENCES MODAL (look, sound; stored per device) ===================== -->
+<div id="prefs-modal" class="modal" hidden>
+    <div class="menu-card prefs-card">
+        <h1 class="title small">Preferences</h1>
+        <p class="tagline small">Only for this device — never shared with the room.</p>
+        <div class="prefs-rows">
+            <div class="section-title">Look</div>
+            <div class="skin-row">
+                <span class="skin-label">Look</span>
+                <div class="seg skin-seg">
+                    <button data-skin="classic" class="selected">Classic</button>
+                    <button data-skin="mcboard">MC board</button>
+                    <button data-skin="mc">Minecraft</button>
+                </div>
+            </div>
+            <div class="section-title">Sound</div>
+            <label class="row">
+                <span>Volume <small id="pref-volume-val">30 %</small></span>
+                <input type="range" id="pref-volume" min="0" max="100" step="5" value="30" autocomplete="off">
+            </label>
+            <label class="row">
+                <span>Sound set</span>
+                <select id="pref-soundset" autocomplete="off">
+                    <option value="auto" selected>Follow the look</option>
+                    <option value="classic">Classic</option>
+                    <option value="mc">Minecraft</option>
+                </select>
+            </label>
+            <div class="pref-toggles" id="pref-toggles">
+                <label><input type="checkbox" id="pref-snd-moves" checked autocomplete="off"> Moves</label>
+                <label><input type="checkbox" id="pref-snd-explosions" checked autocomplete="off"> Explosions</label>
+                <label><input type="checkbox" id="pref-snd-results" checked autocomplete="off"> Win / lose</label>
+                <label><input type="checkbox" id="pref-snd-turn" checked autocomplete="off"> Your turn</label>
+                <label><input type="checkbox" id="pref-snd-reactions" checked autocomplete="off"> Reactions</label>
+            </div>
+        </div>
+        <button class="btn primary" id="btn-prefs-done">Done</button>
+    </div>
+</div>
+
 <!-- ===================== BOT PICKER (offline, "Play against a bot") ===================== -->
 <div id="bot-modal" class="modal" hidden>
     <div class="menu-card bot-card">
@@ -318,6 +361,7 @@
 <script src="client/bots/random-five/benchmark.js"></script>
 <!-- bots: five (add new Five Wins bots below this line) -->
 <script src="client/skins.js"></script>
+<script src="client/prefs.js"></script>
 <script src="client/settings.js"></script>
 <script src="client/opponent.js"></script>
 <script src="client/reactions.js"></script>
