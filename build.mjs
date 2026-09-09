@@ -10,7 +10,7 @@ import { mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync, existsSync
 import { join, basename, extname } from "node:path";
 
 const ROOT = new URL(".", import.meta.url).pathname;
-const DIST = join(ROOT, "dist");
+const DIST = process.env.DIST_DIR || join(ROOT, "dist");
 const ASSETS = "assets";
 const hash = (buf) => createHash("sha256").update(buf).digest("hex").slice(0, 10);
 const hashedName = (file, buf) => `${basename(file, extname(file))}.${hash(buf)}${extname(file)}`;
@@ -42,12 +42,16 @@ writeFileSync(join(DIST, ASSETS, cssName), css);
 const scriptTags = [...html.matchAll(/<script src="(client\/[^"]+)"><\/script>\n?/g)];
 if (scriptTags.length === 0) throw new Error("no client script tags found in index.html");
 let bundle = scriptTags.map((m) => readFileSync(join(ROOT, m[1]), "utf8")).join("\n;\n");
-try {
-    const minified = execFileSync("npx", ["--yes", "esbuild@0.24.2", "--minify", "--target=es2019", "--log-level=warning"],
-        { input: bundle, encoding: "utf8", stdio: ["pipe", "pipe", "inherit"], maxBuffer: 64 * 1024 * 1024 });
-    if (minified.trim().length > 0) bundle = minified;
-} catch (e) {
-    console.warn("esbuild not available, shipping unminified bundle:", e.message.split("\n")[0]);
+if (!process.env.SKIP_MINIFY) {
+    const local = join(ROOT, "node_modules", ".bin", "esbuild");
+    const [cmd, pre] = existsSync(local) ? [local, []] : ["npx", ["--yes", "esbuild@0.24.2"]];
+    try {
+        const minified = execFileSync(cmd, [...pre, "--minify", "--target=es2019", "--log-level=warning"],
+            { input: bundle, encoding: "utf8", stdio: ["pipe", "pipe", "inherit"], maxBuffer: 64 * 1024 * 1024 });
+        if (minified.trim().length > 0) bundle = minified;
+    } catch (e) {
+        console.warn("esbuild not available, shipping unminified bundle:", e.message.split("\n")[0]);
+    }
 }
 const jsName = hashedName("app.js", bundle);
 writeFileSync(join(DIST, ASSETS, jsName), bundle);

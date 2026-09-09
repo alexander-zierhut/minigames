@@ -21,6 +21,18 @@ row) are shared live in the room lobby; either player can change them. The look 
 MC board, Minecraft) is a per-device choice on the title screen. A page refresh rejoins
 the room and re-syncs the game. Emoji reactions for trash talk are in the top-right corner.
 
+## Develop & test
+
+```
+npm install        # dev tools only (jsdom, esbuild)
+npm run dev        # http://localhost:8000 (needs php) — or any static file server
+npm test           # unit tests (jsdom) + end-to-end tests (headless Chrome)
+npm run build      # hashed bundle in dist/
+```
+
+CI runs the whole suite on every push and pull request; `main` deploys only after a
+green run and requires the check to merge.
+
 ## Deploy
 
 Upload `index.html` and the `client/` folder to any static host (S3, GitHub Pages, …).

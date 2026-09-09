@@ -30,7 +30,8 @@ unbundled straight from `index.html` + `client/`.
   with esbuild via `npx` when available) + `assets/main.<hash>.css` (texture urls
   rewritten) + `assets/textures/<name>.<hash>.png`. Hashes are content hashes → cache
   busting by filename. `dist/` is git-ignored.
-- `.github/workflows/deploy.yml` runs on every push to `main` (and manually): build, then
+- `.github/workflows/ci.yml` runs the test suite on every push/PR; on `main` the deploy
+  job follows a green test job: build, then
   `aws s3 sync` the assets with `Cache-Control: public, max-age=31536000, immutable`,
   then `index.html` with `no-cache`, then delete old hashed assets. Target: Scaleway
   Object Storage bucket `minigames.alzlper.com`, region `nl-ams`, endpoint
@@ -239,18 +240,35 @@ wobble, fade, max 14 on screen). Spam is allowed on purpose (~8/s; receiver acce
 per 100 ms and only values from its own set). Friend's reactions get a dot in their
 colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
 
-## Testing recipe (headless Chrome via CDP, no Playwright)
+## Tests (`npm test` = unit + e2e; CI runs both before every deploy and on every PR)
 
-`/usr/bin/google-chrome` + Node `ws` package, scripts in the session scratchpad:
-spawn `google-chrome --headless=new --no-sandbox --disable-gpu --hide-scrollbars
---user-data-dir=<unique> --remote-debugging-port=<port> --window-size=W,H about:blank`,
-poll `/json`, take the `type === "page"` target, `Runtime.enable`, `Page.enable`,
-`Network.setCacheDisabled`. After navigate, poll until `typeof FiveGame !== "undefined"`.
-Headless Chrome won't go below 500px wide — use `Emulation.setDeviceMetricsOverride`
-(390×844 or 360×780) for phone layouts. Two instances on different ports play each other
-through the real PeerJS broker (internet needed). Drive moves with
-`document.querySelectorAll('#board > *')[i].click()`, wait on `!<Engine>.state.busy`,
-collect `Runtime.exceptionThrown`. `Read` screenshot PNGs to eyeball layout.
+- **Unit** (`npm run test:unit`, Node's built-in runner, `tests/unit/*.test.mjs`): the
+  engines run inside jsdom with the real `index.html` markup (`tests/unit/dom.mjs` loads
+  game/five/clock/net scripts, polyfills `Element.animate`). Covers chain rules (caps,
+  waves, board-decided stop, win, chain rule, replay == play), five rules (all line
+  directions, winLen, gap fill, draw, replay), clock (active/pause/flag/restore), room
+  codes, and the build (`SKIP_MINIFY=1 DIST_DIR=<tmp> node build.mjs`, hashed names,
+  deterministic). Cross-realm arrays: compare via `JSON.stringify`, not `deepStrictEqual`.
+  Clock tests must call `C.setup(0)` + `w.close()` or the interval keeps the file alive.
+- **E2E** (`npm run test:e2e`, `tests/e2e/*.test.mjs`): `harness.mjs` starts a static
+  server (port 0) and headless Chrome via CDP (no Playwright; Node 22 global
+  `WebSocket`/`fetch`; Chrome path from `$CHROME` or `google-chrome`). Helpers: `goto`
+  (waits for scripts + texture preloader), `ev`, `click/set/check`, `move(i)`/`idle()`,
+  `state()`, `randomGame()`, `noScroll()`, `emulate(w,h)`, `screenshot(name)` (to
+  `tests/e2e/shots/`, git-ignored; uploaded as artifact on CI failure). Specs:
+  `local-flow` (menu → lobby → both games → overlay/look/rematch/change game),
+  `settings` (clamping, rows, persistence, timer pause), `skins` (computed styles per
+  skin), `mobile` (360×780: no scroll, outline visible, reactions inside viewport,
+  stacked overlay buttons), `online` (two browsers through the real PeerJS broker:
+  join by link, settings mirror, guest start, move sync, reactions, refresh resync,
+  tolobby, switch game, rematch, leave; `SKIP_ONLINE=1` skips), `dist` (built bundle:
+  hashed assets only, preloader, playable). Files run 2 at a time; each launches its
+  own Chrome on a random port. Outline colours transition for .25s → wait before
+  reading computed styles.
+- **CI** (`.github/workflows/ci.yml`): job `test` (npm ci → unit → e2e) on push to
+  `main`, PRs and manual; job `deploy` `needs: test` and only runs for pushes to `main`.
+  Branch protection on `main` requires the `test` status check (strict) for merging
+  PRs; admins are not enforced so the owner can still push directly.
 
 ## Owner preferences
 

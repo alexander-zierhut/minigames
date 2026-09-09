@@ -1,0 +1,160 @@
+/* End-to-end harness: a static file server + headless Chrome driven over the DevTools
+   protocol (no Playwright). Node >= 22 (global fetch + WebSocket). */
+import { createServer } from "node:http";
+import { readFile, stat } from "node:fs/promises";
+import { spawn, execSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, extname } from "node:path";
+
+export const ROOT = new URL("../../", import.meta.url).pathname;
+export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".json": "application/json", ".ico": "image/x-icon" };
+
+/* ---------- static server ---------- */
+export async function startServer(root = ROOT) {
+    const server = createServer(async (req, res) => {
+        try {
+            let path = decodeURIComponent(new URL(req.url, "http://x").pathname);
+            if (path.endsWith("/")) path += "index.html";
+            const file = join(root, path);
+            if (!file.startsWith(root)) throw new Error("outside root");
+            const st = await stat(file);
+            const body = await readFile(st.isDirectory() ? join(file, "index.html") : file);
+            res.writeHead(200, { "content-type": MIME[extname(file)] || "application/octet-stream", "cache-control": "no-store" });
+            res.end(body);
+        } catch (e) {
+            res.writeHead(404); res.end("not found");
+        }
+    });
+    await new Promise((r) => server.listen(0, "127.0.0.1", r));
+    const url = `http://127.0.0.1:${server.address().port}/`;
+    return { url, close: () => new Promise((r) => server.close(r)) };
+}
+
+/* ---------- chrome ---------- */
+function chromePath() {
+    if (process.env.CHROME) return process.env.CHROME;
+    for (const c of ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "chrome"]) {
+        try { return execSync(`command -v ${c}`, { stdio: "pipe" }).toString().trim(); } catch (e) { /* next */ }
+    }
+    throw new Error("no Chrome found; set CHROME=/path/to/chrome");
+}
+
+export async function launchBrowser({ width = 1400, height = 900, mobile = false } = {}) {
+    const profile = mkdtempSync(join(tmpdir(), "minigames-chrome-"));
+    const port = 20000 + Math.floor(Math.random() * 20000);
+    const proc = spawn(chromePath(), [
+        "--headless=new", "--no-sandbox", "--disable-gpu", "--hide-scrollbars", "--disable-dev-shm-usage",
+        `--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, `--window-size=${Math.max(width, 500)},${height}`, "about:blank",
+    ], { stdio: "ignore" });
+    let target = null;
+    for (let i = 0; i < 60 && !target; i++) {
+        try {
+            const list = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
+            target = list.find((t) => t.type === "page");
+        } catch (e) { await sleep(250); }
+    }
+    if (!target) { proc.kill("SIGKILL"); throw new Error("chrome did not start"); }
+    const ws = new WebSocket(target.webSocketDebuggerUrl);
+    await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+    let id = 0; const pending = new Map();
+    const errors = [], failedRequests = [], requests = [];
+    ws.onmessage = (ev) => {
+        const j = JSON.parse(ev.data);
+        if (j.id && pending.has(j.id)) { pending.get(j.id)(j); pending.delete(j.id); return; }
+        if (j.method === "Runtime.exceptionThrown") errors.push(j.params.exceptionDetails.exception?.description || j.params.exceptionDetails.text);
+        if (j.method === "Runtime.consoleAPICalled" && j.params.type === "error") errors.push("console.error: " + j.params.args.map((a) => a.value ?? a.description).join(" "));
+        if (j.method === "Network.responseReceived") { requests.push(j.params.response.url); if (j.params.response.status >= 400 && !/favicon\.ico$/.test(j.params.response.url)) failedRequests.push(`${j.params.response.status} ${j.params.response.url}`); }
+    };
+    const send = (method, params = {}) => new Promise((res, rej) => {
+        const i = ++id; pending.set(i, (j) => (j.error ? rej(new Error(j.error.message)) : res(j.result)));
+        ws.send(JSON.stringify({ id: i, method, params }));
+    });
+    await send("Runtime.enable"); await send("Page.enable"); await send("Network.enable");
+    await send("Network.setCacheDisabled", { cacheDisabled: true });
+    if (mobile || width < 500) await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: true });
+
+    const B = {
+        errors, failedRequests, requests, width, height,
+        async ev(expr) {
+            const r = await send("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true });
+            if (r.exceptionDetails) throw new Error("page eval failed: " + (r.exceptionDetails.exception?.description || r.exceptionDetails.text) + "\n  expr: " + expr.slice(0, 200));
+            return r.result.value;
+        },
+        async goto(url) {
+            await send("Page.navigate", { url });
+            for (let i = 0; i < 100; i++) {
+                await sleep(200);
+                try { if (await B.ev("typeof FiveGame !== 'undefined' && typeof Net !== 'undefined' && !!document.getElementById('btn-local')")) break; } catch (e) { /* not ready */ }
+            }
+            // wait for the texture preloader to finish
+            for (let i = 0; i < 50; i++) { if (await B.ev("document.getElementById('loader').hidden")) break; await sleep(100); }
+            await sleep(150);
+        },
+        async emulate(w, h) { await send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: true }); B.width = w; B.height = h; await sleep(200); },
+        async screenshot(name) {
+            const dir = process.env.E2E_SHOTS || join(ROOT, "tests", "e2e", "shots");
+            if (!existsSync(dir)) execSync(`mkdir -p "${dir}"`);
+            const r = await send("Page.captureScreenshot", { format: "png" });
+            writeFileSync(join(dir, name), Buffer.from(r.data, "base64"));
+        },
+        async waitFor(expr, { timeout = 15000, every = 150, what = expr } = {}) {
+            const t0 = Date.now();
+            for (;;) {
+                let v = false;
+                try { v = await B.ev(expr); } catch (e) { /* retry */ }
+                if (v) return v;
+                if (Date.now() - t0 > timeout) throw new Error(`timeout waiting for: ${what}`);
+                await sleep(every);
+            }
+        },
+        // ---- game helpers ----
+        click: (sel) => B.ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error("no element " + ${JSON.stringify(sel)}); e.click(); return true; })()`),
+        set: (id, value) => B.ev(`(() => { const e = document.getElementById(${JSON.stringify(id)}); e.value = ${JSON.stringify(String(value))}; e.dispatchEvent(new Event("input")); e.dispatchEvent(new Event("change")); return e.value; })()`),
+        check: (id, on) => B.ev(`(() => { const e = document.getElementById(${JSON.stringify(id)}); e.checked = ${!!on}; e.dispatchEvent(new Event("change")); return e.checked; })()`),
+        text: (id) => B.ev(`document.getElementById(${JSON.stringify(id)}).textContent`),
+        screen: () => B.ev("document.querySelector('.screen:not([hidden])')?.id"),
+        engine: () => B.ev("document.body.classList.contains('game-five') ? 'FiveGame' : 'ChainGame'"),
+        async cell(i) { await B.ev(`document.querySelectorAll('#board > .cell, #board > .stone')[${i}].click(); true`); },
+        async idle() { const g = await B.engine(); await B.waitFor(`!${g}.state.busy`, { timeout: 60000, every: 40, what: "engine idle" }); },
+        async move(i) { await B.cell(i); await B.idle(); },
+        state: async () => JSON.parse(await B.ev(`JSON.stringify((document.body.classList.contains('game-five') ? FiveGame : ChainGame).state)`)),
+        selectSkin: (k) => B.click(`.skin-seg button[data-skin=${k}]`),
+        selectGame: (k) => B.click(`.game-card[data-game=${k}]`),
+        // random legal play until the game is over
+        async randomGame(maxMoves = 400) {
+            return JSON.parse(await B.ev(`(async () => {
+                const G = document.body.classList.contains('game-five') ? FiveGame : ChainGame;
+                const five = G === FiveGame; let m = 0;
+                while (!G.state.over && m < ${maxMoves}) {
+                    const me = G.state.current; const legal = [];
+                    G.state.cells.forEach((c, i) => { if (five ? c === -1 : (c.owner === -1 || c.owner === me)) legal.push(i); });
+                    document.querySelectorAll('#board > .cell, #board > .stone')[legal[Math.floor(Math.random() * legal.length)]].click(); m++;
+                    await new Promise(r => { const t = setInterval(() => { if (!G.state.busy) { clearInterval(t); r(); } }, 30); });
+                }
+                return JSON.stringify({ over: G.state.over, moves: m, winner: G.state.winner });
+            })()`));
+        },
+        noScroll: () => B.ev(`JSON.stringify({ x: document.documentElement.scrollWidth <= innerWidth, y: document.documentElement.scrollHeight <= innerHeight, screen: (() => { const s = document.querySelector('.screen:not([hidden])'); return s ? s.scrollHeight <= s.clientHeight + 1 : true; })() })`).then(JSON.parse),
+        async close() { try { ws.close(); } catch (e) {} proc.kill("SIGKILL"); await sleep(100); rmSync(profile, { recursive: true, force: true }); },
+    };
+    return B;
+}
+
+/* ---------- online helpers ---------- */
+export async function createRoom(host) {
+    await host.click("#btn-create");
+    await host.waitFor("Net.status === 'waiting'", { timeout: 30000, what: "host room ready" });
+    return host.ev("Net.code");
+}
+export async function joinRoom(guest, baseUrl, code) {
+    await guest.goto(`${baseUrl}?room=${code}`);
+    await guest.waitFor("Net.connected", { timeout: 40000, what: "guest connected" });
+}
+export async function bothConnected(a, b) {
+    await a.waitFor("Net.connected", { timeout: 40000, what: "a connected" });
+    await b.waitFor("Net.connected", { timeout: 40000, what: "b connected" });
+    await sleep(500);
+}
+export const ONLINE = !process.env.SKIP_ONLINE;
