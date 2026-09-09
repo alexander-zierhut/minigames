@@ -96,6 +96,16 @@
 .lobby-player.absent .lp-status { color: #ffcc33; }
 .lobby-status { text-align: center; font-size: 13px; color: var(--muted); min-height: 18px; }
 .lobby-status:empty { display: none; }
+/* room chat: the last lines + an input (online only) */
+.lobby-chat { display: flex; flex-direction: column; gap: 6px; }
+.lobby-chat .log { min-height: 0; max-height: 96px; overflow-y: auto; overscroll-behavior: contain; }
+/* phones: a tighter lobby card so players, chat, picker and buttons fit 360×780 without scrolling */
+@media (max-width: 899px) {
+    .lobby-card { gap: 10px; padding: 18px 16px; }
+    .lobby-head .room-code { font-size: 28px; letter-spacing: 4px; }
+    .lobby-actions { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; }
+    .lobby-chat .log { max-height: 40px; padding: 3px 8px; font-size: 11px; gap: 1px; }
+}
 
 /* ---- game picker ---- */
 .game-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }

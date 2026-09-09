@@ -82,6 +82,7 @@
         if (bot) $("opponent-summary").textContent = Opponent.summary(Settings.game);
         $("lobby-share").hidden = !online();
         $("lobby-players").hidden = !online();
+        $("lobby-chat").hidden = !online();
         const box = $("lobby-players");
         if (box.children.length !== players) {
             box.innerHTML = "";
@@ -118,6 +119,7 @@
         app.config = null;
         app.bot = null;
         clearSession();
+        Chat.enable(false);
         show("lobby");
     }
 
@@ -144,6 +146,8 @@
         app.config = null;
         app.opponentLeft = false;
         Clock.stop();
+        Log.clear("lobby-log");
+        Chat.enable(true);
         show("lobby");
         $("lobby-code").textContent = "…";
         const finalCode = Net.open(code, {
@@ -173,6 +177,7 @@
         app.mode = "local";
         clearSession();
         Clock.stop();
+        Chat.enable(false);
         setUrlRoom(null);
         $("net-banner").hidden = true;
         $("overlay").hidden = true;
@@ -439,6 +444,9 @@
         react(msg) {
             Reactions.receive(msg.e, playerColor(otherPlayer(app.me)));
         },
+        chat(msg) {                                   // a chat line; `from` = the sender's seat
+            Chat.receive({ text: msg.text, from: Number.isInteger(msg.from) ? msg.from : otherPlayer(app.me) });
+        },
         leave() {
             app.opponentLeft = true;
             Clock.pause();
@@ -615,6 +623,12 @@
     });
     Opponent.init({ onDone: () => renderLobby() });
     Reactions.init({ onSend: (e) => { if (online()) Net.send({ t: "react", e }); } });
+    Chat.init({
+        online,
+        me: () => app.me,
+        name: (seat) => (seat >= 0 ? hooks.names[seat] || `Player ${seat + 1}` : "Spectator"),
+        onSend: (text) => Net.send({ t: "chat", text, from: app.me }),
+    });
 
     const roomFromUrl = Net.normalizeCode(new URLSearchParams(location.search).get("room"));
     const session = loadSession();

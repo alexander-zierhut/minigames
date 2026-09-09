@@ -131,9 +131,10 @@
 .skin-mc .seg button.selected { background: #6f6f6f; color: #fff; box-shadow: inset 2px 2px 0 #a8a8a8, inset -2px -2px 0 #3d3d3d; }
 
 /* MC text fields: black with a light gray outline */
-.skin-mc select, .skin-mc input[type="number"], .skin-mc input[type="text"], .skin-mc #join-code {
-    background: #000; color: #fff; border: 2px solid #a0a0a0;
+.skin-mc select, .skin-mc input[type="number"], .skin-mc input[type="text"], .skin-mc #join-code, .skin-mc .chat-row input {
+    background: #000; color: #fff; border: 2px solid #a0a0a0; border-radius: 0;
 }
+.skin-mc .chat-row input::placeholder { color: #707070; }
 .skin-mc #join-code::placeholder { color: #707070; }
 .skin-mc input[type="checkbox"] { accent-color: #55ff55; }
 

@@ -22,7 +22,8 @@ row) are shared live in the room lobby; either player can change them. The ⚙ b
 the top-left corner holds the per-device preferences: the look (Classic, MC board,
 Minecraft) and the sounds (volume, categories; the Classic look uses synthesized cues,
 the Minecraft looks the real block, TNT and level-up sounds). Emoji reactions for
-trash talk are in the top-right corner.
+trash talk are in the top-right corner; a room chat lives under the game log (phones:
+behind the ☰ button) and in the lobby.
 
 ## Develop & test
 

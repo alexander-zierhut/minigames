@@ -33,7 +33,7 @@ Scripts, in order (each defines the global named in brackets):
 | `client/vendor/peerjs.min.js` | `Peer` | PeerJS 1.5.4, vendored (no CDN at runtime) |
 | `client/lib/util.js` | `Util` | `$`, `sleep`, `clamp`, `restartClass`, fail-safe storage `load/save/remove`, `fromTemplate`, `toast` |
 | `client/lib/bus.js` | `Bus` | event bus `on/off/emit` (see Events) |
-| `client/lib/log.js` | `Log` | the HUD event log (`add(text, cls)`, `clear()`, 6 lines) |
+| `client/lib/log.js` | `Log` | the HUD event log + lobby log (`add`, `chat`, `room`, `clear`, 40 lines) |
 | `client/lib/clock.js` | `Clock` | chess clock for N players |
 | `client/lib/net.js` | `Net` | PeerJS room transport |
 | `client/lib/preload.js` | `Preload` | first-visit texture preload with `#loader` bar |
@@ -51,6 +51,7 @@ Scripts, in order (each defines the global named in brackets):
 | `client/settings.js` | `Settings` | settings form ↔ config, picker cards, persistence, summary |
 | `client/opponent.js` | `Opponent` | bot picker modal (bot, difficulty, score), choice per game |
 | `client/reactions.js` | `Reactions` | emoji reactions bar + floating layer |
+| `client/chat.js` | `Chat` | room chat: input rows (HUD, lobby), limits, lines into the logs, Bus `chat` |
 | `client/app.js` | (none) | flow, room protocol, session restore, wiring, boot |
 
 Stylesheets, in order: `client/css/base.css` (tokens, player colour variables, buttons,
@@ -326,6 +327,7 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   g}` (`n` = history length before the move; queued in `app.incoming`, applied when idle
   and `n` matches, else a sync is requested), `timeout {p}` (only the owner of the
   flagged clock decides — clocks drift), `rematch {g}` (both must press), `react {e}`,
+  `chat {text, from}` (a chat line; `from` = the sender's seat, see Chat),
   `leave` (sent 250 ms before closing; the app then treats the friend as gone at once —
   Start is disabled before the connection actually drops), `ping`/`pong` every 3 s, 12 s
   silence → lost → the guest redials. `rematch` with `g <= gameNo` is ignored
@@ -377,7 +379,8 @@ log emits too so a chat could mirror it). Current events and payloads:
 `game:new {game, config}`, `game:move {game, cell, player}` (a piece was placed),
 `game:turn {game, player}`, `game:finish {game, winner, why}`, `chain:prime {cells,
 player, ms}` (full cells start blinking; `ms` = how long), `chain:explode {cells,
-player, chain}` (one wave), `reaction {emoji, theirs}`, `log {text, cls}`.
+player, chain}` (one wave), `reaction {emoji, theirs}`, `chat {text, from, mine}` (a chat
+line was shown), `log {text, cls}`.
 `Sound` subscribes to all of them (below).
 
 ## Sounds (`client/lib/sound.js`)
@@ -517,6 +520,32 @@ every bot folder into a bare VM — script list parsed from `index.html`).
 5. `npm test`; the conformance suite, the puzzle grading and the e2e bot flow run
    automatically. Add `evaluateBot` thresholds (per tag if useful) to the bot's tests.
 
+## Chat (`client/chat.js`) and the logs (`client/lib/log.js`)
+
+- `Log.line(id, text, cls, name?)` prepends one line (newest first in the DOM; the boxes
+  are `column-reverse`, so the newest shows at the bottom), keeps `Log.MAX_LINES` = 40.
+  `Log.add(text, cls)` → `#log` + Bus `log`; `Log.chat(name, text, cls)` → `#log` **and**
+  `#lobby-log` (bold `name: ` + text, class `chat p<k>` / `chat x`); `Log.room(text)` → a
+  room event in the lobby log only. `Log.clear()` (new game) removes everything but
+  `.chat` lines, so the conversation survives a rematch; `Log.clear("lobby-log")` empties
+  the lobby box (done in `enterRoom`). Text goes in via `textContent` only — never HTML.
+- **Rows**: `#chat-row` (`#chat-input` + `#chat-send`) under the HUD log and
+  `#lobby-chat` (`#lobby-log` + `#lobby-chat-input`/`#lobby-chat-send`) in the lobby.
+  `Chat.enable(online)` toggles `body.online` and the inputs' `disabled`; the rows only
+  render while online (`body.online`). Desktop: the HUD log scrolls (`max-height:
+  150px; overflow-y: auto`), the row sits under it. Phones: the log shows its last two
+  lines (40px) and the chat row is behind ☰ (`#hut.show-controls`); the lobby chat log
+  is two lines too. The lobby card is tighter on phones (gap 10, padding 18/16, share
+  buttons in a row) so an online lobby with chat still fits 360×780.
+- **Rules**: `Chat.send(text)` trims and collapses whitespace, cuts to `Chat.MAX_LEN` =
+  200, allows one line per `Chat.SEND_EVERY` = 300 ms, refuses when not online, shows
+  my line at once in my colour, emits Bus `chat {text, from, mine: true}` and calls
+  `onSend(text)` → `Net.send({ t: "chat", text, from: app.me })`. `Chat.receive(msg)`
+  applies the same length and rate limits (one accepted per 300 ms), colours the line
+  with `msg.from` (−1 / unknown → "Spectator", class `x`) and emits `chat {…, mine:
+  false}` (the sound module pings for other people's lines only). Enter in either input
+  sends. Nobody echoes a line back to its sender.
+
 ## Emoji reactions (`client/reactions.js`)
 
 `#react-bar` top-right, starts collapsed behind the 😜 toggle; emojis + "L"/"EZ"/"GG"
@@ -540,6 +569,7 @@ colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
   `w.close()` at the end or the interval keeps the file alive), `net.test.mjs` (codes),
   `prefs.test.mjs` (defaults, clamping, persistence, form wiring), `sound.test.mjs`
   (event → cue mapping with a fake player, perspective, prefs gate, sound sets),
+  `chat.test.mjs` (log boxes, limits, HTML safety, offline, chat survives a new game),
   `build.test.mjs` (`SKIP_MINIFY=1 DIST_DIR=<tmp>`; hashed names, icons, deterministic).
   Cross-realm arrays: compare via `JSON.stringify`, not `deepStrictEqual`.
 - **E2E** (`npm run test:e2e`, `tests/e2e/*.test.mjs`): `harness.mjs` starts a static
@@ -552,7 +582,8 @@ colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
   cues logged in order, mc files fetched, mute; phone: clear of cards/board/😜,
   landscape), `skins` (computed styles per skin), `mobile` (360×780), `online` (two browsers through
   the real PeerJS broker: join by link, settings mirror, guest start, move sync,
-  reactions, guest refresh, tolobby, switch game, rematch, host refresh, guest leave +
+  reactions, chat both ways (colour, text only, lobby mirror), guest refresh, tolobby,
+  switch game, rematch, host refresh, guest leave +
   rejoin, host leave → guest takes over → host returns as guest; `SKIP_ONLINE=1` skips),
   `online-edge` (third player → room full; both refresh in the lobby; guest closes the
   tab mid-game without goodbye and returns by link; rematch asked while the friend was

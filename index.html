@@ -92,6 +92,15 @@
         <div class="lobby-players" id="lobby-players"></div>
         <div class="lobby-status" id="lobby-status"></div>
 
+        <!-- room chat (online only): the same lines as the HUD log's chat -->
+        <div class="lobby-chat" id="lobby-chat" hidden>
+            <div class="log" id="lobby-log"></div>
+            <div class="chat-row">
+                <input id="lobby-chat-input" placeholder="Say something…" maxlength="200" autocomplete="off" spellcheck="false" disabled>
+                <button class="btn small" id="lobby-chat-send" disabled>Send</button>
+            </div>
+        </div>
+
         <div class="section">
             <div class="section-title">Game</div>
             <!-- one card per registered game, built by settings.js -->
@@ -168,6 +177,11 @@
             </div>
 
             <div class="log" id="log"></div>
+            <!-- chat (online only): desktop under the log, phones behind ☰ -->
+            <div class="chat-row" id="chat-row">
+                <input id="chat-input" placeholder="Say something…" maxlength="200" autocomplete="off" spellcheck="false" disabled>
+                <button class="btn small" id="chat-send" disabled>Send</button>
+            </div>
 
             <div class="controls" id="game-controls">
                 <button class="btn" id="btn-restart">Rematch</button>
@@ -286,6 +300,7 @@
                 <label><input type="checkbox" id="pref-snd-results" checked autocomplete="off"> Win / lose</label>
                 <label><input type="checkbox" id="pref-snd-turn" checked autocomplete="off"> Your turn</label>
                 <label><input type="checkbox" id="pref-snd-reactions" checked autocomplete="off"> Reactions</label>
+                <label><input type="checkbox" id="pref-snd-chat" checked autocomplete="off"> Chat</label>
             </div>
             <button class="btn small" id="pref-test-sound">Play a test sound</button>
         </div>
@@ -367,6 +382,7 @@
 <script src="client/settings.js"></script>
 <script src="client/opponent.js"></script>
 <script src="client/reactions.js"></script>
+<script src="client/chat.js"></script>
 <script src="client/app.js"></script>
 </body>
 </html>
