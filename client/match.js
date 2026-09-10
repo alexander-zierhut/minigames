@@ -9,7 +9,8 @@
      beforeMove(i, p)      false consumes the click instead of playing it        default true
                            (Learn's tutorial takes only the cell its step asks for)
      cellClass(i)          one extra class for cell i, painted by the engine     default ""
-                           (Learn's highlight; the premove marker wins over it)
+                           (Learn's highlight; the premove and the replay analysis'
+                           best-move marker win over it)
      onLocalMove(i)        a local seat is about to play cell i (online: tell the room)
      onChanged(kind)       the game record changed: "move" (placed, before its animation) or
                            "out" (a flag fall applied) — the room saves the session here
@@ -47,6 +48,7 @@ const Match = (() => {
         gameNo: 0,             // increments per game in this room (local too)
         bot: null,             // bot mode: the Bots.create instance for the running game
         premove: -1,           // the cell I will play as soon as it is my turn (-1 = none, #37)
+        marked: -1,            // a cell the replay analysis wants marked (-1 = none, #43): display only
         botInfo: null,         // the bot's last move for the dev panel (#31): { id, difficulty, budget, move, ms, nodes, depth, value }
     };
     let Game = Games.get(Games.keys()[0]).engine;     // active engine, switched in start()
@@ -97,9 +99,12 @@ const Match = (() => {
             const hint = isBot(p) ? "thinking…" : h.turnHint(p);
             return st.premove >= 0 && !isLocal(p) ? `${hint} · premove set` : hint;
         },
-        // the premove marker sits on the cell the move belongs to (Isolation encodes two of
-        // them into one integer); everything else is what the table asks for (Learn's hints)
-        cellClass: (i) => (st.premove >= 0 && Game.cellOf(st.premove) === i ? "premove" : h.cellClass(i)),
+        /* One class per cell: the premove wins, then the replay analysis' best move (#43),
+           then whatever the app wants there (Learn's highlight). They never overlap in
+           practice: a lesson is not a finished game and a replay has no premove. Both
+           markers sit on the cell the move belongs to, which the engine knows (Isolation
+           packs two cells into one move integer; `st.marked` arrives as a cell already). */
+        cellClass: (i) => (st.premove >= 0 && Game.cellOf(st.premove) === i ? "premove" : i === st.marked ? "best-move" : h.cellClass(i)),
         onCellClick: (i) => {
             const s = Game.state;
             if (s.over) return;
@@ -168,6 +173,17 @@ const Match = (() => {
             Game.play(i);
         }, "premove");
     }
+    /* ---------- the analysis marker (#43) ----------
+       The replay analysis asks for one cell to be marked as "the bot would have played
+       here". Display only, exactly like the premove: it goes through the same cellClass
+       hook, so no game and no engine knows about it. */
+    function mark(i) {
+        const to = Number.isInteger(i) && i >= 0 ? i : -1;
+        if (to === st.marked) return;
+        st.marked = to;
+        repaint();
+    }
+
     // the dashed marker takes the colour of the seat this device plays
     function paintPremoveColor() {
         const el = Util.$("board");
@@ -256,6 +272,7 @@ const Match = (() => {
         st.gameNo = gameNo;
         st.seats = makeSeats(players);
         st.premove = -1;
+        st.marked = -1;
         deferred = [];
         running = true;
         Game = Games.get(cfg.game).engine;
@@ -277,6 +294,7 @@ const Match = (() => {
         st.bot = null;
         st.botInfo = null;
         st.premove = -1;
+        st.marked = -1;
         deferred = [];
         running = false;
         const players = st.config.players || 2;
@@ -305,6 +323,7 @@ const Match = (() => {
         st.botInfo = null;
         st.seats = [];
         st.premove = -1;
+        st.marked = -1;
         deferred = [];
         setSeat(me, spectator);
     }
@@ -323,11 +342,11 @@ const Match = (() => {
     function init(handlers) { h = { ...h, ...handlers }; }
 
     return {
-        init, start, watch, stop, reset, setSeat, refreshSeats, record, flagged, whenIdle, syncClock, startPlayerFor, playerColor,
+        init, start, watch, stop, reset, setSeat, refreshSeats, record, flagged, whenIdle, syncClock, startPlayerFor, playerColor, mark,
         get engine() { return Game; }, get state() { return Game.state; }, get names() { return names(); }, get running() { return running; },
         get mode() { return st.mode; }, get me() { return st.me; }, get spectator() { return st.spectator; },
         get seats() { return st.seats; }, get config() { return st.config; }, get gameNo() { return st.gameNo; }, get bot() { return st.bot; },
-        get botInfo() { return st.botInfo; }, get premove() { return st.premove; },
+        get botInfo() { return st.botInfo; }, get premove() { return st.premove; }, get marked() { return st.marked; },
         set gameNo(n) { st.gameNo = n; },
         isLocal, isBot, THINK_MS,
     };

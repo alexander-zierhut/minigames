@@ -6,6 +6,22 @@
     <meta name="theme-color" content="#0f1320">
     <meta name="version" content="dev">
     <title>ALZlper's Minigames</title>
+    <meta name="description" content="Chain React, Five Wins, Isolation and Käsekästchen: free browser games for two to four friends. One link, no install, bots and spectators.">
+    <!-- link previews (Discord, chat apps, social): absolute URLs are what the crawlers need, so
+         this is the one place the site names its own address (share links are built at runtime) -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="ALZlper's Minigames">
+    <meta property="og:title" content="ALZlper's Minigames">
+    <meta property="og:description" content="Chain React, Five Wins, Isolation and Käsekästchen: free browser games for two to four friends. One link, no install, bots and spectators.">
+    <meta property="og:url" content="https://minigames.alzlper.com/">
+    <meta property="og:image" content="https://minigames.alzlper.com/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="ALZlper's Minigames: a glowing game board tile next to the title">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="ALZlper's Minigames">
+    <meta name="twitter:description" content="Free browser games for two to four friends. One link, no install, bots and spectators.">
+    <meta name="twitter:image" content="https://minigames.alzlper.com/og-image.png">
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
@@ -404,6 +420,8 @@
                         <button data-skin="mcboard">Blocks board</button>
                         <button data-skin="mc">Blocks</button>
                     </div>
+                    <label class="pref-check"><input type="checkbox" id="pref-win-graph" checked autocomplete="off"> Win chance graph in replays</label>
+                    <p class="hint">The line graph over the moves in the analysis panel. Two players only, because the win chance needs two sides.</p>
                 </div>
                 <div class="prefs-section prefs-rows" data-section="sound" hidden>
                     <div class="section-title">Sound</div>
@@ -517,14 +535,35 @@
         </div>
     </div>
 </div>
-<!-- after a game: step through it move by move (#38); the "Show result" button rides along -->
-<div id="replay-bar" hidden>
-    <button class="btn small" id="replay-first" title="First move" aria-label="First move">|◀</button>
-    <button class="btn small" id="replay-prev" title="Previous move" aria-label="Previous move">◀</button>
-    <span id="replay-pos">Move 0 / 0</span>
-    <button class="btn small" id="replay-next" title="Next move" aria-label="Next move">▶</button>
-    <button class="btn small" id="replay-last" title="Last move" aria-label="Last move">▶|</button>
-    <button id="result-fab" class="btn primary small" hidden>Show result</button>
+<!-- after a game: step through it move by move (#38), with the analysis panel above it (#43);
+     the "Show result" button rides along in the bar -->
+<div id="replay-dock">
+    <div id="replay-panel" hidden>
+        <div class="an-head">
+            <button class="btn small" id="btn-analyse">Analyse</button>
+            <div id="analysis-progress" hidden>
+                <div class="an-progress-track"><div id="analysis-bar"></div></div>
+                <span id="analysis-progress-text"></span>
+            </div>
+            <span class="an-verdict" id="an-verdict"></span>
+            <span id="an-chance"></span>
+            <button class="btn small" id="btn-play-from-here" hidden>Play from here</button>
+            <button class="btn small an-toggle" id="an-toggle" title="Show more" aria-label="Show more">▾</button>
+        </div>
+        <div class="an-body">
+            <div id="an-graph" hidden></div>
+            <div id="an-scores"></div>
+        </div>
+    </div>
+    <div id="replay-bar" hidden>
+        <button class="btn small" id="replay-first" title="First move" aria-label="First move">|◀</button>
+        <button class="btn small" id="replay-prev" title="Previous move" aria-label="Previous move">◀</button>
+        <span id="replay-pos">Move 0 / 0</span>
+        <button class="btn small" id="replay-next" title="Next move" aria-label="Next move">▶</button>
+        <button class="btn small" id="replay-last" title="Last move" aria-label="Last move">▶|</button>
+        <button class="btn small" id="replay-play" title="Play through the game" aria-label="Play through the game">▶▶</button>
+        <button id="result-fab" class="btn primary small" hidden>Show result</button>
+    </div>
 </div>
 
 <div id="toast" hidden></div>
@@ -569,6 +608,7 @@
 <script src="client/lib/sound.js"></script>
 <script src="client/lib/install.js"></script>
 <script src="client/lib/replays.js"></script>
+<script src="client/lib/analysis.js"></script>
 <script src="client/lib/update.js"></script>
 <script src="client/games/rules.js"></script>
 <script src="client/games.js"></script>

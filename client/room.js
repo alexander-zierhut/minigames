@@ -4,8 +4,8 @@
    page refresh. app.js drives the screens; Room tells it when to start a game or go back
    to the lobby through its handlers:
 
-   Room.init({ phase(), show(name), startGame(config, gameNo), backToLobby(announce),
-               renderLobby(), onVotes(), onReview(ply) })
+   Room.init({ phase(), show(name), startGame(config, gameNo, prefix), backToLobby(announce),
+               renderLobby(), onVotes(), onReview(ply, play) })
 
    Protocol summary (details in AGENTS.md "Online play"): guest → hello {seat, spectate, name,
    rev, phase, config, g, rematch}; host → state {you, settings, names, …} to that guest (+ sync
@@ -266,8 +266,10 @@ const Room = (() => {
         r.incoming = [];
     }
     const bump = () => { r.rev++; };
-    // start game `gameNo` with `cfg` (through app.js, which switches the screen)
-    const startGame = (cfg, gameNo) => h.startGame(cfg, gameNo);
+    // start game `gameNo` with `cfg` (through app.js, which switches the screen). `prefix`
+    // = { history, outs } starts it from a position instead of an empty board (#43); a guest
+    // that joins later gets the same moves through the usual `sync`.
+    const startGame = (cfg, gameNo, prefix) => h.startGame(cfg, gameNo, prefix);
 
     /* ---------- rematch (every seat must press; offline it is instant, see app.js) ---------- */
     function requestRematch() {
@@ -500,7 +502,7 @@ const Room = (() => {
         },
         start(msg) {                                  // the host started a game
             if (isHost() || msg.g <= Match.gameNo) return;
-            startGame(msg.config, msg.g);
+            startGame(msg.config, msg.g, msg.prefix);
             Log.add(`Game ${msg.g}: ${Games.get(msg.config.game).title}.`, "x");
         },
         tolobby(msg) {
@@ -529,7 +531,7 @@ const Room = (() => {
         // somebody is stepping through the finished game (#38): everyone looks at the same move
         review(msg) {
             if (!inThisGame(msg) || !Match.state.over) return;
-            h.onReview(msg.ply | 0);
+            h.onReview(msg.ply | 0, !!msg.play);
         },
         react(msg) {
             Reactions.receive(msg.e, Match.playerColor(Number.isInteger(msg.from) ? msg.from : otherPlayer(Match.me)));
@@ -563,15 +565,15 @@ const Room = (() => {
     }
 
     // Start pressed in the lobby: the host starts, a guest asks the host
-    function startFromLobby(cfg) {
+    function startFromLobby(cfg, prefix) {
         if (!allHere() || Match.spectator) return;
-        if (isHost()) hostStart(cfg);
+        if (isHost()) hostStart(cfg, prefix);
         else { netSend({ t: "start-request" }); toast("Asked the host to start"); }
     }
-    function hostStart(cfg) {
+    function hostStart(cfg, prefix) {
         const g = Match.gameNo + 1;
-        netSend({ t: "start", config: cfg, g });
-        startGame(cfg, g);
+        netSend({ t: "start", config: cfg, g, ...(prefix && prefix.history && prefix.history.length ? { prefix } : {}) });
+        startGame(cfg, g, prefix);
         Log.add(`Game ${g}: ${Games.get(cfg.game).title}.`, "x");
     }
 
@@ -715,7 +717,9 @@ const Room = (() => {
         say: (text) => netSend({ t: "chat", text }),
         tolobby: () => { if (!Match.spectator) netSend({ t: "tolobby" }); },
         // spectators step through a finished game on their own (the host would refuse it anyway)
-        review: (ply) => { if (!Match.spectator) netSend({ t: "review", ply, g: Match.gameNo }); },
+        // …and whether it is playing through the game by itself, so both sides run their own
+        // timer from the same move instead of one message per step (#43)
+        review: (ply, play = false) => { if (!Match.spectator) netSend({ t: "review", ply, play: !!play, g: Match.gameNo }); },
         accepts, keepsSeats, PLAYERS_ONLY,
         // `seat` overrides the sender: the room's bot reacts from its own seat (#36)
         react: (e, seat) => netSend({ t: "react", e, ...(seat >= 0 ? { from: seat } : {}) }),
