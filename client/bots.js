@@ -12,7 +12,15 @@
        create(tools) { return { move(state) { … return cellIndex; } }; },
        evaluate(state, tools) { … return rawScore; },   // optional: player 0's advantage, see "win chance" below
        supports(config) { return !config.yavalath; },   // optional: a rule variant the bot does not know (default: all)
+       variant(config) { return config.yavalath ? "yavalath" : null; },   // optional: rule variants it is rated separately for
    })
+
+   Rule variants: a bot that plays a variant of its game well enough to deserve its own
+   numbers names it with variant(config). The benchmark then stores a second result under
+   `variants: { <key>: { score, games, puzzles, … } }` and a second calibration under the
+   same key, and benchmarkOf(id, config) / calibrationOf(id, config) hand the variant's
+   numbers out (merged over the base, so version/commit/at still come from the base) —
+   that is how the picker badge and the win chance follow the room's rules.
 
    Win chance: a bot may offer evaluate(state, tools) → a raw score from PLAYER 0's point of
    view (0 = even, positive = player 0 better, ±Infinity = decided; draw = 0). It must honour
@@ -69,6 +77,7 @@ const Bots = (() => {
         if (typeof def.create !== "function") fail("create(tools) missing");
         if (def.baseline !== undefined && typeof def.baseline !== "boolean") fail("baseline must be true or false");
         if (def.supports !== undefined && typeof def.supports !== "function") fail("supports must be a function of the config");
+        if (def.variant !== undefined && typeof def.variant !== "function") fail("variant must be a function of the config");
         if (defs[def.id]) fail("registered twice");
     }
     function register(def) {
@@ -83,17 +92,27 @@ const Bots = (() => {
     // does this bot play the config's rule variants? (a bot without `supports` plays everything)
     const supports = (def, config) => !def.supports || !config || !!def.supports(config);
     // the bot a game is played against (#21: one per game, called "Bot" in the UI): the best-rated
-    // real bot that plays these rules; a game that has none falls back to its Random baseline so
-    // "Against a bot" always works (e.g. Five Wins with the Yavalath rule, which Sensei does not know)
+    // real bot that plays these rules (with the variant's score when the config names one); a game
+    // whose bot cannot play them falls back to its Random baseline, so "Against a bot" always works
     function botFor(game, config) {
         const real = forGame(game).filter((b) => !b.baseline && supports(b, config))
-            .sort((a, b) => ((benchmarkOf(b.id) || {}).score || 0) - ((benchmarkOf(a.id) || {}).score || 0));
+            .sort((a, b) => ((benchmarkOf(b.id, config) || {}).score || 0) - ((benchmarkOf(a.id, config) || {}).score || 0));
         return real[0] || forGame(game).find((b) => b.baseline) || null;
     }
     function benchmark(id, result) { results[id] = result; }
-    const benchmarkOf = (id) => results[id] || null;
     function calibration(id, c) { calibrations[id] = c; }
-    const calibrationOf = (id) => calibrations[id] || null;
+    // the rule variant of a config this bot is rated separately for (null = the plain game)
+    const variantOf = (def, config) => (def && def.variant && config && def.variant(config)) || null;
+    // a variant entry overlays the base result, so version / commit / at survive
+    function pick(map, id, config) {
+        const base = map[id];
+        if (!base) return null;
+        const key = variantOf(defs[id], config);
+        const v = key && base.variants && base.variants[key];
+        return v ? { ...base, ...v, variant: key } : base;
+    }
+    const benchmarkOf = (id, config) => pick(results, id, config);
+    const calibrationOf = (id, config) => pick(calibrations, id, config);
 
     // raw score -> probability that player 0 wins, with the bot's calibration (or its default)
     function toProbability(raw, cal) {
@@ -112,11 +131,11 @@ const Bots = (() => {
     function estimator(game, config) {
         const rules = Rules.of(game);
         const candidates = forGame(game).filter((b) => typeof b.evaluate === "function" && supports(b, config))
-            .sort((a, b) => ((benchmarkOf(b.id) || {}).score || 0) - ((benchmarkOf(a.id) || {}).score || 0));
+            .sort((a, b) => ((benchmarkOf(b.id, config) || {}).score || 0) - ((benchmarkOf(a.id, config) || {}).score || 0));
         const def = candidates[0];
         const heuristic = (state) => Math.min(1, Math.max(0, Number(rules && rules.estimate ? rules.estimate(state) : 0.5) || 0));
         if (!def) return { bot: null, stages: [0], at: heuristic, quick: heuristic };
-        const cal = calibrationOf(def.id) || def.calibration || null;
+        const cal = calibrationOf(def.id, config) || def.calibration || null;
         // evaluate() may return a Promise (long budgets yield to the page); `at` follows suit
         const at = (state, nodes) => {
             if (state.over) return state.winner < 0 ? 0.5 : state.winner === 0 ? 1 : 0;
@@ -196,5 +215,5 @@ const Bots = (() => {
         return { over: state.over, winner: state.over ? state.winner : null, moves: state.history.length, history: state.history.slice(), state };
     }
 
-    return { register, get, list, forGame, botFor, supports: (id, config) => supports(get(id), config), benchmark, benchmarkOf, calibration, calibrationOf, estimator, toProbability, ESTIMATE_STAGES, tools, create, playout, rng, validate };
+    return { register, get, list, forGame, botFor, supports: (id, config) => supports(get(id), config), variantOf: (id, config) => variantOf(get(id), config), benchmark, benchmarkOf, calibration, calibrationOf, estimator, toProbability, ESTIMATE_STAGES, tools, create, playout, rng, validate };
 })();

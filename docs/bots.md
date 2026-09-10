@@ -51,8 +51,22 @@ Bots.register({
     estimate(state, tools) {           // optional: P(player 0 wins), 0..1, cheap, deterministic
         /* … */
     },
+    supports(config) { return !config.someRule; },          // optional: rules it does NOT play
+    variant(config) { return config.yavalath ? "yavalath" : null; },   // optional: rated separately
 });
 ```
+
+**Rule variants.** `supports(config)` keeps a bot out of a rule it does not know:
+`Bots.botFor(game, config)` and `Bots.estimator(game, config)` then hand out the game's
+Random baseline instead, so "Against a bot" always works. `variant(config)` is the opposite
+case: the bot plays the variant, but well enough that it deserves its own numbers. The
+benchmark runs a second seeded series and a second puzzle set for it (`VARIANTS` in
+`scripts/benchmark.mjs`) and stores them as `variants: { <key>: { score, games, avgMoves,
+puzzles } }` in the same `Bots.benchmark(id, …)` statement; `scripts/calibrate.mjs` fits a
+second logistic under the same key. `Bots.benchmarkOf(id, config)` and
+`Bots.calibrationOf(id, config)` overlay the variant on the base entry, so the bot modal's
+badges, the lobby's Opponent row and the win-chance bars all follow the room's rules.
+Sensei is the example: Five Wins and Five Wins with the Yavalath rule.
 
 `Bots.validate(def)` throws with a clear message for a malformed definition. Registration
 order = display order.
@@ -133,7 +147,8 @@ average of the last two depths), may return a Promise and yield on long budgets.
 The framework does the rest: `scripts/calibrate.mjs` plays seeded self-play games, records
 (raw, result) for every settled position and fits `p = σ((raw − shift) / scale)`; the
 benchmark bakes `Bots.calibration(id, { scale, shift, brier, swing, samples })` into
-`benchmark.js`. `Bots.estimator(game)` picks the strongest evaluating bot, applies its
+`benchmark.js` (plus one entry per rule variant under `variants`).
+`Bots.estimator(game, config)` picks the strongest evaluating bot that plays those rules, applies its
 calibration (`Bots.toProbability`, clamped to 0.5–99.5 %) and exposes `at(state, nodes)`;
 the HUD calls it only when a move has settled, in node stages (2 000 → 12 000 → 60 000,
 background, ≤ 5 s), with a light display smoothing outside decided territory. `swing`
@@ -190,7 +205,7 @@ const r = await H.Bots.playout("chain", { n: 6 }, [a, b], { maxMoves: 600 });
 | `random-chain` | Random | Chain React | Normal | any legal move; `baseline: true` (benchmark opponent, fallback; never offered) |
 | `creeper-chain` | Creeper | Chain React | Easy 30 ms · Normal 150 ms · Hard 600 ms · Very hard 1500 ms | negamax alpha-beta with iterative deepening, Zobrist TT, killers/history, PVS + LMR, quiescence over explosive captures, on an Int8Array engine proven equal to the rules; evaluation = pieces + safe corner/edge bonus − exposure penalty, tuned by self-play. 100 % vs Random, 159/159 puzzles at Very hard (Easy 32 %, Normal 87 %, Hard 95 %). Provides the win chance (evaluate: even-depth iterative deepening with full explosion quiescence, mean of the last completed depths; calibrated scale ≈ 31, swing 2.2 %). See its README. |
 | `random-five` | Random | Five Wins | Normal | any empty cell; `baseline: true` (benchmark opponent, fallback; never offered) |
-| `sensei-five` | Sensei | Five Wins | Easy 30 ms · Normal 150 ms · Hard 600 ms · Very hard 1500 ms | Int8Array board with incremental line-pattern records (fours, threes, four-makers), alpha-beta negamax with iterative deepening, Zobrist TT, killers/history, exact forced-move handling (own four, enemy fours, open threes), VCF/VCT threat searches with exact mate distance; works for any board size and win length. 100 % vs Random, 154/154 puzzles at Very hard (Easy 69 %, Normal 98 %, Hard 100 %). Provides the win chance (evaluate: depth-2 search with forced fours free, open-three extension, VCF/VCT on long budgets; calibrated scale ≈ 1166, swing 0.9 %). 9×9 with sound defence is drawish; its edge grows on bigger boards. See its README. |
+| `sensei-five` | Sensei | Five Wins | Easy 30 ms · Normal 150 ms · Hard 600 ms · Very hard 1500 ms | Int8Array board with incremental line-pattern records (fours, threes, four-makers), alpha-beta negamax with iterative deepening, Zobrist TT, killers/history, exact forced-move handling (own four, enemy fours, open threes), VCF/VCT threat searches with exact mate distance; works for any board size and win length. 100 % vs Random, 154/154 puzzles at Very hard (Easy 69 %, Normal 98 %, Hard 100 %). It also plays the **Yavalath rule** (winLen wins, winLen - 1 loses): suicide cells per line, a forced block on one of them is a terminal loss, and the threat searches hunt exactly that; rated separately (`variants.yavalath` in `benchmark.js`, its own puzzle set `tests/puzzles/five-yavalath`). Provides the win chance (evaluate: depth-2 search with forced fours free, open-three extension, VCF/VCT on long budgets; calibrated scale ≈ 1166, swing 0.9 %, a second curve for the variant). 9×9 with sound defence is drawish; its edge grows on bigger boards. See its README. |
 | `random-isolation` | Random | Isolation | Normal | any legal step and any tile to break; `baseline: true` (benchmark opponent, fallback; never offered) |
 | `warden-isolation` | Warden | Isolation | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | Int8Array board with the rules' own "trapped when your turn comes" handling, paranoid alpha-beta (I maximise, everybody else minimises) with iterative deepening; the generator keeps every step but only the broken tiles near an opponent plus the tile just left, capped per level; evaluation = Voronoi territory (one multi-source BFS, king steps) + mobility + tempo, which is also the exact measure once the board falls apart. 100 % vs Random, 198/200 puzzles at Very hard (Easy 68.5 %, Normal 90 %, Hard 97 %). Provides the win chance (evaluate: the same search averaged over "me to move" and "the other seat to move", which removes the tempo artefact; calibrated scale ≈ 693, swing 11.7 %). Plays 2 to 4 seats. See its README. |
 | `random-boxes` | Random | Käsekästchen | Normal | any undrawn line; `baseline: true` (benchmark opponent, fallback; never offered) |

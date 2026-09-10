@@ -1,4 +1,6 @@
 /* Regenerates puzzles.json for Five Wins:  node scripts/puzzles/five/generate.mjs
+   …and for its Yavalath variant (winLen wins, winLen - 1 loses):
+   node scripts/puzzles/five/generate.mjs yavalath   → tests/puzzles/five-yavalath/puzzles.json
    Deterministic: seeded playouts (Bots.rng, mulberry32) + hand-crafted positions, solved by
    solver.mjs (proven results only), filtered for diversity and "a mistake is possible",
    de-duplicated under the 8 board symmetries. Nothing here uses Math.random. */
@@ -6,14 +8,22 @@ import { writeFileSync } from "node:fs";
 import { loadHeadless } from "../../headless.mjs";
 import { solve, solveExhaustive, Board, canonical } from "./solver.mjs";
 
-const OUT = new URL("../../../tests/puzzles/five/puzzles.json", import.meta.url);
+const YAV = process.argv[2] === "yavalath";         // the Yavalath variant set
+const OUT = new URL(YAV ? "../../../tests/puzzles/five-yavalath/puzzles.json" : "../../../tests/puzzles/five/puzzles.json", import.meta.url);
+const PREFIX = YAV ? "five-yav" : "five";           // puzzle ids; runner.mjs reads the game key before the first dash
 const { Rules, FiveRules, Bots } = loadHeadless();
 
 /* ---------- targets ---------- */
-const TARGET = 170;                                 // stop once reached (≥ 100 required)
+const TARGET = YAV ? 150 : 170;                     // stop once reached (≥ 100 required)
 // per board config: quota, playouts, when to try exhaustion (empties), ply sampling step,
 // and how many puzzles of each capped tag it may contribute (keeps the mix even per board)
-const CONFIGS = [
+const YAV_CONFIGS = [
+    { n: 6, winLen: 4, yavalath: true, quota: 42, games: 90, exhaustEmpties: 25, step: 2, seed: 6401, caps: { "win-in-1": 8, "must-block": 8, "forced-three": 16, "win-in-2": 16, "win-in-3": 10, draw: 8 } },
+    { n: 7, winLen: 4, yavalath: true, quota: 42, games: 300, exhaustEmpties: 23, step: 2, seed: 7402, caps: { "win-in-1": 8, "must-block": 8, "forced-three": 16, "win-in-2": 16, "win-in-3": 10, draw: 8 } },
+    { n: 8, winLen: 4, yavalath: true, quota: 34, games: 400, exhaustEmpties: 21, step: 3, seed: 8403, caps: { "win-in-1": 6, "must-block": 6, "forced-three": 14, "win-in-2": 14, "win-in-3": 9, draw: 6 } },
+    { n: 9, winLen: 4, yavalath: true, quota: 32, games: 400, exhaustEmpties: 19, step: 3, seed: 9404, caps: { "win-in-1": 6, "must-block": 6, "forced-three": 14, "win-in-2": 14, "win-in-3": 9, draw: 6 } },
+];
+const CONFIGS = YAV ? YAV_CONFIGS : [
     { n: 5, winLen: 4, quota: 32, games: 60, exhaustEmpties: 25, step: 2, seed: 501, caps: { "win-in-1": 4, "must-block": 8, "win-in-2": 8, "win-in-3": 6, draw: 9 } },
     { n: 6, winLen: 4, quota: 24, games: 40, exhaustEmpties: 26, step: 2, seed: 602, caps: { "win-in-1": 3, "must-block": 6, "win-in-2": 7, "win-in-3": 6, draw: 6 } },
     { n: 6, winLen: 5, quota: 22, games: 40, exhaustEmpties: 23, step: 2, seed: 603, caps: { "win-in-1": 3, "must-block": 6, "win-in-2": 6, "win-in-3": 5, draw: 7 } },
@@ -22,7 +32,8 @@ const CONFIGS = [
     { n: 8, winLen: 5, quota: 14, games: 30, exhaustEmpties: 20, step: 3, seed: 806, caps: { "win-in-1": 2, "must-block": 3, "win-in-2": 5, "win-in-3": 4, draw: 3 } },
     { n: 9, winLen: 5, quota: 36, games: 60, exhaustEmpties: 19, step: 3, seed: 907, caps: { "win-in-1": 5, "must-block": 4, "win-in-2": 14, "win-in-3": 13, draw: 3 } },
 ];
-const PER_GAME = 2;                                 // puzzles taken from one playout
+const cfgOf = (c) => (YAV ? { n: c.n, winLen: c.winLen, yavalath: true } : { n: c.n, winLen: c.winLen });
+const PER_GAME = YAV ? 3 : 2;                       // puzzles taken from one playout
 const EXHAUSTIVE_NODES = 500_000;                   // ≈ 0.5 s; keeps re-solving in the tests fast
 
 /* ---------- rules plumbing ---------- */
@@ -45,9 +56,12 @@ function policy(s, rng) {
     const b = Board.fromState(s), me = s.current, n = s.n;
     const win = b.threats(me);
     if (win.length && rng() < 0.25) return win[Math.floor(rng() * win.length)];
-    const block = b.threats(1 - me);
+    const block = b.threats(1 - me).filter((i) => !b.suicidal(i, me));
     if (block.length && rng() < 0.85) return block[Math.floor(rng() * block.length)];
-    const empty = FiveRules.legalMoves(s);
+    // with the Yavalath rule a random game would end on the third move: keep the playout safe
+    const all = FiveRules.legalMoves(s);
+    const safe = b.safeMoves(all, me);
+    const empty = safe.length ? safe : all;
     const roll = rng();
     if (roll < 0.35) {                              // greedy by static line potential
         let best = -1, bs = -1;
@@ -67,14 +81,29 @@ function policy(s, rng) {
 }
 
 /* ---------- classification ---------- */
+// does `move` leave the opponent with nothing but losing replies? (Yavalath's winning idea)
+function forcesThree(s, move) {
+    const t = mk({ n: s.n, winLen: s.winLen, yavalath: true });
+    for (const i of s.history) play(t, i);
+    play(t, move);
+    if (t.over) return false;
+    const b = Board.fromState(t), def = t.current, att = 1 - def;
+    const th = b.threats(att);
+    return !b.hasSafe(def) || (th.length === 1 && b.suicidal(th[0], def));
+}
 function tagsFor(s, r) {
     const b = Board.fromState(s), me = s.current;
     const tags = [];
-    const myWin = b.threats(me).length > 0, opT = b.threats(1 - me).length;
+    const myWin = b.threats(me).length > 0, opT = b.threats(1 - me).filter((i) => !b.suicidal(i, me)).length;
     if (myWin) { tags.push("win-in-1"); if (opT) tags.push("prefer-win"); }
     else if (opT === 1) tags.push("must-block");
-    if (r.value === "win" && r.depth > 1) {
-        tags.push(`win-in-${(r.depth + 1) / 2}`);
+    // the variant: a move that makes winLen - 1 loses, so not playing one is a skill of its own
+    if (YAV && FiveRules.legalMoves(s).some((i) => b.suicidal(i, me)) && !r.best.some((i) => b.suicidal(i, me))) tags.push("avoid-three");
+    // the Yavalath idea: after the best move the opponent must move and every move loses,
+    // either because it makes winLen - 1 itself or because the only block does
+    if (YAV && r.value === "win" && r.depth <= 3 && forcesThree(s, r.best[0])) tags.push("forced-three");
+    if (r.value === "win" && r.depth > 2) {
+        tags.push(`win-in-${YAV ? Math.ceil(r.depth / 2) : (r.depth + 1) / 2}`);
         if (r.depth === 3 && !opT) tags.push("double-threat");
     }
     if (r.value === "draw") tags.push("draw");
@@ -89,6 +118,8 @@ function noteFor(tags, r, n) {
     const parts = [];
     if (tags.includes("prefer-win")) parts.push("Both sides threaten to complete a line: take your own win.");
     else if (tags.includes("win-in-1")) parts.push("Complete the line.");
+    if (tags.includes("forced-three")) parts.push("Every reply the opponent has left makes the losing row.");
+    if (tags.includes("avoid-three") && !tags.includes("win-in-1")) parts.push("Some moves make the losing row: not those.");
     if (tags.includes("must-block")) parts.push(r.value === "win" ? "Block the four first; the win comes later." : "Block the four to hold the draw.");
     if (tags.includes("double-threat")) parts.push("Create two completion cells at once.");
     if (tags.includes("win-in-3")) parts.push("A forcing sequence (four, then a double threat) wins.");
@@ -153,7 +184,7 @@ function accept(cfg, s, r, legal, note) {
     tagCount.set(cfg, c);
     colour[s.current]++;
     puzzles.push({
-        config: { n: s.n, winLen: s.winLen },
+        config: YAV ? { n: s.n, winLen: s.winLen, yavalath: true } : { n: s.n, winLen: s.winLen },
         history: Array.from(s.history), toMove: s.current,
         best: r.best, value: r.value, depth: r.depth, tags,
         note: note || noteFor(tags, r, legal),
@@ -163,7 +194,13 @@ function accept(cfg, s, r, legal, note) {
 
 // 1. hand-crafted positions (stones as [x, y] per player; p0 moved first, so |p0| - |p1| ∈
 //    {0, 1}: equal counts → p0 to move, one more p0 stone → p1 to move)
-const HAND = [
+const YAV_HAND = [
+    // 4 in a row wins, 3 loses (7×7). X 0,1,3 in the top row: 2 completes the four.
+    { n: 7, winLen: 4, p0: [[0, 0], [1, 0], [3, 0]], p1: [[0, 3], [2, 3], [0, 5]], note: "Complete the four (and note that 21 would make three for you)." },
+    // X X _ X is built by playing the far stone: the block on the gap makes O a three
+    { n: 7, winLen: 4, p0: [[1, 3], [2, 3], [0, 6]], p1: [[3, 1], [3, 2], [6, 6]], note: "Build the four so that the only block makes the opponent three in a row." },
+];
+const STD_HAND = [
     { n: 9, winLen: 5, p0: [[3, 4], [4, 4], [5, 4]], p1: [[3, 3], [4, 3], [0, 8]], note: "Open three: extend it to an open four." },
     { n: 9, winLen: 5, p1: [[2, 4], [3, 4], [4, 4], [4, 5], [4, 6]], p0: [[1, 4], [3, 3], [5, 3], [7, 7], [8, 0], [0, 0]], note: "Four-three: the four forces a block, then the three becomes an open four." },
     { n: 9, winLen: 5, p0: [[3, 3], [4, 3], [3, 5], [3, 6]], p1: [[6, 6], [7, 7], [1, 1], [0, 8]], note: "Double three: one move makes two open threes." },
@@ -173,13 +210,14 @@ const HAND = [
     { n: 6, winLen: 4, p0: [[1, 2], [2, 2], [4, 4]], p1: [[2, 3], [3, 3], [5, 5]], note: "Symmetric threes; the mover attacks first." },
     { n: 5, winLen: 4, p1: [[0, 0], [1, 1], [2, 2]], p0: [[3, 0], [3, 1], [1, 3], [4, 4]], note: "Diagonal three with a free end." },
 ];
+const HAND = YAV ? YAV_HAND : STD_HAND;
 for (const h of HAND) {
     const history = [];
     for (let k = 0; k < Math.max(h.p0.length, h.p1.length); k++) {
         if (k < h.p0.length) history.push(h.p0[k][1] * h.n + h.p0[k][0]);
         if (k < h.p1.length) history.push(h.p1[k][1] * h.n + h.p1[k][0]);
     }
-    const cfg = { n: h.n, winLen: h.winLen };
+    const cfg = YAV ? { n: h.n, winLen: h.winLen, yavalath: true } : { n: h.n, winLen: h.winLen };
     const s = replay(cfg, history);
     if (s.over) { console.error("hand-crafted position is over:", h.note); continue; }
     const c = CONFIGS.find((c) => c.n === h.n && c.winLen === h.winLen);
@@ -194,14 +232,14 @@ for (const cfg of CONFIGS) {
     const rng = Bots.rng(cfg.seed);
     const before = puzzles.length;
     for (let g = 0; g < cfg.games && count(cfg) < cfg.quota && puzzles.length < TARGET; g++) {
-        const s = mk({ n: cfg.n, winLen: cfg.winLen });
+        const s = mk(cfgOf(cfg));
         let taken = 0;
         const phase = g % cfg.step;                  // sample every step-th position, offset per game
         while (!s.over && taken < PER_GAME) {
             const stones = s.history.length;
             if (stones >= 2 * (cfg.winLen - 1) && stones % cfg.step === phase) {
                 const b = Board.fromState(s), me = s.current;
-                const myWin = b.threats(me).length > 0, opT = b.threats(1 - me).length;
+                const myWin = b.threats(me).length > 0, opT = b.threats(1 - me).filter((i) => !b.suicidal(i, me)).length;
                 const cheapSkip = (myWin && capped(cfg, ["win-in-1"])) || (!myWin && opT === 1 && capped(cfg, ["must-block"])) || opT >= 2;
                 if (!cheapSkip) {
                     const a = analyse(s, cfg);
@@ -216,15 +254,19 @@ for (const cfg of CONFIGS) {
 
 // 3. order, ids, write
 puzzles.sort((a, b) => a.config.n - b.config.n || a.config.winLen - b.config.winLen || a.history.length - b.history.length || a.history.join() < b.history.join() ? -1 : 1);
-puzzles.forEach((p, k) => { p.id = `five-${String(k + 1).padStart(4, "0")}`; });
+puzzles.forEach((p, k) => { p.id = `${PREFIX}-${String(k + 1).padStart(4, "0")}`; });
 const ordered = puzzles.map((p) => ({ id: p.id, config: p.config, history: p.history, toMove: p.toMove, best: p.best, value: p.value, depth: p.depth, tags: p.tags, note: p.note }));
 const doc = {
     game: "five",
+    variant: YAV ? "yavalath" : null,
     generated: new Date().toISOString().slice(0, 10),
-    solver: "exhaustive alpha-beta to terminal (exact value, every optimal move) when the board can be exhausted; otherwise a threat search with a complete defender proving forced wins within 5 plies (every fastest winning move). Only proven positions are included.",
+    solver: YAV
+        ? "exhaustive alpha-beta to terminal (exact value, every optimal move) when the board can be exhausted; otherwise a threat search with a complete root and a complete defender proving forced wins within 3 plies. Both engines know the Yavalath rule: a move that makes winLen - 1 loses at once, a side without a safe move has lost. Only proven positions are included."
+        : "exhaustive alpha-beta to terminal (exact value, every optimal move) when the board can be exhausted; otherwise a threat search with a complete defender proving forced wins within 5 plies (every fastest winning move). Only proven positions are included.",
     puzzles: ordered,
 };
-const json = `{\n  "game": ${JSON.stringify(doc.game)},\n  "generated": ${JSON.stringify(doc.generated)},\n  "solver": ${JSON.stringify(doc.solver)},\n  "puzzles": [\n${ordered.map((p) => "    " + JSON.stringify(p)).join(",\n")}\n  ]\n}\n`;
+const variantLine = doc.variant ? `  "variant": ${JSON.stringify(doc.variant)},\n` : "";
+const json = `{\n  "game": ${JSON.stringify(doc.game)},\n${variantLine}  "generated": ${JSON.stringify(doc.generated)},\n  "solver": ${JSON.stringify(doc.solver)},\n  "puzzles": [\n${ordered.map((p) => "    " + JSON.stringify(p)).join(",\n")}\n  ]\n}\n`;
 writeFileSync(OUT, json);
 
 // report

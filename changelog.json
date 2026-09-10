@@ -17,6 +17,10 @@
         },
         {
           "type": "improvement",
+          "text": "The bot now plays Five Wins with the Yavalath rule, so \"Against a bot\" and the win chance work with that rule too."
+        },
+        {
+          "type": "improvement",
           "text": "A round of layout polish: the settings button keeps its full name on phones, the emoji list opens under its button instead of across the top, the update notice sits above the title card, Learn and Replays are two buttons in the title foot, the replays filter shows the games with their tiles, a game's Learn page scrolls as a whole, and a scenario's explanation can be folded away while a tutorial keeps the board still.",
           "technical": true
         },

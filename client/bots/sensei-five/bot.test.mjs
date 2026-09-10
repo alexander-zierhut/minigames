@@ -139,12 +139,99 @@ test("sensei-five: handles other win lengths and sizes (3-in-a-row on 5×5, 6 on
 
 /* ---------- puzzles: thresholds below what the levels reach (never 100 %) ---------- */
 const set = loadPuzzles("five");
+const yavSet = loadPuzzles("five-yavalath");
 test("sensei-five: puzzle score per level, each level ≥ the previous", { skip: !set && "no puzzle set in tests/puzzles/five yet" }, async () => {
     const THRESHOLD = { "easy": 30, "normal": 70, "hard": 85, "very-hard": 92 };
     let previous = -1;
     for (const level of LEVELS) {
         const r = await evaluateBot(H, ID, { difficulty: level, seed: 7, budget: BUDGET });
         console.log(`  sensei-five ${level}: ${r.solved}/${r.total} = ${r.pct} % (chance ${r.chance} %)`, Object.fromEntries(Object.entries(r.byTag).map(([k, v]) => [k, `${v.solved}/${v.total}`])));
+        assert.ok(r.pct >= THRESHOLD[level], `${level}: ${r.pct} % ≥ ${THRESHOLD[level]} %`);
+        assert.ok(r.pct >= previous, `${level} (${r.pct} %) not below the previous level (${previous} %)`);
+        previous = r.pct;
+    }
+});
+
+/* ---------- the Yavalath rule: winLen wins, winLen - 1 loses ---------- */
+const YAV = { n: 7, winLen: 4, yavalath: true };
+const yavPos = (hist, cfg = YAV) => { let s = rules.create(cfg, Rules.base(cfg)); for (const m of hist) s = t.apply(s, m); return s; };
+
+test("sensei-five (Yavalath): never makes the losing row while a safe move exists (seeded random positions, every level)", async () => {
+    const rnd = Bots.tools("five", { seed: 77 });
+    let checked = 0, traps = 0;
+    for (const level of LEVELS) {
+        let s = yavPos([]);
+        for (let k = 0; k < 60; k++) {
+            if (s.over) s = yavPos([]);
+            if (s.current === 1) {
+                const B = new Board(s.n, s.winLen, true);
+                B.load(s.cells);
+                const legal = rules.legalMoves(s);
+                const safe = legal.filter((i) => !B.suicidal(i, 1));
+                if (safe.length) traps += legal.length - safe.length;
+                const i = await Bots.create(ID, { me: 1, difficulty: level, seed: 5, budget: BUDGET }).move(t.clone(s));
+                assert.ok(rules.isLegal(s, i, 1), `${level}: legal`);
+                if (safe.length) assert.ok(safe.includes(i), `${level}: ${i} makes ${s.winLen - 1} in a row although ${safe.length} safe cells are free`);
+                checked++;
+            }
+            s = rnd.apply(s, rnd.pick(rules.legalMoves(s)));
+        }
+    }
+    assert.ok(checked >= 100 && traps >= 20, `${checked} moves checked, ${traps} losing cells were on the board`);
+});
+
+test("sensei-five (Yavalath): completes the four, and blocks the opponent's four when the block is safe", async () => {
+    // X 0,1 and 3 in the top row: 2 completes four (21 would only be three)
+    const win = yavPos([0, 21, 1, 23, 3, 35]);
+    assert.equal(win.current, 0);
+    for (const level of ["normal", "hard", "very-hard"]) assert.equal(await ask(win, level), 2, `${level}: takes the four`);
+    // O 8,9 and 11 in row 1: X has to take 10, and taking it makes nothing for X
+    const block = yavPos([28, 8, 30, 9, 48, 11]);
+    assert.equal(block.current, 0);
+    for (const level of ["normal", "hard", "very-hard"]) assert.equal(await ask(block, level), 10, `${level}: blocks the four`);
+});
+
+test("sensei-five (Yavalath): plays the trap that forces the opponent to make the losing row", async () => {
+    // X 22,23 in row 3, O 10,17 in column 3. X 25 makes X X _ X: O must take 24, and 24 is
+    // O's third stone in the column, so O loses. The proven best move of the puzzle solver.
+    const s = yavPos([22, 10, 23, 17, 42, 48]);
+    assert.equal(s.current, 0);
+    for (const level of ["normal", "hard", "very-hard"]) assert.equal(await ask(s, level), 25, `${level}: sets the trap`);
+    // and it really is a trap: the only block ends the game against the opponent
+    const after = t.apply(t.apply(s, 25), 24);
+    assert.equal(after.over, true); assert.equal(after.winner, 0);
+});
+
+test("sensei-five (Yavalath): does not walk into the trap (it answers the four without making three)", async () => {
+    // the same position one move on: O to move, 24 is the only block and it loses, so O must
+    // play something else instead of blocking
+    const s = t.apply(yavPos([22, 10, 23, 17, 42, 48]), 25);
+    assert.equal(s.current, 1);
+    for (const level of ["normal", "hard", "very-hard"]) {
+        const got = await ask(s, level);
+        assert.notEqual(got, 24, `${level}: blocking would end the game against it`);
+        assert.ok(rules.isLegal(s, got, 1));
+    }
+});
+
+test("sensei-five (Yavalath): evaluate() knows the rule (a made three is decided, the trap is a win)", async () => {
+    const lost0 = t.apply(yavPos([0, 21, 1, 23]), 2);            // X makes three: X has lost
+    assert.equal(lost0.over, true); assert.equal(lost0.winner, 1);
+    assert.equal(await evalAt(lost0, 2000), -Infinity);
+    assert.equal(await evalAt({ ...lost0, over: false, winner: undefined }, 12000), -Infinity, "read off the board too");
+    const trap = yavPos([22, 10, 23, 17, 42, 48]);               // X to move: 25 forces the losing block
+    for (const nodes of [2000, 12000]) assert.equal(await evalAt(trap, nodes), Infinity, `trap @${nodes}`);
+    // and without the rule the very same block is harmless: the game simply goes on
+    const plain = t.apply(t.apply(position([22, 10, 23, 17, 42, 48], 7, 4), 25), 24);
+    assert.equal(plain.over, false, "three in a row is nothing in Five Wins");
+});
+
+test("sensei-five (Yavalath): puzzle score on tests/puzzles/five-yavalath, each level ≥ the previous", { skip: !yavSet && "no Yavalath puzzle set yet" }, async () => {
+    const THRESHOLD = { "easy": 25, "normal": 55, "hard": 70, "very-hard": 80 };
+    let previous = -1;
+    for (const level of LEVELS) {
+        const r = await evaluateBot(H, ID, { difficulty: level, seed: 7, budget: BUDGET, set: yavSet });
+        console.log(`  sensei-five ${level} (yavalath): ${r.solved}/${r.total} = ${r.pct} % (chance ${r.chance} %)`, Object.fromEntries(Object.entries(r.byTag).map(([k, v]) => [k, `${v.solved}/${v.total}`])));
         assert.ok(r.pct >= THRESHOLD[level], `${level}: ${r.pct} % ≥ ${THRESHOLD[level]} %`);
         assert.ok(r.pct >= previous, `${level} (${r.pct} %) not below the previous level (${previous} %)`);
         previous = r.pct;
@@ -167,6 +254,11 @@ async function series(a, da, b, db, games, cfg) {
 test("sensei-five: Very hard beats Random in ≥ 95 % of 20 games (9×9, both colours)", async () => {
     const r = await series(ID, "very-hard", "random-five", "normal", 20, { n: 9, winLen: 5 });
     console.log(`  very-hard vs random: ${r.points}/20 points, avg ${r.avgMoves.toFixed(0)} moves`);
+    assert.ok(r.points >= 19, `${r.points} points`);
+});
+test("sensei-five (Yavalath): Very hard beats Random in ≥ 95 % of 20 games (9×9, 4 wins / 3 loses, both colours)", async () => {
+    const r = await series(ID, "very-hard", "random-five", "normal", 20, { n: 9, winLen: 4, yavalath: true });
+    console.log(`  very-hard vs random (yavalath): ${r.points}/20 points, avg ${r.avgMoves.toFixed(0)} moves`);
     assert.ok(r.points >= 19, `${r.points} points`);
 });
 test("sensei-five: Hard beats Easy over 10 games", async () => {

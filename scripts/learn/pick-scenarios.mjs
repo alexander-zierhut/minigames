@@ -385,6 +385,8 @@ export async function writeAll({ factsOnly = false, keepFacts = false } = {}) {
     if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
     const H = keepFacts ? null : loadHeadless();
     for (const game of puzzleGames()) {
+        // a rule variant is not a game of its own (tests/puzzles/five-yavalath): no facts, no ladder
+        if ((loadPuzzles(game) || {}).variant) continue;
         const t0 = Date.now();
         let facts = keepFacts ? loadFacts(game) : await collectFacts(H, game);
         if (!facts) { console.log(`${game}: no facts, skipped`); continue; }

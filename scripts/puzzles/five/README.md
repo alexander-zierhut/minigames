@@ -67,6 +67,24 @@ Both engines agree on won positions (checked in `solver.test.mjs` and asserted d
 generation). Everything is deterministic: no randomness in the solver, `Bots.rng` (seeded
 mulberry32) in the generator, ordering ties broken by cell id.
 
+## The Yavalath variant (`tests/puzzles/five-yavalath`)
+
+`node scripts/puzzles/five/generate.mjs yavalath` writes a second, independent set for the
+rule where `winLen` still wins but a stone whose longest line is exactly `winLen - 1` loses
+for its owner (`config.yavalath`, 6×6 to 9×9 with `winLen` 4). The same solver produces it:
+`Board.suicidal(i, p)` says whether a cell would make that losing row, such moves are never
+generated (they end the game at once, so they can only be optimal when nothing else is
+left), a side with no safe move has lost on the spot, and a *forced block* on such a cell
+loses too, which is the winning idea of the game.
+
+The guarantee is narrower in one place: the threat search proves at most **3** plies there
+(`MAX_PROOF_YAV`), because only at that depth is it complete without the attacker's
+candidate restriction (root: every legal move, defender: every legal reply, attacker at ply
+2: only an immediate completion). Everything deeper comes from the exhaustive engine, which
+knows the rule the same way. Two extra tags: `avoid-three` (a move that makes the losing row
+is on the board and no best move is one) and `forced-three` (after the best move every reply
+the opponent has left loses). `scripts/puzzles/verify.mjs` re-proves both without the solver.
+
 ## Tags
 
 | tag | meaning |

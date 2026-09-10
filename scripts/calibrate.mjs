@@ -16,6 +16,12 @@ import { loadHeadless } from "./headless.mjs";
    exactly, and on that board nearly every position in which a box has already been won is
    proven, so 95 % of the finite samples were a plain raw 0 and the fit collapsed. */
 export const SERIES = { chain: { games: 30, config: { n: 6, chainRule: false }, maxMoves: 400 }, five: { games: 40, config: { n: 9, winLen: 5 }, maxMoves: 200 }, isolation: { games: 40, config: { n: 7 }, maxMoves: 200 }, boxes: { games: 24, config: { n: 7 }, maxMoves: 200, symmetric: true } };
+// rule variants a bot names with variant(config) get their own curve under `variants`
+// (the board a player actually gets when ticking the rule: 11 × 11, 5 wins / 4 loses. On the
+// benchmark's small 9 × 9 with winLen 4 the engine proves 90 % of the positions outright,
+// which leaves too few finite scores to fit a curve on.) A variant series takes the same
+// options as a base one, `symmetric` included.
+export const VARIANTS = { five: { yavalath: { games: 40, config: { n: 11, winLen: 5, yavalath: true }, maxMoves: 200 } } };
 export const BUDGET = 12000;          // nodes per evaluation (the middle HUD stage)
 
 // fit scale/shift of a 1-D logistic on samples [{ raw, y }] (y = 1 / 0.5 / 0), infinite raws excluded
@@ -79,14 +85,25 @@ export async function collect(H, def, series = SERIES[def.game]) {
     return samples;
 }
 
-export async function calibrate(H, def) {
-    const series = SERIES[def.game];
+async function fit(H, def, series) {
     const samples = await collect(H, def, series);
     // a symmetric evaluator must map raw 0 to 50 %: fit the samples and their mirrors
     const cal = fitLogistic(series && series.symmetric ? samples.concat(samples.map((s) => ({ ...s, raw: -s.raw, y: 1 - s.y }))) : samples);
     if (!cal) return null;
     const m = metrics(samples, cal, H.Bots.toProbability);
-    return { scale: Math.round(cal.scale * 1000) / 1000, shift: Math.round(cal.shift * 1000) / 1000, ...m, budget: BUDGET, games: SERIES[def.game].games };
+    return { scale: Math.round(cal.scale * 1000) / 1000, shift: Math.round(cal.shift * 1000) / 1000, ...m, budget: BUDGET, games: series.games };
+}
+
+export async function calibrate(H, def) {
+    const base = await fit(H, def, SERIES[def.game]);
+    if (!base) return null;
+    const variants = {};
+    for (const [key, series] of Object.entries(VARIANTS[def.game] || {})) {
+        if (!H.Bots.supports(def.id, series.config) || H.Bots.variantOf(def.id, series.config) !== key) continue;
+        const c = await fit(H, def, series);
+        if (c) variants[key] = c;
+    }
+    return Object.keys(variants).length ? { ...base, variants } : base;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -96,5 +113,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         const t0 = Date.now();
         const c = await calibrate(H, def);
         console.log(`${def.id.padEnd(16)} ${c ? `scale ${c.scale} shift ${c.shift} brier ${c.brier} swing ${c.swing} % (${c.samples} positions)` : "not calibratable"} (${Math.round((Date.now() - t0) / 1000)} s)`);
+        for (const [k, v] of Object.entries((c && c.variants) || {})) console.log(`${("  " + k).padEnd(16)} scale ${v.scale} shift ${v.shift} brier ${v.brier} swing ${v.swing} % (${v.samples} positions)`);
     }
 }
