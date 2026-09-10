@@ -11,11 +11,11 @@ import { loadHeadless, ROOT } from "./headless.mjs";
 import { evaluateBot, loadPuzzles } from "./puzzles/runner.mjs";
 import { calibrate } from "./calibrate.mjs";
 
-const SERIES = { chain: { games: 60, config: { n: 6, chainRule: false }, maxMoves: 600 }, five: { games: 100, config: { n: 9, winLen: 5 }, maxMoves: 200 } };
+const SERIES = { chain: { games: 60, config: { n: 6, chainRule: false }, maxMoves: 600 }, five: { games: 100, config: { n: 9, winLen: 5 }, maxMoves: 200 }, isolation: { games: 100, config: { n: 7 }, maxMoves: 200 }, boxes: { games: 60, config: { n: 4 }, maxMoves: 60 } };
 // rule variants a bot names with variant(config): the same shape of series plus its own
 // puzzle set, stored as `variants: { <key>: { score, games, avgMoves, puzzles } }`
 const VARIANTS = { five: { yavalath: { games: 100, config: { n: 9, winLen: 4, yavalath: true }, maxMoves: 200, puzzles: "five-yavalath" } } };
-const BASELINE = { chain: "random-chain", five: "random-five" };
+const BASELINE = { chain: "random-chain", five: "random-five", isolation: "random-isolation", boxes: "random-boxes" };
 // node budget instead of wall clock: the same bot always gets the same numbers (no CI drift, no diff)
 const BUDGET = { ms: Infinity, nodes: 20000 };
 

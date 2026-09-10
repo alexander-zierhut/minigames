@@ -1,0 +1,120 @@
+/* ============================================================
+   Isolation board: n×n tiles on a dark floor, one pawn per seat.
+   A broken tile leaves a hole (the face falls away and the pit
+   underneath stays). Classic look first, Blocks skins below.
+
+   Three layers per tile, so both looks share every highlight:
+   the element = the pit, ::before = the tile face, ::after = the
+   ring that says "you may step here" / "you may break this".
+   ============================================================ */
+#board.isolation {
+    --iso-gap: calc(var(--board) / var(--n) * 0.08);
+    grid-template-columns: repeat(var(--n), 1fr);
+    grid-template-rows: repeat(var(--n), 1fr);
+    gap: var(--iso-gap);
+    padding: var(--iso-gap);
+}
+
+.slab {
+    position: relative;
+    cursor: pointer;
+    border-radius: 18%;
+    background: rgba(0, 0, 0, .3);
+    box-shadow: inset 0 3px 9px rgba(0, 0, 0, .6);
+}
+.slab::before {
+    content: "";
+    position: absolute; inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(160deg, var(--panel2), var(--panel));
+    box-shadow: inset 0 0 0 2px var(--line), 0 2px 0 rgba(0, 0, 0, .35);
+    transition: box-shadow .15s, opacity .2s, transform .2s;
+}
+.slab.locked { cursor: not-allowed; }
+
+/* a broken tile: the face is gone, the pit stays */
+.slab.hole { cursor: default; }
+.slab.hole::before { opacity: 0; transform: scale(.6); }
+.slab.hole .last-marker, .slab.hole::after { display: none; }
+
+/* the highlight ring (never a background change, so textures never flicker) */
+.slab::after {
+    content: "";
+    position: absolute; inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 2;
+    transition: opacity .12s;
+}
+.slab.can-place::after { opacity: 1; box-shadow: inset 0 0 0 2px #5a68a8, inset 0 0 0 4px rgba(0, 0, 0, .35); }
+.slab.can-place:hover::after { box-shadow: inset 0 0 0 3px #8b9aec, inset 0 0 0 5px rgba(0, 0, 0, .4); background: rgba(120, 140, 235, .16); }
+
+/* the pawn */
+.pawn {
+    position: absolute; inset: 16%;
+    border-radius: 50%;
+    opacity: 0;
+    transform: scale(.3);
+    transition: opacity .15s, transform .15s;
+    z-index: 3;
+}
+.slab.taken .pawn {
+    opacity: 1; transform: scale(1);
+    background: var(--block);
+    box-shadow: 0 0 14px color-mix(in srgb, var(--pc) 65%, transparent), inset 0 0 0 2px color-mix(in srgb, var(--pc-dark) 80%, transparent);
+}
+.slab.taken::before { box-shadow: inset 0 0 0 2px var(--pc-dark), 0 2px 0 rgba(0, 0, 0, .35); }
+
+/* step 1 done: the tile the pawn will step onto (a ghost pawn in the seat's colour) and,
+   in red, every tile that may still be broken */
+.slab.pending::after { opacity: 1; box-shadow: inset 0 0 0 3px var(--pc), 0 0 16px color-mix(in srgb, var(--pc) 55%, transparent); background: color-mix(in srgb, var(--pc) 12%, transparent); }
+.slab.pending .pawn { opacity: .4; transform: scale(.86); background: var(--block); }
+#board.isolation:has(.slab.pending) .slab.can-place::after { box-shadow: inset 0 0 0 2px #ff6b5f, inset 0 0 0 4px rgba(0, 0, 0, .4); background: none; }
+#board.isolation:has(.slab.pending) .slab.can-place:hover::after { box-shadow: inset 0 0 0 3px #ff9a90, inset 0 0 0 5px rgba(0, 0, 0, .45); background: rgba(255, 90, 80, .18); }
+
+/* the move: the pawn slides (Web Animations, in the view), the broken tile falls away */
+.slab.stepping .pawn { z-index: 4; }
+.slab.dropping::before { animation: slab-drop .3s cubic-bezier(.4, 0, .8, .4) forwards; }
+@keyframes slab-drop {
+    0%   { opacity: 1; transform: scale(1) rotate(0); }
+    30%  { opacity: 1; transform: scale(1.06) rotate(-3deg); filter: brightness(1.5); }
+    100% { opacity: 0; transform: scale(.35) rotate(14deg) translateY(18%); }
+}
+
+/* last move: white ring on the tile the pawn stepped onto */
+.slab .last-marker { inset: 8%; border-radius: 20%; }
+
+.game-preview.isolation i { border-radius: 20%; }
+.game-preview.isolation i:is(.p0, .p1, .p2, .p3) { border-radius: 50%; }
+.game-preview.isolation i:nth-child(5) { opacity: .12; }
+
+/* ---- Blocks looks (both textured skins): quartz tiles on obsidian, blocks as pawns ---- */
+:is(.skin-mc, .skin-mcboard) #board.isolation {
+    background-image: var(--tex-shell); background-size: calc(var(--board) / var(--n)) calc(var(--board) / var(--n)); image-rendering: pixelated;
+    --iso-gap: calc(var(--board) / var(--n) * 0.05);
+}
+/* the seat to move colours the ghost pawn of a pending step, which carries no seat class */
+:is(.skin-mc, .skin-mcboard) #board.isolation.turn-p0 { --tex-p: var(--tex-p0); }
+:is(.skin-mc, .skin-mcboard) #board.isolation.turn-p1 { --tex-p: var(--tex-p1); }
+:is(.skin-mc, .skin-mcboard) #board.isolation.turn-p2 { --tex-p: var(--tex-p2); }
+:is(.skin-mc, .skin-mcboard) #board.isolation.turn-p3 { --tex-p: var(--tex-p3); }
+:is(.skin-mc, .skin-mcboard) .slab { border-radius: 0; background: none; box-shadow: none; }   /* the obsidian floor is the pit */
+:is(.skin-mc, .skin-mcboard) .slab::before {
+    box-shadow: none;
+    background: var(--tex-quartz); background-size: cover; image-rendering: pixelated;
+    transition: filter .1s, opacity .2s, transform .2s;   /* no background transition: the classic hover colour must never bleed in */
+}
+:is(.skin-mc, .skin-mcboard) .slab.can-place:hover::before { filter: brightness(1.12); }
+:is(.skin-mc, .skin-mcboard) .slab.taken::before { box-shadow: none; }
+:is(.skin-mc, .skin-mcboard) .pawn {
+    inset: 4%; border-radius: 0;
+    box-shadow: none; background-size: cover; image-rendering: pixelated;
+}
+:is(.skin-mc, .skin-mcboard) .slab.taken .pawn { background: var(--tex-p); background-size: cover; box-shadow: none; }
+:is(.skin-mc, .skin-mcboard) .slab.pending .pawn { opacity: .55; transform: scale(.9); background: var(--tex-p); background-size: cover; }
+/* white is invisible on quartz: red ring with a black halo */
+:is(.skin-mc, .skin-mcboard) .slab .last-marker {
+    border-radius: 0; inset: 4%; border-color: #ff2d2d;
+    box-shadow: 0 0 0 2px #000, inset 0 0 0 2px #000, 0 0 10px rgba(255, 45, 45, .9);
+}

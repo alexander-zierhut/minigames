@@ -21,7 +21,12 @@ const QUOTA = 8;
 // tag -> the title a player sees; the order is also the picking order (most instructive first)
 const TAGS = [
     ["win-in-1", "Win in one move"],
+    ["avoid-trap", "Do not walk into the trap"],
     ["must-block", "Block the threat"],
+    ["take-box", "Take the free box"],
+    ["sacrifice", "Give away as little as possible"],
+    ["double-deal", "Give two boxes away to keep control"],
+    ["safe-move", "Play a line that hands nothing over"],
     ["double-threat", "Make two threats at once"],
     ["win-in-2", "Win in two moves"],
     ["avoid-loss", "Only one move holds"],
@@ -31,6 +36,7 @@ const TAGS = [
     ["win-in-4", "Win in four moves"],
     ["win-in-5", "Win in five moves"],
     ["win-in-6", "Win in six moves"],
+    ["separated", "Win the race for room"],
 ];
 const TITLE = new Map(TAGS);
 // tags that describe how a puzzle was produced, not what it teaches
@@ -56,7 +62,9 @@ const shownTags = (tags) => tags.filter((t) => TITLE.has(t) && !TOOLING.includes
 
 export function pick(data) {
     const usable = data.puzzles
-        .filter((p) => p.toMove === 0 && p.value !== "loss" && Array.isArray(p.best) && p.best.length > 0)
+        // a Learn table always starts at seat 0 (Match.start numbers the game 1), so a puzzle
+        // whose own config starts somebody else could not be replayed here
+        .filter((p) => p.toMove === 0 && (p.config.startPlayer || 0) === 0 && p.value !== "loss" && Array.isArray(p.best) && p.best.length > 0)
         .sort((a, b) => (b.config.n - a.config.n) || (a.id < b.id ? -1 : 1));
     const out = [];
     const taken = new Set();

@@ -1,7 +1,7 @@
 {
   "name": "ALZlper's Minigames",
   "short_name": "Minigames",
-  "description": "Two nostalgic minigames, Chain React and Five Wins, with friends or against a bot.",
+  "description": "Nostalgic minigames, Chain React, Five Wins and Käsekästchen, with friends or against a bot.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -105,8 +105,10 @@ const Reactions = (() => {
         }
         const above = r.top - 56;                            // below the reaction toggle
         const below = $("hut").getBoundingClientRect().top - r.bottom;
-        layer.style.left = Math.round(window.innerWidth - LAYER_WIDTH - 8) + "px";
         if (above >= 70 || above >= below) {
+            // the strip above the board is where the open emoji list hangs (#43): keep the
+            // falling reactions on the free left side of it
+            layer.style.left = "8px";
             layer.style.top = "56px";
             layer.style.height = Math.max(40, Math.round(above - 4)) + "px";
         } else {

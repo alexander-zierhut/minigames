@@ -8,7 +8,7 @@
    which imports calibrate() from here.   Standalone: node scripts/calibrate.mjs [botId …] */
 import { loadHeadless } from "./headless.mjs";
 
-export const SERIES = { chain: { games: 30, config: { n: 6, chainRule: false }, maxMoves: 400 }, five: { games: 40, config: { n: 9, winLen: 5 }, maxMoves: 200 } };
+export const SERIES = { chain: { games: 30, config: { n: 6, chainRule: false }, maxMoves: 400 }, five: { games: 40, config: { n: 9, winLen: 5 }, maxMoves: 200 }, isolation: { games: 40, config: { n: 7 }, maxMoves: 200 }, boxes: { games: 24, config: { n: 5 }, maxMoves: 90 } };
 // rule variants a bot names with variant(config) get their own curve under `variants`
 // (the board a player actually gets when ticking the rule: 11 × 11, 5 wins / 4 loses. On the
 // benchmark's small 9 × 9 with winLen 4 the engine proves 90 % of the positions outright,

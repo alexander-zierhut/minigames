@@ -1,11 +1,20 @@
 # ALZlper's Minigames
 
-Two nostalgic minigames for two to four players in one static page: **Chain React** (fill a cell, it
-explodes into its neighbours, take the whole board) and **Five Wins** (five in a row, no
-gravity). Live at https://minigames.alzlper.com/.
+Four nostalgic minigames for two to four players in one static page: **Chain React** (fill a
+cell, it explodes into its neighbours, take the whole board), **Five Wins** (five in a row, no
+gravity), **Isolation** (step one tile, then break one away until nobody else can move) and
+**Käsekästchen** (draw a line between two dots, close a box and it is yours and
+you go again, most boxes wins). Live at https://minigames.alzlper.com/.
 
 Static site, no backend, no framework. Create a room once, share the link, then pick
 games and settings together in the room lobby; rematch or switch games without new links.
+
+**License:** the source is available to read, run locally and contribute to (see
+[LICENSE](LICENSE)); it is a game, not a library, so running a copy of it under another
+domain or name is not allowed without permission. Contributions are voluntary and welcome;
+the owner keeps the right to run the site commercially (for example with ads to cover the
+costs) including contributed parts. The block textures and sounds are the owner's own
+personal-use assets and are not licensed at all.
 
 ## Play
 
@@ -39,7 +48,7 @@ thinking: the premove is marked on the board and played the moment it is your tu
 
 The number of players (two, three or four) is picked right in the lobby and can never be
 set below the people already sitting in the room; the settings
-(board size, animation speed, chess-style timer, chain-win rule, stones in a row) are
+(board size or boxes per side, animation speed, chess-style timer, chain-win rule, stones in a row) are
 shared live in the room lobby; anyone can change them. The ⚙ button in
 the top-left corner holds the per-device preferences: your name (a short one is picked for
 you on the first visit, change it under Profile; up to 16 characters, everyone in the room
@@ -48,7 +57,10 @@ Blocks) and the sounds (volume, categories; the Classic look uses synthesized cu
 Blocks looks pixel block, explosion and level-up sounds). Emoji reactions for
 trash talk are in the top-right corner; a room chat lives under the game log (phones:
 behind the ☰ button). When a game is over, "Look at board" opens a replay bar to step
-through it move by move, in step with everyone else in the room. Every game you play is
+through it move by move (or let Play walk through it), in step with everyone else in the
+room, while the analysis panel shows the win chance of every move as a graph, what the bot
+would have played instead and a score out of 100 per player, with "Play from here" to carry
+the position on against the bot. Every game you play is
 also kept on your device: the title screen's **Replays** button lists them, plays any of
 them back with that same bar, saves one as a file and opens a replay file somebody sent
 you.
@@ -73,7 +85,7 @@ room protocol and how to add a game.
 ## Layout
 
 - `index.html` — markup, templates, and the ordered list of stylesheets and scripts
-- `client/lib/` — `util`, `bus` (events), `log`, `clock`, `net` (PeerJS rooms), `preload`, `sound`, `install`, `replays` (replay files + the IndexedDB store), `update` (a new build is offered on the title screen)
+- `client/lib/` — `util`, `bus` (events), `log`, `clock`, `net` (PeerJS rooms), `preload`, `sound`, `install`, `replays` (replay files + the IndexedDB store), `analysis` (replay analysis + its panel), `update` (a new build is offered on the title screen)
 - `client/games/rules.js` — the pure game loop (`Rules.create / step / eliminate / apply / replay`) every headless path shares
 - `client/games.js` — game registry, the engine shell every game shares, the generic HUD (rendered from a model the game returns)
 - `client/games/` — per game: pure `<key>-rules.js`, `<key>.js` (view + registration incl. its settings rows), `<key>.css`

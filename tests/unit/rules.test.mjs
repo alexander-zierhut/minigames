@@ -6,15 +6,16 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
 const ROOT = new URL("../../", import.meta.url).pathname;
-const FILES = ["client/lib/util.js", "client/games/rules.js", "client/games/chain-rules.js", "client/games/five-rules.js"];
+const FILES = ["client/lib/util.js", "client/games/rules.js", "client/games/chain-rules.js", "client/games/five-rules.js", "client/games/boxes-rules.js"];
 
 function loadRules() {
     const ctx = vm.createContext({ document: undefined });
     for (const f of FILES) vm.runInContext(readFileSync(ROOT + f, "utf8"), ctx, { filename: f });
-    return vm.runInContext("({ Rules, ChainRules, FiveRules })", ctx);   // top-level consts are not context properties
+    return vm.runInContext("({ Rules, ChainRules, FiveRules, BoxesRules })", ctx);   // top-level consts are not context properties
 }
 const chain = (config) => { const { Rules, ChainRules } = loadRules(); return { R: ChainRules, s: ChainRules.create(config, Rules.base(config)) }; };
 const five = (config) => { const { Rules, FiveRules } = loadRules(); return { R: FiveRules, s: FiveRules.create(config, Rules.base(config)) }; };
+const boxes = (config) => { const { Rules, BoxesRules } = loadRules(); return { Rules, R: BoxesRules, s: BoxesRules.create(config, Rules.base(config)) }; };
 function move(R, s, i) {
     const me = s.current;
     assert.equal(R.isLegal(s, i, me), true, `move ${i} legal for ${me}`);
@@ -25,10 +26,11 @@ function move(R, s, i) {
     return r;
 }
 
-test("no DOM needed: Util/Rules/ChainRules/FiveRules load in a bare context", () => {
-    const { Rules, ChainRules, FiveRules } = loadRules();
-    assert.ok(Rules && ChainRules && FiveRules);
+test("no DOM needed: Util/Rules/ChainRules/FiveRules/BoxesRules load in a bare context", () => {
+    const { Rules, ChainRules, FiveRules, BoxesRules } = loadRules();
+    assert.ok(Rules && ChainRules && FiveRules && BoxesRules);
     assert.equal(typeof ChainRules.legalMoves, "function");
+    assert.equal(typeof BoxesRules.legalMoves, "function");
 });
 
 test("Rules.base + pass: rotation and rounds for 2 and 3 players", () => {
@@ -130,4 +132,114 @@ test("five: draw as soon as no line can be completed any more (#18)", () => {
     assert.equal(h.s.history.length, 44);
     assert.equal(h.R.canWin(h.s, 1), true, "Amber can still fill column 0 (rows 0–4)");
     assert.equal(h.R.canWin(h.s, 0), false, "Cyan has no window left");
+});
+
+/* ---------- Käsekästchen (boxes) ---------- */
+test("boxes: line numbering round-trips, a box knows its four lines and a line its one or two boxes", () => {
+    const { R } = boxes({ n: 3 });
+    for (const n of [2, 3, 4, 5, 10]) {
+        assert.equal(R.edgeCount(n), 2 * n * (n + 1), `n=${n}: 2n(n+1) lines`);
+        assert.equal(R.hCount(n), n * (n + 1), "half of them horizontal");
+        const seen = new Set();
+        for (let b = 0; b < n * n; b++) {
+            const es = R.edgesOf(n, b);
+            assert.equal(es.length, 4);
+            for (const e of es) { assert.ok(e >= 0 && e < R.edgeCount(n)); assert.ok(R.boxesOf(n, e).includes(b), `line ${e} knows box ${b}`); seen.add(e); }
+        }
+        assert.equal(seen.size, R.edgeCount(n), "every line belongs to a box");
+        for (let e = 0; e < R.edgeCount(n); e++) {
+            const bs = R.boxesOf(n, e);
+            assert.ok(bs.length === 1 || bs.length === 2, `line ${e} touches one or two boxes`);
+            for (const b of bs) assert.ok(R.edgesOf(n, b).includes(e));
+        }
+        // the rim lines are exactly the ones with a single box: 4n of them
+        let rim = 0;
+        for (let e = 0; e < R.edgeCount(n); e++) if (R.boxesOf(n, e).length === 1) rim++;
+        assert.equal(rim, 4 * n, `n=${n}: 4n rim lines`);
+    }
+});
+
+test("boxes: closing a box keeps the turn, everything else passes it", () => {
+    const { R, s } = boxes({ n: 2 });
+    assert.equal(s.cells.length, 12); assert.equal(s.boxes.length, 4);
+    assert.equal(JSON.stringify(s.scores), "[0,0]");
+    // box 0 = lines 0, 2, 6, 7
+    move(R, s, 0); assert.equal(s.current, 1);
+    move(R, s, 2); assert.equal(s.current, 0);
+    move(R, s, 6); assert.equal(s.current, 1);
+    assert.equal(R.sides(s, 0), 3);
+    assert.equal(R.captures(s, 7), 1);
+    move(R, s, 7);
+    assert.equal(s.boxes[0], 1, "the box belongs to the mover");
+    assert.equal(JSON.stringify(s.scores), "[0,1]");
+    assert.equal(s.current, 1, "and the mover goes again");
+    assert.equal(s.again, true);
+    assert.equal(JSON.stringify(s.lastBoxes), "[0]");
+});
+
+test("boxes: one line can close two boxes at once", () => {
+    const { R, s } = boxes({ n: 2 });
+    // boxes 0 and 1 share line 7; give both three sides, then draw 7
+    for (const i of [0, 2, 6, 1, 3, 8]) move(R, s, i);
+    assert.equal(R.sides(s, 0), 3); assert.equal(R.sides(s, 1), 3);
+    assert.equal(R.captures(s, 7), 2);
+    move(R, s, 7);
+    assert.equal(JSON.stringify(s.lastBoxes), "[0,1]");
+    assert.equal(s.scores[s.current], 2, "both boxes to the mover, who goes again");
+});
+
+test("boxes: the game ends when every line is drawn, most boxes wins, equal is a draw", () => {
+    const { R, s } = boxes({ n: 2 });
+    let result = null;
+    for (const i of [0, 1, 2, 3, 4, 5, 6, 8, 9, 11, 7, 10]) { result = move(R, s, i); if (result) break; }
+    assert.ok(result, "the last line ends it");
+    assert.equal(s.history.length, 12);
+    assert.equal(s.scores[0] + s.scores[1], 4);
+    if (s.scores[0] === s.scores[1]) { assert.equal(result.winner, -1); assert.equal(result.why, "Tied!"); }
+    else { assert.equal(result.winner, s.scores[0] > s.scores[1] ? 0 : 1); assert.match(result.why, /^\d+ boxe?s?!$/); }
+});
+
+test("boxes: safe lines, capturing lines and the chain a capture hangs off", () => {
+    const { R, s } = boxes({ n: 3 });
+    assert.equal(R.safeMoves(s).length, s.cells.length, "on an empty board every line is safe");
+    assert.equal(R.capturingMoves(s).length, 0);
+    // box 0 (lines 0, 3, 12, 13) gets two sides, so its other two lines stop being safe
+    move(R, s, 0); move(R, s, 12);
+    assert.equal(R.sides(s, 0), 2);
+    assert.ok(!R.safeMoves(s).includes(3) && !R.safeMoves(s).includes(13), "a third side hands the box over");
+    move(R, s, 3);                                     // hands box 0 over
+    assert.equal(R.captures(s, 13), 1);
+    assert.equal(R.isFreeCapture(s, 13), true, "nothing hangs off it");
+    assert.equal(JSON.stringify(R.chainFrom(s, 0).boxes), "[0]");
+});
+
+test("boxes with three players: the turn rotates, a box still gives another turn, most boxes wins", () => {
+    const { Rules, R, s } = boxes({ n: 2, players: 3 });
+    assert.equal(JSON.stringify(s.scores), "[0,0,0]");
+    move(R, s, 0); assert.equal(s.current, 1);
+    move(R, s, 1); assert.equal(s.current, 2);
+    move(R, s, 4); assert.equal(s.current, 0);
+    move(R, s, 2); assert.equal(s.current, 1);
+    move(R, s, 6); assert.equal(s.current, 2);
+    move(R, s, 7);                                     // closes box 0 for player 2
+    assert.equal(s.boxes[0], 2); assert.equal(s.current, 2, "player 2 goes again");
+    // an eliminated seat is skipped and cannot win
+    Rules.eliminate(s, 2, "Out of time!");
+    assert.equal(s.out[2], true);
+    assert.notEqual(s.current, 2, "the turn moved off the eliminated seat");
+    let result = null;
+    for (const i of R.legalMoves(s)) { result = move(R, s, i); if (result) break; }
+    assert.ok(result && result.winner !== 2, "the seat that is out cannot win");
+});
+
+test("boxes: replay of a record equals playing it move by move", () => {
+    const seq = [0, 12, 3, 13, 1, 4, 14, 15, 2, 5, 16, 17, 6, 7, 8, 9, 10, 11, 18, 19, 20, 21, 22, 23];
+    const a = boxes({ n: 3 });
+    for (const i of seq) { if (a.s.over) break; move(a.R, a.s, i); }
+    const b = boxes({ n: 3 });
+    b.Rules.apply(b.R, b.s, seq);
+    assert.equal(JSON.stringify(b.s.cells), JSON.stringify(a.s.cells));
+    assert.equal(JSON.stringify(b.s.boxes), JSON.stringify(a.s.boxes));
+    assert.equal(JSON.stringify(b.s.scores), JSON.stringify(a.s.scores));
+    assert.equal(b.s.winner, a.s.winner); assert.equal(b.s.current, a.s.current);
 });

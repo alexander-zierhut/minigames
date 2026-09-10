@@ -35,12 +35,15 @@ const Learn = (() => {
     const WRONG = "Not this one. Press Retry to set the position up again.";
     const FINISHED = "That is everything. Try a scenario, or start a game.";
 
+    const PANEL_KEY = "chainreact.learnpanel";   // "explanation folded away", this visit only (#43)
+
     const registered = {};               // game -> scenarios from the generated files
     let h = { show: () => {}, exit: () => {} };
     let progress = Util.load(localStorage, KEY) || {};
     let active = null;                   // the running lesson (null outside a lesson)
     let page = null;                     // the game whose details page is open
     let hint = "";                       // the transient line under the step text
+    let folded = !!Util.load(sessionStorage, PANEL_KEY);   // a scenario's text hidden (#43)
 
     /* ---------- the data a game provides ---------- */
     function howto(game) {
@@ -111,6 +114,7 @@ const Learn = (() => {
         active = { kind: "tutorial", game, steps, i: 0, pending: false, hints: [] };
         showStep();
         h.show("game");
+        sizeText();                                  // now the panel has its real width
     }
 
     function showStep() {
@@ -124,6 +128,7 @@ const Learn = (() => {
         }
         Match.engine.render();                       // repaint the highlighted cells
         render();
+        sizeText();                                  // the step text keeps the panel's height (#43)
     }
 
     function advance() {
@@ -203,12 +208,44 @@ const Learn = (() => {
     const names = (base) => (active && active.kind === "tutorial" ? [base[0], "Opponent", ...base.slice(2)] : null);
 
     /* ---------- the panel in the HUD ---------- */
+    /* Fold a scenario's explanation away (#43). Remembered for this visit, so it stays
+       folded from one scenario to the next; a tutorial is always unfolded (its text is
+       the lesson). */
+    function fold(on) {
+        folded = !!on;
+        Util.save(sessionStorage, PANEL_KEY, folded);
+        render();
+    }
+    /* A tutorial must not move the board when a step is longer than the one before (#43):
+       the text keeps the height of the longest step of this lesson. Measured on the real
+       element, so it is right for any width, and re-measured on every step (a rotation
+       changes it). */
+    function sizeText() {
+        const el = $("learn-text");
+        el.style.minHeight = "";
+        if (!active || active.kind !== "tutorial") return;
+        const keep = el.textContent;
+        let max = 0;
+        for (const text of [...active.steps.map((s) => s.text), FINISHED]) {
+            el.textContent = text;
+            max = Math.max(max, el.scrollHeight);
+        }
+        el.textContent = keep;
+        el.style.minHeight = max + "px";
+    }
+
     function render() {
         const panel = $("learn-panel");
         panel.hidden = !active;
         document.body.classList.toggle("learn", !!active);
         // a tutorial is about the mechanics: no win chance flickering next to the steps
         document.body.classList.toggle("learn-tutorial", !!active && active.kind === "tutorial");
+        const toggle = $("learn-hide");
+        // the fold is a scenario's, so a tutorial always shows its step
+        const foldable = !!active && active.kind === "scenario";
+        toggle.hidden = !foldable;
+        toggle.textContent = folded ? "Show" : "Hide";
+        panel.classList.toggle("folded", foldable && folded);
         if (!active) return;
         const title = Games.get(active.game).title;
         const next = $("learn-next");
@@ -330,6 +367,8 @@ const Learn = (() => {
         $("learn-next").addEventListener("click", advance);
         $("learn-retry").addEventListener("click", restart);
         $("learn-back").addEventListener("click", exit);
+        $("learn-hide").addEventListener("click", () => fold(!folded));
+        window.addEventListener("resize", () => { if (active && active.kind === "tutorial") sizeText(); });
         $("btn-learn-tutorial").addEventListener("click", () => startTutorial(page));
         $("btn-howto-done").addEventListener("click", closeHowto);
         $("howto-modal").addEventListener("click", (e) => { if (e.target === $("howto-modal")) closeHowto(); });
@@ -338,8 +377,8 @@ const Learn = (() => {
     return {
         init, open, openGame, startTutorial, startScenario, restart, exit, names,
         howto, scenarios, games, configFor, beforeMove, cellClass, onLocalMove, openHowto, closeHowto,
-        isSolved, tutorialDone,
-        get active() { return active; }, get page() { return page; },
+        isSolved, tutorialDone, fold,
+        get active() { return active; }, get page() { return page; }, get folded() { return folded; },
         STEP_MS, MISS,
     };
 })();

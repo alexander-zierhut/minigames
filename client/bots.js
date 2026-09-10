@@ -92,8 +92,8 @@ const Bots = (() => {
     // does this bot play the config's rule variants? (a bot without `supports` plays everything)
     const supports = (def, config) => !def.supports || !config || !!def.supports(config);
     // the bot a game is played against (#21: one per game, called "Bot" in the UI): the best-rated
-    // real bot that plays these rules; a game that has none falls back to its Random baseline so
-    // "Against a bot" always works (e.g. Five Wins with the Yavalath rule, which Sensei does not know)
+    // real bot that plays these rules (with the variant's score when the config names one); a game
+    // whose bot cannot play them falls back to its Random baseline, so "Against a bot" always works
     function botFor(game, config) {
         const real = forGame(game).filter((b) => !b.baseline && supports(b, config))
             .sort((a, b) => ((benchmarkOf(b.id, config) || {}).score || 0) - ((benchmarkOf(a.id, config) || {}).score || 0));

@@ -6,6 +6,22 @@
     <meta name="theme-color" content="#0f1320">
     <meta name="version" content="dev">
     <title>ALZlper's Minigames</title>
+    <meta name="description" content="Chain React, Five Wins, Isolation and Käsekästchen: free browser games for two to four friends. One link, no install, bots and spectators.">
+    <!-- link previews (Discord, chat apps, social): absolute URLs are what the crawlers need, so
+         this is the one place the site names its own address (share links are built at runtime) -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="ALZlper's Minigames">
+    <meta property="og:title" content="ALZlper's Minigames">
+    <meta property="og:description" content="Chain React, Five Wins, Isolation and Käsekästchen: free browser games for two to four friends. One link, no install, bots and spectators.">
+    <meta property="og:url" content="https://minigames.alzlper.com/">
+    <meta property="og:image" content="https://minigames.alzlper.com/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="ALZlper's Minigames: a glowing game board tile next to the title">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="ALZlper's Minigames">
+    <meta name="twitter:description" content="Free browser games for two to four friends. One link, no install, bots and spectators.">
+    <meta name="twitter:image" content="https://minigames.alzlper.com/og-image.png">
     <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
@@ -21,6 +37,8 @@
     <link rel="stylesheet" href="client/css/skin-mc.css">
     <link rel="stylesheet" href="client/games/chain.css">
     <link rel="stylesheet" href="client/games/five.css">
+    <link rel="stylesheet" href="client/games/isolation.css">
+    <link rel="stylesheet" href="client/games/boxes.css">
 </head>
 <body>
 
@@ -34,13 +52,19 @@
 </div>
 
 <!-- ===================== PREFERENCES (⚙ top-left on every screen; this device only) ===================== -->
-<button id="prefs-btn" class="corner-btn" aria-label="Settings &amp; Feedback" title="Settings &amp; Feedback"><span class="corner-icon">⚙</span><span class="corner-text corner-long">Settings &amp; Feedback</span><span class="corner-text corner-short">Settings</span></button>
+<button id="prefs-btn" class="corner-btn" aria-label="Settings &amp; Feedback" title="Settings &amp; Feedback"><span class="corner-icon">⚙</span><span class="corner-text">Settings &amp; Feedback</span></button>
 
 <!-- ===================== TITLE / MENU ===================== -->
 <section id="screen-menu" class="screen">
+    <!-- a newer version was deployed while this page was open (#40); a banner above the
+         card, title screen only (#43) -->
+    <div class="update-notice" id="update-notice" hidden>
+        <span>A new version is ready.</span>
+        <button class="btn small primary" id="btn-update-reload">Reload</button>
+    </div>
     <div class="menu-card">
         <h1 class="title">ALZlper's Minigames</h1>
-        <p class="tagline">Chain React and Five Wins for two to four friends. Create a room once, then play, rematch and switch games together.</p>
+        <p class="tagline">Chain React, Five Wins and Käsekästchen for two to four friends. Create a room once, then play, rematch and switch games together.</p>
 
         <div class="menu-actions">
             <div class="section">
@@ -65,22 +89,19 @@
                     <button class="btn big" id="btn-local">Local multiplayer</button>
                     <button class="btn big" id="btn-bot">Against a bot</button>
                 </div>
-                <!-- the academy (#41): rules, a guided tutorial and training positions per game -->
-                <div class="btn-row">
-                    <button class="btn big" id="btn-learn">📚 Learn to play</button>
-                </div>
             </div>
         </div>
         <div class="menu-foot">
-            <!-- shown only when the browser offers to install the page as an app (Android Chrome) -->
-            <button class="btn ghost install-btn" id="btn-install" hidden>📲 Add to home screen</button>
-            <button class="btn ghost install-btn" id="btn-replays">🎬 Replays</button>
-            <button class="btn ghost install-btn" id="btn-changelog">📜 Changelog</button>
-        </div>
-        <!-- a newer version was deployed while this page was open (#40); title screen only -->
-        <div class="update-notice" id="update-notice" hidden>
-            <span>A new version is ready.</span>
-            <button class="btn small primary" id="btn-update-reload">Reload</button>
+            <!-- the academy (#41) and the saved games (#42): two equal buttons in one row -->
+            <div class="btn-row">
+                <button class="btn" id="btn-learn">Learn to play</button>
+                <button class="btn" id="btn-replays">Replays</button>
+            </div>
+            <div class="foot-quiet">
+                <!-- shown only when the browser offers to install the page as an app (Android Chrome) -->
+                <button class="btn ghost install-btn" id="btn-install" hidden>📲 Add to home screen</button>
+                <button class="btn ghost install-btn" id="btn-changelog">Changelog</button>
+            </div>
         </div>
     </div>
 </section>
@@ -171,8 +192,9 @@
     <div class="menu-card replays-card">
         <h1 class="title small">Replays</h1>
         <p class="tagline small">Every game you play is saved on this device. Watch it again, save it as a file or open a file somebody sent you.</p>
-        <!-- All + one button per registered game, built by app.js -->
-        <div class="seg replay-filter" id="replay-filter"></div>
+        <!-- the game filter (#43): a dropdown showing the game's preview tile, built by app.js
+             ("All games" first, then one row per registered game) -->
+        <div class="dropdown replay-filter" id="replay-filter"></div>
         <p class="hint" id="replays-hint" hidden></p>
         <!-- one .replay-item per saved game, from #tpl-replay -->
         <div class="replay-list" id="replay-list"></div>
@@ -228,6 +250,8 @@
                 <div class="learn-head">
                     <span class="learn-kind" id="learn-kind"></span>
                     <span class="learn-step" id="learn-step"></span>
+                    <!-- scenarios only (#43): fold the explanation away to see the whole board -->
+                    <button class="learn-toggle" id="learn-hide" hidden>Hide</button>
                 </div>
                 <div class="learn-text" id="learn-text"></div>
                 <div class="learn-hint" id="learn-hint"></div>
@@ -325,7 +349,7 @@
         <p class="hint" id="settings-locked-hint" hidden>You are spectating. Only the players change the settings.</p>
         <div class="settings">
             <label class="row">
-                <span>Board size <small id="size-hint"></small></span>
+                <span><span id="size-label">Board size</span> <small id="size-hint"></small></span>
                 <span class="inline"><input type="number" id="set-size" min="3" max="25" step="1" value="6" autocomplete="off"><small>× same</small></span>
             </label>
             <!-- one row per game setting, built by settings.js from each game's `settings` list -->
@@ -402,6 +426,8 @@
                         <button data-skin="mcboard">Blocks board</button>
                         <button data-skin="mc">Blocks</button>
                     </div>
+                    <label class="pref-check"><input type="checkbox" id="pref-win-graph" checked autocomplete="off"> Win chance graph in replays</label>
+                    <p class="hint">The line graph over the moves in the analysis panel. Two players only, because the win chance needs two sides.</p>
                 </div>
                 <div class="prefs-section prefs-rows" data-section="sound" hidden>
                     <div class="section-title">Sound</div>
@@ -515,14 +541,35 @@
         </div>
     </div>
 </div>
-<!-- after a game: step through it move by move (#38); the "Show result" button rides along -->
-<div id="replay-bar" hidden>
-    <button class="btn small" id="replay-first" title="First move" aria-label="First move">|◀</button>
-    <button class="btn small" id="replay-prev" title="Previous move" aria-label="Previous move">◀</button>
-    <span id="replay-pos">Move 0 / 0</span>
-    <button class="btn small" id="replay-next" title="Next move" aria-label="Next move">▶</button>
-    <button class="btn small" id="replay-last" title="Last move" aria-label="Last move">▶|</button>
-    <button id="result-fab" class="btn primary small" hidden>Show result</button>
+<!-- after a game: step through it move by move (#38), with the analysis panel above it (#43);
+     the "Show result" button rides along in the bar -->
+<div id="replay-dock">
+    <div id="replay-panel" hidden>
+        <div class="an-head">
+            <button class="btn small" id="btn-analyse">Analyse</button>
+            <div id="analysis-progress" hidden>
+                <div class="an-progress-track"><div id="analysis-bar"></div></div>
+                <span id="analysis-progress-text"></span>
+            </div>
+            <span class="an-verdict" id="an-verdict"></span>
+            <span id="an-chance"></span>
+            <button class="btn small" id="btn-play-from-here" hidden>Play from here</button>
+            <button class="btn small an-toggle" id="an-toggle" title="Show more" aria-label="Show more">▾</button>
+        </div>
+        <div class="an-body">
+            <div id="an-graph" hidden></div>
+            <div id="an-scores"></div>
+        </div>
+    </div>
+    <div id="replay-bar" hidden>
+        <button class="btn small" id="replay-first" title="First move" aria-label="First move">|◀</button>
+        <button class="btn small" id="replay-prev" title="Previous move" aria-label="Previous move">◀</button>
+        <span id="replay-pos">Move 0 / 0</span>
+        <button class="btn small" id="replay-next" title="Next move" aria-label="Next move">▶</button>
+        <button class="btn small" id="replay-last" title="Last move" aria-label="Last move">▶|</button>
+        <button class="btn small" id="replay-play" title="Play through the game" aria-label="Play through the game">▶▶</button>
+        <button id="result-fab" class="btn primary small" hidden>Show result</button>
+    </div>
 </div>
 
 <div id="toast" hidden></div>
@@ -567,6 +614,7 @@
 <script src="client/lib/sound.js"></script>
 <script src="client/lib/install.js"></script>
 <script src="client/lib/replays.js"></script>
+<script src="client/lib/analysis.js"></script>
 <script src="client/lib/update.js"></script>
 <script src="client/games/rules.js"></script>
 <script src="client/games.js"></script>
@@ -574,6 +622,10 @@
 <script src="client/games/chain.js"></script>
 <script src="client/games/five-rules.js"></script>
 <script src="client/games/five.js"></script>
+<script src="client/games/isolation-rules.js"></script>
+<script src="client/games/isolation.js"></script>
+<script src="client/games/boxes-rules.js"></script>
+<script src="client/games/boxes.js"></script>
 <script src="client/bots.js"></script>
 <script src="client/winchance.js"></script>
 <script src="client/bots/random-chain/bot.js"></script>
@@ -584,6 +636,14 @@
 <!-- bots: five (add new Five Wins bots below this line) -->
 <script src="client/bots/sensei-five/bot.js"></script>
 <script src="client/bots/sensei-five/benchmark.js"></script>
+<script src="client/bots/random-isolation/bot.js"></script>
+<!-- bots: isolation (add new Isolation bots below this line) -->
+<script src="client/bots/warden-isolation/bot.js"></script>
+<script src="client/bots/warden-isolation/benchmark.js"></script>
+<script src="client/bots/random-boxes/bot.js"></script>
+<!-- bots: boxes (add new Käsekästchen bots below this line) -->
+<script src="client/bots/fencer-boxes/bot.js"></script>
+<script src="client/bots/fencer-boxes/benchmark.js"></script>
 <script src="client/skins.js"></script>
 <script src="client/prefs.js"></script>
 <script src="client/settings.js"></script>
@@ -598,6 +658,8 @@
 <!-- learn: generated scenario sets (scripts/learn/pick-scenarios.mjs); one file per game -->
 <script src="client/learn/chain-scenarios.js"></script>
 <script src="client/learn/five-scenarios.js"></script>
+<script src="client/learn/isolation-scenarios.js"></script>
+<script src="client/learn/boxes-scenarios.js"></script>
 <script src="client/room.js"></script>
 <script src="client/dev.js"></script>
 <script src="client/app.js"></script>

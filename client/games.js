@@ -8,7 +8,7 @@
 
      state (getter)   newGame(config, hooks)   play(i) -> Promise<bool>   replay(history, outs)
      finish(winner, why)   eliminate(p, why)   abandon()   render()   isLegal(i, player)
-     hash()   record()   preview(ply)   previewPly (getter)
+     hash()   record()   preview(ply)   previewPly (getter)   cellOf(move)
 
    Bus events the engine emits (payloads in AGENTS.md "Events"): game:new, game:move,
    game:turn, game:finish and game:position (the settled position changed — observers
@@ -58,6 +58,12 @@ const Engine = (() => {
             render: () => render(),
         };
 
+        /* Games whose move is not a plain cell id (Isolation encodes step + broken tile in one
+           integer) may say which board cell a move belongs to and which cells start a move;
+           everything else keeps working on plain cell ids. */
+        const cellOf = (s, move) => (rules.cellOf ? rules.cellOf(s, move) : move);
+        const canPlay = (s, i, p) => (rules.canPlay ? rules.canPlay(s, i, p) : rules.isLegal(s, i, p));
+
         const emit = (event, data) => Bus.emit(event, { game: def.key, ...data });
         // the settled position changed (new game, move settled, replay, elimination, end)
         const settled = () => emit("game:position", { state });
@@ -105,7 +111,9 @@ const Engine = (() => {
             setBusy(false);
             render();
             settled();
-            emit("game:turn", { player: state.current, state });
+            // "the turn passed": a game where a move may keep the mover on turn (boxes:
+            // closing a box) emits nothing here, so sounds and observers don't fire twice
+            if (state.current !== me) emit("game:turn", { player: state.current, state });
             if (hooks.onTurn) hooks.onTurn(state.current);
             return true;
         }
@@ -194,6 +202,9 @@ const Engine = (() => {
         function render() {
             if (!hooks.names || cells.length === 0 || cells.length !== state.cells.length) return;
             for (let i = 0; i < cells.length; i++) renderCell(i);
+            // a game whose board has parts that are not cells (boxes: the boxes themselves)
+            // paints them here; every other game leaves the hook out
+            if (view.renderBoard) view.renderBoard(position());
             renderHud();
         }
 
@@ -206,11 +217,11 @@ const Engine = (() => {
             const owner = rules.ownerOf(s, i);
             el.classList.remove("p0", "p1", "p2", "p3", "taken", "can-place", "locked", "last");
             if (owner >= 0) el.classList.add("p" + owner, "taken");
-            if (s.history[s.history.length - 1] === i) el.classList.add("last");
+            if (s.history.length && cellOf(s, s.history[s.history.length - 1]) === i) el.classList.add("last");
             if (shown) el.classList.add("locked");                  // a preview is never playable
             else if (!s.over && !s.busy) {
                 const mine = !hooks.mayPlay || hooks.mayPlay(s.current);
-                if (mine && rules.isLegal(s, i, s.current)) el.classList.add("can-place");
+                if (mine && canPlay(s, i, s.current)) el.classList.add("can-place");
                 else el.classList.add("locked");
             }
             // one class the table may add without the game knowing about it (Match: "premove")
@@ -229,6 +240,7 @@ const Engine = (() => {
             get previewPly() { return previewPly(); },
             newGame, play, replay, finish, eliminate, abandon, render, hash, record, preview,
             isLegal: (i, player) => rules.isLegal(state, i, player),
+            cellOf: (move) => cellOf(state, move),
         };
     }
 

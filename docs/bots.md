@@ -35,7 +35,7 @@ file runs in the browser (as a seat) and in Node (tests, benchmark, puzzles).
 Bots.register({
     id: "blast-chain",                 // folder name: [a-z0-9-], unique
     name: "Blast",                     // for the code, the benchmark output and the docs; players see "Bot" (#21)
-    game: "chain",                     // "chain" | "five" — one game per bot
+    game: "chain",                     // "chain" | "five" | "isolation" | "boxes" — one game per bot
     version: 1,                        // bump when the play changes (kept in benchmark.js)
     description: "One sentence for the bot modal.",
     // baseline: true,                 // only the Random bots: benchmark opponent + fallback, never offered, not benchmarked
@@ -75,12 +75,12 @@ order = display order.
 
 | Member | Meaning |
 | --- | --- |
-| `game`, `rules` | game key and the pure rules module (all its functions are fair game: chain `tally`, `readyCells`, `detonate`, `land`; five `lineThrough`, `bestRow`) |
+| `game`, `rules` | game key and the pure rules module (all its functions are fair game: chain `tally`, `readyCells`, `detonate`, `land`; five `lineThrough`, `bestRow`; isolation `steps`, `mobility`, `territory`, `encode`/`decode`; boxes `sides`, `captures`, `safeMoves`, `isFreeCapture`, `chainFrom`) |
 | `me`, `players` | the bot's seat and the number of seats |
 | `difficulty`, `seed` | the chosen difficulty id; the seed of this instance |
 | `budget` | `{ ms, nodes }` per move — see §4 |
 | `random()`, `randInt(n)`, `pick(arr)`, `shuffle(arr)` | seeded (mulberry32) — the only randomness a bot may use |
-| `legalMoves(state, p = state.current)` | cell ids |
+| `legalMoves(state, p = state.current)` | the moves of that seat (a cell id, or whatever integer the game encodes a move as: Isolation packs step + broken tile into `to * n * n + removed`) |
 | `isLegal(state, i, p)` | pure check |
 | `clone(state)` | deep copy (JSON) |
 | `apply(state, i)` | position after `i` by the current player on a copy (`Rules.step` = place + settle + conclude; sets `over`/`winner`/`finishWhy`) |
@@ -95,7 +95,10 @@ order = display order.
 State shape (from `Rules.base` + the game's `create`): `n, players, current, round, history,
 movesBy, busy, over, winner, finishWhy, cells` (chain: `[{ count, owner, cap }]`, plus
 `chainRule, chainLen, chainNow, chainBest, explosions`; five: owner per cell -1/0/1, plus
-`winLen, winLine`). Cell id = `y * n + x`. Five Wins ends in a draw not only on a full board
+`winLen, winLine`; boxes: owner per **line** -1/0/1, plus `boxes` (owner per box), `scores`,
+`lastBoxes`, `again`). Cell id = `y * n + x` for chain and five; in Käsekästchen a cell is a
+line, `state.n` is the boxes per side and `cells.length` is 2n(n+1) (numbering in
+`client/games/boxes-rules.js`), and a move that closes a box leaves the same player on turn. Five Wins ends in a draw not only on a full board
 but as soon as no window of `winLen` cells is free of enemy stones for any player still in
 (`FiveRules.canWin(state, p)`, #18) — a bot's own board model must mirror that or its
 "engine equals the rules" tests and `apply()` will disagree at the end of drawn games.
@@ -165,11 +168,13 @@ calmer.
   100 %** and no test may gate the deploy on a fixed strength number.
 - **Puzzles** (`tests/puzzles/<game>/puzzles.json`, proven by `scripts/puzzles/<game>/solver.mjs`):
   `evaluateBot(H, id, { difficulty, budget })` → `{ solved, total, pct, chance, byTag, failures }`.
-  `chance` is what blind random picking scores on that set (chain 23 %, five 5.7 %).
+  `chance` is what blind random picking scores on that set (chain 23 %, five 5.7 %,
+  isolation 20.8 %, boxes 29 %).
   `npm run puzzles` regenerates the sets, `npm run puzzles:verify` re-proves the tactical
   ones without the solvers.
-- **Benchmark** (`npm run benchmark [id]`): 60 (chain) / 100 (five) seeded games against
-  Random at the highest difficulty, both colours, 20 000-node budget → win rate in %; plus
+- **Benchmark** (`npm run benchmark [id]`): 60 (chain) / 100 (five) / 100 (isolation) / 60 (boxes)
+  seeded games
+  against Random at the highest difficulty, both colours, 20 000-node budget → win rate in %; plus
   the puzzle score. Written to `client/bots/<id>/benchmark.js`, shown in the bot modal and
   the lobby's Opponent row as "47 % vs Random · 22 % puzzles". `.github/workflows/benchmark.yml`
   reruns it when bots, rules or tools change and opens an auto-merging PR with the new
@@ -200,10 +205,14 @@ const r = await H.Bots.playout("chain", { n: 6 }, [a, b], { maxMoves: 600 });
 | `random-chain` | Random | Chain React | Normal | any legal move; `baseline: true` (benchmark opponent, fallback; never offered) |
 | `creeper-chain` | Creeper | Chain React | Easy 30 ms · Normal 150 ms · Hard 600 ms · Very hard 1500 ms | negamax alpha-beta with iterative deepening, Zobrist TT, killers/history, PVS + LMR, quiescence over explosive captures, on an Int8Array engine proven equal to the rules; evaluation = pieces + safe corner/edge bonus − exposure penalty, tuned by self-play. 100 % vs Random, 159/159 puzzles at Very hard (Easy 32 %, Normal 87 %, Hard 95 %). Provides the win chance (evaluate: even-depth iterative deepening with full explosion quiescence, mean of the last completed depths; calibrated scale ≈ 31, swing 2.2 %). See its README. |
 | `random-five` | Random | Five Wins | Normal | any empty cell; `baseline: true` (benchmark opponent, fallback; never offered) |
-| `sensei-five` | Sensei | Five Wins | Easy 30 ms · Normal 150 ms · Hard 600 ms · Very hard 1500 ms | Int8Array board with incremental line-pattern records (fours, threes, four-makers), alpha-beta negamax with iterative deepening, Zobrist TT, killers/history, exact forced-move handling (own four, enemy fours, open threes), VCF/VCT threat searches with exact mate distance; works for any board size and win length. 100 % vs Random, 154/154 puzzles at Very hard (Easy 69 %, Normal 98 %, Hard 100 %). It also plays the **Yavalath rule** (winLen wins, winLen - 1 loses, #43): suicide cells per line, a forced block on one of them is a terminal loss, and the threat searches hunt exactly that; rated separately (`variants.yavalath` in `benchmark.js`, its own puzzle set `tests/puzzles/five-yavalath`). Provides the win chance (evaluate: depth-2 search with forced fours free, open-three extension, VCF/VCT on long budgets; calibrated scale ≈ 1166, swing 0.9 %, a second curve for the variant). 9×9 with sound defence is drawish; its edge grows on bigger boards. See its README. |
+| `sensei-five` | Sensei | Five Wins | Easy 30 ms · Normal 150 ms · Hard 600 ms · Very hard 1500 ms | Int8Array board with incremental line-pattern records (fours, threes, four-makers), alpha-beta negamax with iterative deepening, Zobrist TT, killers/history, exact forced-move handling (own four, enemy fours, open threes), VCF/VCT threat searches with exact mate distance; works for any board size and win length. 100 % vs Random, 154/154 puzzles at Very hard (Easy 69 %, Normal 98 %, Hard 100 %). It also plays the **Yavalath rule** (winLen wins, winLen - 1 loses): suicide cells per line, a forced block on one of them is a terminal loss, and the threat searches hunt exactly that; rated separately (`variants.yavalath` in `benchmark.js`, its own puzzle set `tests/puzzles/five-yavalath`). Provides the win chance (evaluate: depth-2 search with forced fours free, open-three extension, VCF/VCT on long budgets; calibrated scale ≈ 1166, swing 0.9 %, a second curve for the variant). 9×9 with sound defence is drawish; its edge grows on bigger boards. See its README. |
+| `random-isolation` | Random | Isolation | Normal | any legal step and any tile to break; `baseline: true` (benchmark opponent, fallback; never offered) |
+| `warden-isolation` | Warden | Isolation | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | Int8Array board with the rules' own "trapped when your turn comes" handling, paranoid alpha-beta (I maximise, everybody else minimises) with iterative deepening; the generator keeps every step but only the broken tiles near an opponent plus the tile just left, capped per level; evaluation = Voronoi territory (one multi-source BFS, king steps) + mobility + tempo, which is also the exact measure once the board falls apart. 100 % vs Random, 198/200 puzzles at Very hard (Easy 68.5 %, Normal 90 %, Hard 97 %). Provides the win chance (evaluate: the same search averaged over "me to move" and "the other seat to move", which removes the tempo artefact; calibrated scale ≈ 693, swing 11.7 %). Plays 2 to 4 seats. See its README. |
+| `random-boxes` | Random | Käsekästchen | Normal | any undrawn line; `baseline: true` (benchmark opponent, fallback; never offered) |
+| `fencer-boxes` | Fencer | Käsekästchen | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | two engines: an **exact endgame** (alpha-beta negamax to the last line with a transposition table keyed by the bitmask of lines drawn since the root, free captures forced) that solves any two-player position with up to 30 undrawn lines, so it plays the whole second half of a 5 × 5 game perfectly including the "all but two" double-dealing sacrifices; and **chain play** for the rest (take every free box, decline the last two of a chain while control is worth more, play the safe line that commits least, and open the shortest chain when everything is loony). 100 % vs Random, 149/170 puzzles at the 20 000-node benchmark budget (162/170 at its own Very hard budget; take-box, sacrifice and double-deal all 100 %). Provides the win chance (evaluate: the exact final box difference once the endgame is solvable, ±Infinity only for proven results, otherwise boxes won plus who has to open first; calibrated scale ≈ 3, swing 3.9 %). See its README. |
 
 Each bot folder's README describes its search and evaluation; `benchmark.js` carries the
-scores shown in the bot modal. Players see Creeper and Sensei as "Bot".
+scores shown in the bot modal. Players see Creeper, Sensei, Warden and Fencer as "Bot".
 
 ## 9. Persona: the bot's emojis
 
@@ -233,16 +242,16 @@ The HUD's win chance is the most visible thing a bot does besides playing, and i
 to make it look nervous. The two evaluators went through this cycle; the numbers are from
 seeded self-play at the 12 000-node stage.
 
-| | Creeper (Chain React) | Sensei (Five Wins) |
-| --- | --- | --- |
-| first version | 600-node ~3-ply search, steep logistic | static patterns + a ±1000 penalty for facing an open three |
-| symptom | 80 → 10 → 80 flips every turn (side-to-move bias ±0.039) | mean move-to-move change 0.166, 243 jumps > 0.25 in 10 games |
-| what fixed it | even depths only, completed depths only, mean of the last three completed depths, 10-ply quiescence over explosive captures, proven results → ±∞ | depth-2 search where forced fours cost no depth, open-three extension through the restricted defence set instead of a penalty, VCF/VCT on long budgets, dead-board draw terminal |
-| result | bias ±0.008, swing 0.05 (undecided 0.04) | swing 0.031, bias ±0.006 |
-| own scale guess | 10 | 300 |
-| calibrated scale | 31.3 (shift −5.5) | 1166 (shift −62) |
-| Brier | 0.21 | 0.006 |
-| ms per call (2k / 12k / 60k nodes) | 2 / 15 / 59 (6×6) | 0.6 / 45 / 177 (9×9), 0.9 / 84 / 353 (15×15) |
+| | Creeper (Chain React) | Sensei (Five Wins) | Warden (Isolation) |
+| --- | --- | --- | --- |
+| first version | 600-node ~3-ply search, steep logistic | static patterns + a ±1000 penalty for facing an open three | depth-2 Voronoi search whose root maximised for whoever was to move |
+| symptom | 80 → 10 → 80 flips every turn (side-to-move bias ±0.039) | mean move-to-move change 0.166, 243 jumps > 0.25 in 10 games | 85 → 53 → 90 → 53 every turn; swing 32 %, shift 464 |
+| what fixed it | even depths only, completed depths only, mean of the last three completed depths, 10-ply quiescence over explosive captures, proven results → ±∞ | depth-2 search where forced fours cost no depth, open-three extension through the restricted defence set instead of a penalty, VCF/VCT on long budgets, dead-board draw terminal | a root that minimises when the other seat moves (a real bug), then averaging the search of the position with the search of the same position with the other seat to move, and a narrower generator to buy depth |
+| result | bias ±0.008, swing 0.05 (undecided 0.04) | swing 0.031, bias ±0.006 | swing 0.117, shift 271 |
+| own scale guess | 10 | 300 | — |
+| calibrated scale | 31.3 (shift −5.5) | 1166 (shift −62) | 693 (shift +271) |
+| Brier | 0.21 | 0.006 | 0.206 |
+| ms per call (2k / 12k / 60k nodes) | 2 / 15 / 59 (6×6) | 0.6 / 45 / 177 (9×9), 0.9 / 84 / 353 (15×15) | 3 / 12 / 55 (7×7) |
 
 Rules of thumb:
 1. Return a consistent raw score and let `scripts/calibrate.mjs` fit the curve; your own
