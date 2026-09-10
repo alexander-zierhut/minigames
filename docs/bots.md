@@ -199,3 +199,34 @@ rules' fallback estimate drives the rest).
 3. Two script tags in `index.html` after the `<!-- bots: <game> -->` anchor.
 4. `npm run benchmark <id>`, `npm test`.
 5. A short README in the folder for anything non-obvious (evaluation terms, search tricks).
+
+## 11. Designing an evaluator (what the win-chance work taught us)
+
+The HUD's win chance is the most visible thing a bot does besides playing, and it is easy
+to make it look nervous. The two evaluators went through this cycle; the numbers are from
+seeded self-play at the 12 000-node stage.
+
+| | Creeper (Chain React) | Sensei (Five Wins) |
+| --- | --- | --- |
+| first version | 600-node ~3-ply search, steep logistic | static patterns + a ±1000 penalty for facing an open three |
+| symptom | 80 → 10 → 80 flips every turn (side-to-move bias ±0.039) | mean move-to-move change 0.166, 243 jumps > 0.25 in 10 games |
+| what fixed it | even depths only, completed depths only, mean of the last three completed depths, 10-ply quiescence over explosive captures, proven results → ±∞ | depth-2 search where forced fours cost no depth, open-three extension through the restricted defence set instead of a penalty, VCF/VCT on long budgets, dead-board draw terminal |
+| result | bias ±0.008, swing 0.05 (undecided 0.04) | swing 0.031, bias ±0.006 |
+| own scale guess | 10 | 300 |
+| calibrated scale | 31.3 (shift −5.5) | 1166 (shift −62) |
+| Brier | 0.21 | 0.006 |
+| ms per call (2k / 12k / 60k nodes) | 2 / 15 / 59 (6×6) | 0.6 / 45 / 177 (9×9), 0.9 / 84 / 353 (15×15) |
+
+Rules of thumb:
+1. Return a consistent raw score and let `scripts/calibrate.mjs` fit the curve; your own
+   logistic will be too steep.
+2. Remove side-to-move bias inside the search (even depths, quiescence); don't paper over
+   it with display smoothing — the smoothing in the HUD is a third of the previous move,
+   off in decided territory, and exists only to soften genuine re-evaluations.
+3. Node budgets, never wall-clock, so both online clients compute identical numbers; the
+   2 000-node call must be synchronous and cheap, longer ones async with `tools.yield()`.
+4. Report ±Infinity only for proven results (rule-terminal or a complete forced line).
+   "Budget exhausted" is unknown, never a verdict.
+5. Measure before/after with the same seeded games; assert the swing and the bias in the
+   bot's tests so a future tweak can't quietly bring the zigzag back.
+
