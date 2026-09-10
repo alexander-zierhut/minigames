@@ -35,6 +35,7 @@ const Prefs = (() => {
         soundSet: "auto",                             // "auto" (follows the look) | "classic" | "mc"
         sounds: Object.fromEntries(CATEGORIES.map((c) => [c, true])),
         hideCode: false,                              // enter rooms with the code hidden (lobby, HUD, address bar)
+        winGraph: true,                               // the win-chance line graph in the replay analysis panel (#43)
         privateIp: false,                             // relay every connection through TURN: nobody in the room sees my IP (#30)
         developer: false,                             // the developer info panel (#31)
     };
@@ -59,6 +60,7 @@ const Prefs = (() => {
         if (!["auto", "classic", "mc"].includes(p.soundSet)) p.soundSet = "auto";
         for (const c of CATEGORIES) p.sounds[c] = !!p.sounds[c];
         p.hideCode = !!p.hideCode;
+        p.winGraph = !!p.winGraph;
         p.privateIp = !!p.privateIp;
         p.developer = !!p.developer;
         return p;
@@ -92,6 +94,7 @@ const Prefs = (() => {
         $("pref-volume-val").textContent = prefs.volume === 0 ? "off" : `${prefs.volume} %`;
         $("pref-soundset").value = prefs.soundSet;
         for (const c of CATEGORIES) { const el = $("pref-snd-" + c); if (el) el.checked = prefs.sounds[c]; }
+        if ($("pref-win-graph")) $("pref-win-graph").checked = prefs.winGraph;
         if ($("pref-hide-code")) $("pref-hide-code").checked = prefs.hideCode;
         if ($("pref-private-ip")) $("pref-private-ip").checked = prefs.privateIp;
         if ($("pref-developer")) $("pref-developer").checked = prefs.developer;
@@ -104,7 +107,7 @@ const Prefs = (() => {
     function sectionSummary(key) {
         const p = prefs;
         if (key === "profile") return p.name;
-        if (key === "look") return LOOK_LABELS[typeof Skins !== "undefined" ? Skins.current : "classic"] || LOOK_LABELS.classic;
+        if (key === "look") return (LOOK_LABELS[typeof Skins !== "undefined" ? Skins.current : "classic"] || LOOK_LABELS.classic) + (p.winGraph ? "" : " · no win graph");
         if (key === "sound") return p.volume === 0 ? "off" : `${p.volume} % · ${SET_LABELS[p.soundSet]}`;
         if (key === "streaming") {
             const on = [p.hideCode && "Code hidden", p.privateIp && "IP private"].filter(Boolean);
@@ -143,6 +146,7 @@ const Prefs = (() => {
         set({
             name: $("pref-name") ? $("pref-name").value : prefs.name,
             volume: parseInt($("pref-volume").value, 10), soundSet: $("pref-soundset").value, sounds,
+            winGraph: !!($("pref-win-graph") && $("pref-win-graph").checked),
             hideCode: !!($("pref-hide-code") && $("pref-hide-code").checked),
             privateIp: !!($("pref-private-ip") && $("pref-private-ip").checked),
             developer: !!($("pref-developer") && $("pref-developer").checked),
@@ -181,7 +185,7 @@ const Prefs = (() => {
         $("pref-volume").addEventListener("input", readForm);
         $("pref-soundset").addEventListener("change", readForm);
         for (const c of CATEGORIES) { const el = $("pref-snd-" + c); if (el) el.addEventListener("change", readForm); }
-        for (const id of ["pref-hide-code", "pref-private-ip", "pref-developer"]) if ($(id)) $(id).addEventListener("change", readForm);
+        for (const id of ["pref-win-graph", "pref-hide-code", "pref-private-ip", "pref-developer"]) if ($(id)) $(id).addEventListener("change", readForm);
         if ($("pref-name")) $("pref-name").addEventListener("change", readForm);   // on blur / Enter, so typing is never cut mid-word
         for (const key of SECTIONS) { const row = $("prefs-nav-" + key); if (row) row.addEventListener("click", () => showSection(key)); }
         $("btn-prefs-back").addEventListener("click", () => showSection(null));

@@ -5,6 +5,27 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "feature",
+          "text": "Replays can be analysed: the bot walks through the game, shows the win chance of every move as a line graph, tells you at each step whether the move was the best one and how much it gave away, and gives every player a score out of 100.",
+          "refs": [
+            "#43"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "\"Play from here\" in the analysis panel continues a replay from the move you are looking at: you take the side that is to move, a bot takes the other, and because it opens a room you can still share the watch link.",
+          "refs": [
+            "#43"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "The replay bar has a Play button that walks through the game by itself, and in a room everyone watches along at the same pace.",
+          "refs": [
+            "#43"
+          ]
+        },
+        {
           "type": "internal",
           "text": "Link previews: the site has a description, Open Graph and Twitter card tags and a share image; a source-available license was added.",
           "technical": true
