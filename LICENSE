@@ -1,5 +1,5 @@
 ALZlper's Minigames Source-Available License
-Version 1.0, 2026-09-11
+Version 1.1, 2026-09-11
 
 Copyright (c) 2026 Alexander Zierhut
 
@@ -35,31 +35,45 @@ game can be run elsewhere.
 
 3. Contributions
 
-   By submitting a contribution to the original repository you agree that it is licensed
-   to the copyright holder under this license and may be published on the site, and you
-   confirm that you have the right to submit it. You keep the copyright to your
-   contribution.
+   Contributions (pull requests, patches, translations, assets, ideas submitted as
+   issues) are voluntary and unpaid, and they are welcome. By submitting one to the
+   original repository you:
 
-4. Assets
+   a. confirm that you have the right to submit it;
+   b. grant the copyright holder a perpetual, irrevocable, worldwide, royalty-free,
+      non-exclusive right to use, copy, modify, publish, distribute, sublicense and
+      relicense your contribution as part of the source, the site and any future version
+      of them, for any purpose, including commercial purposes;
+   c. keep the copyright to your contribution, and agree that no payment, credit beyond
+      the repository's history, or other compensation is owed for it.
+
+4. The copyright holder's rights
+
+   The copyright holder keeps every right not granted here, including the right to run
+   the site commercially: for example to show advertising, offer paid features or accept
+   donations to cover its costs, at any time and also for parts of the site that were
+   contributed under section 3. Nothing in this license restricts the copyright holder.
+
+5. Assets
 
    The block textures and sound files under `client/textures/` and `client/sounds/` are
    not licensed by this document at all. They come from the copyright holder's own
    installation of a third-party game and are used for personal, non-commercial purposes
    only; do not copy or redistribute them.
 
-5. Trademarks and names
+6. Trademarks and names
 
    "ALZlper" and "ALZlper's Minigames" are the names of this site and its author. This
    license gives no right to use them for anything else.
 
-6. No warranty
+7. No warranty
 
    The source and the game are provided "as is", without warranty of any kind, express or
    implied, including but not limited to the warranties of merchantability, fitness for a
    particular purpose and non-infringement. In no event shall the copyright holder be
    liable for any claim, damages or other liability arising from the source or the game.
 
-7. Termination
+8. Termination
 
    Any use that breaches section 2 ends your permissions under section 1 automatically.
 

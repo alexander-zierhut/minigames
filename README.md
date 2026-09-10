@@ -10,8 +10,10 @@ games and settings together in the room lobby; rematch or switch games without n
 
 **License:** the source is available to read, run locally and contribute to (see
 [LICENSE](LICENSE)); it is a game, not a library, so running a copy of it under another
-domain or name is not allowed without permission. The block textures and sounds are the
-owner's own personal-use assets and are not licensed at all.
+domain or name is not allowed without permission. Contributions are voluntary and welcome;
+the owner keeps the right to run the site commercially (for example with ads to cover the
+costs) including contributed parts. The block textures and sounds are the owner's own
+personal-use assets and are not licensed at all.
 
 ## Play
 
