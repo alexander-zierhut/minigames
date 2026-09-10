@@ -51,7 +51,7 @@ Scripts, in order (each defines the global named in brackets):
 | `client/prefs.js` | `Prefs` | per-device preferences (⚙ top-left): look, sound volume / categories |
 | `client/settings.js` | `Settings` | settings form ↔ config, picker cards, persistence, summary |
 | `client/opponent.js` | `Opponent` | bot picker modal: step 1 list of bots with both scores, step 2 one bot + parameters; choice per game |
-| `client/bot-persona.js` | `BotPersona` | a bot seat's sparse emoji reactions (wave, GG, EZ, 🚨, 😲, 😔) |
+| `client/bot-persona.js` | `BotPersona` | a bot seat's sparse emoji reactions (wave, GG, EZ, 👍/👏 for good moves, 😲/🤡 for blunders, 😔), drawn from seeded weighted pools |
 | `client/reactions.js` | `Reactions` | emoji reactions bar + floating layer |
 | `client/chat.js` | `Chat` | room chat: the input row under the HUD log, limits, lines into the log, Bus `chat` |
 | `client/app.js` | (none) | flow, room protocol, session restore, wiring, boot |
@@ -599,12 +599,18 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   in `localStorage["chainreact.bots"]`; `Opponent.current(game)` / `summary(game)`.
 - **Persona** (`client/bot-persona.js`): `BotPersona.attach({ bot, seat, game, state,
   estimate, color })` in `startGame` (bot mode), `detach()` on back-to-room / leave. Listens
-  to `game:new` (👋), `game:turn`/`game:move` (judges the human's move once it settled: 🚨
-  when the bot's chance drops ≥ 15 points and the move was among the best, 😲 when the move
-  was among the worst 25 % and helped the bot ≥ 10 points; "EZ" once when its chance ≥ 90 %,
-  😔 once when ≤ 12 %), `game:finish` ("GG", 😄 / 😔). One reaction per 6 s, ≤ 8 per game,
-  seeded from the bot's seed (`Bots.rng(seed ^ 0xc0ffee)`), 0.5–1.4 s delay, posted via
-  `Reactions.receive` in the bot's colour. Tests pass `delays`/`cooldownMs` overrides.
+  to `game:new` (👋), `game:turn`/`game:move` (judges the human's move once it settled:
+  praise when the bot's chance drops ≥ 15 points and the move was among the best, a
+  surprised/teasing face when the move was among the worst 25 % and helped the bot ≥ 10
+  points; "EZ" once when its chance ≥ 90 %, 😔 once when ≤ 12 %), `game:finish` ("GG",
+  then a happy or a gracious face). Every moment draws from a weighted pool
+  (`BotPersona.POOLS`: strong 👍 45 / 👏 25 / 🔥 15 / 🫡 15, blunder 😲 40 / 🤡 20 / 💀 20 /
+  😂 20, ez EZ / 😎, sad 😔 / 😱, won 😄 / 😎 / 🥰, lost 😔 / 👏 / 🫡; hello and GG fixed) so
+  it isn't the same every game — the owner found the fixed 🚨/😲 mapping automated; a
+  good move gets a thumbs-up, a blunder a bit of trolling. One reaction per 6 s, ≤ 8 per
+  game, seeded from the bot's seed (`Bots.rng(seed ^ 0xc0ffee)`, the pick uses the same
+  rng), 0.5–1.4 s delay, posted via `Reactions.receive` in the bot's colour. Tests pass
+  `delays`/`cooldownMs` overrides and assert against the pools.
 
 - **Puzzles = perfect-move test sets** (`tests/puzzles/<game>/puzzles.json`): positions whose
   best move(s) were PROVEN by a solver (`scripts/puzzles/<game>/solver.mjs`, exhaustive
@@ -670,8 +676,8 @@ every bot folder into a bare VM — script list parsed from `index.html`).
 
 ## Emoji reactions (`client/reactions.js`)
 
-`#react-bar` top-right, starts collapsed behind the 😜 toggle; emojis 😂 🔥 💀 🤡 😱 👏 😎
-🫡 😄 🥰 😲 😔 👋 🚨 🤖 + "L"/"EZ"/"GG" chips (the bar's own box never catches taps —
+`#react-bar` top-right, starts collapsed behind the 😜 toggle; emojis 😂 🔥 💀 🤡 😱 👏 👍
+😎 🫡 😄 🥰 😲 😔 👋 🚨 🤖 + "L"/"EZ"/"GG" chips (the bar's own box never catches taps —
 `pointer-events: none` except the list and the toggle — and the toggle sits on the top
 edge next to ⚙, #7/#13; the expanded list stops 124px short of the left edge). `Reactions.place()` (called after every `fitBoard`) puts `#react-layer` **right
 next to the board** when there is ≥ 66px of space (desktop), else in the free strip
