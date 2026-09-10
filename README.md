@@ -21,7 +21,8 @@ games and settings together in the room lobby; rematch or switch games without n
   and coming back by the same link, even the room creator leaving — the room survives
   as long as one player is in it, and everybody keeps their colour.
 
-The number of players (two, three or four) is picked right in the lobby; the settings
+The number of players (two, three or four) is picked right in the lobby and can never be
+set below the people already sitting in the room; the settings
 (board size, animation speed, chess-style timer, chain-win rule, stones in a row) are
 shared live in the room lobby; anyone can change them. The ⚙ button in
 the top-left corner holds the per-device preferences: the look (Classic, Blocks board,

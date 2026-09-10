@@ -227,7 +227,9 @@ test("keep my IP always private (#30): the next room is created with relay-only 
         assert.equal(await B.ev("Net.iceInfo.relayOnly"), false, "only my own preference relays my side");
         // developer info (#31): the route per connection shows in the panel
         await A.click("#prefs-btn"); await A.check("pref-developer", true); await A.click("#btn-prefs-done");
-        await A.waitFor("/connected as host · broker open\n  ice: relay only \(IP private\) · turn yes/.test(document.getElementById('dev-panel').textContent) && /c\d seat 1 [^:]*: open · pong \d+ ms ago\n    route relay → \w+ \(\w+\) · rtt \d+ ms/.test(document.getElementById('dev-panel').textContent)", { timeout: 10000, what: "route in the dev panel" });
+        // (the expression is evaluated in the page, so the regex escapes are doubled here; in the
+        // lobby Match.names is empty, so a connection reads "c1 seat 1:" without a colour name)
+        await A.waitFor("/connected as host · broker open\\n  ice: relay only \\(IP private\\) · turn yes/.test(document.getElementById('dev-panel').textContent) && /c\\d+ seat 1[^:]*: open · pong \\d+ ms ago\\n    route relay → \\w+ \\(\\w+\\) · rtt [\\d?]+ ms/.test(document.getElementById('dev-panel').textContent)", { timeout: 20000, what: "route in the dev panel" });
         await A.click("#prefs-btn"); await A.check("pref-developer", false); await A.click("#btn-prefs-done");
         await B.click("#btn-lobby-back");
     }

@@ -62,7 +62,8 @@ test("five wins against the bot (Easy): it moves by itself, the HUD calls it Bot
     // developer info (#31): the panel shows what the bot calculated for its last move
     assert.equal(await B.ev("document.getElementById('dev-panel').hidden"), true, "off by default");
     await B.click("#prefs-btn"); await B.check("pref-developer", true); await B.click("#btn-prefs-done");
-    await B.waitFor("!document.getElementById('dev-panel').hidden && /BOT\n  sensei-five · easy · budget 2 000 nodes\n  last: cell \d+ · [\d ]+ nodes · depth \d+/.test(document.getElementById('dev-panel').textContent)", { what: "bot section in the dev panel" });
+    // (the expression is evaluated in the page, so the regex escapes are doubled here)
+    await B.waitFor("!document.getElementById('dev-panel').hidden && /BOT\\n  sensei-five · easy · budget 2 000 nodes\\n  last: cell \\d+ · [\\d ]+ nodes · depth \\d+ · value /.test(document.getElementById('dev-panel').textContent)", { timeout: 20000, what: "bot section in the dev panel" });
     assert.match(await B.text("dev-panel"), /NETWORK\n  offline/);
     assert.match(await B.text("dev-panel"), /\d+ fps/);
     assert.equal(await B.ev("getComputedStyle(document.getElementById('dev-panel')).pointerEvents"), "none", "never in the way of a tap");

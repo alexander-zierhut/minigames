@@ -34,6 +34,7 @@
         const online = Room.online;
         const bot = Match.mode === "bot";
         const nm = Skins.names();
+        Settings.setMinPlayers(online ? Room.occupiedSeats() : 2);  // no count that takes a seat away (#34)
         const players = Settings.read().players;
         $("lobby-kind").textContent = online ? "Room" : bot ? "Against a bot" : "Local game";
         $("lobby-code").textContent = online ? Room.codeText() : bot ? "You vs bot" : "Same device";

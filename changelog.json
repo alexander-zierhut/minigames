@@ -20,6 +20,21 @@
           ]
         },
         {
+          "type": "fix",
+          "text": "The number of players in a room can no longer be set below the number of people already sitting in it, so nobody loses their seat without leaving first.",
+          "refs": [
+            "#34"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "A new preference \"Show developer info\" adds a small panel with the connection route, the frame rate and what the bot calculated for its last move.",
+          "technical": true,
+          "refs": [
+            "#31"
+          ]
+        },
+        {
           "type": "feature",
           "text": "Streaming: a new preference \"Keep my IP always private\" sends every connection through the relay server, so nobody in the room learns your IP address.",
           "refs": [
