@@ -1,7 +1,7 @@
 /* ============================================================
    Title screen, room lobby, game picker, settings modal
    ============================================================ */
-#screen-menu, #screen-lobby {
+#screen-menu, #screen-lobby, #screen-replays {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -281,7 +281,7 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
 }
 #prefs-modal.muted .pref-toggles { opacity: .5; }
 /* phones: the cards start below the ⚙ button */
-@media (max-width: 899px) { #screen-menu, #screen-lobby { padding-top: 56px; } }
+@media (max-width: 899px) { #screen-menu, #screen-lobby, #screen-replays { padding-top: 56px; } }
 
 /* ---- bot modal: the game's one bot, its scores and parameters (#21) ---- */
 .bot-card { max-width: 480px; gap: 14px; }
@@ -310,3 +310,30 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
 }
 .skin-mc .bot-params { border-radius: 0; background: rgba(0,0,0,.62); border-color: #000; box-shadow: inset 0 0 0 1px #3a3a3a; }
 .skin-mc .bot-badge { border-radius: 0; background: #000; border-color: #3a3a3a; }
+
+/* ---- replays (#42): the games this device played, one row each ---- */
+.replays-card { max-width: 560px; gap: 12px; }
+/* desktop: wide enough that date, players and result stay on one line */
+@media (min-width: 900px) { #screen-replays .menu-card { max-width: 680px; padding: 24px 28px; } }
+.replay-filter { flex-wrap: wrap; }
+.replay-list { display: flex; flex-direction: column; gap: 8px; max-height: min(46vh, 420px); overflow-y: auto; padding-right: 2px; }
+.replay-list:empty { display: none; }
+.replay-item {
+    display: flex; align-items: center; gap: 10px; text-align: left;
+    padding: 8px 10px; background: var(--bg2); border: 2px solid var(--line); border-radius: 12px;
+}
+.replay-info { min-width: 0; flex: 1 1 auto; }
+.replay-title { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.replay-sub { font-size: 11px; color: var(--muted); line-height: 1.35; }
+.replay-buttons { display: flex; gap: 4px; flex: 0 0 auto; }
+#screen-replays .lobby-foot { gap: 6px; }
+/* phones: the text takes the full width and the three actions sit under it */
+@media (max-width: 899px) {
+    .replays-card { gap: 8px; padding: 16px; }
+    .replay-list { max-height: 46vh; }
+    .replay-item { flex-wrap: wrap; gap: 6px; }
+    .replay-info { flex: 1 1 100%; }
+    .replay-buttons { flex: 1 1 100%; justify-content: flex-end; }
+    .replay-buttons .btn.small { padding: 5px 10px; font-size: 11px; }
+}
+.skin-mc .replay-item { border-radius: 0; background: rgba(0,0,0,.62); border-color: #000; box-shadow: inset 0 0 0 1px #3a3a3a; }

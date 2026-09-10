@@ -1,0 +1,39 @@
+{
+  "format": "alzlper-minigames-replay",
+  "version": 1,
+  "game": "five",
+  "config": {
+    "game": "five",
+    "n": 5,
+    "players": 2,
+    "startPlayer": 0,
+    "timer": 0,
+    "winLen": 4,
+    "yavalath": false
+  },
+  "history": [
+    0,
+    5,
+    1,
+    6,
+    2,
+    7,
+    3
+  ],
+  "outs": [],
+  "result": {
+    "over": true,
+    "winner": 0,
+    "why": "4 in a row!"
+  },
+  "players": [
+    "Robin",
+    "Bot"
+  ],
+  "meta": {
+    "playedAt": "2026-09-09T20:15:00.000Z",
+    "mode": "bot",
+    "gameNo": 1,
+    "appVersion": "sample"
+  }
+}

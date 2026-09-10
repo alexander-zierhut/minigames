@@ -14,8 +14,9 @@
      onFlag(p)             the local clock of seat p ran out (online: only the owner decides)
      onFinish(winner, why)
 
-   Seats: Match.seats[p] = { kind: "local" | "remote" | "bot" }. Bot mode: you are seat 0,
-   the bot seat 1 (Opponent.current(game) picks which bot and level).
+   Seats: Match.seats[p] = { kind: "local" | "remote" | "bot" | "watch" }. Bot mode: you are
+   seat 0, the bot seat 1 (Opponent.current(game) picks which bot and level). `Match.watch`
+   puts a recorded game on the board (#42): mode "replay", every seat "watch", nobody plays.
 
    Premove (#37): with exactly one local seat (against a bot or online with a seat) a click
    while the friend / bot is to move remembers that cell instead of dropping the click. The
@@ -28,7 +29,7 @@
 const Match = (() => {
     const THINK_MS = 350;      // a bot answering instantly feels wrong
     const st = {
-        mode: "local",         // "local" | "bot" | "online"   (bot = offline against a bot)
+        mode: "local",         // "local" | "bot" | "online" | "replay"   (bot = offline against a bot, replay = watching a record)
         me: -1,                // my seat online; -1 = none yet / local mode / spectator
         spectator: false,      // online without a seat (spectate link, or every seat taken)
         seats: [],             // per player: { kind }
@@ -47,6 +48,7 @@ const Match = (() => {
     };
 
     const online = () => st.mode === "online";
+    const watching = () => st.mode === "replay";       // a recorded game on the board (#42)
     const kind = (p) => (st.seats[p] ? st.seats[p].kind : "local");
     const isLocal = (p) => kind(p) === "local";
     const isBot = (p) => kind(p) === "bot";
@@ -54,7 +56,9 @@ const Match = (() => {
     const startPlayerFor = (gameNo, players = 2) => (gameNo - 1) % players;
     // who moves for each seat: this device, a friend, or the bot
     const makeSeats = (players) => Array.from({ length: players }, (_, p) => ({
-        kind: online() ? (p === st.me ? "local" : "remote") : (st.mode === "bot" && p > 0 ? "bot" : "local"),
+        kind: watching() ? "watch"                                   // a replay: nobody sits here (#42)
+            : online() ? (p === st.me ? "local" : "remote")
+            : (st.mode === "bot" && p > 0 ? "bot" : "local"),
     }));
     const playerColor = (p) => (p >= 0 ? `var(--c${p})` : "#ffffff");
     // my seat at this table: the one seat this device plays (-1 = none / several / spectator)
@@ -216,6 +220,29 @@ const Match = (() => {
         paintPremoveColor();
         Game.newGame({ ...cfg, startPlayer: startPlayerFor(gameNo, players) }, hooks);
     }
+    /* Watch a recorded game (#42): the same engine and the same board, but nobody sits at
+       this table. Every seat is a "watch" seat, so no click, no premove, no clock and no
+       bot; the record is replayed instantly and app.js drives the replay bar from there. */
+    function watch(record) {
+        stop();
+        st.mode = "replay";
+        st.me = -1;
+        st.spectator = false;
+        st.config = { ...record.config };
+        st.gameNo = record.gameNo || 0;
+        st.bot = null;
+        st.botInfo = null;
+        st.premove = -1;
+        deferred = [];
+        running = false;
+        const players = st.config.players || 2;
+        Game = Games.get(record.game).engine;
+        st.seats = makeSeats(players);
+        Clock.setup(0, () => {}, players);
+        Game.newGame({ ...st.config }, hooks);
+        Game.replay((record.history || []).slice(), (record.outs || []).slice());
+    }
+
     // stop the running game without a result (back to the room)
     function stop() {
         running = false;
@@ -252,7 +279,7 @@ const Match = (() => {
     function init(handlers) { h = { ...h, ...handlers }; }
 
     return {
-        init, start, stop, reset, setSeat, record, flagged, whenIdle, syncClock, startPlayerFor, playerColor,
+        init, start, watch, stop, reset, setSeat, record, flagged, whenIdle, syncClock, startPlayerFor, playerColor,
         get engine() { return Game; }, get state() { return Game.state; }, get names() { return names(); }, get running() { return running; },
         get mode() { return st.mode; }, get me() { return st.me; }, get spectator() { return st.spectator; },
         get seats() { return st.seats; }, get config() { return st.config; }, get gameNo() { return st.gameNo; }, get bot() { return st.bot; },

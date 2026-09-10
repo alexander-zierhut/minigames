@@ -40,6 +40,7 @@ Scripts, in order (each defines the global named in brackets):
 | `client/lib/preload.js` | `Preload` | first-visit texture preload with `#loader` bar |
 | `client/lib/sound.js` | `Sound` | Bus events → sound cues; synthesized Classic set, Blocks files (see Sounds) |
 | `client/lib/install.js` | `Install` | "Add to home screen" button (beforeinstallprompt) |
+| `client/lib/replays.js` | `Replays` | replay files (format, version + migrations, validation) and the IndexedDB store of the games this device played (#42) |
 | `client/games/rules.js` | `Rules` | base state, turn passing, the **pure game loop** (`create/step/eliminate/apply/replay`) shared by the engine, bots and scripts |
 | `client/games.js` | `Games`, `Engine`, `Hud` | registry, the engine shell every game shares, the generic HUD renderer |
 | `client/games/chain-rules.js` | `ChainRules` | Chain React rules, pure (no DOM) |
@@ -64,7 +65,7 @@ Scripts, in order (each defines the global named in brackets):
 
 Stylesheets, in order: `client/css/base.css` (tokens, player colour variables, buttons,
 inputs, modal, toast, loader) → `client/css/menu.css` (title, lobby, picker, settings,
-changelog) → `client/css/game.css` (game layout, generic board, HUD incl. the generic
+changelog, replays) → `client/css/game.css` (game layout, generic board, HUD incl. the generic
 `.game-box`, overlay, banner, reactions) → `client/css/skin-mc.css` (Blocks board part
 shared by both textured skins + Blocks UI part) → `client/games/chain.css` →
 `client/games/five.css` (each game's board, classic first, then its textured-skin rules).
@@ -80,7 +81,7 @@ CSS are kept. `client/sounds/*.ogg` — Minecraft sounds from the owner's own in
 ### Who owns what (the layering, top to bottom)
 
 ```
-app.js      screens + lobby + flow            knows Match, Room, Settings, Opponent, …
+app.js      screens + lobby + flow            knows Match, Room, Settings, Opponent, Replays, …
 Room        online protocol, presence, sync   knows Match (engine, seats), Net, Settings, Clock, Chat
 Match       table: seats, engine, clock, bot  knows Games (engines), Clock, Bots, Opponent, BotPersona
 Games/Engine/Hud   one engine per game        knows Rules, Log, Bus, the game's view; never the app
@@ -158,7 +159,8 @@ to try things").
   under them the muted hint `#menu-online-hint` ("One room for up to 4 players, plus
   spectators." — the seat count itself is picked in the lobby, #28),
   section *Offline* with `Local multiplayer` (`#btn-local`) and `Against a bot`
-  (`#btn-bot`), the foot with `#btn-install` (see Install) and `#btn-changelog`. No Look
+  (`#btn-bot`), the foot with `#btn-install` (see Install), `#btn-replays` (🎬, the replays
+  screen, #42) and `#btn-changelog`. No Look
   control here (owner: only in the preferences, #9). Never scrolls on a phone. The ⚙
   preferences button floats top-left on every screen.
 - **Lobby** (`#screen-lobby`), same screen for local and online (`Match.mode`), in **three
@@ -205,20 +207,41 @@ to try things").
   result") drops the preview. Desktop: bottom centre; phones: above the HUD, `fitBoard`
   publishes `--hut-h` = the strip the HUD takes so the bar never covers its controls.
   Online, every step sends `review {ply}` so the whole room looks at the same move.
-- `Match.mode` ∈ `local | bot | online`. Bot mode is the offline lobby with an extra
+- **Replays** (`#screen-replays`, #42): the title screen's 🎬 button opens the list of the
+  games this device played (`Replays.store`, newest first). A `.seg` filter (`#replay-filter`:
+  All + one button per registered game, built by app.js), one `.replay-item` per game from
+  `#tpl-replay` (title "Five Wins · 5 × 5", the sub line "date · names · result · moves"
+  from `Replays.summary`) with **Watch** / ⬇ (save as a file) / 🗑 (delete) per row,
+  `#btn-replay-upload` (opens the hidden `#replay-file` input: parse → migrate → validate →
+  save → watch) and `Back`. `#replays-hint` says "no replays yet" or, when the browser has
+  no IndexedDB, that the list only lasts for this visit. The list scrolls inside the card,
+  the screen never does (phones: the three buttons sit under the text).
+- **Watching a replay** (`watchReplay(doc)` / `closeReplay()` in app.js): `Match.watch(doc)`
+  puts the record on the normal game screen with `Match.mode === "replay"`, every seat
+  `watch` (nobody may play, no clock, no bot, no premove, no room), the names from the file
+  (app.js's `seatNames()` returns `replayDoc.players`), and the replay bar opens at move 0
+  through the very same `showReplay`. `renderRematch` hides both Rematch buttons and turns
+  `#btn-menu` / `#overlay-menu` into "Back to replays". Games are saved automatically in
+  `saveReplay(finished)`: from Match's `onFinish` when a game ends, and from `backToLobby` /
+  `leaveRoom` for a game left half way (`result.over: false`); a replay of a replay is never
+  saved, and the same game saved twice keeps one entry (the id is a hash of its content).
+  Online every device saves its own copy, spectators included; nothing about replays travels
+  through the room.
+- `Match.mode` ∈ `local | bot | online | replay`. Bot mode is the offline lobby with an extra
   *Opponent* row (`#btn-opponent` → `#bot-modal`). **One bot per game (#21)**, called
   "Bot" wherever a player sees it (`Opponent.NAME`; `Bots.botFor(game, cfg)` picks it): the
   modal is one step (description, scores, difficulty, Cancel / Play). Picking a game does
   **not** open it (#12): the default is the middle difficulty; the row shows the choice.
   You are seat 0, the bot seat 1.
-- `phase` (app.js) ∈ `menu | lobby | game` — Room reads it through its `phase()` handler.
+- `phase` (app.js) ∈ `menu | lobby | game | replays` — Room reads it through its `phase()` handler.
   `Match.gameNo` increments per started game (local too); `Match.startPlayerFor(g,
   players) = (g - 1) % players` → seat 0 starts game 1, then the next seat, round-robin.
   `Settings.setMode(mode)` is called on every mode change (`local` / `bot` / `online`):
   against a bot the lobby's *Players* row is hidden and the config says 2.
 - The flow functions in app.js — `startGame(cfg, gameNo)`, `startFromLobby()`,
-  `requestRematch()`, `backToLobby(announce)`, `leaveRoom()`, `openLocalLobby(withBot)` —
-  are the only places that switch screens. Room calls `startGame` / `backToLobby` through
+  `requestRematch()`, `backToLobby(announce)`, `leaveRoom()`, `openLocalLobby(withBot)`,
+  `openReplays()`, `watchReplay(doc)`, `closeReplay()` — are the only places that switch
+  screens. Room calls `startGame` / `backToLobby` through
   its handlers when the protocol says so; Match never switches screens.
 
 ## Settings (`client/settings.js`)
@@ -427,10 +450,41 @@ winner, why` once finished; `Match.record()` adds `gameNo` and `clocks`). `confi
 `engine.newGame(config, hooks)` + `engine.replay(history.slice(0, ply), outs)` shows it on
 the board. The session (`Session`) and the `sync` message are that record. The replay bar
 (#38) is exactly that: `engine.preview(ply)` renders `Rules.replay(record(), ply)` as a
-**view-only** position next to the untouched live game, so "look at past games" later only
-needs to keep records and step `ply` — still no engine change.
+**view-only** position next to the untouched live game.
 Rule: **anything that changes the position must be a history entry or an `outs` entry**
 (never a side channel), and `Rules.step` must stay the single way a move is resolved.
+
+#### Replay files and the store (`client/lib/replays.js`, #42)
+
+A **replay** is that record plus who played it and when, in a versioned document:
+
+```
+{ format: "alzlper-minigames-replay", version: 1, game, config, history, outs,
+  result: { over, winner, why }, players: [name per seat],
+  meta: { playedAt (ISO), mode: "local" | "bot" | "online", gameNo, appVersion } }
+```
+
+`Replays.fromRecord(record, names, mode, { finished, playedAt })` builds one,
+`Replays.parse(text)` reads a file (JSON → `migrate` → `validate` → `{ ok, doc }` or
+`{ ok: false, error }`, the error being the sentence the player is shown).
+`migrate(doc)` walks `MIGRATIONS[v]` up to the current `VERSION` (a file of a newer version
+is refused, never guessed at); `validate(doc)` checks the shape, that the game is registered
+and that every move replays with the game's own rules — it deliberately does **not** compare
+the recorded result, because the rules may have grown since and the file stays the record of
+what happened. `idFor(doc)` is a content hash, so the same game saved twice (a refresh into a
+finished game, the same file opened again) is one entry; `fileName(doc)` →
+`chain-2026-09-10-2130.json`, `when(iso)` the list's date, `summary(doc, id)` one list row.
+
+**Rule when the format changes:** bump `VERSION`, add `MIGRATIONS[old]` (one step per
+version, chained), and put a sample of the **old** version in `tests/replays/` next to the
+new one. `tests/unit/replays.test.mjs` plays every `tests/replays/v*.json` and fails when a
+version has no sample or no migration; the `bad-*.json` files there must stay refused.
+
+`Replays.store` keeps the documents in IndexedDB (db `chainreact`, store `replays`, keyed by
+id, indexes `game` and `playedAt`, the oldest dropped past 200): `save(doc)`, `list({ game })`
+(newest first, summaries), `get(id)`, `remove(id)`, `clear()`, `persistent()` — all async and
+fail-safe: without IndexedDB (private mode, jsdom) it falls back to memory for the visit and
+`persistent()` says false, which is what the screen's hint tells the player.
 
 ## Chain React rules (agreed with the owner; `chain-rules.js`)
 
@@ -839,8 +893,10 @@ It is deferred with `whenIdle(…, "premove")`, and cleared on a new game, `stop
 `Match.whenIdle(fn, key?)` runs `fn` now if no move animates, else once the engine is idle
 (a key replaces an older entry with the same key): Room defers a `sync` there, flag falls
 are deferred there, and `onIdle()` (Room drains its move queue) runs after the deferred work.
-`Match.start(cfg, gameNo)` / `stop()` / `reset(mode, me, spectator)` / `setSeat(me,
-spectator)` / `record()` / `syncClock()` are what app.js and Room call.
+`Match.start(cfg, gameNo)` / `watch(record)` / `stop()` / `reset(mode, me, spectator)` /
+`setSeat(me, spectator)` / `record()` / `syncClock()` are what app.js and Room call.
+`watch(record)` is the replay viewer's table (#42): mode `replay`, seats all `watch`, clock
+off, no bot, the record replayed instantly onto the board.
 
 ## Bots (`client/bots.js`, `client/bots/<id>/`)
 
@@ -1061,7 +1117,10 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   sets), `chat.test.mjs` (log boxes, limits, HTML safety, offline, chat survives a new
   game), `reactions.test.mjs` (float duration from the recent rate with a mocked clock,
   own + received, rate limits, the sender's colour on every float, #33), `winchance.test.mjs` (frozen while animating, stages,
-  smoothing), `replay.test.mjs` (#38: the engine's view-only preview — the position after n
+  smoothing), `replays.test.mjs` (#42: every sample in `tests/replays/` migrates, validates and plays to its
+  recorded result; a sample and a migration exist for every version; refused files;
+  `fromRecord` round trips; file name, date and summary; the store, in memory under jsdom;
+  `Match.watch`), `replay.test.mjs` (#38: the engine's view-only preview — the position after n
   plies, HUD and board classes, locked cells, no Bus events, the live state / record / hash
   untouched, `preview(null)`), `premove.test.mjs` (#37: set / switch / take back, fires when the turn comes,
   an illegal one is dropped, never on one device or as a spectator, cleared on a new game,
@@ -1075,7 +1134,8 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   server (port 0) and headless Chrome via CDP (no Playwright; Node 22 `WebSocket`/`fetch`;
   Chrome from `$CHROME` or `google-chrome`). Helpers: `goto` (waits for scripts + the
   preloader), `ev`, `click/set/check/text`, `move(i)`/`idle()`, `state()`, `randomGame()`,
-  `noScroll()`, `emulate(w,h)`, `screenshot(name)` (to `tests/e2e/shots/`, git-ignored;
+  `noScroll()`, `emulate(w,h)`, `upload(sel, path)` (CDP `DOM.setFileInputFiles`),
+  `screenshot(name)` (to `tests/e2e/shots/`, git-ignored;
   uploaded as artifact on CI failure), `waitFor`. Specs: `local-flow` (incl. the replay bar: step first / prev / next / last, the label, the
   last-move marker, a click in a preview plays nothing, "Show result" and a rematch close
   it), `settings`,
@@ -1113,7 +1173,11 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   refresh restores seat + board, rematch by every seat, one Back to room moves all, the
   players control cannot drop below the people in the room and the host refuses a forged
   `lobby` that tries it, #34),
-  `bot` (offline vs bot: the one-step modal with scores and difficulty, "Bot" in the HUD, bot moves by itself, rematch, a premove clicked while the bot thinks), `dist` (built bundle: hashed assets only,
+  `bot` (offline vs bot: the one-step modal with scores and difficulty, "Bot" in the HUD, bot moves by itself, rematch, a premove clicked while the bot thinks, both games in the replays list),
+  `replays` (#42: a finished local game is saved and survives a reload in real IndexedDB, the
+  list, watching one from move 0 to the end, saving it as a file and validating that file,
+  opening `tests/replays/v1-chain.json` through the file input, the game filter, a refused
+  file, deleting, and a 360×780 list that scrolls inside the card), `dist` (built bundle: hashed assets only,
   preloader, playable, hashed sound files fetched after the audio unlock). Files run 2 at a time; each launches its own Chrome. `B.blank()`
   navigates to about:blank (a closed tab); outline colours transition for .25s → wait
   before reading computed styles. Any new join/rejoin behaviour gets a scenario in
@@ -1123,7 +1187,7 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
 
 `docs/` (`docs/bots.md` = bot system reference and the list of current bots — keep it in
 step with the code), `scripts/` (headless loader, puzzle runner, benchmark, puzzle solvers/generators,
-verify, screenshot tour), `tests/`. The deploy uploads `dist/`
+verify, screenshot tour), `tests/` (incl. `tests/replays/`, the replay format samples). The deploy uploads `dist/`
 only; `build.mjs` bundles nothing outside `index.html`'s tags and `client/textures`.
 
 ## API at a glance (what a change must keep working)
@@ -1156,7 +1220,8 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Changelog` | `init()`, `open/close`, `render(doc[, all])`, `refUrl(ref)`, `technical(entry)`, `showTechnical`, `SHOW_DAYS` |
 | `Preload` | `textures()` |
 | `Session` | `save(data)`, `load()`, `clear()` (shape incl. `codeHidden`) |
-| `Match` | `init(handlers)`, `start(cfg, gameNo)`, `stop()`, `reset(mode, me, spectator)`, `setSeat(me, spectator)`, `record()`, `flagged(p)`, `whenIdle(fn, key)`, `syncClock()`, `startPlayerFor`, `playerColor`, `isLocal/isBot`; getters `engine, state, names, running, mode, me, spectator, seats, config, gameNo, bot, botInfo, premove`; `THINK_MS` |
+| `Replays` | `FORMAT`, `VERSION`, `MIGRATIONS`, `migrate(doc)`, `validate(doc) → {ok, error}`, `parse(text) → {ok, doc, error}`, `fromRecord(record, names, mode, opts)`, `idFor`, `fileName`, `when(iso)`, `summary(doc, id)`, `store.{save, list({game}), get, remove, clear, persistent}` (async, IndexedDB with a memory fallback) |
+| `Match` | `init(handlers)`, `start(cfg, gameNo)`, `watch(record)`, `stop()`, `reset(mode, me, spectator)`, `setSeat(me, spectator)`, `record()`, `flagged(p)`, `whenIdle(fn, key)`, `syncClock()`, `startPlayerFor`, `playerColor`, `isLocal/isBot`; getters `engine, state, names, running, mode, me, spectator, seats, config, gameNo, bot, botInfo, premove`; `THINK_MS` |
 | `Room` | `init(handlers)`, `enter(code, preferHost, seat, spectate, hidden)`, `leave()`, `roomLink`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `settingsChanged(cfg)`, `say(text)`, `react(e)`, `tolobby()`, `review(ply)`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/occupiedSeats/allHere/live/who/two/playersNow/turnHint`, `names()`, `nameChanged()`, `accepts(msg, seat)`, `keepsSeats(msg, occupied)`, `PLAYERS_ONLY`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden` |
 
 Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM), `puzzles/runner.mjs`
@@ -1246,7 +1311,8 @@ A game is three files (pure rules, view + registration, CSS) plus two tags in
 `index.html`, and usually a bot folder. Everything else is the framework and is generic:
 rooms and the host relay for 2–4 seats, lobby sync of the settings, start / rematch /
 back to room, reconnect + replay from the game record, session restore, the chess
-clock and flag falls, spectators, chat, reactions, premoves, sounds for the generic events,
+clock and flag falls, spectators, chat, reactions, premoves, the replay bar, the replay list
+and replay files, sounds for the generic events,
 the bot seat, the bot persona, the win-chance bars, the generic HUD (stat rows, info box,
 phone line), skins and player colours, the picker card, the settings rows, the benchmark
 and puzzle tooling. **A game never touches app.js, room.js, match.js, games.js, settings.js

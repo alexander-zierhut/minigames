@@ -6,6 +6,13 @@
       "entries": [
         {
           "type": "feature",
+          "text": "Replays: every game you play is saved on your device. The new Replays button on the title screen lists them, plays them back move by move, saves one as a file and opens a file a friend sent you.",
+          "refs": [
+            "#42"
+          ]
+        },
+        {
+          "type": "feature",
           "text": "Five Wins: a new Yavalath rule in the settings. One stone short of the winning row loses (four wins, three loses with the classic values); with three or four players the loser is out and the rest play on. The bot does not know the rule yet, so a random opponent stands in."
         },
         {
