@@ -342,7 +342,7 @@
    "greedyOk": false,
    "easyOk": false,
    "normalOk": false,
-   "chance": 0.434,
+   "chance": 0.5,
    "look": 0.537,
    "tags": [
     "endgame-exhaustive",
@@ -413,7 +413,7 @@
    "greedyOk": false,
    "easyOk": false,
    "normalOk": false,
-   "chance": 0.434,
+   "chance": 1,
    "look": 0.527,
    "tags": [
     "endgame-exhaustive"
@@ -456,7 +456,7 @@
    "greedyOk": false,
    "easyOk": false,
    "normalOk": false,
-   "chance": 0.72,
+   "chance": 0.5,
    "look": 0.527,
    "tags": [
     "endgame-exhaustive",
@@ -503,7 +503,7 @@
    "greedyOk": false,
    "easyOk": false,
    "normalOk": false,
-   "chance": 0.434,
+   "chance": 1,
    "look": 0.527,
    "tags": [
     "endgame-exhaustive",
@@ -546,7 +546,7 @@
    "greedyOk": false,
    "easyOk": false,
    "normalOk": false,
-   "chance": 0.72,
+   "chance": 1,
    "look": 0.527,
    "tags": [
     "endgame-exhaustive",
@@ -589,7 +589,7 @@
    "greedyOk": false,
    "easyOk": false,
    "normalOk": false,
-   "chance": 0.434,
+   "chance": 1,
    "look": 0.527,
    "tags": [
     "endgame-exhaustive",
@@ -632,7 +632,7 @@
    "greedyOk": false,
    "easyOk": false,
    "normalOk": false,
-   "chance": 0.834,
+   "chance": 1,
    "look": 0.77,
    "tags": [
     "endgame-exhaustive"
@@ -677,7 +677,7 @@
    "greedyOk": false,
    "easyOk": true,
    "normalOk": true,
-   "chance": 0.434,
+   "chance": 1,
    "look": 0.527,
    "tags": [
     "endgame-exhaustive"
@@ -722,7 +722,7 @@
    "greedyOk": false,
    "easyOk": false,
    "normalOk": false,
-   "chance": 0.434,
+   "chance": 1,
    "look": 0.527,
    "tags": [
     "endgame-exhaustive"
@@ -765,7 +765,7 @@
    "greedyOk": false,
    "easyOk": false,
    "normalOk": false,
-   "chance": 0.434,
+   "chance": 1,
    "look": 0.527,
    "tags": [
     "endgame-exhaustive"
@@ -810,7 +810,7 @@
    "greedyOk": false,
    "easyOk": false,
    "normalOk": false,
-   "chance": 0.647,
+   "chance": 1,
    "look": 0.392,
    "tags": [
     "endgame-exhaustive",
@@ -854,7 +854,7 @@
    "greedyOk": false,
    "easyOk": false,
    "normalOk": false,
-   "chance": 0.518,
+   "chance": 1,
    "look": 0.659,
    "tags": [
     "endgame-exhaustive",
@@ -943,7 +943,7 @@
    "greedyOk": true,
    "easyOk": true,
    "normalOk": true,
-   "chance": 0.584,
+   "chance": 0.5,
    "look": 0.211,
    "tags": [
     "endgame-exhaustive",
@@ -1041,7 +1041,7 @@
    "greedyOk": false,
    "easyOk": false,
    "normalOk": false,
-   "chance": 0.568,
+   "chance": 1,
    "look": 0.271,
    "tags": [
     "endgame-exhaustive",
@@ -1365,7 +1365,7 @@
    "greedyOk": true,
    "easyOk": true,
    "normalOk": true,
-   "chance": 0.584,
+   "chance": 0.5,
    "look": 0.527,
    "tags": [
     "endgame-exhaustive",
@@ -2656,21 +2656,10 @@
     0,
     26,
     29,
-    48,
-    4,
-    25,
-    37,
-    14,
-    33,
-    6,
-    17,
-    23,
-    43,
-    46,
-    19
+    48
    ],
-   "chance": 0.518,
-   "ply": 35,
+   "chance": 0.5,
+   "ply": 24,
    "of": 60,
    "seed": 1
   },
@@ -2681,36 +2670,35 @@
     "players": 2
    },
    "history": [
-    17,
+    52,
+    56,
+    20,
+    40,
+    13,
+    6,
+    4,
+    29,
     30,
-    51,
-    50,
-    8,
-    49,
-    22,
-    25,
-    59,
-    35,
-    42,
-    1,
-    53,
-    26,
-    2,
-    41,
-    36,
     28,
-    47,
-    11,
+    36,
     3,
+    42,
+    47,
+    2,
+    12,
+    50,
+    1,
+    35,
     27,
-    48,
-    0,
-    54
+    59,
+    26,
+    25,
+    48
    ],
-   "chance": 0.518,
-   "ply": 25,
+   "chance": 0.5,
+   "ply": 24,
    "of": 60,
-   "seed": 6
+   "seed": 2
   },
   {
    "id": "boxes-play-3",
@@ -2719,45 +2707,35 @@
     "players": 2
    },
    "history": [
-    29,
-    34,
-    37,
     57,
-    28,
-    5,
-    48,
-    2,
+    9,
+    33,
+    34,
+    58,
+    46,
     53,
-    25,
-    42,
+    30,
     1,
-    47,
     26,
-    41,
-    44,
-    13,
-    51,
-    27,
-    35,
-    3,
-    59,
-    0,
+    48,
     54,
-    49,
-    38,
-    43,
-    18,
-    32,
-    14,
+    42,
+    36,
     12,
-    17,
-    45,
-    46
+    51,
+    16,
+    29,
+    25,
+    47,
+    2,
+    0,
+    41,
+    27
    ],
-   "chance": 0.6,
-   "ply": 34,
+   "chance": 0.5,
+   "ply": 24,
    "of": 60,
-   "seed": 10
+   "seed": 3
   }
  ]
 }

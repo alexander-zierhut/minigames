@@ -346,7 +346,7 @@
         id: "fencer-boxes",
         name: "Fencer",
         game: "boxes",
-        version: 1,
+        version: 2,                       // 2: the win chance was rewritten (see evaluate); cached analyses are stamped with this
         description: "Takes every free box, keeps its lines safe while it can, counts the chains and gives two boxes away to stay in control. Solves the endgame exactly.",
         difficulties: [
             { id: "easy", label: "Easy", nodes: 2000 },
