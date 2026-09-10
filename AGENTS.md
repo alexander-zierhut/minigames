@@ -313,13 +313,15 @@ holds the active engine (`Match.engine`) and, like everything else, only uses:
 | `abandon()` | Marks a running game over without a result (Back to room). |
 | `hash()` | 32-bit fingerprint of cells/current/over/winner/movesBy/out; equal on clients that are in sync (used by `move`/`sync`). |
 | `record()` | The game as data: `{ game, config, history, outs, over, winner, why }` — see "Game records". |
-| `render()` | No-op until a board exists. Renders every cell (shared classes `p<k>`, `taken`, `last`, `can-place`/`locked`, then `view.renderCell`) and the HUD from `view.hud(state)`. |
+| `render()` | No-op until a board exists. Renders every cell (shared classes `p<k>`, `taken`, `last`, `can-place`/`locked`, then the one class `hooks.cellClass(i)` asks for, then `view.renderCell`) and the HUD from `view.hud(state)`. |
 | `isLegal(i, player)` | Pure check via the rules. |
 
 Hooks (built once in `Match`, the engine never sees the app): `names` (getter → names for
 the current skin, bot seats show the bot's name), `mayPlay(p)` (may this device move for p
-now: local seat + `live()`), `turnHint(p)`, `onCellClick(i)`, `onMoveApplied(i, p)`,
-`onTurn(p)`, `onBusy(bool)`, `onFinish(winner, why)`. Tests build their own (`tests/unit/dom.mjs`).
+now: local seat + `live()`), `turnHint(p)`, `cellClass(i)` (one extra class the table wants
+on that cell, `""` for none — that is how the premove marker gets on the board without any
+game knowing it), `onCellClick(i)`, `onMoveApplied(i, p)`, `onTurn(p)`, `onBusy(bool)`,
+`onFinish(winner, why)`. Tests build their own (`tests/unit/dom.mjs`).
 
 ### HUD (`Hud`, generic — a game only supplies a model)
 
@@ -429,6 +431,12 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   once the game is over (owner: "a four in a row may show 99 %"). Phones show only the
   win bar (`#hut .stat-bar` hidden), desktop shows the game's stat bar and the win bar.
   Rows are hidden with 3–4 players. Tests: `tests/unit/winchance.test.mjs`, `calibrate.test.mjs`.
+- **Premove** (#37): the premoved cell gets the class `premove` (from `hooks.cellClass`) →
+  `#board > .premove` in `game.css`: a dashed outline of `--premove-w` (2–4 px with the
+  board size) inset into the cell, in `--premove` = my seat's colour, which `Match` writes
+  on `#board` when a game starts or a seat changes. Static (owner: no marker animation);
+  on the textured looks `skin-mc.css` adds a dark inset backing so the dashes read on
+  quartz and glass (it is hidden behind chain's tiles, where the outline alone carries).
 - **Last move**: every cell has a `.last-marker` child; the engine adds `.last` to the
   newest history cell. Chain: static thin white border at the cell edge. Five: static
   white ring, **red** on the textured skins (white is invisible on quartz). Owner: no marker
@@ -706,6 +714,18 @@ host relays. "Play on this device" with 3–4 people = all seats `local`; a flag
 eliminates the seat (`Match.flagged(p)` → `engine.eliminate`), with two players it ends
 the game as before.
 
+**Premoves (#37, `Match.premove`)** exist only where somebody else moves in between: this
+device holds exactly one `local` seat (`mySeat()`), so against a bot or online with a seat,
+never in local multiplayer and never for a spectator. A click while a non-local seat is to
+move does not fall through any more: `onCellClick` remembers the cell (the same cell takes
+it back, another one moves it, no legality check yet), `hooks.cellClass` marks it and
+`turnHint` appends " · premove set". When `onTurn` names my seat, `firePremove` clears it
+and plays it through the very same path as a click (`onLocalMove` + `Game.play`, so the
+room, the session and the sounds see no difference) unless the position moved on: over,
+busy, not my turn any more, not `mayPlay` or no longer legal, in which case it is dropped.
+It is deferred with `whenIdle(…, "premove")`, and cleared on a new game, `stop()`,
+`reset()`, a seat change and the end of a game. Nothing about it travels to the room.
+
 `Match.whenIdle(fn, key?)` runs `fn` now if no move animates, else once the engine is idle
 (a key replaces an older entry with the same key): Room defers a `sync` there, flag falls
 are deferred there, and `onIdle()` (Room drains its move queue) runs after the deferred work.
@@ -916,7 +936,9 @@ set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px o
   sets), `chat.test.mjs` (log boxes, limits, HTML safety, offline, chat survives a new
   game), `reactions.test.mjs` (float duration from the recent rate with a mocked clock,
   own + received, rate limits), `winchance.test.mjs` (frozen while animating, stages,
-  smoothing), `persona.test.mjs`, `changelog.test.mjs`, `calibrate.test.mjs`, `puzzles.test.mjs`,
+  smoothing), `premove.test.mjs` (#37: set / switch / take back, fires when the turn comes,
+  an illegal one is dropped, never on one device or as a spectator, cleared on a new game,
+  on stop and at the end), `persona.test.mjs`, `changelog.test.mjs`, `calibrate.test.mjs`, `puzzles.test.mjs`,
   `party.test.mjs` (3–4 players: `out`/`remaining`/pass in the pure rules, engine
   `eliminate` + `replay(history, outs)` == live play, two-player flag fall, settings
   players row / bot mode),
@@ -934,7 +956,8 @@ set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px o
   an online-shaped lobby with four seats in every skin — share row on one line, no
   scroll, screenshots `mobile-lobby-<skin>.png` — game, overlay), `online` (two browsers through
   the real PeerJS broker: join by link, settings mirror, guest start, move sync,
-  reactions, chat both ways (colour, text only, HUD input), guest refresh, tolobby,
+  reactions, chat both ways (colour, text only, HUD input), guest refresh, a guest premove
+  played the moment the host has moved, tolobby,
   switch game, rematch, host refresh, guest leave +
   rejoin, host leave → guest takes over → host returns as guest, hide the room code:
   bullets + bare URL + copy still works + refresh rejoins hidden + the preference;
@@ -953,7 +976,7 @@ set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px o
   `online-party` (**three browsers**: players 3, seats 1 and 2, start waits for
   everyone, moves by every seat relayed to everyone, chat/reaction colours, a guest
   refresh restores seat + board, rematch by every seat, one Back to room moves all),
-  `bot` (offline vs bot: the one-step modal with scores and difficulty, "Bot" in the HUD, bot moves by itself, rematch), `dist` (built bundle: hashed assets only,
+  `bot` (offline vs bot: the one-step modal with scores and difficulty, "Bot" in the HUD, bot moves by itself, rematch, a premove clicked while the bot thinks), `dist` (built bundle: hashed assets only,
   preloader, playable, hashed sound files fetched after the audio unlock). Files run 2 at a time; each launches its own Chrome. `B.blank()`
   navigates to about:blank (a closed tab); outline colours transition for .25s → wait
   before reading computed styles. Any new join/rejoin behaviour gets a scenario in
@@ -996,7 +1019,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Changelog` | `init()`, `open/close`, `render(doc[, all])`, `refUrl(ref)`, `technical(entry)`, `showTechnical`, `SHOW_DAYS` |
 | `Preload` | `textures()` |
 | `Session` | `save(data)`, `load()`, `clear()` (shape incl. `codeHidden`) |
-| `Match` | `init(handlers)`, `start(cfg, gameNo)`, `stop()`, `reset(mode, me, spectator)`, `setSeat(me, spectator)`, `record()`, `flagged(p)`, `whenIdle(fn, key)`, `syncClock()`, `startPlayerFor`, `playerColor`, `isLocal/isBot`; getters `engine, state, names, running, mode, me, spectator, seats, config, gameNo, bot`; `THINK_MS` |
+| `Match` | `init(handlers)`, `start(cfg, gameNo)`, `stop()`, `reset(mode, me, spectator)`, `setSeat(me, spectator)`, `record()`, `flagged(p)`, `whenIdle(fn, key)`, `syncClock()`, `startPlayerFor`, `playerColor`, `isLocal/isBot`; getters `engine, state, names, running, mode, me, spectator, seats, config, gameNo, bot, premove`; `THINK_MS` |
 | `Room` | `init(handlers)`, `enter(code, preferHost, seat, spectate, hidden)`, `leave()`, `roomLink`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `settingsChanged(cfg)`, `say(text)`, `react(e)`, `tolobby()`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/allHere/live/who/two/playersNow/turnHint`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden` |
 
 Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM), `puzzles/runner.mjs`
@@ -1085,8 +1108,8 @@ A game is three files (pure rules, view + registration, CSS) plus two tags in
 `index.html`, and usually a bot folder. Everything else is the framework and is generic:
 rooms and the host relay for 2–4 seats, lobby sync of the settings, start / rematch /
 back to room, reconnect + replay from the game record, session restore, the chess
-clock and flag falls, spectators, chat, reactions, sounds for the generic events, the
-bot seat, the bot persona, the win-chance bars, the generic HUD (stat rows, info box,
+clock and flag falls, spectators, chat, reactions, premoves, sounds for the generic events,
+the bot seat, the bot persona, the win-chance bars, the generic HUD (stat rows, info box,
 phone line), skins and player colours, the picker card, the settings rows, the benchmark
 and puzzle tooling. **A game never touches app.js, room.js, match.js, games.js, settings.js
 or index.html's HUD markup.** If it seems to need to, extend the definition contract

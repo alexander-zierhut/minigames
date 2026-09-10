@@ -42,6 +42,7 @@ const Engine = (() => {
         let config = null;
         let hooks = {};
         let cells = [];             // one element per cell, same order as state.cells
+        let extra = [];             // per cell: the class hooks.cellClass added last (premove marker, #37)
         const board = () => Util.$("board");
 
         // what the view gets to drive an animation
@@ -70,6 +71,7 @@ const Engine = (() => {
             el.className = def.key;
             el.innerHTML = "";
             cells = view.build(el, state, cfg, (i) => { if (hooks.onCellClick) hooks.onCellClick(i); });
+            extra = [];
             Hud.build(state.players, def.title);
             Log.clear();
             Util.$("overlay").hidden = true;
@@ -179,9 +181,11 @@ const Engine = (() => {
             renderHud();
         }
 
-        // shared cell classes (owner, last move, may I play here); the view adds its own
+        // shared cell classes (owner, last move, may I play here, the table's own marker);
+        // the view adds its own on top
         function renderCell(i) {
             const el = cells[i];
+            if (!el) return;
             const owner = rules.ownerOf(state, i);
             el.classList.remove("p0", "p1", "p2", "p3", "taken", "can-place", "locked", "last");
             if (owner >= 0) el.classList.add("p" + owner, "taken");
@@ -191,6 +195,10 @@ const Engine = (() => {
                 if (mine && rules.isLegal(state, i, state.current)) el.classList.add("can-place");
                 else el.classList.add("locked");
             }
+            // one class the table may add without the game knowing about it (Match: "premove")
+            if (extra[i]) { el.classList.remove(extra[i]); extra[i] = ""; }
+            const add = hooks.cellClass ? hooks.cellClass(i) : "";
+            if (add) { el.classList.add(add); extra[i] = add; }
             view.renderCell(el, state, i);
         }
         const renderHud = () => Hud.render(state, hooks, view.hud(state));

@@ -42,6 +42,8 @@
     box-shadow: 0 0 0 2px #000, 0 0 60px rgba(0,0,0,.9) inset, 0 0 22px var(--pc);
 }
 :is(.skin-mc, .skin-mcboard) .last-marker { border-radius: 0; }
+/* premove (#37): the dashes need a dark backing on quartz and on glass blocks */
+:is(.skin-mc, .skin-mcboard) #board > .premove { box-shadow: inset 0 0 0 calc(var(--premove-w) * 2) rgba(0,0,0,.6); }
 
 /* the player blocks in the HUD / overlay / picker show the real textures */
 :is(.skin-mc, .skin-mcboard) :is(.turn-block, .cube, .overlay-block) {

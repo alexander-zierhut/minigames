@@ -15,7 +15,13 @@
      onFinish(winner, why)
 
    Seats: Match.seats[p] = { kind: "local" | "remote" | "bot" }. Bot mode: you are seat 0,
-   the bot seat 1 (Opponent.current(game) picks which bot and level). */
+   the bot seat 1 (Opponent.current(game) picks which bot and level).
+
+   Premove (#37): with exactly one local seat (against a bot or online with a seat) a click
+   while the friend / bot is to move remembers that cell instead of dropping the click. The
+   same cell takes it back, another cell moves it. When the turn comes it is played through
+   the very same path as a click (onLocalMove + Game.play), or dropped when it became
+   illegal. The engine marks it on the board through the cellClass hook. */
 
 "use strict";
 
@@ -29,6 +35,7 @@ const Match = (() => {
         config: null,          // config of the running / last game
         gameNo: 0,             // increments per game in this room (local too)
         bot: null,             // bot mode: the Bots.create instance for the running game
+        premove: -1,           // the cell I will play as soon as it is my turn (-1 = none, #37)
         botInfo: null,         // the bot's last move for the dev panel (#31): { id, difficulty, budget, move, ms, nodes, depth, value }
     };
     let Game = Games.get(Games.keys()[0]).engine;     // active engine, switched in start()
@@ -50,6 +57,13 @@ const Match = (() => {
         kind: online() ? (p === st.me ? "local" : "remote") : (st.mode === "bot" && p > 0 ? "bot" : "local"),
     }));
     const playerColor = (p) => (p >= 0 ? `var(--c${p})` : "#ffffff");
+    // my seat at this table: the one seat this device plays (-1 = none / several / spectator)
+    const mySeat = () => {
+        const local = st.seats.map((s, p) => (s.kind === "local" ? p : -1)).filter((p) => p >= 0);
+        return local.length === 1 ? local[0] : -1;
+    };
+    // premoves make sense only when somebody else moves in between (bot or online seat)
+    const premovable = () => running && !st.spectator && st.mode !== "local" && mySeat() >= 0;
     // seat names for the HUD: the skin's colour names; a bot seat is simply "Bot" (#21)
     const names = () => h.names().map((n, p) => (isBot(p) && st.bot ? Opponent.NAME : n));
 
@@ -57,10 +71,16 @@ const Match = (() => {
     const hooks = {
         get names() { return names(); },
         mayPlay: (p) => isLocal(p) && h.live(),          // bot seats move in onTurn
-        turnHint: (p) => (isBot(p) ? "thinking…" : h.turnHint(p)),
+        turnHint: (p) => {
+            const hint = isBot(p) ? "thinking…" : h.turnHint(p);
+            return st.premove >= 0 && !isLocal(p) ? `${hint} · premove set` : hint;
+        },
+        cellClass: (i) => (i === st.premove ? "premove" : ""),
         onCellClick: (i) => {
             const s = Game.state;
-            if (s.busy || s.over || !hooks.mayPlay(s.current) || !Game.isLegal(i, s.current)) return;
+            if (s.over) return;
+            if (!isLocal(s.current)) { premove(i); return; }        // not my turn: remember the cell (#37)
+            if (s.busy || !hooks.mayPlay(s.current) || !Game.isLegal(i, s.current)) return;
             h.onLocalMove(i);
             Game.play(i);
         },
@@ -68,14 +88,16 @@ const Match = (() => {
         onTurn: (p) => {
             Clock.setActive(p);
             if (h.live()) Clock.resume();
-            if (isBot(p)) botTurn(p); else idle();
+            if (isBot(p)) { botTurn(p); return; }
+            idle();
+            if (isLocal(p)) firePremove(p);
         },
         onBusy: (busy) => {
             if (busy) { Clock.pause(); return; }
             if (h.live()) Clock.resume();
             idle();
         },
-        onFinish: (winner, why) => { Clock.stop(); h.onFinish(winner, why); },
+        onFinish: (winner, why) => { Clock.stop(); clearPremove(); h.onFinish(winner, why); },
     };
 
     // the engine settled: run what waited for it (sync, flag falls), then the room's queue
@@ -88,6 +110,42 @@ const Match = (() => {
         if (!Game.state.busy) { fn(); return; }
         if (key) deferred = deferred.filter((d) => d.key !== key);
         deferred.push({ key, fn });
+    }
+
+    /* ---------- premove (#37) ---------- */
+    // a click while the friend / bot is to move: set, switch or take back the premove
+    function premove(i) {
+        if (!premovable()) return;
+        st.premove = i === st.premove ? -1 : i;
+        repaint();
+    }
+    // the marked cells and the turn hint follow st.premove; while a move animates the
+    // render right after it paints them (never render into a running animation)
+    function repaint() {
+        if (!Game.state.busy) Game.render();
+    }
+    function clearPremove() {
+        if (st.premove < 0) return;
+        st.premove = -1;
+        repaint();
+    }
+    // my turn: play the premoved cell exactly like a click, or drop it when it went illegal
+    function firePremove(p) {
+        if (st.premove < 0) return;
+        const i = st.premove;
+        st.premove = -1;
+        if (!premovable() || !isLocal(p)) { repaint(); return; }
+        whenIdle(() => {
+            const s = Game.state;
+            if (!running || s.over || s.busy || s.current !== p || !hooks.mayPlay(p) || !Game.isLegal(i, p)) { repaint(); return; }
+            h.onLocalMove(i);
+            Game.play(i);
+        }, "premove");
+    }
+    // the dashed marker takes the colour of the seat this device plays
+    function paintPremoveColor() {
+        const el = Util.$("board");
+        if (el) el.style.setProperty("--premove", playerColor(mySeat()));
     }
 
     /* ---------- clock ---------- */
@@ -149,16 +207,19 @@ const Match = (() => {
         st.config = cfg;
         st.gameNo = gameNo;
         st.seats = makeSeats(players);
+        st.premove = -1;
         deferred = [];
         running = true;
         Game = Games.get(cfg.game).engine;
         setupBot(cfg, players);
         Clock.setup(cfg.timer, onFlag, players);
+        paintPremoveColor();
         Game.newGame({ ...cfg, startPlayer: startPlayerFor(gameNo, players) }, hooks);
     }
     // stop the running game without a result (back to the room)
     function stop() {
         running = false;
+        st.premove = -1;
         BotPersona.detach();
         Clock.stop();
         Game.abandon();
@@ -172,6 +233,7 @@ const Match = (() => {
         st.bot = null;
         st.botInfo = null;
         st.seats = [];
+        st.premove = -1;
         deferred = [];
         setSeat(me, spectator);
     }
@@ -179,7 +241,9 @@ const Match = (() => {
     function setSeat(me, spectator = false) {
         st.me = spectator ? -1 : me;
         st.spectator = spectator;
+        st.premove = -1;
         if (st.config) st.seats = makeSeats(st.config.players || 2);
+        paintPremoveColor();
     }
 
     // the running game as data (session, sync, a future replay list) + the room's numbering
@@ -192,7 +256,7 @@ const Match = (() => {
         get engine() { return Game; }, get state() { return Game.state; }, get names() { return names(); }, get running() { return running; },
         get mode() { return st.mode; }, get me() { return st.me; }, get spectator() { return st.spectator; },
         get seats() { return st.seats; }, get config() { return st.config; }, get gameNo() { return st.gameNo; }, get bot() { return st.bot; },
-        get botInfo() { return st.botInfo; },
+        get botInfo() { return st.botInfo; }, get premove() { return st.premove; },
         set gameNo(n) { st.gameNo = n; },
         isLocal, isBot, THINK_MS,
     };

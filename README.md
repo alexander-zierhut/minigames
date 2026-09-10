@@ -21,6 +21,10 @@ games and settings together in the room lobby; rematch or switch games without n
   and coming back by the same link, even the room creator leaving — the room survives
   as long as one player is in it, and everybody keeps their colour.
 
+Online and against the bot you can already click your answer while the other side is
+thinking: the premove is marked on the board and played the moment it is your turn
+(clicking the same cell again takes it back).
+
 The number of players (two, three or four) is picked right in the lobby; the settings
 (board size, animation speed, chess-style timer, chain-win rule, stones in a row) are
 shared live in the room lobby; anyone can change them. The ⚙ button in
