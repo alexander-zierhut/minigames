@@ -33,7 +33,7 @@ test("lobby (local) and settings modal fit", async () => {
 
 // what an online room shows (share row, seat cards, spectator line) with four seats, without the broker
 async function showRoomLobby() {
-    await M.ev("document.getElementById('lobby-code').textContent = 'ABCDE'; document.getElementById('lobby-share').hidden = false; document.getElementById('lobby-players').hidden = false; document.getElementById('lobby-spectators').textContent = '2 spectators watching'; true");
+    await M.ev("document.getElementById('lobby-code').textContent = 'ABCDE'; document.getElementById('lobby-share').hidden = false; document.getElementById('lobby-players').hidden = false; document.getElementById('lobby-spectators').textContent = '2 spectators watching'; document.getElementById('btn-watch').hidden = false; document.getElementById('btn-room-bot').hidden = false; true");
 }
 test("online-shaped lobby with four seats: one Share button plus two icons under the code, no scroll, every skin", async () => {
     await M.players(4);
@@ -53,6 +53,10 @@ test("online-shaped lobby with four seats: one Share button plus two icons under
         assert.ok(await M.ev("document.getElementById('group-game').contains(document.getElementById('game-picker')) && document.getElementById('group-game').contains(document.getElementById('btn-settings'))"), "picker and settings in one group");
         // seat names are never cut off (the status wraps inside the card instead)
         assert.ok(await M.ev("[...document.querySelectorAll('.lobby-player .lp-name')].every(e => e.scrollWidth <= e.clientWidth + 1)"), `${skin}: seat names fit`);
+        // the seat controls (#39) sit under the seat cards, inside the card, above the notes
+        const swap = JSON.parse(await M.ev("JSON.stringify(['btn-watch', 'btn-room-bot', 'lobby-players', 'lobby-spectators'].map(id => { const r = document.getElementById(id).getBoundingClientRect(); return { top: Math.round(r.top), left: Math.round(r.left), right: Math.round(r.right) }; }))"));
+        assert.ok(swap[0].top >= swap[2].top && swap[0].top <= swap[3].top, `${skin}: seat controls between the cards and the notes (${JSON.stringify(swap)})`);
+        assert.ok(swap.slice(0, 2).every((b) => b.left >= 16 && b.right <= 344), `${skin}: seat controls inside the card (${JSON.stringify(swap)})`);
         await assertNoScroll(`${skin}: online lobby with four seats`);
         await M.screenshot(`mobile-lobby-${skin}.png`);
     }

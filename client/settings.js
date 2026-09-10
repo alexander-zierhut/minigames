@@ -31,6 +31,7 @@ const Settings = (() => {
     let silent = false;          // true while writing the friend's settings into the form
     let locked = false;          // a spectator: everything read-only (#29)
     let minPlayers = 2;          // seats already taken in the room: a smaller count would kick somebody (#34)
+    let bot = null;              // online: the room plays against a bot on seat 1 (#36) — { id, difficulty, seat }
 
     const def = () => Games.get(game);
     const supports = (key, n = clamp(players, 2, maxPlayers)) => { const p = Games.get(key).players; return n >= p.min && n <= p.max; };
@@ -115,6 +116,7 @@ const Settings = (() => {
             game, players: clamp(players, floor(), maxPlayers),
             n: clamp(parseInt($("set-size").value, 10) || d.size.default, lim.min, lim.max),
             timer: Math.max(0, timer || 0), timerSel, timerCustom: $("set-timer-custom").value,
+            bot: bot ? { ...bot } : null,
             ...gameValues(),
         };
     }
@@ -125,6 +127,7 @@ const Settings = (() => {
         silent = true;
         if (s.game && Games.has(s.game)) game = s.game;
         if (s.n) sizeFor[game] = s.n;
+        if ("bot" in s) bot = normalizeBot(s.bot);      // the room's bot travels with the settings (#36)
         if (s.players) players = clamp(parseInt(s.players, 10) || 2, floor(), 4);   // never below the seats in use (#34)
         for (const f of fields) {
             if (f.type === "bool") $(f.el).checked = !!s[f.key];
@@ -272,10 +275,28 @@ const Settings = (() => {
         selectGame(game, false);
     }
 
+    /* ---------- the room's bot (#36) ----------
+       Offline "Against a bot" is a mode; in a room the bot is part of the config, so it
+       travels in `lobby {s}` / `start {config}` / `state` and everybody sees it on seat 1.
+       It always takes seat 1, the seat opposite the one human in a two-seat room. */
+    const BOT_SEAT = 1;
+    function normalizeBot(v) {
+        if (!v || !v.id || !Bots.get(v.id)) return null;
+        return { id: v.id, difficulty: v.difficulty, seat: BOT_SEAT };
+    }
+    // pick / drop the room's bot; `announce` false writes it without telling the friends
+    function setBot(choice, announce = true) {
+        const next = normalizeBot(choice);
+        if (JSON.stringify(next) === JSON.stringify(bot)) return;
+        bot = next;
+        if (announce) changed(); else { save(); renderSummary(); }
+    }
+
     // "bot": you against one bot, so the players row is hidden and read() says 2
     function setMode(mode) {
         maxPlayers = mode === "bot" ? 2 : 4;
         $("row-players").hidden = mode === "bot";
+        if (mode !== "online") bot = null;             // a room's bot never follows into offline play
         renderPlayers();
         renderSummary();
     }
@@ -307,5 +328,5 @@ const Settings = (() => {
         selectGame(game, false);
     }
 
-    return { init, read, write, selectGame, setPlayers, setMinPlayers, summary, setMode, setLocked, supports, MIN_PLAYERS_HINT, get locked() { return locked; }, get minPlayers() { return minPlayers; }, get game() { return game; }, get players() { return players; }, get fields() { return fields.map((f) => f.key); } };
+    return { init, read, write, selectGame, setPlayers, setMinPlayers, setBot, summary, setMode, setLocked, supports, MIN_PLAYERS_HINT, BOT_SEAT, get bot() { return bot ? { ...bot } : null; }, get locked() { return locked; }, get minPlayers() { return minPlayers; }, get game() { return game; }, get players() { return players; }, get fields() { return fields.map((f) => f.key); } };
 })();

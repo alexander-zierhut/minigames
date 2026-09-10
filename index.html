@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="client/css/base.css">
     <link rel="stylesheet" href="client/css/menu.css">
     <link rel="stylesheet" href="client/css/game.css">
+    <link rel="stylesheet" href="client/css/learn.css">
     <link rel="stylesheet" href="client/css/skin-mc.css">
     <link rel="stylesheet" href="client/games/chain.css">
     <link rel="stylesheet" href="client/games/five.css">
@@ -65,12 +66,22 @@
                     <button class="btn big" id="btn-local">Local multiplayer</button>
                     <button class="btn big" id="btn-bot">Against a bot</button>
                 </div>
+                <!-- the academy (#41): rules, a guided tutorial and training positions per game -->
+                <div class="btn-row">
+                    <button class="btn big" id="btn-learn">📚 Learn to play</button>
+                </div>
             </div>
         </div>
         <div class="menu-foot">
             <!-- shown only when the browser offers to install the page as an app (Android Chrome) -->
             <button class="btn ghost install-btn" id="btn-install" hidden>📲 Add to home screen</button>
+            <button class="btn ghost install-btn" id="btn-replays">🎬 Replays</button>
             <button class="btn ghost install-btn" id="btn-changelog">📜 Changelog</button>
+        </div>
+        <!-- a newer version was deployed while this page was open (#40); title screen only -->
+        <div class="update-notice" id="update-notice" hidden>
+            <span>A new version is ready.</span>
+            <button class="btn small primary" id="btn-update-reload">Reload</button>
         </div>
     </div>
 </section>
@@ -109,6 +120,14 @@
             </div>
             <!-- one card per seat, from #tpl-lobby-player -->
             <div class="lobby-players" id="lobby-players"></div>
+            <!-- online only: swap between playing and watching in the lobby (#39) -->
+            <div class="seat-actions" id="seat-actions">
+                <button class="btn quiet small" id="btn-watch" hidden>Watch instead</button>
+                <button class="btn quiet small" id="btn-take-seat" hidden>Take a seat</button>
+                <!-- a two-seat room whose other seat is empty can play a bot instead of waiting (#36) -->
+                <button class="btn quiet small" id="btn-room-bot" hidden>Against a bot instead</button>
+                <button class="btn quiet small" id="btn-room-bot-off" hidden>Wait for a friend instead</button>
+            </div>
             <div class="lobby-status" id="lobby-status"></div>
             <div class="lobby-status" id="lobby-spectators"></div>
         </div>
@@ -119,6 +138,13 @@
             <!-- one card per registered game, built by settings.js -->
             <div class="game-picker" id="game-picker"></div>
             <p class="tagline small" id="menu-tagline"></p>
+
+            <!-- the selected game's rules and tutorial steps as text (#41); never leaves the room -->
+            <button class="settings-summary" id="btn-howto">
+                <span class="gear-icon">📚</span>
+                <span id="howto-summary">How to play</span>
+                <span class="chev">›</span>
+            </button>
 
             <!-- bot mode only: which bot, which difficulty (opens #bot-modal) -->
             <button class="settings-summary" id="btn-opponent" hidden>
@@ -141,6 +167,55 @@
     </div>
 </section>
 
+<!-- ===================== REPLAYS (#42: every game played on this device) ===================== -->
+<section id="screen-replays" class="screen" hidden>
+    <div class="menu-card replays-card">
+        <h1 class="title small">Replays</h1>
+        <p class="tagline small">Every game you play is saved on this device. Watch it again, save it as a file or open a file somebody sent you.</p>
+        <!-- All + one button per registered game, built by app.js -->
+        <div class="seg replay-filter" id="replay-filter"></div>
+        <p class="hint" id="replays-hint" hidden></p>
+        <!-- one .replay-item per saved game, from #tpl-replay -->
+        <div class="replay-list" id="replay-list"></div>
+        <div class="lobby-foot">
+            <button class="btn" id="btn-replay-upload">Open a replay file</button>
+            <button class="btn quiet" id="btn-replays-back">Back</button>
+        </div>
+        <input type="file" id="replay-file" accept="application/json,.json" hidden>
+    </div>
+</section>
+
+<!-- ===================== LEARN (#41): the game list and one details page ===================== -->
+<!-- Both screens are filled by the Learn module from every game's `howto` data. -->
+<section id="screen-learn" class="screen" hidden>
+    <div class="menu-card">
+        <h1 class="title small">Learn</h1>
+        <p class="tagline small">The rules, a guided tutorial and training positions. All offline, no room needed.</p>
+        <div class="game-picker" id="learn-games"></div>
+        <button class="btn quiet" id="btn-learn-back">Back</button>
+    </div>
+</section>
+<section id="screen-learn-game" class="screen" hidden>
+    <div class="menu-card">
+        <h1 class="title small" id="learn-title">Game</h1>
+        <p class="tagline small" id="learn-tagline"></p>
+        <div class="lobby-group">
+            <div class="lobby-row"><span class="lobby-row-label">Rules</span></div>
+            <ul class="learn-rules" id="learn-rules"></ul>
+        </div>
+        <div class="lobby-group" id="learn-tutorial-group">
+            <div class="lobby-row"><span class="lobby-row-label">Tutorial</span></div>
+            <button class="btn primary" id="btn-learn-tutorial">Start tutorial</button>
+            <p class="hint" id="learn-tutorial-hint"></p>
+        </div>
+        <div class="lobby-group" id="learn-scenarios-group">
+            <div class="lobby-row"><span class="lobby-row-label">Scenarios</span><span class="lobby-row-note" id="learn-progress"></span></div>
+            <div class="learn-scenarios" id="learn-scenarios"></div>
+        </div>
+        <button class="btn quiet" id="btn-learn-game-back">Back</button>
+    </div>
+</section>
+
 <!-- ===================== GAME ===================== -->
 <section id="screen-game" class="screen" hidden>
     <div id="app">
@@ -149,6 +224,21 @@
         </div>
 
         <aside id="hut">
+            <!-- Learn (#41): the step / scenario text and its buttons; hidden outside a lesson -->
+            <div id="learn-panel" hidden>
+                <div class="learn-head">
+                    <span class="learn-kind" id="learn-kind"></span>
+                    <span class="learn-step" id="learn-step"></span>
+                </div>
+                <div class="learn-text" id="learn-text"></div>
+                <div class="learn-hint" id="learn-hint"></div>
+                <div class="learn-actions">
+                    <button class="btn small primary" id="learn-next">Next</button>
+                    <button class="btn small" id="learn-retry">Retry</button>
+                    <button class="btn small ghost" id="learn-back">Back to Learn</button>
+                </div>
+            </div>
+
             <div class="sign">
                 <div class="sign-title" id="sign-title">CHAIN REACT</div>
                 <div class="sign-sub" id="round-label">Round 1</div>
@@ -387,6 +477,21 @@
     </div>
 </div>
 
+<!-- ===================== HOW TO PLAY (#41; from the lobby, closes when a game starts) ===================== -->
+<!-- Reading only: the interactive tutorial would have to leave the room, so it stays in Learn. -->
+<div id="howto-modal" class="modal" hidden>
+    <div class="menu-card howto-card">
+        <h1 class="title small" id="howto-title">How to play</h1>
+        <p class="tagline small" id="howto-tagline"></p>
+        <div class="section-title">Rules</div>
+        <ul class="learn-rules" id="howto-rules"></ul>
+        <div class="section-title" id="howto-steps-title">Step by step</div>
+        <ol class="learn-steps" id="howto-steps"></ol>
+        <p class="hint">The guided tutorial on a real board is in the Learn section on the title screen.</p>
+        <button class="btn primary" id="btn-howto-done">Done</button>
+    </div>
+</div>
+
 <!-- ===================== CHANGELOG (changelog.json, loaded on demand) ===================== -->
 <div id="changelog-modal" class="modal" hidden>
     <div class="menu-card changelog-card">
@@ -435,6 +540,19 @@
         <div class="bar win-bar" id="p{k}-win-row" hidden><div class="bar-fill p{k}" id="p{k}-win" style="width:50%"></div><span id="p{k}-win-pct">50 % win</span></div>
     </div>
 </template>
+<template id="tpl-replay">
+    <div class="replay-item">
+        <div class="replay-info">
+            <div class="replay-title"></div>
+            <div class="replay-sub"></div>
+        </div>
+        <div class="replay-buttons">
+            <button class="btn small primary" data-act="watch">Watch</button>
+            <button class="btn small icon" data-act="download" title="Save as a file" aria-label="Save as a file">⬇</button>
+            <button class="btn small icon" data-act="delete" title="Delete this replay" aria-label="Delete this replay">🗑</button>
+        </div>
+    </div>
+</template>
 <template id="tpl-lobby-player">
     <div class="lobby-player p{k}" id="lp-{k}"><span class="cube p{k}"></span><span class="lp-name"></span><span class="lp-you"></span><span class="lp-status" id="lp-{k}-status"></span></div>
 </template>
@@ -449,6 +567,8 @@
 <script src="client/lib/preload.js"></script>
 <script src="client/lib/sound.js"></script>
 <script src="client/lib/install.js"></script>
+<script src="client/lib/replays.js"></script>
+<script src="client/lib/update.js"></script>
 <script src="client/games/rules.js"></script>
 <script src="client/games.js"></script>
 <script src="client/games/chain-rules.js"></script>
@@ -481,6 +601,10 @@
 <script src="client/chat.js"></script>
 <script src="client/session.js"></script>
 <script src="client/match.js"></script>
+<script src="client/learn.js"></script>
+<!-- learn: generated scenario sets (scripts/learn/pick-scenarios.mjs); one file per game -->
+<script src="client/learn/chain-scenarios.js"></script>
+<script src="client/learn/five-scenarios.js"></script>
 <script src="client/room.js"></script>
 <script src="client/dev.js"></script>
 <script src="client/app.js"></script>

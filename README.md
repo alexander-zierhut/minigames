@@ -13,12 +13,23 @@ games and settings together in the room lobby; rematch or switch games without n
 - **On one device:** two to four people share a screen or phone, or play against the
   bot (one per game, pick the difficulty; the numbers shown are its win rate against a
   random player and its puzzle score).
+- **Learn:** an offline academy per game. It lists the rules, runs a guided tutorial that
+  walks you through the core mechanics on a real board (it highlights the cell to click and
+  explains what happened), and offers training positions: eight scenarios per game whose
+  best moves were proven by the puzzle solver, played out against the bot with a Retry
+  button. Solved scenarios keep a ✓ on this device. In a room lobby the same rules and
+  steps are one tap away under "How to play".
 - **Online:** one player creates a room and shares the link (or the 5-letter code).
   Everybody typing the same code also works; a room seats two, three or four players
   (the *Players* setting). Uses PeerJS: the public PeerJS broker only brokers the
   handshake, then the game runs peer to peer (the room's host relays between guests).
   Anyone who joins when every seat is taken watches as a spectator, and the lobby's
-  spectate-link button (👀 next to "Share link") invites people to watch on purpose.
+  spectate-link button (👀 next to "Share link") invites people to watch on purpose. That
+  link carries a code of its own, so a viewer can watch without ever learning the room code.
+  In the room you can also swap: a player steps back with "Watch instead", a spectator
+  sits down with "Take a seat", so three people can take turns at two seats. Waiting alone
+  in a room? "Against a bot instead" puts a bot on the empty seat, and your friends can
+  watch that game or take the seat over when they arrive.
   A page refresh, leaving and coming back by the same link, even the room creator
   leaving — the room survives as long as one player is in it, and everybody keeps
   their seat, their colour and their name.
@@ -38,7 +49,10 @@ Blocks) and the sounds (volume, categories; the Classic look uses synthesized cu
 Blocks looks pixel block, explosion and level-up sounds). Emoji reactions for
 trash talk are in the top-right corner; a room chat lives under the game log (phones:
 behind the ☰ button). When a game is over, "Look at board" opens a replay bar to step
-through it move by move, in step with everyone else in the room.
+through it move by move, in step with everyone else in the room. Every game you play is
+also kept on your device: the title screen's **Replays** button lists them, plays any of
+them back with that same bar, saves one as a file and opens a replay file somebody sent
+you.
 
 The title screen has a Changelog (from `changelog.json`, kept current with every change).
 On Android the title screen offers "Add to home screen" so it runs like an installed app
@@ -60,12 +74,13 @@ room protocol and how to add a game.
 ## Layout
 
 - `index.html` — markup, templates, and the ordered list of stylesheets and scripts
-- `client/lib/` — `util`, `bus` (events), `log`, `clock`, `net` (PeerJS rooms), `preload`, `sound`, `install`
+- `client/lib/` — `util`, `bus` (events), `log`, `clock`, `net` (PeerJS rooms), `preload`, `sound`, `install`, `replays` (replay files + the IndexedDB store), `update` (a new build is offered on the title screen)
 - `client/games/rules.js` — the pure game loop (`Rules.create / step / eliminate / apply / replay`) every headless path shares
 - `client/games.js` — game registry, the engine shell every game shares, the generic HUD (rendered from a model the game returns)
 - `client/games/` — per game: pure `<key>-rules.js`, `<key>.js` (view + registration incl. its settings rows), `<key>.css`
 - `client/bots.js`, `client/bots/<id>/` — bot registry + toolset; one folder per bot with its tests and benchmark score; `client/winchance.js` shows the bars
-- `scripts/` — `headless.mjs` (rules + bots in Node), `benchmark.mjs` (`npm run benchmark`), puzzle solvers, verify, screenshots
+- `client/learn.js`, `client/learn/` — the Learn section: rules, tutorial and scenarios per game (the data lives in the game definitions; `client/learn/<game>-scenarios.js` is generated from the proven puzzle sets)
+- `scripts/` — `headless.mjs` (rules + bots in Node), `benchmark.mjs` (`npm run benchmark`), puzzle solvers, verify, `learn/pick-scenarios.mjs` (`npm run learn:scenarios`), screenshots
 - `client/match.js` (the table: seats, engine, clock, bot seat), `client/room.js` (online protocol, presence, sync), `client/session.js`, `client/app.js` (screens, lobby, flow)
 - `client/skins.js` (the look), `client/prefs.js` (⚙ per-device preferences incl. your name), `client/settings.js`, `client/opponent.js`, `client/reactions.js`, `client/chat.js`, `client/changelog.js`
 - `client/lib/sound.js`, `client/sounds/` — sound cues (synthesized Classic set, the Blocks .ogg files)

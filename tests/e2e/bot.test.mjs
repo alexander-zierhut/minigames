@@ -84,6 +84,14 @@ test("rematch alternates the starter; the bot opens when it starts; back to menu
     assert.equal(await B.screen(), "screen-menu");
     await sleep(600);                                          // a stale bot timer must not fire into the menu
     assert.deepEqual(B.errors, []);
+    // both games are in the replays list (#42): the finished one and the one left half way
+    await B.click("#btn-replays");
+    await B.waitFor("document.querySelectorAll('#replay-list .replay-item').length === 2", { what: "both bot games saved" });
+    const subs = await B.ev("[...document.querySelectorAll('#replay-list .replay-sub')].map(e => e.textContent).join(' | ')");
+    assert.match(subs, /Alex vs Bot/, "the bot seat is called Bot in the replay");
+    assert.match(subs, /Unfinished/, "the game left through Back to room is kept as unfinished");
+    await B.click("#btn-replays-back");
+    assert.equal(await B.screen(), "screen-menu");
 });
 
 // a cell clicked while the bot is thinking: marked, announced in the turn hint and played

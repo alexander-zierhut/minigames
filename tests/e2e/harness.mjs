@@ -112,6 +112,19 @@ export async function launchBrowser({ width = 1400, height = 900, mobile = false
         },
         // leave the app without any goodbye (closing the tab), keeping the browser for a later goto
         async blank() { await send("Page.navigate", { url: "about:blank" }); await sleep(300); },
+        // pick a file in an <input type="file"> the way a person would (no OS dialog):
+        // CDP sets the files, and Chrome fires `change` for it — if it ever doesn't, the
+        // event is dispatched here so the test still tests the app, not the protocol.
+        async upload(sel, path) {
+            await B.ev(`(() => { window.__uploads = 0; document.querySelector(${JSON.stringify(sel)}).addEventListener("change", () => window.__uploads++, { once: true }); return true; })()`);
+            await send("DOM.enable");
+            const { root } = await send("DOM.getDocument", { depth: 1 });
+            const { nodeId } = await send("DOM.querySelector", { nodeId: root.nodeId, selector: sel });
+            if (!nodeId) throw new Error("no file input " + sel);
+            await send("DOM.setFileInputFiles", { files: [path], nodeId });
+            for (let i = 0; i < 10 && !(await B.ev("window.__uploads")); i++) await sleep(100);
+            if (!(await B.ev("window.__uploads"))) await B.ev(`document.querySelector(${JSON.stringify(sel)}).dispatchEvent(new Event("change"))`);
+        },
         async emulate(w, h) { await send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: true }); B.width = w; B.height = h; await sleep(200); },
         async screenshot(name) {
             const dir = process.env.E2E_SHOTS || join(ROOT, "tests", "e2e", "shots");

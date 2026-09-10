@@ -5,6 +5,54 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "internal",
+          "text": "The test pipeline runs in parallel jobs now: the unit tests and four balanced shards of browser tests instead of one long serial run, which takes it from up to ten minutes down to about two.",
+          "technical": true
+        },
+        {
+          "type": "improvement",
+          "text": "The title screen notices when a newer version of the page is online and offers a Reload button. If nothing happens for a while it reloads by itself, and a lobby or a running game is never interrupted.",
+          "technical": true,
+          "refs": [
+            "#40"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "Waiting alone in a room? \"Against a bot instead\" puts a bot on the empty seat, so you can play right away, share the spectate link for others to watch, and let a friend take the seat over when they arrive.",
+          "refs": [
+            "#36"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "In the room you can swap between playing and watching: a player steps back with \"Watch instead\" and a spectator sits down with \"Take a seat\", so three people can take turns at two seats.",
+          "refs": [
+            "#39"
+          ]
+        },
+        {
+          "type": "fix",
+          "text": "The spectate link now uses a code of its own, so people you invite to watch can never turn themselves into players and never see the room code.",
+          "refs": [
+            "#29"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "Replays: every game you play is saved on your device. The new Replays button on the title screen lists them, plays them back move by move, saves one as a file and opens a file a friend sent you.",
+          "refs": [
+            "#42"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "New Learn section on the title screen: the rules of each game, a guided tutorial that walks you through the mechanics on a real board, and eight training positions per game that you solve against the bot, with a Retry button and a check mark once you got it. In a room the same rules and steps are one tap away under How to play.",
+          "refs": [
+            "#41"
+          ]
+        },
+        {
           "type": "feature",
           "text": "A third game: Isolation. Every player has one pawn, you step to a neighbouring tile and then break any tile away, and whoever cannot move when their turn comes is trapped. Two to four players, boards from 5 to 12, and a bot to practise against."
         },

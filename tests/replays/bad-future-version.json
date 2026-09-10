@@ -1,0 +1,11 @@
+{
+  "format": "alzlper-minigames-replay",
+  "version": 99,
+  "game": "five",
+  "config": { "game": "five", "n": 5, "players": 2, "startPlayer": 0, "timer": 0, "winLen": 4, "yavalath": false },
+  "history": [0, 5, 1, 6, 2, 7, 3],
+  "outs": [],
+  "result": { "over": true, "winner": 0, "why": "4 in a row!" },
+  "players": ["Robin", "Sam"],
+  "meta": { "playedAt": "2027-01-01T12:00:00.000Z", "mode": "local", "gameNo": 1, "appVersion": "future" }
+}

@@ -211,6 +211,11 @@ test("replay after the game (#38): both sides look at the same move", { skip: !O
     await A.click("#replay-last");
     await B.waitFor("ChainGame.previewPly === null", { what: "guest back at the result" });
     assert.equal(await B.ev(`ChainGame.state.over && ChainGame.state.history.length === ${total}`), true, "the finished game itself never changed");
+    // every device keeps its own copy of the game in its replays (#42)
+    for (const P of [A, B]) {
+        const saved = JSON.parse(await P.ev("Replays.store.list({ game: 'chain' }).then(JSON.stringify)"));
+        assert.ok(saved.some((r) => r.moves === total && r.mode === "online"), "the online game is in the replays list");
+    }
     assert.deepEqual(A.errors, []); assert.deepEqual(B.errors, []);
 });
 
