@@ -1809,6 +1809,22 @@ and `roster` are the ones that never get relayed (host to all, or guest to host 
   forward what a finished agent learned to the ones still running, and expect to merge
   and re-verify yourself. A worktree created from the wrong base wastes a whole run —
   check `git log -1` in it first.
+- **Agents, the 2026-09-10/11 batch (12 issues, 2 new games, 8 agents in flight).** What
+  scaled: one opus agent per issue in its own worktree, a shared preamble file with the
+  owner's rules and the base commit, and **the agent merges `main` into its own branch**
+  when main moved (it knows both sides of every conflict; the main session then only
+  fast-forwards, runs the full suite, pushes, and closes the issue once CI deployed it).
+  Order merges so that branches touching the same files land one after the other (both
+  new games rewrote the e2e harness helpers and the replay validator: the second one
+  merged after the first). Agent worktrees start from a stub commit, so `git merge main`
+  is always the first step; a live agent's worktree is locked (`git worktree remove
+  --force --force`). Two agents independently reported "pre-existing" e2e failures that
+  were real bugs in a sibling's regexes — a test that waits on a regex written inside a JS
+  string loses its escapes (`"\d"`); double them. The one flake seen in this batch:
+  `replays` "a replay can be saved as a file" (download name null) on a loaded machine.
+- **Win chance for a new game** is never right the first time (chain: parity flip; five:
+  static threat penalty; isolation: root maximised for the wrong seat; boxes: see below).
+  Budget a measurement pass (swing, mover bias, Brier via self-play) into every new game.
 - **Mobile layout bugs are usually stacking/overlap**, not events: an invisible flex
   container (the collapsed reaction list) swallowed taps on the ⚙ button.
 
