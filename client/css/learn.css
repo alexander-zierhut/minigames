@@ -44,6 +44,26 @@
 .learn-sc-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .learn-sc-text b { font-size: 13px; }
 .learn-sc-text small { font-size: 11px; color: var(--muted); }
+/* the difficulty of a row, as dots (#44) */
+.learn-dots { font-size: 10px; letter-spacing: 1px; color: var(--muted); white-space: nowrap; align-self: center; }
+
+/* the tier headers of the ladder (#44): name, "3 / 8" and, while it is early, a lock hint */
+.learn-tier {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    padding: 6px 2px 0;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+}
+.learn-tier + .learn-scenario { margin-top: 0; }
+.learn-tier b { color: var(--text); letter-spacing: 1.5px; }
+.learn-tier.locked b { color: var(--muted); }
+.learn-tier .learn-tier-count { margin-left: auto; letter-spacing: 1px; }
+.learn-tier .learn-lock { flex-basis: 100%; font-size: 10px; letter-spacing: 0; text-transform: none; color: var(--muted); }
 .howto-card { max-width: 520px; gap: 12px; }
 .howto-card .learn-rules, .howto-card .learn-steps { max-height: 34vh; overflow-y: auto; }
 

@@ -138,12 +138,13 @@
             return;
         }
         $("btn-restart").hidden = false;
-        // a Learn lesson owns the board: the result card offers the lesson's own actions (#41)
+        // a Learn lesson owns the board: the result card offers the lesson's own actions (#41),
+        // which after a solved scenario is "Next scenario" instead of Retry (#44)
         if (Learn.active) {
             const again = $("overlay-again");
             again.hidden = false;
             again.disabled = false;
-            again.textContent = Learn.active.kind === "scenario" ? "Retry" : "Start over";
+            again.textContent = Learn.againText();
             $("overlay-menu").hidden = false;
             $("overlay-menu").textContent = "Back to Learn";
             return;
@@ -441,7 +442,7 @@
 
     // rematch = same config, next game number (online: every player must press)
     function requestRematch() {
-        if (Learn.active) { Learn.restart(); return; }      // a lesson restarts itself (#41)
+        if (Learn.active) { Learn.again(); return; }        // a lesson retries itself, or moves on (#41, #44)
         if (Room.online) Room.requestRematch();
         else startGame(Match.config, Match.gameNo + 1);
     }

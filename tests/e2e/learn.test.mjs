@@ -22,7 +22,9 @@ test("the title screen offers Learn, and it lists every game that teaches someth
     assert.match(cards, /chain/);
     assert.match(cards, /five/);
     assert.match(cards, /boxes/);
-    assert.equal(await B.ev("document.querySelector('#learn-games .game-card .game-players').textContent"), "0 / 8 scenarios");
+    const total = await B.ev("Learn.howto('chain').scenarios.length");
+    assert.ok(total >= 20, "the ladder is more than a handful of positions (#44)");
+    assert.equal(await B.ev("document.querySelector('#learn-games .game-card .game-players').textContent"), `0 / ${total} scenarios`);
 });
 
 test("a game's details page shows the rules, the tutorial and the scenarios", async () => {
@@ -31,8 +33,18 @@ test("a game's details page shows the rules, the tutorial and the scenarios", as
     assert.equal(await B.text("learn-title"), "Chain React");
     assert.ok(await B.ev("document.querySelectorAll('#learn-rules li').length >= 5"), "rule bullets");
     assert.equal(await B.ev("document.getElementById('btn-learn-tutorial').hidden"), false);
-    assert.equal(await B.ev("document.querySelectorAll('#learn-scenarios .learn-scenario').length"), 8);
-    assert.equal(await B.text("learn-progress"), "0 / 8 solved");
+    const rows = await B.ev("document.querySelectorAll('#learn-scenarios .learn-scenario').length");
+    assert.equal(rows, await B.ev("Learn.howto('chain').scenarios.length"));
+    assert.equal(await B.text("learn-progress"), `0 / ${rows} solved`);
+    // the ladder: one header per tier with its own progress, a lock hint on the later ones (#44)
+    const heads = await B.ev("[...document.querySelectorAll('#learn-scenarios .learn-tier')].map(h => h.querySelector('b').textContent).join(',')");
+    assert.equal(heads, "Basics,Tactics,Mastery");
+    assert.equal(await B.ev("document.querySelector('#learn-scenarios .learn-tier .learn-tier-count').textContent"),
+        `0 / ${await B.ev("Learn.tierProgress('chain', 'basics').total")}`);
+    assert.equal(await B.ev("document.querySelectorAll('#learn-scenarios .learn-tier.locked').length"), 2, "Tactics and Mastery wait");
+    assert.match(await B.ev("[...document.querySelectorAll('#learn-scenarios .learn-tier')][1].querySelector('.learn-lock').textContent"),
+        /Solve most of Basics/);
+    assert.equal(await B.ev("document.querySelector('#learn-scenarios .learn-scenario .learn-dots').textContent.length"), 5, "difficulty dots");
     // the details page scrolls as a whole (#43), never sideways and never in inner boxes
     const fit = await B.noScroll();
     assert.equal(fit.x, true, "the details page never scrolls sideways");
@@ -179,13 +191,85 @@ test("a scenario: the position is loaded, a wrong move offers Retry, the right o
 
     await B.click("#learn-back");
     assert.equal(await B.screen(), "screen-learn-game");
-    assert.equal(await B.text("learn-progress"), "1 / 8 solved");
+    assert.match(await B.text("learn-progress"), /^1 \/ \d+ solved$/);
     assert.equal(await B.ev("document.querySelector('#learn-scenarios .learn-scenario .gear-icon').textContent"), "✓");
     // the progress survives a reload
     await B.goto(server.url);
     await B.click("#btn-learn");
     await B.click("#learn-games .game-card[data-game=five]");
-    assert.equal(await B.text("learn-progress"), "1 / 8 solved");
+    assert.match(await B.text("learn-progress"), /^1 \/ \d+ solved$/);
+});
+
+test("a trap scenario: the greedy move is refused, the proven one solves it (#44)", async () => {
+    // the greedy move is the one the game's own heuristic likes best: exactly what the trap punishes
+    const sc = JSON.parse(await B.ev(`JSON.stringify(Learn.howto('five').scenarios.find(s => s.kind === 'trap'))`));
+    assert.ok(sc, "the five ladder has a trap");
+    await B.click(`#learn-scenarios .learn-scenario[data-scenario="${sc.id}"]`);
+    assert.equal(await B.screen(), "screen-game");
+    assert.match(await B.text("learn-kind"), /Trap$/, "the panel names tier and kind");
+    assert.equal((await B.text("learn-step")).length, 5, "and shows the difficulty as dots");
+    assert.match(await B.text("learn-text"), /obvious move loses/);
+
+    const greedy = await B.ev(`(() => {
+        const s = FiveGame.state, best = [];
+        let top = -Infinity, move = -1;
+        for (const i of FiveRules.legalMoves(s, 0)) {
+            const c = Rules.replay({ game: 'five', config: Match.config, history: [...s.history, i], outs: [] });
+            const e = FiveRules.estimate(c);
+            if (e > top + 1e-9) { top = e; move = i; }
+        }
+        return move;
+    })()`);
+    assert.ok(!sc.best.includes(greedy), "the greedy move really is not one of the proven ones");
+    await cell(greedy);
+    await B.waitFor("Learn.active.judged", { timeout: 10000, what: "the greedy move judged" });
+    assert.match(await B.text("learn-hint"), /^Not this one\./);
+    assert.equal(await B.ev(`Learn.isSolved('five', ${JSON.stringify(sc.id)})`), false);
+
+    await B.click("#learn-retry");
+    await cell(sc.best[0]);
+    await B.waitFor("Learn.active.judged", { timeout: 10000, what: "the proven move judged" });
+    assert.match(await B.text("learn-hint"), /^Right!/);
+    assert.equal(await B.ev(`Learn.isSolved('five', ${JSON.stringify(sc.id)})`), true);
+    await B.click("#learn-back");
+});
+
+test("a play-from-here scenario: win the game, and the overlay offers Retry or the next one (#44)", async () => {
+    const sc = JSON.parse(await B.ev(`JSON.stringify(Learn.howto('five').scenarios.find(s => s.kind === 'play-from-here'))`));
+    assert.ok(sc, "the five ladder ends its tiers with a game to play out");
+    await B.click(`#learn-scenarios .learn-scenario[data-scenario="${sc.id}"]`);
+    assert.equal(await B.screen(), "screen-game");
+    assert.match(await B.text("learn-kind"), /Play from here$/);
+    assert.equal(await B.text("learn-hint"), "You must win this one. A draw is not enough.", "the goal is explained up front");
+    assert.equal(await B.ev("Match.bot.difficulty"), sc.level, "played out against the level its tier asks for");
+    assert.equal(await B.ev("Learn.active.judged"), false);
+
+    // a single move settles nothing here: only the end of the game counts
+    const first = await B.ev("FiveRules.legalMoves(FiveGame.state, 0)[0]");
+    await cell(first);
+    await B.idle();
+    assert.equal(await B.ev("Learn.active.judged"), false, "no move is judged in a play-from-here scenario");
+
+    // losing it: the overlay offers Retry
+    await B.ev("FiveGame.finish(1, 'Bot line.'); true");
+    assert.match(await B.text("learn-hint"), /^The bot held/);
+    assert.equal(await B.ev(`Learn.isSolved('five', ${JSON.stringify(sc.id)})`), false);
+    assert.equal(await B.ev("document.getElementById('overlay').hidden"), false);
+    assert.equal(await B.text("overlay-again"), "Retry");
+
+    await B.click("#overlay-again");
+    assert.equal(await B.ev("FiveGame.state.history.length"), sc.history.length, "Retry sets the position up again");
+    assert.equal(await B.ev("document.getElementById('overlay').hidden"), true);
+
+    // winning it: solved, and the overlay leads on to the next scenario
+    await B.ev("FiveGame.finish(0, 'Five in a row!'); true");
+    assert.match(await B.text("learn-hint"), /^You won it/);
+    assert.equal(await B.ev(`Learn.isSolved('five', ${JSON.stringify(sc.id)})`), true);
+    assert.equal(await B.text("overlay-again"), "Next scenario");
+    await B.click("#overlay-again");
+    assert.equal(await B.ev("Learn.active.scenario.id"), await B.ev(`Learn.nextScenario('five', ${JSON.stringify(sc.id)}).id`));
+    await B.click("#learn-back");
+    assert.equal(await B.screen(), "screen-learn-game");
 });
 
 test("isolation: a tutorial step takes the two-step click as one expected move", async () => {

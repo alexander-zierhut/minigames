@@ -44,7 +44,8 @@ test("a finished local game is saved and survives a reload", async () => {
 
 test("watching a replay: the bar starts at move 0 and steps to the end", async () => {
     await B.click("#replay-list .replay-item button[data-act='watch']");
-    assert.equal(await B.screen(), "screen-game");
+    // the row's button reads the record from IndexedDB first, so the viewer opens a moment later
+    await B.waitFor("document.querySelector('.screen:not([hidden])')?.id === 'screen-game'", { what: "the replay viewer" });
     assert.equal(await B.ev("Match.mode"), "replay");
     assert.equal(await B.ev("document.getElementById('replay-bar').hidden"), false);
     assert.equal(await B.text("replay-pos"), "Move 0 / 7");
@@ -124,6 +125,7 @@ test("a replay can be saved as a file, and the file is a valid replay", async ()
     // catch the download instead of letting Chrome write it to disk
     await B.ev("window.__dl = null; HTMLAnchorElement.prototype.click = function () { window.__dl = { name: this.download, href: this.href }; };");
     await B.click("#replay-list .replay-item button[data-act='download']");
+    await B.waitFor("window.__dl !== null", { what: "the download" });    // the record is read from IndexedDB first
     const name = await B.ev("window.__dl && window.__dl.name");
     assert.match(name, /^five-\d{4}-\d{2}-\d{2}-\d{4}\.json$/);
     const text = await B.ev("fetch(window.__dl.href).then(r => r.text())");
