@@ -113,6 +113,48 @@ const BoxesGame = Games.register({
     sizeLabel: "Boxes per side",
     settings: [],
     describeRules: (cfg) => [`${cfg.n * cfg.n} boxes`],
+    /* Learn (#41): the rule bullets, and a hand-written lesson on a 2 × 2 board that walks
+       through the four things the game is about — draw a line, keep the board safe, take
+       the box you are given, and the extra turn that comes with it. The scenarios are
+       generated from the proven puzzle set (client/learn/boxes-scenarios.js). */
+    howto: {
+        rules: [
+            "The board is a grid of dots. On your turn you draw one line between two dots that sit next to each other.",
+            "Draw the fourth side of a box and the box is yours.",
+            "Closing a box gives you another turn, so one line can win several boxes in a row.",
+            "A line that leaves a box with three sides hands that box to whoever moves next.",
+            "The game ends when every line is drawn. Most boxes wins, the same number of boxes is a draw.",
+            "The board is a setting: 2 to 10 boxes per side, five by default.",
+        ],
+        tutorial: [
+            {
+                config: { n: 2 },
+                moves: [],
+                text: "Käsekästchen is played on the lines between the dots, not on the boxes. Draw the top line of the box in the top left corner.",
+                expect: [0],
+            },
+            {
+                moves: [0, 5],
+                text: "Your opponent answered at the bottom right. A single line changes nothing on its own, so keep going: draw the left side of the same box.",
+                expect: [6],
+            },
+            {
+                moves: [0, 5, 6, 11],
+                text: "The top left box has two sides now. A third side would hand it to your opponent, so play a safe line instead: any of the highlighted ones leaves no box on three sides.",
+                expect: [1, 4, 8, 9],
+            },
+            {
+                moves: [0, 5, 6, 11, 1, 2],
+                text: "Your opponent gave the box away: it has three sides. Close it.",
+                expect: [7],
+            },
+            {
+                moves: [0, 5, 6, 11, 1, 2, 7],
+                text: "The box is yours and it is still your turn. That is why one careless line can cost a whole chain of boxes. Finish with a safe line: only two of them leave nothing on three sides.",
+                expect: [4, 9],
+            },
+        ],
+    },
     rules: BoxesRules,
     view: BoxesView,
 });

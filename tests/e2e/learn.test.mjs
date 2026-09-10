@@ -11,7 +11,7 @@ before(async () => { server = await startServer(); B = await launchBrowser(); aw
 after(async () => { await B?.close(); await server?.close(); });
 
 const stepNo = () => B.text("learn-step");
-const cell = (i) => B.ev(`document.querySelectorAll('#board > .cell, #board > .stone')[${i}].click(); true`);
+const cell = (i) => B.ev(`document.querySelectorAll('#board > .cell, #board > .stone, #board > .edge')[${i}].click(); true`);
 
 test("the title screen offers Learn, and it lists every game that teaches something", async () => {
     assert.equal(await B.screen(), "screen-menu");
@@ -21,6 +21,7 @@ test("the title screen offers Learn, and it lists every game that teaches someth
     const cards = await B.ev("[...document.querySelectorAll('#learn-games .game-card')].map(c => c.dataset.game).join(',')");
     assert.match(cards, /chain/);
     assert.match(cards, /five/);
+    assert.match(cards, /boxes/);
     assert.equal(await B.ev("document.querySelector('#learn-games .game-card .game-players').textContent"), "0 / 8 scenarios");
 });
 
@@ -85,6 +86,47 @@ test("the tutorial: the highlighted cell, a wrong click hints, the right one adv
     assert.equal(await B.screen(), "screen-learn-game");
     assert.equal(await B.ev("document.getElementById('learn-panel').hidden"), true);
     assert.match(await B.text("learn-tutorial-hint"), /finished this tutorial/);
+});
+
+test("Käsekästchen tutorial: the highlighted line, and closing a box keeps you on turn", async () => {
+    await B.click("#btn-learn-back");
+    await B.click("#learn-games .game-card[data-game=boxes]");
+    assert.equal(await B.text("learn-title"), "Käsekästchen");
+    await B.click("#btn-learn-tutorial");
+    assert.equal(await B.screen(), "screen-game");
+    const steps = await B.ev("Learn.howto('boxes').tutorial.length");
+    assert.equal(await stepNo(), `Step 1 / ${steps}`);
+    assert.equal(await B.ev("document.querySelectorAll('#board > .edge.hint').length"), 1, "one line is highlighted");
+    // a line that is not the highlighted one plays nothing
+    const want = await B.ev("Learn.active.hints[0]");
+    await cell(await B.ev(`[...Array(BoxesGame.state.cells.length).keys()].find(i => i !== ${want})`));
+    assert.equal(await B.ev("BoxesGame.state.history.length"), 0, "nothing drawn");
+    assert.equal(await B.text("learn-hint"), "Try the highlighted cell.");
+    // walk the lesson; at the last step the box of the step before is closed and it is still your turn
+    for (let guard = 0; guard < 20; guard++) {
+        if (await B.ev("!Learn.active || Learn.active.i >= Learn.active.steps.length")) break;
+        const at = await B.ev("Learn.active.i");
+        if (at === steps - 1) {
+            const st = await B.state();
+            assert.equal(st.scores[0], 1, "the box you closed is yours");
+            assert.equal(st.boxes[0], 0);
+            assert.equal(st.current, 0, "and it is still your turn");
+            assert.equal(await B.ev("document.querySelectorAll('#board > .box.taken').length"), 1);
+            assert.equal(await B.ev("document.querySelectorAll('#board > .edge.hint').length"), 2, "two safe lines are offered");
+        }
+        const expect = await B.ev("(Learn.active.steps[Learn.active.i].expect || [])[0] ?? -1");
+        if (expect >= 0) {
+            await cell(expect);
+            await B.waitFor(`!Learn.active || Learn.active.i !== ${at}`, { timeout: 60000, what: "the step after a click" });
+        } else {
+            await B.click("#learn-next");
+        }
+    }
+    assert.equal(await B.ev("Learn.active.i"), steps, "the lesson reached its end");
+    assert.equal(await B.text("learn-step"), "Done");
+    assert.equal(await B.ev("Learn.tutorialDone('boxes')"), true);
+    await B.click("#learn-back");
+    assert.equal(await B.screen(), "screen-learn-game");
 });
 
 test("a scenario: the position is loaded, a wrong move offers Retry, the right one marks it solved", async () => {

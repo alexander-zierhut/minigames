@@ -22,6 +22,10 @@ const QUOTA = 8;
 const TAGS = [
     ["win-in-1", "Win in one move"],
     ["must-block", "Block the threat"],
+    ["take-box", "Take the free box"],
+    ["sacrifice", "Give away as little as possible"],
+    ["double-deal", "Give two boxes away to keep control"],
+    ["safe-move", "Play a line that hands nothing over"],
     ["double-threat", "Make two threats at once"],
     ["win-in-2", "Win in two moves"],
     ["avoid-loss", "Only one move holds"],

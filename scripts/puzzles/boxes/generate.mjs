@@ -63,7 +63,8 @@ function noteFor(tags, r, board, legal) {
     if (tags.includes("sacrifice")) parts.push("Every line opens something: concede as little as possible.");
     if (tags.includes("avoid-loss")) parts.push("Every other line loses the game.");
     const margin = r.net - Math.max(...legal.filter((e) => !r.best.includes(e)).map((e) => r.moveValues[e]));
-    parts.push(`Best play ends ${r.diff > 0 ? "+" : ""}${r.diff} boxes for the mover; every other line is at least ${margin} box${margin === 1 ? "" : "es"} worse.`);
+    const end = r.diff > 0 ? `${r.diff} box${r.diff === 1 ? "" : "es"} ahead` : r.diff < 0 ? `${-r.diff} box${r.diff === -1 ? "" : "es"} behind` : "level";
+    parts.push(`Best play ends ${end}; every other line is at least ${margin} box${margin === 1 ? "" : "es"} worse.`);
     return parts.join(" ");
 }
 

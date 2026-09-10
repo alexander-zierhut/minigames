@@ -635,6 +635,11 @@ c = 0…n. Box `r * n + c` is closed by `h(r,c)`, `h(r+1,c)`, `v(r,c)` and `v(r,
   `chainFrom(state, b)` (the run of boxes hanging off a capturable one, `{ boxes, loop }`).
 - `estimate` (the fallback win chance): boxes won plus who is under pressure (a player to
   move with no safe line has to open something).
+- **Learn** (#41): `howto.rules` plus a five-step lesson on a 2 × 2 board (draw a line, keep
+  building, play a safe line, close the box you were given, notice that it is still your
+  turn); the scenarios are generated from the proven puzzle set, and its tags
+  (`take-box`, `sacrifice`, `double-deal`, `safe-move`) are in `pick-scenarios.mjs`'s
+  `TAGS` list with the titles a player reads.
 
 ### View (`boxes.js`)
 One CSS grid of (2n+1) × (2n+1) tracks: thin `--bx-line` tracks for the dot rows/columns,
@@ -1446,7 +1451,8 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   scrolling, and the bot drawing lines and closing boxes on its own),
   `bot` (offline vs bot: the one-step modal with scores and difficulty, "Bot" in the HUD, bot moves by itself, rematch, a premove clicked while the bot thinks, both games in the replays list),
   `learn` (#41: Learn from the title, the game list, a details page, the tutorial with its
-  highlighted cell / wrong click / right click / Next to the end, a scenario with a wrong
+  highlighted cell / wrong click / right click / Next to the end — for Chain React and for
+  Käsekästchen, whose lesson also proves that a closed box leaves you on turn, a scenario with a wrong
   move, Retry and the ✓ that survives a reload, the lobby's How to play modal closing when
   a game starts, and 360×780 with no scroll on every new screen),
   `online-bot` (**three browsers**, #36: alone in a two-seat room "Against a bot instead"
