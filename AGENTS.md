@@ -137,8 +137,19 @@ No service worker (nothing is cached; the deploy's hashed assets handle freshnes
   `{ version, commit, builtAt }`, `version` = the very stamp that goes into
   `<meta name="version">`, `commit` = the full sha; `dev` unbundled). Hashes are content
   hashes → cache busting by filename. Env: `DIST_DIR`, `SKIP_MINIFY=1`.
-- `.github/workflows/ci.yml`: job `test` (npm ci → unit → e2e) on push to `main`, PRs
-  and manual; job `deploy` (`needs: test`, pushes to `main` only): build, `aws s3 sync`
+- `.github/workflows/ci.yml` runs on push to `main`, on PRs and manually, **in parallel
+  jobs**: `unit` (npm ci → `npm run test:unit`, the build test included) and `e2e`,
+  a matrix of `SHARDS` = 4 shard jobs. Every shard checks out, `npm ci` (with the
+  setup-node npm cache) and runs its own list of e2e files
+  (`node scripts/ci/shards.mjs <shard> <SHARDS>`, see Tests) with
+  `node --test --test-concurrency=1 --test-timeout=300000`, so a shard still runs one
+  Chrome-heavy file at a time; `fail-fast: false` keeps a flaky online shard from
+  cancelling the others, and each shard uploads its `E2E_SHOTS` folder as
+  `e2e-screenshots-<n>` on failure. A tiny gate job **literally named `test`**
+  (`needs: [unit, e2e]`, `if: always()`) fails unless both results are `success`: that is
+  the check branch protection requires, so the jobs above can be renamed or resharded
+  without touching the repository settings. Wall clock: about 2 minutes instead of 7 to 10.
+  Job `deploy` (`needs: [unit, e2e]`, pushes to `main` only): build, `aws s3 sync`
   assets with `Cache-Control: public, max-age=31536000, immutable`, root files with
   1-day cache, `index.html` **and `version.json`** with `no-cache` (both uploaded one by
   one), then `--delete` sync of stale files that excludes `version.json` so its
@@ -151,7 +162,7 @@ No service worker (nothing is cached; the deploy's hashed assets handle freshnes
   access, that application full access, `*` GetObject. Website mode (index + error
   document `index.html`); DNS CNAME to `minigames.alzlper.com.s3-website.nl-ams.scw.cloud`.
 - Branch protection on `main` requires the `test` check for PRs (admins not enforced,
-  so the owner can push directly).
+  so the owner can push directly) — that is the gate job above, never a real test job.
 
 ## Flow: title → room lobby → game (the "party" model)
 
@@ -1092,7 +1103,10 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   silence on every failure; each test calls `Update.stop()` + `w.close()` or the poll
   interval keeps the file alive),
   `build.test.mjs` (`SKIP_MINIFY=1 DIST_DIR=<tmp>`; hashed names, icons, deterministic,
-  `version.json` matching the meta stamp).
+  `version.json` matching the meta stamp),
+  `ci.test.mjs` (the e2e shard split — every file in exactly one shard for 1 to 6
+  shards, shards balanced within a factor of 1.5, an unmeasured file placed, the size
+  table only naming files that exist, and `ci.yml`'s matrix / gate job matching the script).
   Cross-realm arrays: compare via `JSON.stringify`, not `deepStrictEqual`.
 - **E2E** (`npm run test:e2e`, `tests/e2e/*.test.mjs`): `harness.mjs` starts a static
   server (port 0) and headless Chrome via CDP (no Playwright; Node 22 `WebSocket`/`fetch`;
@@ -1141,15 +1155,28 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   `update` (#40: the dev page never asks for version.json, a newer version from a `data:`
   URL shows the notice on the title screen and hides it in the lobby, an idle title screen
   reloads once with `Update.reload` counted instead, and the notice still fits 360×780).
-  Files run 2 at a time; each launches its own Chrome. `B.blank()`
+  Files run 2 at a time locally; each launches its own Chrome. `B.blank()`
   navigates to about:blank (a closed tab); outline colours transition for .25s → wait
   before reading computed styles. Any new join/rejoin behaviour gets a scenario in
   `online-edge` — the owner wants joining to feel rock solid.
+- **How CI runs them**: not one long serial run any more but four shard jobs, each
+  on its own runner and each running its files one at a time.
+  `scripts/ci/shards.mjs` owns the split: it lists `tests/e2e/*.test.mjs`, sizes each file
+  from a table of **measured seconds on the runner** (`SIZES`; a file that is not in it is
+  guessed, 45 s when its name starts with `online` because those need two or three
+  browsers, else 25 s) and hands them out longest-first to the emptiest shard, so a new
+  e2e file lands somewhere automatically and nothing has to be registered.
+  `node scripts/ci/shards.mjs` prints all shards with their estimate, `node
+  scripts/ci/shards.mjs 2 4` the file list of shard 2 (that is what the workflow runs).
+  Rooms use random codes, so two shards playing online at the same time cannot collide.
+  Refresh `SIZES` when a file grows a lot (`gh run view <id> --log` has a duration per
+  test); the numbers only steer the split, a wrong one costs balance, never correctness.
 
 ## Folders that are never deployed
 
 `docs/` (`docs/bots.md` = bot system reference and the list of current bots — keep it in
 step with the code), `scripts/` (headless loader, puzzle runner, benchmark, puzzle solvers/generators,
+`ci/shards.mjs` = the e2e shard split,
 verify, screenshot tour), `tests/`. The deploy uploads `dist/`
 only; `build.mjs` bundles nothing outside `index.html`'s tags and `client/textures`.
 
@@ -1190,7 +1217,8 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM), `puzzles/runner.mjs`
 (`loadPuzzles`, `positionOf`, `evaluateBot`), `benchmark.mjs`, `calibrate.mjs`
 (`collect`, `fitLogistic`, `metrics`, `calibrate`), `puzzles/<game>/solver.mjs` +
-`generate.mjs`, `puzzles/verify.mjs`, `screenshots.mjs`.
+`generate.mjs`, `puzzles/verify.mjs`, `screenshots.mjs`, `ci/shards.mjs` (`listFiles`,
+`sizeOf`, `shards(files, count)`, `shardOf(n, count)`, `estimate`, `SIZES`).
 
 Protocol messages (host relays everything to the other guests): `hello, state, welcome/full
 (transport), lobby, start, start-request, tolobby, sync, move, timeout, rematch, review,
@@ -1224,6 +1252,11 @@ are the two that never get relayed (host to all, or guest to host only).
   files and a third Chrome didn't come up under load: Chrome now picks its own port
   (`DevToolsActivePort`), launches retry once, and CI runs e2e files one at a time.
   Diagnostics on timeouts (page state + screenshot) turned "flaky" into "explainable".
+  **Parallelism belongs between runners, not inside one**: four shard jobs, each
+  still strictly serial, took CI from 7 to 10 minutes down to about 2 without bringing
+  the old port and startup flakiness back. Balance the shards by measured seconds (the
+  longest one is the wall clock) and keep a gate job under the name branch protection
+  requires, so resharding never needs a settings change.
 - **PeerJS ordering.** The first data message can arrive before the guest's own `open`
   event under load; `destroy()` emits `close` synchronously; a "room full" verdict can be
   the guest's own stale connection — handshake `welcome`/`full`, listen before `open`,
