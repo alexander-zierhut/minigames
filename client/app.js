@@ -26,6 +26,9 @@
         const w = wrap.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
         const size = Math.floor(Math.min(w, h)) - 10;
         if (size > 0) document.documentElement.style.setProperty("--board", size + "px");
+        // phones: the replay bar (#38) sits above the HUD, so it needs the strip the HUD takes
+        const hut = $("hut").getBoundingClientRect();
+        if (hut.height > 0) document.documentElement.style.setProperty("--hut-h", Math.round(window.innerHeight - hut.top) + "px");
         Reactions.place();                               // layout is synchronous: the board rect is final here
     }
 
@@ -96,6 +99,37 @@
         else { again.textContent = "Rematch"; again.disabled = false; }
     }
 
+    /* ================= replay bar (#38) ================= */
+    // After a game everyone can walk through it move by move. The position is a view-only
+    // preview in the engine (the live game, the record and the hash never change), and every
+    // step is announced so the whole room looks at the same move.
+    const totalPlies = () => Match.state.history.length;
+    const currentPly = () => Match.engine.previewPly ?? totalPlies();
+
+    function showReplay(ply, announce) {
+        const total = totalPlies();
+        const to = Math.max(0, Math.min(total, ply));
+        Match.engine.preview(to >= total ? null : to);
+        $("overlay").hidden = true;
+        $("result-fab").hidden = false;
+        $("replay-bar").hidden = false;
+        renderReplay();
+        if (announce && Room.online) Room.review(to);
+    }
+    function renderReplay() {
+        const total = totalPlies();
+        const ply = currentPly();
+        $("replay-pos").textContent = `Move ${ply} / ${total}`;
+        $("replay-first").disabled = $("replay-prev").disabled = ply === 0;
+        $("replay-next").disabled = $("replay-last").disabled = ply === total;
+    }
+    // back to the live position: a new game, a rematch, the room, the result overlay
+    function hideReplay() {
+        Match.engine.preview(null);
+        $("replay-bar").hidden = true;
+        $("result-fab").hidden = true;
+    }
+
     /* ================= flow ================= */
     // offline lobby: two to four people on this device, or you against a bot
     function openLocalLobby(withBot) {
@@ -109,12 +143,13 @@
         Room.leave();
         Match.reset("local");
         $("overlay").hidden = true;
-        $("result-fab").hidden = true;
+        hideReplay();
         show("menu");
     }
 
     // game number `gameNo` with `cfg` at this table (local, bot or online — Room calls this too)
     function startGame(cfg, gameNo) {
+        hideReplay();
         Room.newGame();
         Match.start(cfg, gameNo);
         $("result-fab").textContent = "Show result";
@@ -143,7 +178,7 @@
         Room.bump();
         Match.stop();
         $("overlay").hidden = true;
-        $("result-fab").hidden = true;
+        hideReplay();
         $("net-banner").hidden = true;
         show("lobby");
         Room.save();
@@ -191,8 +226,22 @@
     $("btn-restart").addEventListener("click", () => { if (!Match.state.busy) requestRematch(); });
     $("btn-menu").addEventListener("click", () => { if (Match.spectator) leaveRoom(); else backToLobby(true); });
     $("overlay-again").addEventListener("click", requestRematch);
-    $("overlay-look").addEventListener("click", () => { $("overlay").hidden = true; $("result-fab").hidden = false; });
-    $("result-fab").addEventListener("click", () => { $("result-fab").hidden = true; $("overlay").hidden = false; });
+    $("overlay-look").addEventListener("click", () => showReplay(totalPlies(), false));
+    $("result-fab").addEventListener("click", () => { hideReplay(); $("overlay").hidden = false; });
+    $("replay-first").addEventListener("click", () => showReplay(0, true));
+    $("replay-prev").addEventListener("click", () => showReplay(currentPly() - 1, true));
+    $("replay-next").addEventListener("click", () => showReplay(currentPly() + 1, true));
+    $("replay-last").addEventListener("click", () => showReplay(totalPlies(), true));
+    // arrow keys step, Home / End jump to the ends (while the replay bar is up and nothing is typed)
+    document.addEventListener("keydown", (e) => {
+        if ($("replay-bar").hidden || e.altKey || e.ctrlKey || e.metaKey) return;
+        const t = e.target;
+        if (t && ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName)) return;
+        const step = { ArrowLeft: currentPly() - 1, ArrowRight: currentPly() + 1, Home: 0, End: totalPlies() }[e.key];
+        if (step === undefined) return;
+        e.preventDefault();
+        showReplay(step, true);
+    });
     $("overlay-menu").addEventListener("click", () => backToLobby(true));
     $("btn-net-retry").addEventListener("click", () => Net.retryNow());
     $("btn-net-leave").addEventListener("click", leaveRoom);
@@ -245,7 +294,7 @@
         onFlag: (p) => { if (Room.online) Room.onFlag(p); },
         onFinish: () => { Room.save(); renderRematch(); },
     });
-    Room.init({ phase: () => phase, show, startGame, backToLobby, renderLobby, onVotes: renderRematch });
+    Room.init({ phase: () => phase, show, startGame, backToLobby, renderLobby, onVotes: renderRematch, onReview: (ply) => showReplay(ply, false) });
     Dev.enable(Prefs.get().developer);
 
     const params = new URLSearchParams(location.search);

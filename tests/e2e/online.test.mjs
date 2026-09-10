@@ -118,6 +118,35 @@ test("host refreshes mid-game: reclaims the room, guest reconnects, game continu
     await A.waitFor("ChainGame.state.history.length === 2", { what: "host got move after its refresh" });
 });
 
+test("replay after the game (#38): both sides look at the same move", { skip: !ONLINE }, async () => {
+    // play the running game out: whoever is to move clicks a legal cell (deterministic)
+    for (let m = 0; m < 120; m++) {
+        const st = await A.state();
+        if (st.over) break;
+        const [P, O] = st.current === 0 ? [A, B] : [B, A];
+        const i = await P.ev(`(() => { const s = ChainGame.state; const legal = []; s.cells.forEach((c, k) => { if (c.owner === -1 || c.owner === s.current) legal.push(k); }); return legal[${m} % legal.length]; })()`);
+        await P.move(i);
+        await O.waitFor(`ChainGame.state.history.length === ${st.history.length + 1} && !ChainGame.state.busy`, { timeout: 30000, what: "the move arrived" });
+    }
+    await A.waitFor("ChainGame.state.over", { what: "host sees the end" });
+    await B.waitFor("ChainGame.state.over", { what: "guest sees the end" });
+    const total = (await A.state()).history.length;
+    await A.click("#overlay-look");
+    assert.equal(await A.text("replay-pos"), `Move ${total} / ${total}`);
+    await A.click("#replay-first");
+    await B.waitFor("ChainGame.previewPly === 0 && !document.getElementById('replay-bar').hidden", { what: "guest follows to the first position" });
+    assert.equal(await B.ev("document.getElementById('overlay').hidden"), true, "the guest's result overlay steps aside");
+    assert.equal(await B.text("replay-pos"), `Move 0 / ${total}`);
+    assert.equal(await B.ev("document.querySelectorAll('#board > .cell.taken').length"), 0, "the guest shows the empty board too");
+    await B.click("#replay-next");                      // and the other way round
+    await A.waitFor("ChainGame.previewPly === 1", { what: "host follows the guest" });
+    assert.equal(await A.text("replay-pos"), `Move 1 / ${total}`);
+    await A.click("#replay-last");
+    await B.waitFor("ChainGame.previewPly === null", { what: "guest back at the result" });
+    assert.equal(await B.ev(`ChainGame.state.over && ChainGame.state.history.length === ${total}`), true, "the finished game itself never changed");
+    assert.deepEqual(A.errors, []); assert.deepEqual(B.errors, []);
+});
+
 test("guest leaves the room and comes back by link: same seat, board restored", { skip: !ONLINE }, async () => {
     await B.click("#btn-menu"); await sleep(300);       // guest to lobby (takes the host along)
     await A.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-lobby'", { what: "host in lobby" });

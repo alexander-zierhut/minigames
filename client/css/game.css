@@ -185,11 +185,20 @@ body.online #hut.show-controls .chat-row { display: flex; }
 .overlay-sub { font-size: 14px; color: var(--muted); white-space: pre-line; }
 .overlay-actions { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .overlay-actions .btn { width: 100%; }
-#result-fab {
-    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+/* replay bar (#38): step through a finished game; "Show result" rides along in the same row */
+/* phones: above the HUD (--hut-h comes from fitBoard), so it never covers its controls */
+#replay-bar {
+    position: fixed; left: 50%; bottom: calc(var(--hut-h, 0px) + 8px); transform: translateX(-50%);
     z-index: 45; box-shadow: 0 10px 30px rgba(0,0,0,.6);
     animation: fab-in .3s ease-out;
+    display: flex; align-items: center; gap: 4px;
+    padding: 5px 6px;
+    max-width: calc(100vw - 12px);
+    background: var(--panel); border: 2px solid var(--line); border-radius: 12px;
 }
+#replay-bar .btn { padding: 6px 8px; white-space: nowrap; }
+#replay-pos { font-size: 11px; color: var(--muted); white-space: nowrap; padding: 0 2px; }
+#result-fab { margin-left: 4px; }
 @keyframes fab-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 /* ---- desktop: HUD beside the board, thicker obsidian ---- */
@@ -217,7 +226,9 @@ body.online #hut.show-controls .chat-row { display: flex; }
     .overlay-card { width: auto; min-width: 420px; max-width: 560px; padding: 28px 36px; }
     .overlay-actions { flex-direction: row; width: auto; }
     .overlay-actions .btn { width: auto; white-space: nowrap; }
-    #result-fab { bottom: 28px; }
+    #replay-bar { bottom: 28px; gap: 6px; padding: 7px 9px; }
+    #replay-bar .btn { padding: 6px 12px; }
+    #replay-pos { font-size: 12px; padding: 0 5px; }
 }
 
 /* ---- emoji reactions: small, short, in the corner, never on the board ---- */

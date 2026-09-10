@@ -93,3 +93,26 @@ test("result overlay stacks its buttons vertically on phones", async () => {
     await assertNoScroll("overlay");
     assert.deepEqual(M.errors, []);
 });
+
+test("replay bar (#38): one row above the HUD, clear of its controls, no scroll", async () => {
+    await M.click("#overlay-look");
+    const rect = (sel) => M.ev(`JSON.stringify(document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect())`).then(JSON.parse);
+    const settled = "document.getElementById('replay-bar').getAnimations().length === 0";     // it slides in
+    await M.waitFor(settled, { what: "replay bar in place" });
+    const bar = await rect("#replay-bar");
+    assert.ok(bar.left >= 0 && bar.right <= 360, `inside the viewport (${bar.left}..${bar.right})`);
+    const kids = JSON.parse(await M.ev("JSON.stringify([...document.getElementById('replay-bar').children].map(e => { const r = e.getBoundingClientRect(); return Math.round(r.top + r.height / 2); }))"));
+    assert.equal(kids.length, 6, "four steps, the label and Show result");
+    assert.ok(kids.every((t) => Math.abs(t - kids[0]) <= 1), `all in one row (${kids})`);
+    assert.ok(bar.bottom <= (await rect("#hut")).top + 1, "sits above the HUD");
+    await M.click("#gear");                        // the HUD controls come out: the bar moves up with it
+    await M.waitFor("document.getElementById('replay-bar').getBoundingClientRect().bottom <= document.getElementById('hut').getBoundingClientRect().top + 1", { what: "bar above the taller HUD" });
+    await M.waitFor(settled, { what: "replay bar in place" });
+    const controls = await rect("#game-controls .btn");
+    assert.ok((await rect("#replay-bar")).bottom <= controls.top, "never over the HUD's Rematch / Back to room");
+    await assertNoScroll("replay bar");
+    await M.screenshot("mobile-replay.png");
+    await M.click("#replay-first");
+    assert.match(await M.text("replay-pos"), /^Move 0 \/ \d+$/);
+    assert.deepEqual(M.errors, []);
+});

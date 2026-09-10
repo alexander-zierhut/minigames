@@ -21,6 +21,13 @@
         },
         {
           "type": "feature",
+          "text": "Replays: when a game is over, \"Look at board\" opens a bar to step through the whole game move by move, and everyone in the room sees the same move.",
+          "refs": [
+            "#38"
+          ]
+        },
+        {
+          "type": "feature",
           "text": "Streaming: a new preference \"Keep my IP always private\" sends every connection through the relay server, so nobody in the room learns your IP address.",
           "refs": [
             "#30"
