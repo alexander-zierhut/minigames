@@ -1,0 +1,3289 @@
+{
+ "game": "five",
+ "bot": "sensei-five",
+ "levels": {
+  "basics": "easy",
+  "tactics": "normal",
+  "mastery": "hard"
+ },
+ "levelLabels": {
+  "easy": "Easy",
+  "normal": "Normal",
+  "hard": "Hard",
+  "very-hard": "Very hard"
+ },
+ "levelOrder": [
+  "easy",
+  "normal",
+  "hard",
+  "very-hard"
+ ],
+ "set": {
+  "count": 154,
+  "fingerprint": "b51d53e3"
+ },
+ "puzzles": [
+  {
+   "id": "five-0002",
+   "depth": 5,
+   "value": "win",
+   "legal": 51,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.715,
+   "tags": [
+    "win-in-3"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/51 moves are best)",
+   "config": {
+    "n": 9,
+    "winLen": 5
+   },
+   "history": [
+    64,
+    73,
+    56,
+    66,
+    63,
+    47,
+    46,
+    0,
+    40,
+    48,
+    39,
+    41,
+    49,
+    9,
+    42,
+    1,
+    31,
+    23,
+    57,
+    75,
+    2,
+    58,
+    68,
+    52,
+    36,
+    3,
+    15,
+    54,
+    16,
+    33
+   ],
+   "best": [
+    13
+   ]
+  },
+  {
+   "id": "five-0003",
+   "depth": 5,
+   "value": "win",
+   "legal": 71,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.336,
+   "tags": [
+    "win-in-3"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/71 moves are best)",
+   "config": {
+    "n": 9,
+    "winLen": 5
+   },
+   "history": [
+    22,
+    21,
+    20,
+    12,
+    31,
+    40,
+    29,
+    30,
+    39,
+    41
+   ],
+   "best": [
+    47
+   ]
+  },
+  {
+   "id": "five-0006",
+   "depth": 5,
+   "value": "win",
+   "legal": 49,
+   "bestCount": 4,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.269,
+   "tags": [
+    "win-in-3"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (4/49 moves are best)",
+   "config": {
+    "n": 9,
+    "winLen": 5
+   },
+   "history": [
+    40,
+    31,
+    39,
+    41,
+    51,
+    52,
+    23,
+    26,
+    38,
+    37,
+    30,
+    21,
+    44,
+    13,
+    48,
+    14,
+    79,
+    53,
+    42,
+    58,
+    29,
+    11,
+    1,
+    61,
+    47,
+    45,
+    3,
+    56,
+    12,
+    77,
+    54,
+    22
+   ],
+   "best": [
+    49,
+    50,
+    60,
+    69
+   ]
+  },
+  {
+   "id": "five-0008",
+   "depth": "exhaustive",
+   "value": "draw",
+   "legal": 13,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 0.513,
+   "look": 0.53,
+   "tags": [
+    "must-block",
+    "draw",
+    "endgame-exhaustive"
+   ],
+   "note": "Block the four to hold the draw. (1/13 moves are best)",
+   "config": {
+    "n": 9,
+    "winLen": 5
+   },
+   "history": [
+    40,
+    31,
+    35,
+    26,
+    39,
+    34,
+    23,
+    41,
+    21,
+    42,
+    20,
+    48,
+    58,
+    32,
+    24,
+    22,
+    30,
+    10,
+    12,
+    3,
+    57,
+    19,
+    1,
+    2,
+    15,
+    59,
+    79,
+    52,
+    62,
+    6,
+    66,
+    76,
+    50,
+    60,
+    47,
+    4,
+    5,
+    37,
+    27,
+    46,
+    28,
+    9,
+    74,
+    73,
+    61,
+    44,
+    68,
+    64,
+    55,
+    56,
+    65,
+    45,
+    69,
+    67,
+    13,
+    14,
+    78,
+    29,
+    43,
+    63,
+    38,
+    33,
+    17,
+    77,
+    71,
+    36,
+    7,
+    54
+   ],
+   "best": [
+    72
+   ]
+  },
+  {
+   "id": "five-0011",
+   "depth": 5,
+   "value": "win",
+   "legal": 65,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.715,
+   "tags": [
+    "win-in-3"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/65 moves are best)",
+   "config": {
+    "n": 9,
+    "winLen": 5
+   },
+   "history": [
+    78,
+    69,
+    40,
+    50,
+    49,
+    77,
+    31,
+    48,
+    51,
+    58,
+    67,
+    23,
+    52,
+    59,
+    32,
+    24
+   ],
+   "best": [
+    22
+   ]
+  },
+  {
+   "id": "five-0012",
+   "depth": 5,
+   "value": "win",
+   "legal": 69,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-3"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/69 moves are best)",
+   "config": {
+    "n": 9,
+    "winLen": 5
+   },
+   "history": [
+    23,
+    26,
+    41,
+    32,
+    14,
+    50,
+    59,
+    51,
+    49,
+    22,
+    42,
+    13
+   ],
+   "best": [
+    39
+   ]
+  },
+  {
+   "id": "five-0019",
+   "depth": 1,
+   "value": "win",
+   "legal": 59,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-1"
+   ],
+   "note": "Complete the line. (1/59 moves are best)",
+   "config": {
+    "n": 9,
+    "winLen": 5
+   },
+   "history": [
+    56,
+    57,
+    67,
+    76,
+    46,
+    36,
+    45,
+    48,
+    55,
+    66,
+    49,
+    39,
+    30,
+    41,
+    75,
+    77,
+    40,
+    28,
+    20,
+    78,
+    50,
+    60
+   ],
+   "best": [
+    10
+   ]
+  },
+  {
+   "id": "five-0023",
+   "depth": 3,
+   "value": "win",
+   "legal": 55,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.776,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (1/55 moves are best)",
+   "config": {
+    "n": 9,
+    "winLen": 5
+   },
+   "history": [
+    4,
+    40,
+    39,
+    29,
+    47,
+    31,
+    22,
+    5,
+    48,
+    30,
+    32,
+    50,
+    41,
+    15,
+    20,
+    55,
+    28,
+    24,
+    12,
+    36,
+    57,
+    42,
+    33,
+    46,
+    66,
+    75
+   ],
+   "best": [
+    49
+   ]
+  },
+  {
+   "id": "five-0024",
+   "depth": 3,
+   "value": "win",
+   "legal": 61,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.776,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (1/61 moves are best)",
+   "config": {
+    "n": 9,
+    "winLen": 5
+   },
+   "history": [
+    4,
+    40,
+    39,
+    29,
+    47,
+    31,
+    22,
+    5,
+    48,
+    30,
+    32,
+    50,
+    41,
+    15,
+    20,
+    55,
+    28,
+    24,
+    12,
+    36
+   ],
+   "best": [
+    42
+   ]
+  },
+  {
+   "id": "five-0026",
+   "depth": 3,
+   "value": "win",
+   "legal": 71,
+   "bestCount": 2,
+   "greedyOk": true,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (2/71 moves are best)",
+   "config": {
+    "n": 9,
+    "winLen": 5
+   },
+   "history": [
+    40,
+    30,
+    31,
+    0,
+    38,
+    50,
+    39,
+    41,
+    49,
+    32
+   ],
+   "best": [
+    22,
+    58
+   ]
+  },
+  {
+   "id": "five-0028",
+   "depth": 3,
+   "value": "win",
+   "legal": 69,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.336,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (1/69 moves are best)",
+   "config": {
+    "n": 9,
+    "winLen": 5
+   },
+   "history": [
+    73,
+    40,
+    72,
+    50,
+    41,
+    30,
+    21,
+    49,
+    20,
+    57,
+    11,
+    59
+   ],
+   "best": [
+    31
+   ]
+  },
+  {
+   "id": "five-0029",
+   "depth": 3,
+   "value": "win",
+   "legal": 67,
+   "bestCount": 2,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (2/67 moves are best)",
+   "config": {
+    "n": 9,
+    "winLen": 5
+   },
+   "history": [
+    27,
+    40,
+    50,
+    31,
+    49,
+    48,
+    15,
+    22,
+    13,
+    32,
+    51,
+    4,
+    14,
+    28
+   ],
+   "best": [
+    12,
+    16
+   ]
+  },
+  {
+   "id": "five-0031",
+   "depth": 5,
+   "value": "win",
+   "legal": 47,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-3"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/47 moves are best)",
+   "config": {
+    "n": 9,
+    "winLen": 5
+   },
+   "history": [
+    75,
+    74,
+    64,
+    40,
+    17,
+    39,
+    41,
+    49,
+    31,
+    51,
+    52,
+    59,
+    29,
+    72,
+    30,
+    32,
+    28,
+    27,
+    56,
+    50,
+    68,
+    47,
+    48,
+    58,
+    1,
+    57,
+    36,
+    67,
+    37,
+    2,
+    76,
+    46,
+    19,
+    10
+   ],
+   "best": [
+    21
+   ]
+  },
+  {
+   "id": "five-0033",
+   "depth": "exhaustive",
+   "value": "draw",
+   "legal": 14,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 0.513,
+   "look": 0.53,
+   "tags": [
+    "must-block",
+    "draw",
+    "endgame-exhaustive"
+   ],
+   "note": "Block the four to hold the draw. (1/14 moves are best)",
+   "config": {
+    "n": 8,
+    "winLen": 5
+   },
+   "history": [
+    27,
+    28,
+    21,
+    14,
+    36,
+    18,
+    35,
+    34,
+    61,
+    30,
+    43,
+    11,
+    51,
+    19,
+    42,
+    59,
+    45,
+    3,
+    6,
+    22,
+    39,
+    52,
+    46,
+    9,
+    20,
+    44,
+    37,
+    38,
+    33,
+    23,
+    0,
+    2,
+    4,
+    25,
+    62,
+    29,
+    12,
+    49,
+    24,
+    60,
+    31,
+    32,
+    63,
+    54,
+    40,
+    56,
+    16,
+    1,
+    50,
+    10
+   ],
+   "best": [
+    26
+   ]
+  },
+  {
+   "id": "five-0034",
+   "depth": 5,
+   "value": "win",
+   "legal": 38,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.776,
+   "tags": [
+    "win-in-3"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/38 moves are best)",
+   "config": {
+    "n": 8,
+    "winLen": 5
+   },
+   "history": [
+    27,
+    28,
+    21,
+    14,
+    36,
+    18,
+    35,
+    34,
+    61,
+    30,
+    43,
+    11,
+    51,
+    19,
+    42,
+    59,
+    45,
+    3,
+    6,
+    22,
+    39,
+    52,
+    46,
+    9,
+    20,
+    44
+   ],
+   "best": [
+    37
+   ]
+  },
+  {
+   "id": "five-0040",
+   "depth": 1,
+   "value": "win",
+   "legal": 56,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.885,
+   "tags": [
+    "win-in-1"
+   ],
+   "note": "Complete the line. (1/56 moves are best)",
+   "config": {
+    "n": 8,
+    "winLen": 5
+   },
+   "history": [
+    26,
+    27,
+    34,
+    28,
+    18,
+    17,
+    42,
+    50
+   ],
+   "best": [
+    10
+   ]
+  },
+  {
+   "id": "five-0041",
+   "depth": 3,
+   "value": "win",
+   "legal": 42,
+   "bestCount": 4,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (4/42 moves are best)",
+   "config": {
+    "n": 8,
+    "winLen": 5
+   },
+   "history": [
+    10,
+    28,
+    9,
+    30,
+    18,
+    22,
+    27,
+    14,
+    2,
+    36,
+    26,
+    34,
+    38,
+    5,
+    44,
+    29,
+    43,
+    50,
+    35,
+    19,
+    45,
+    31
+   ],
+   "best": [
+    17,
+    42,
+    46,
+    53
+   ]
+  },
+  {
+   "id": "five-0044",
+   "depth": 3,
+   "value": "win",
+   "legal": 38,
+   "bestCount": 2,
+   "greedyOk": true,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (2/38 moves are best)",
+   "config": {
+    "n": 8,
+    "winLen": 5
+   },
+   "history": [
+    35,
+    27,
+    28,
+    15,
+    21,
+    42,
+    22,
+    37,
+    36,
+    14,
+    19,
+    50,
+    44,
+    20,
+    5,
+    13,
+    4,
+    51,
+    11,
+    23,
+    45,
+    18,
+    34,
+    57,
+    3,
+    31
+   ],
+   "best": [
+    2,
+    6
+   ]
+  },
+  {
+   "id": "five-0046",
+   "depth": 3,
+   "value": "win",
+   "legal": 46,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (1/46 moves are best)",
+   "config": {
+    "n": 8,
+    "winLen": 5
+   },
+   "history": [
+    27,
+    36,
+    35,
+    43,
+    29,
+    28,
+    52,
+    44,
+    45,
+    53,
+    20,
+    2,
+    51,
+    60,
+    13,
+    12,
+    42,
+    58
+   ],
+   "best": [
+    34
+   ]
+  },
+  {
+   "id": "five-0047",
+   "depth": 5,
+   "value": "win",
+   "legal": 31,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.885,
+   "tags": [
+    "win-in-3"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/31 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 5
+   },
+   "history": [
+    24,
+    30,
+    29,
+    33,
+    31,
+    38,
+    42,
+    35,
+    22,
+    16,
+    23,
+    18,
+    25,
+    26,
+    5,
+    21,
+    17,
+    11
+   ],
+   "best": [
+    15
+   ]
+  },
+  {
+   "id": "five-0048",
+   "depth": 5,
+   "value": "win",
+   "legal": 33,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.885,
+   "tags": [
+    "win-in-3"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/33 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 5
+   },
+   "history": [
+    24,
+    30,
+    29,
+    33,
+    31,
+    38,
+    42,
+    35,
+    22,
+    16,
+    23,
+    18,
+    25,
+    26,
+    5,
+    21
+   ],
+   "best": [
+    15
+   ]
+  },
+  {
+   "id": "five-0052",
+   "depth": 3,
+   "value": "win",
+   "legal": 25,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.269,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (1/25 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 5
+   },
+   "history": [
+    30,
+    24,
+    16,
+    37,
+    29,
+    32,
+    23,
+    9,
+    28,
+    40,
+    46,
+    38,
+    47,
+    39,
+    2,
+    31,
+    41,
+    1,
+    36,
+    17,
+    10,
+    21,
+    45,
+    22
+   ],
+   "best": [
+    44
+   ]
+  },
+  {
+   "id": "five-0054",
+   "depth": 3,
+   "value": "win",
+   "legal": 33,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (1/33 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 5
+   },
+   "history": [
+    42,
+    36,
+    24,
+    16,
+    29,
+    23,
+    30,
+    21,
+    8,
+    31,
+    15,
+    22,
+    10,
+    35,
+    9,
+    2
+   ],
+   "best": [
+    11
+   ]
+  },
+  {
+   "id": "five-0055",
+   "depth": 3,
+   "value": "win",
+   "legal": 27,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (1/27 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 5
+   },
+   "history": [
+    41,
+    24,
+    17,
+    23,
+    25,
+    33,
+    18,
+    16,
+    32,
+    39,
+    38,
+    22,
+    10,
+    2,
+    46,
+    15,
+    31,
+    44,
+    8,
+    28,
+    19,
+    29
+   ],
+   "best": [
+    37
+   ]
+  },
+  {
+   "id": "five-0056",
+   "depth": 5,
+   "value": "win",
+   "legal": 29,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-3"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/29 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 5
+   },
+   "history": [
+    41,
+    24,
+    17,
+    23,
+    25,
+    33,
+    18,
+    16,
+    32,
+    39,
+    38,
+    22,
+    10,
+    2,
+    46,
+    15,
+    31,
+    44,
+    8,
+    28
+   ],
+   "best": [
+    11
+   ]
+  },
+  {
+   "id": "five-0057",
+   "depth": 3,
+   "value": "win",
+   "legal": 41,
+   "bestCount": 2,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.715,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (2/41 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 5
+   },
+   "history": [
+    20,
+    19,
+    24,
+    45,
+    25,
+    46,
+    23,
+    16
+   ],
+   "best": [
+    22,
+    26
+   ]
+  },
+  {
+   "id": "five-0060",
+   "depth": 1,
+   "value": "win",
+   "legal": 13,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-1"
+   ],
+   "note": "Complete the line. (1/13 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 5
+   },
+   "history": [
+    24,
+    31,
+    30,
+    18,
+    16,
+    23,
+    12,
+    9,
+    25,
+    26,
+    32,
+    8,
+    0,
+    40,
+    15,
+    1,
+    17,
+    29,
+    10,
+    4,
+    36,
+    2,
+    38,
+    11,
+    46,
+    19,
+    20,
+    42,
+    47,
+    48,
+    41,
+    39,
+    34,
+    45,
+    13,
+    44
+   ],
+   "best": [
+    27
+   ]
+  },
+  {
+   "id": "five-0064",
+   "depth": 3,
+   "value": "win",
+   "legal": 27,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.269,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (1/27 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 5
+   },
+   "history": [
+    24,
+    17,
+    16,
+    32,
+    31,
+    25,
+    39,
+    23,
+    44,
+    37,
+    22,
+    11,
+    29,
+    4,
+    18,
+    8,
+    28,
+    10,
+    3,
+    40,
+    36,
+    5
+   ],
+   "best": [
+    30
+   ]
+  },
+  {
+   "id": "five-0065",
+   "depth": "exhaustive",
+   "value": "draw",
+   "legal": 9,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 0.523,
+   "look": 0.53,
+   "tags": [
+    "must-block",
+    "draw",
+    "endgame-exhaustive"
+   ],
+   "note": "Block the four to hold the draw. (1/9 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 4
+   },
+   "history": [
+    20,
+    24,
+    17,
+    23,
+    25,
+    2,
+    31,
+    19,
+    9,
+    33,
+    46,
+    1,
+    48,
+    11,
+    16,
+    41,
+    37,
+    43,
+    47,
+    45,
+    4,
+    7,
+    38,
+    22,
+    21,
+    15,
+    8,
+    36,
+    29,
+    30,
+    42,
+    44,
+    18,
+    34,
+    10,
+    3,
+    27,
+    40,
+    26,
+    32
+   ],
+   "best": [
+    0
+   ]
+  },
+  {
+   "id": "five-0066",
+   "depth": "exhaustive",
+   "value": "draw",
+   "legal": 9,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 0.523,
+   "look": 0.53,
+   "tags": [
+    "must-block",
+    "draw",
+    "endgame-exhaustive"
+   ],
+   "note": "Block the four to hold the draw. (1/9 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 4
+   },
+   "history": [
+    21,
+    24,
+    14,
+    8,
+    32,
+    17,
+    31,
+    11,
+    38,
+    30,
+    10,
+    39,
+    23,
+    4,
+    19,
+    40,
+    0,
+    7,
+    26,
+    20,
+    1,
+    44,
+    3,
+    2,
+    29,
+    12,
+    18,
+    34,
+    28,
+    35,
+    25,
+    13,
+    27,
+    37,
+    22,
+    16,
+    5,
+    43,
+    45,
+    36
+   ],
+   "best": [
+    42
+   ]
+  },
+  {
+   "id": "five-0067",
+   "depth": 5,
+   "value": "win",
+   "legal": 35,
+   "bestCount": 2,
+   "greedyOk": false,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.797,
+   "tags": [
+    "win-in-3"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (2/35 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 4
+   },
+   "history": [
+    20,
+    24,
+    17,
+    23,
+    25,
+    2,
+    31,
+    19,
+    9,
+    33,
+    46,
+    1,
+    48,
+    11
+   ],
+   "best": [
+    43,
+    45
+   ]
+  },
+  {
+   "id": "five-0069",
+   "depth": 5,
+   "value": "win",
+   "legal": 41,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-3"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/41 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 4
+   },
+   "history": [
+    24,
+    31,
+    23,
+    25,
+    19,
+    38,
+    29,
+    17
+   ],
+   "best": [
+    22
+   ]
+  },
+  {
+   "id": "five-0070",
+   "depth": 3,
+   "value": "win",
+   "legal": 41,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (1/41 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 4
+   },
+   "history": [
+    47,
+    33,
+    39,
+    38,
+    45,
+    25,
+    17,
+    16
+   ],
+   "best": [
+    46
+   ]
+  },
+  {
+   "id": "five-0071",
+   "depth": 3,
+   "value": "win",
+   "legal": 43,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (1/43 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 4
+   },
+   "history": [
+    47,
+    33,
+    39,
+    38,
+    45,
+    25
+   ],
+   "best": [
+    46
+   ]
+  },
+  {
+   "id": "five-0073",
+   "depth": 5,
+   "value": "win",
+   "legal": 41,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-3"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/41 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 4
+   },
+   "history": [
+    28,
+    24,
+    29,
+    21,
+    23,
+    17,
+    32,
+    33
+   ],
+   "best": [
+    31
+   ]
+  },
+  {
+   "id": "five-0074",
+   "depth": 5,
+   "value": "win",
+   "legal": 43,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-3"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/43 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 4
+   },
+   "history": [
+    28,
+    24,
+    29,
+    21,
+    23,
+    17
+   ],
+   "best": [
+    31
+   ]
+  },
+  {
+   "id": "five-0077",
+   "depth": 3,
+   "value": "win",
+   "legal": 41,
+   "bestCount": 2,
+   "greedyOk": false,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (2/41 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 4
+   },
+   "history": [
+    12,
+    20,
+    13,
+    11,
+    24,
+    3,
+    31,
+    10
+   ],
+   "best": [
+    18,
+    38
+   ]
+  },
+  {
+   "id": "five-0078",
+   "depth": 3,
+   "value": "win",
+   "legal": 43,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (1/43 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 4
+   },
+   "history": [
+    12,
+    20,
+    13,
+    11,
+    24,
+    3
+   ],
+   "best": [
+    18
+   ]
+  },
+  {
+   "id": "five-0080",
+   "depth": 1,
+   "value": "win",
+   "legal": 41,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.797,
+   "tags": [
+    "win-in-1"
+   ],
+   "note": "Complete the line. (1/41 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 4
+   },
+   "history": [
+    24,
+    18,
+    17,
+    31,
+    25,
+    23,
+    9,
+    33
+   ],
+   "best": [
+    1
+   ]
+  },
+  {
+   "id": "five-0081",
+   "depth": 3,
+   "value": "win",
+   "legal": 43,
+   "bestCount": 2,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (2/43 moves are best)",
+   "config": {
+    "n": 7,
+    "winLen": 4
+   },
+   "history": [
+    24,
+    18,
+    17,
+    31,
+    25,
+    23
+   ],
+   "best": [
+    9,
+    33
+   ]
+  },
+  {
+   "id": "five-0083",
+   "depth": "exhaustive",
+   "value": "draw",
+   "legal": 20,
+   "bestCount": 3,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 0.518,
+   "look": 0.336,
+   "tags": [
+    "draw",
+    "endgame-exhaustive",
+    "avoid-loss"
+   ],
+   "note": "Only these moves hold the draw. Every other move loses by force. (3/20 moves are best)",
+   "config": {
+    "n": 6,
+    "winLen": 5
+   },
+   "history": [
+    14,
+    19,
+    1,
+    7,
+    13,
+    15,
+    6,
+    20,
+    10,
+    24,
+    26,
+    4,
+    30,
+    16,
+    9,
+    21
+   ],
+   "best": [
+    18,
+    22,
+    23
+   ]
+  },
+  {
+   "id": "five-0084",
+   "depth": 3,
+   "value": "win",
+   "legal": 28,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.715,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (1/28 moves are best)",
+   "config": {
+    "n": 6,
+    "winLen": 5
+   },
+   "history": [
+    32,
+    33,
+    28,
+    23,
+    21,
+    31,
+    14,
+    27
+   ],
+   "best": [
+    7
+   ]
+  },
+  {
+   "id": "five-0087",
+   "depth": "exhaustive",
+   "value": "draw",
+   "legal": 16,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 0.502,
+   "look": 0.269,
+   "tags": [
+    "must-block",
+    "draw",
+    "endgame-exhaustive"
+   ],
+   "note": "Block the four to hold the draw. (1/16 moves are best)",
+   "config": {
+    "n": 6,
+    "winLen": 5
+   },
+   "history": [
+    13,
+    6,
+    0,
+    7,
+    19,
+    10,
+    12,
+    1,
+    14,
+    9,
+    8,
+    29,
+    23,
+    26,
+    35,
+    20,
+    31,
+    5,
+    30,
+    15
+   ],
+   "best": [
+    25
+   ]
+  },
+  {
+   "id": "five-0090",
+   "depth": 3,
+   "value": "win",
+   "legal": 18,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.776,
+   "tags": [
+    "win-in-2",
+    "double-threat",
+    "endgame-exhaustive"
+   ],
+   "note": "Create two completion cells at once. (1/18 moves are best)",
+   "config": {
+    "n": 6,
+    "winLen": 5
+   },
+   "history": [
+    8,
+    9,
+    15,
+    3,
+    1,
+    22,
+    13,
+    29,
+    7,
+    19,
+    14,
+    12,
+    20,
+    26,
+    16,
+    17,
+    25,
+    24
+   ],
+   "best": [
+    10
+   ]
+  },
+  {
+   "id": "five-0095",
+   "depth": "exhaustive",
+   "value": "draw",
+   "legal": 6,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 0.513,
+   "look": 0.53,
+   "tags": [
+    "must-block",
+    "draw",
+    "endgame-exhaustive"
+   ],
+   "note": "Block the four to hold the draw. (1/6 moves are best)",
+   "config": {
+    "n": 6,
+    "winLen": 5
+   },
+   "history": [
+    5,
+    15,
+    14,
+    9,
+    11,
+    10,
+    19,
+    20,
+    16,
+    25,
+    30,
+    24,
+    34,
+    21,
+    27,
+    13,
+    26,
+    32,
+    17,
+    29,
+    8,
+    0,
+    7,
+    2,
+    1,
+    4,
+    31,
+    18,
+    23,
+    6
+   ],
+   "best": [
+    12
+   ]
+  },
+  {
+   "id": "five-0096",
+   "depth": 3,
+   "value": "win",
+   "legal": 26,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.715,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (1/26 moves are best)",
+   "config": {
+    "n": 6,
+    "winLen": 5
+   },
+   "history": [
+    12,
+    19,
+    7,
+    1,
+    14,
+    20,
+    21,
+    9,
+    22,
+    3
+   ],
+   "best": [
+    28
+   ]
+  },
+  {
+   "id": "five-0097",
+   "depth": 3,
+   "value": "win",
+   "legal": 28,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.715,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (1/28 moves are best)",
+   "config": {
+    "n": 6,
+    "winLen": 5
+   },
+   "history": [
+    12,
+    19,
+    7,
+    1,
+    14,
+    20,
+    21,
+    9
+   ],
+   "best": [
+    28
+   ]
+  },
+  {
+   "id": "five-0098",
+   "depth": "exhaustive",
+   "value": "draw",
+   "legal": 22,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 0.518,
+   "look": 0.797,
+   "tags": [
+    "draw",
+    "endgame-exhaustive",
+    "avoid-loss"
+   ],
+   "note": "Only these moves hold the draw. Every other move loses by force. (1/22 moves are best)",
+   "config": {
+    "n": 6,
+    "winLen": 4
+   },
+   "history": [
+    23,
+    28,
+    22,
+    21,
+    14,
+    15,
+    9,
+    34,
+    16,
+    2,
+    19,
+    24,
+    35,
+    4
+   ],
+   "best": [
+    17
+   ]
+  },
+  {
+   "id": "five-0105",
+   "depth": 5,
+   "value": "win",
+   "legal": 24,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.244,
+   "tags": [
+    "must-block",
+    "win-in-3",
+    "endgame-exhaustive"
+   ],
+   "note": "Block the four first; the win comes later. A forcing sequence (four, then a double threat) wins. (1/24 moves are best)",
+   "config": {
+    "n": 6,
+    "winLen": 4
+   },
+   "history": [
+    23,
+    16,
+    11,
+    17,
+    14,
+    7,
+    20,
+    9,
+    13,
+    8,
+    10,
+    18
+   ],
+   "best": [
+    6
+   ]
+  },
+  {
+   "id": "five-0107",
+   "depth": 7,
+   "value": "win",
+   "legal": 22,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "must-block",
+    "win-in-4",
+    "endgame-exhaustive"
+   ],
+   "note": "Block the four first; the win comes later. Forced win in 4 moves. (1/22 moves are best)",
+   "config": {
+    "n": 6,
+    "winLen": 4
+   },
+   "history": [
+    14,
+    8,
+    15,
+    2,
+    7,
+    9,
+    4,
+    16,
+    23,
+    21,
+    0,
+    11,
+    10,
+    6
+   ],
+   "best": [
+    26
+   ]
+  },
+  {
+   "id": "five-0108",
+   "depth": 5,
+   "value": "win",
+   "legal": 26,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.244,
+   "tags": [
+    "win-in-3"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/26 moves are best)",
+   "config": {
+    "n": 6,
+    "winLen": 4
+   },
+   "history": [
+    14,
+    8,
+    15,
+    2,
+    7,
+    9,
+    4,
+    16,
+    23,
+    21
+   ],
+   "best": [
+    13
+   ]
+  },
+  {
+   "id": "five-0111",
+   "depth": 1,
+   "value": "win",
+   "legal": 16,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-1",
+    "prefer-win"
+   ],
+   "note": "Both sides threaten to complete a line: take your own win. (1/16 moves are best)",
+   "config": {
+    "n": 6,
+    "winLen": 4
+   },
+   "history": [
+    28,
+    30,
+    34,
+    16,
+    31,
+    26,
+    17,
+    21,
+    9,
+    10,
+    11,
+    35,
+    3,
+    20,
+    15,
+    22,
+    19,
+    2,
+    23,
+    5
+   ],
+   "best": [
+    29
+   ]
+  },
+  {
+   "id": "five-0112",
+   "depth": 3,
+   "value": "win",
+   "legal": 24,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.244,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (1/24 moves are best)",
+   "config": {
+    "n": 6,
+    "winLen": 4
+   },
+   "history": [
+    28,
+    30,
+    34,
+    16,
+    31,
+    26,
+    17,
+    21,
+    9,
+    10,
+    11,
+    35
+   ],
+   "best": [
+    23
+   ]
+  },
+  {
+   "id": "five-0115",
+   "depth": 1,
+   "value": "win",
+   "legal": 22,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.244,
+   "tags": [
+    "win-in-1",
+    "prefer-win"
+   ],
+   "note": "Both sides threaten to complete a line: take your own win. (1/22 moves are best)",
+   "config": {
+    "n": 6,
+    "winLen": 4
+   },
+   "history": [
+    9,
+    14,
+    10,
+    21,
+    7,
+    8,
+    28,
+    29,
+    12,
+    20,
+    26,
+    15,
+    22,
+    11
+   ],
+   "best": [
+    16
+   ]
+  },
+  {
+   "id": "five-0118",
+   "depth": 3,
+   "value": "win",
+   "legal": 30,
+   "bestCount": 2,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Create two completion cells at once. (2/30 moves are best)",
+   "config": {
+    "n": 6,
+    "winLen": 4
+   },
+   "history": [
+    14,
+    15,
+    13,
+    12,
+    20,
+    6
+   ],
+   "best": [
+    8,
+    26
+   ]
+  },
+  {
+   "id": "five-0120",
+   "depth": "exhaustive",
+   "value": "draw",
+   "legal": 17,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 0.531,
+   "look": 0.244,
+   "tags": [
+    "must-block",
+    "draw",
+    "endgame-exhaustive"
+   ],
+   "note": "Block the four to hold the draw. (1/17 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    12,
+    16,
+    22,
+    17,
+    23,
+    18,
+    19,
+    24
+   ],
+   "best": [
+    15
+   ]
+  },
+  {
+   "id": "five-0121",
+   "depth": 5,
+   "value": "win",
+   "legal": 15,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.797,
+   "tags": [
+    "win-in-3",
+    "endgame-exhaustive"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/15 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    12,
+    17,
+    21,
+    5,
+    11,
+    8,
+    7,
+    13,
+    2,
+    1
+   ],
+   "best": [
+    6
+   ]
+  },
+  {
+   "id": "five-0122",
+   "depth": 5,
+   "value": "win",
+   "legal": 17,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-3",
+    "endgame-exhaustive"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/17 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    12,
+    17,
+    21,
+    5,
+    11,
+    8,
+    7,
+    13
+   ],
+   "best": [
+    6
+   ]
+  },
+  {
+   "id": "five-0125",
+   "depth": "exhaustive",
+   "value": "draw",
+   "legal": 15,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 0.535,
+   "look": 0.797,
+   "tags": [
+    "draw",
+    "endgame-exhaustive",
+    "avoid-loss"
+   ],
+   "note": "Only these moves hold the draw. Every other move loses by force. (1/15 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    12,
+    16,
+    7,
+    11,
+    6,
+    17,
+    21,
+    0,
+    5,
+    8
+   ],
+   "best": [
+    18
+   ]
+  },
+  {
+   "id": "five-0126",
+   "depth": 3,
+   "value": "win",
+   "legal": 15,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.797,
+   "tags": [
+    "win-in-2",
+    "double-threat",
+    "endgame-exhaustive"
+   ],
+   "note": "Create two completion cells at once. (1/15 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    12,
+    6,
+    7,
+    2,
+    16,
+    8,
+    1,
+    21,
+    13,
+    19
+   ],
+   "best": [
+    11
+   ]
+  },
+  {
+   "id": "five-0127",
+   "depth": 5,
+   "value": "win",
+   "legal": 19,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-3",
+    "endgame-exhaustive"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/19 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    12,
+    6,
+    7,
+    2,
+    16,
+    8
+   ],
+   "best": [
+    17
+   ]
+  },
+  {
+   "id": "five-0131",
+   "depth": 1,
+   "value": "win",
+   "legal": 17,
+   "bestCount": 2,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.797,
+   "tags": [
+    "win-in-1"
+   ],
+   "note": "Complete the line. (2/17 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    12,
+    18,
+    23,
+    22,
+    11,
+    17,
+    13,
+    9
+   ],
+   "best": [
+    10,
+    14
+   ]
+  },
+  {
+   "id": "five-0132",
+   "depth": 7,
+   "value": "win",
+   "legal": 17,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": false,
+   "normalOk": false,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-4",
+    "endgame-exhaustive"
+   ],
+   "note": "Forced win in 4 moves. (1/17 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    21,
+    12,
+    6,
+    11,
+    2,
+    22,
+    13,
+    18
+   ],
+   "best": [
+    7
+   ]
+  },
+  {
+   "id": "five-0133",
+   "depth": 3,
+   "value": "win",
+   "legal": 19,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-2",
+    "double-threat",
+    "endgame-exhaustive"
+   ],
+   "note": "Create two completion cells at once. (1/19 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    12,
+    18,
+    23,
+    22,
+    11,
+    17
+   ],
+   "best": [
+    13
+   ]
+  },
+  {
+   "id": "five-0134",
+   "depth": "exhaustive",
+   "value": "draw",
+   "legal": 19,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 0.503,
+   "look": 0.53,
+   "tags": [
+    "draw",
+    "endgame-exhaustive",
+    "avoid-loss"
+   ],
+   "note": "Only these moves hold the draw. Every other move loses by force. (1/19 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    21,
+    12,
+    6,
+    11,
+    2,
+    22
+   ],
+   "best": [
+    13
+   ]
+  },
+  {
+   "id": "five-0137",
+   "depth": 3,
+   "value": "win",
+   "legal": 15,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.244,
+   "tags": [
+    "win-in-2",
+    "double-threat",
+    "endgame-exhaustive"
+   ],
+   "note": "Create two completion cells at once. (1/15 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    21,
+    22,
+    23,
+    17,
+    20,
+    12,
+    6,
+    14,
+    7,
+    15
+   ],
+   "best": [
+    8
+   ]
+  },
+  {
+   "id": "five-0138",
+   "depth": 1,
+   "value": "win",
+   "legal": 17,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.797,
+   "tags": [
+    "win-in-1"
+   ],
+   "note": "Complete the line. (1/17 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    12,
+    8,
+    6,
+    2,
+    17,
+    4,
+    18,
+    0
+   ],
+   "best": [
+    24
+   ]
+  },
+  {
+   "id": "five-0139",
+   "depth": 5,
+   "value": "win",
+   "legal": 17,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-3",
+    "endgame-exhaustive"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/17 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    13,
+    12,
+    19,
+    7,
+    17,
+    18,
+    6,
+    1
+   ],
+   "best": [
+    9
+   ]
+  },
+  {
+   "id": "five-0140",
+   "depth": "exhaustive",
+   "value": "draw",
+   "legal": 17,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 0.511,
+   "look": 0.244,
+   "tags": [
+    "must-block",
+    "draw",
+    "endgame-exhaustive"
+   ],
+   "note": "Block the four to hold the draw. (1/17 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    21,
+    22,
+    23,
+    17,
+    20,
+    12,
+    6,
+    14
+   ],
+   "best": [
+    7
+   ]
+  },
+  {
+   "id": "five-0141",
+   "depth": 5,
+   "value": "win",
+   "legal": 19,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-3",
+    "endgame-exhaustive"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (1/19 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    13,
+    12,
+    19,
+    7,
+    17,
+    18
+   ],
+   "best": [
+    9
+   ]
+  },
+  {
+   "id": "five-0145",
+   "depth": 3,
+   "value": "win",
+   "legal": 17,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.797,
+   "tags": [
+    "win-in-2",
+    "double-threat",
+    "endgame-exhaustive"
+   ],
+   "note": "Create two completion cells at once. (1/17 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    4,
+    9,
+    13,
+    20,
+    12,
+    11,
+    8,
+    16
+   ],
+   "best": [
+    18
+   ]
+  },
+  {
+   "id": "five-0146",
+   "depth": 5,
+   "value": "win",
+   "legal": 19,
+   "bestCount": 2,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.705,
+   "tags": [
+    "win-in-3",
+    "endgame-exhaustive"
+   ],
+   "note": "A forcing sequence (four, then a double threat) wins. (2/19 moves are best)",
+   "config": {
+    "n": 5,
+    "winLen": 4
+   },
+   "history": [
+    4,
+    9,
+    13,
+    20,
+    12,
+    11
+   ],
+   "best": [
+    8,
+    18
+   ]
+  },
+  {
+   "id": "five-0148",
+   "depth": 3,
+   "value": "win",
+   "legal": 30,
+   "bestCount": 1,
+   "greedyOk": false,
+   "easyOk": false,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Symmetric threes; the mover attacks first.",
+   "config": {
+    "n": 6,
+    "winLen": 4
+   },
+   "history": [
+    13,
+    20,
+    14,
+    21,
+    28,
+    35
+   ],
+   "best": [
+    15
+   ]
+  },
+  {
+   "id": "five-0150",
+   "depth": 1,
+   "value": "win",
+   "legal": 41,
+   "bestCount": 2,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-1",
+    "prefer-win"
+   ],
+   "note": "Both sides have an open four: complete your own line instead of blocking.",
+   "config": {
+    "n": 7,
+    "winLen": 5
+   },
+   "history": [
+    8,
+    36,
+    16,
+    37,
+    24,
+    38,
+    32,
+    39
+   ],
+   "best": [
+    0,
+    40
+   ]
+  },
+  {
+   "id": "five-0152",
+   "depth": 3,
+   "value": "win",
+   "legal": 73,
+   "bestCount": 1,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.53,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Double three: one move makes two open threes.",
+   "config": {
+    "n": 9,
+    "winLen": 5
+   },
+   "history": [
+    30,
+    60,
+    31,
+    70,
+    48,
+    10,
+    57,
+    72
+   ],
+   "best": [
+    39
+   ]
+  },
+  {
+   "id": "five-0154",
+   "depth": 3,
+   "value": "win",
+   "legal": 75,
+   "bestCount": 2,
+   "greedyOk": true,
+   "easyOk": true,
+   "normalOk": true,
+   "chance": 1,
+   "look": 0.715,
+   "tags": [
+    "win-in-2",
+    "double-threat"
+   ],
+   "note": "Open three: extend it to an open four.",
+   "config": {
+    "n": 9,
+    "winLen": 5
+   },
+   "history": [
+    39,
+    30,
+    40,
+    31,
+    41,
+    72
+   ],
+   "best": [
+    38,
+    42
+   ]
+  }
+ ],
+ "play": [
+  {
+   "id": "five-play-1",
+   "config": {
+    "n": 9,
+    "winLen": 5,
+    "players": 2
+   },
+   "history": [
+    55,
+    60,
+    29,
+    66,
+    19,
+    54,
+    31,
+    39,
+    28,
+    30,
+    37,
+    46,
+    21,
+    48
+   ],
+   "chance": 0.532,
+   "ply": 14,
+   "of": 23,
+   "seed": 1
+  },
+  {
+   "id": "five-play-2",
+   "config": {
+    "n": 9,
+    "winLen": 5,
+    "players": 2
+   },
+   "history": [
+    70,
+    75,
+    27,
+    55,
+    17,
+    9,
+    50,
+    37,
+    40,
+    60,
+    32,
+    46,
+    28,
+    73,
+    64,
+    76,
+    56,
+    48,
+    74,
+    39,
+    30,
+    29,
+    49,
+    21
+   ],
+   "chance": 0.538,
+   "ply": 24,
+   "of": 59,
+   "seed": 2
+  },
+  {
+   "id": "five-play-3",
+   "config": {
+    "n": 9,
+    "winLen": 5,
+    "players": 2
+   },
+   "history": [
+    77,
+    12,
+    44,
+    45,
+    78,
+    62,
+    76,
+    75,
+    79,
+    80,
+    60,
+    36,
+    42,
+    27,
+    18,
+    51
+   ],
+   "chance": 0.527,
+   "ply": 16,
+   "of": 37,
+   "seed": 3
+  }
+ ]
+}

@@ -14,8 +14,11 @@ games and settings together in the room lobby; rematch or switch games without n
   random player and its puzzle score).
 - **Learn:** an offline academy per game. It lists the rules, runs a guided tutorial that
   walks you through the core mechanics on a real board (it highlights the cell to click and
-  explains what happened), and offers training positions: eight scenarios per game whose
-  best moves were proven by the puzzle solver, played out against the bot with a Retry
+  explains what happened), and offers a ladder of training positions: about twenty scenarios
+  per game in three tiers from Basics to Mastery, sorted by a computed difficulty, with traps
+  (the obvious move loses), turnarounds (you look lost but a forced win exists) and one
+  "play from here" game per tier that you have to win against the bot. Their best moves were
+  proven by the puzzle solver, and every one is played out against the bot with a Retry
   button. Solved scenarios keep a ✓ on this device. In a room lobby the same rules and
   steps are one tap away under "How to play".
 - **Online:** one player creates a room and shares the link (or the 5-letter code).

@@ -5,6 +5,13 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "feature",
+          "text": "Learn now has a ladder of scenarios per game: Basics, Tactics and Mastery, sorted from easy to hard, with traps where the obvious move loses, turnarounds where you look lost but a win is there, and one position per tier that you have to play out and win against the bot.",
+          "refs": [
+            "#44"
+          ]
+        },
+        {
           "type": "internal",
           "text": "The test pipeline runs in parallel jobs now: the unit tests and four balanced shards of browser tests instead of one long serial run, which takes it from up to ten minutes down to about two.",
           "technical": true
