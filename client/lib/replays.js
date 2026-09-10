@@ -58,9 +58,14 @@ const Replays = (() => {
         if (!Number.isInteger(cfg.n) || cfg.n < 2 || cfg.n > 50) return bad("This replay has a board size that cannot be right.");
         const players = cfg.players || 2;
         if (!Number.isInteger(players) || players < 2 || players > 4) return bad("This replay has a number of players that cannot be right.");
-        // a move is one integer: a cell id, or a pair of cells a game packed into one (Isolation's
-        // `to * cells + removed`), so the bound here is generous — the replay below is the real check
-        const moveMax = (cfg.n * cfg.n) ** 2;
+        // how many cells this game's board has for that config (never n * n: Käsekästchen's
+        // cells are the 2n(n+1) lines between the dots)
+        let cells = 0;
+        try { cells = Rules.create({ ...cfg, game: doc.game, players }, doc.game).cells.length; } catch (e) { /* an impossible board */ }
+        if (!cells) return bad("This replay has a board that cannot be built.");
+        // a move is one integer: a cell id, or a pair of cells a game packed into one — a game
+        // that does that says so with the rules' `cellOf` (Isolation's `to * cells + removed`)
+        const moveMax = Rules.of(doc.game).cellOf ? cells * cells : cells;
         if (!Array.isArray(doc.history) || doc.history.some((i) => !Number.isInteger(i) || i < 0 || i >= moveMax)) return bad("This replay has moves that are not on the board.");
         if (doc.outs !== undefined && !Array.isArray(doc.outs)) return bad("This replay is damaged.");
         if (!doc.result || typeof doc.result !== "object") return bad("This replay does not say how it ended.");

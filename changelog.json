@@ -54,7 +54,11 @@
         },
         {
           "type": "feature",
-          "text": "A third game: Isolation. Every player has one pawn, you step to a neighbouring tile and then break any tile away, and whoever cannot move when their turn comes is trapped. Two to four players, boards from 5 to 12, and a bot to practise against. It has its own tutorial and training positions in the Learn section."
+          "text": "A new game: Käsekästchen. Draw a line between two dots, close a box and it is yours and you draw again, and whoever owns the most boxes when the last line is drawn wins. Two to four players, 2 to 10 boxes per side, with a bot that solves the endgame exactly, a lesson in Learn and eight training positions."
+        },
+        {
+          "type": "feature",
+          "text": "A new game: Isolation. Every player has one pawn, you step to a neighbouring tile and then break any tile away, and whoever cannot move when their turn comes is trapped. Two to four players, boards from 5 to 12, and a bot to practise against. It has its own tutorial and training positions in the Learn section."
         },
         {
           "type": "feature",

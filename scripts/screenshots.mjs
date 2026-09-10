@@ -38,6 +38,13 @@ async function tour(B, view, skins) {
         await B.cell(await B.ev("IsolationRules.steps(IsolationGame.state, IsolationGame.state.current)[0]"));
         await sleep(200); await B.screenshot(`${tag}-${view}-${skin}-isolation-pending.png`);
         await B.click("#btn-menu");
+        await B.selectGame("boxes");
+        await B.click("#btn-settings"); await B.set("set-size", 5); await B.click("#btn-settings-done");
+        await B.click("#btn-start");
+        // a few lines around the top-left boxes so drawn lines, a closed box and the marker show
+        for (const i of [0, 5, 30, 31, 1, 36, 6, 37]) await B.move(i);
+        await sleep(300); await B.screenshot(`${tag}-${view}-${skin}-boxes.png`);
+        await B.click("#btn-menu");
     }
     if (B.errors.length) console.log(view, "page errors:", B.errors);
 }

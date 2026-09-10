@@ -1,9 +1,10 @@
 # ALZlper's Minigames
 
-Three nostalgic minigames for two to four players in one static page: **Chain React** (fill a cell, it
-explodes into its neighbours, take the whole board), **Five Wins** (five in a row, no
-gravity) and **Isolation** (step one tile, then break one away until nobody else can move).
-Live at https://minigames.alzlper.com/.
+Four nostalgic minigames for two to four players in one static page: **Chain React** (fill a
+cell, it explodes into its neighbours, take the whole board), **Five Wins** (five in a row, no
+gravity), **Isolation** (step one tile, then break one away until nobody else can move) and
+**Käsekästchen** (draw a line between two dots, close a box and it is yours and
+you go again, most boxes wins). Live at https://minigames.alzlper.com/.
 
 Static site, no backend, no framework. Create a room once, share the link, then pick
 games and settings together in the room lobby; rematch or switch games without new links.
@@ -40,7 +41,7 @@ thinking: the premove is marked on the board and played the moment it is your tu
 
 The number of players (two, three or four) is picked right in the lobby and can never be
 set below the people already sitting in the room; the settings
-(board size, animation speed, chess-style timer, chain-win rule, stones in a row) are
+(board size or boxes per side, animation speed, chess-style timer, chain-win rule, stones in a row) are
 shared live in the room lobby; anyone can change them. The ⚙ button in
 the top-left corner holds the per-device preferences: your name (a short one is picked for
 you on the first visit, change it under Profile; up to 16 characters, everyone in the room

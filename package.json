@@ -12,7 +12,7 @@
     "test:unit": "node --test --test-concurrency=4 'tests/unit/**/*.test.mjs' 'client/bots/**/*.test.mjs'",
     "test:e2e": "node --test --test-concurrency=2 --test-timeout=240000 'tests/e2e/**/*.test.mjs'",
     "benchmark": "node scripts/benchmark.mjs",
-    "puzzles": "node scripts/puzzles/chain/generate.mjs && node scripts/puzzles/five/generate.mjs && node scripts/puzzles/isolation/generate.mjs",
+    "puzzles": "node scripts/puzzles/chain/generate.mjs && node scripts/puzzles/five/generate.mjs && node scripts/puzzles/isolation/generate.mjs && node scripts/puzzles/boxes/generate.mjs",
     "puzzles:verify": "node scripts/puzzles/verify.mjs",
     "learn:scenarios": "node scripts/learn/pick-scenarios.mjs",
     "screenshots": "node scripts/screenshots.mjs",

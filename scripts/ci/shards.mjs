@@ -29,6 +29,7 @@ export const SIZES = {
     "prefs.test.mjs": 40,
     "online-spectate.test.mjs": 32,
     "local-flow.test.mjs": 28,
+    "boxes.test.mjs": 28,
     "isolation.test.mjs": 24,
     "settings.test.mjs": 20,
     "dist.test.mjs": 20,

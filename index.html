@@ -22,6 +22,7 @@
     <link rel="stylesheet" href="client/games/chain.css">
     <link rel="stylesheet" href="client/games/five.css">
     <link rel="stylesheet" href="client/games/isolation.css">
+    <link rel="stylesheet" href="client/games/boxes.css">
 </head>
 <body>
 
@@ -41,7 +42,7 @@
 <section id="screen-menu" class="screen">
     <div class="menu-card">
         <h1 class="title">ALZlper's Minigames</h1>
-        <p class="tagline">Chain React and Five Wins for two to four friends. Create a room once, then play, rematch and switch games together.</p>
+        <p class="tagline">Chain React, Five Wins and Käsekästchen for two to four friends. Create a room once, then play, rematch and switch games together.</p>
 
         <div class="menu-actions">
             <div class="section">
@@ -326,7 +327,7 @@
         <p class="hint" id="settings-locked-hint" hidden>You are spectating. Only the players change the settings.</p>
         <div class="settings">
             <label class="row">
-                <span>Board size <small id="size-hint"></small></span>
+                <span><span id="size-label">Board size</span> <small id="size-hint"></small></span>
                 <span class="inline"><input type="number" id="set-size" min="3" max="25" step="1" value="6" autocomplete="off"><small>× same</small></span>
             </label>
             <!-- one row per game setting, built by settings.js from each game's `settings` list -->
@@ -577,6 +578,8 @@
 <script src="client/games/five.js"></script>
 <script src="client/games/isolation-rules.js"></script>
 <script src="client/games/isolation.js"></script>
+<script src="client/games/boxes-rules.js"></script>
+<script src="client/games/boxes.js"></script>
 <script src="client/bots.js"></script>
 <script src="client/winchance.js"></script>
 <script src="client/bots/random-chain/bot.js"></script>
@@ -591,6 +594,10 @@
 <!-- bots: isolation (add new Isolation bots below this line) -->
 <script src="client/bots/warden-isolation/bot.js"></script>
 <script src="client/bots/warden-isolation/benchmark.js"></script>
+<script src="client/bots/random-boxes/bot.js"></script>
+<!-- bots: boxes (add new Käsekästchen bots below this line) -->
+<script src="client/bots/fencer-boxes/bot.js"></script>
+<script src="client/bots/fencer-boxes/benchmark.js"></script>
 <script src="client/skins.js"></script>
 <script src="client/prefs.js"></script>
 <script src="client/settings.js"></script>
@@ -606,6 +613,7 @@
 <script src="client/learn/chain-scenarios.js"></script>
 <script src="client/learn/five-scenarios.js"></script>
 <script src="client/learn/isolation-scenarios.js"></script>
+<script src="client/learn/boxes-scenarios.js"></script>
 <script src="client/room.js"></script>
 <script src="client/dev.js"></script>
 <script src="client/app.js"></script>

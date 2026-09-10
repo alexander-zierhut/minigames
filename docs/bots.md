@@ -35,7 +35,7 @@ file runs in the browser (as a seat) and in Node (tests, benchmark, puzzles).
 Bots.register({
     id: "blast-chain",                 // folder name: [a-z0-9-], unique
     name: "Blast",                     // for the code, the benchmark output and the docs; players see "Bot" (#21)
-    game: "chain",                     // "chain" | "five" | "isolation" — one game per bot
+    game: "chain",                     // "chain" | "five" | "isolation" | "boxes" — one game per bot
     version: 1,                        // bump when the play changes (kept in benchmark.js)
     description: "One sentence for the bot modal.",
     // baseline: true,                 // only the Random bots: benchmark opponent + fallback, never offered, not benchmarked
@@ -61,7 +61,7 @@ order = display order.
 
 | Member | Meaning |
 | --- | --- |
-| `game`, `rules` | game key and the pure rules module (all its functions are fair game: chain `tally`, `readyCells`, `detonate`, `land`; five `lineThrough`, `bestRow`; isolation `steps`, `mobility`, `territory`, `encode`/`decode`) |
+| `game`, `rules` | game key and the pure rules module (all its functions are fair game: chain `tally`, `readyCells`, `detonate`, `land`; five `lineThrough`, `bestRow`; isolation `steps`, `mobility`, `territory`, `encode`/`decode`; boxes `sides`, `captures`, `safeMoves`, `isFreeCapture`, `chainFrom`) |
 | `me`, `players` | the bot's seat and the number of seats |
 | `difficulty`, `seed` | the chosen difficulty id; the seed of this instance |
 | `budget` | `{ ms, nodes }` per move — see §4 |
@@ -81,7 +81,10 @@ order = display order.
 State shape (from `Rules.base` + the game's `create`): `n, players, current, round, history,
 movesBy, busy, over, winner, finishWhy, cells` (chain: `[{ count, owner, cap }]`, plus
 `chainRule, chainLen, chainNow, chainBest, explosions`; five: owner per cell -1/0/1, plus
-`winLen, winLine`). Cell id = `y * n + x`. Five Wins ends in a draw not only on a full board
+`winLen, winLine`; boxes: owner per **line** -1/0/1, plus `boxes` (owner per box), `scores`,
+`lastBoxes`, `again`). Cell id = `y * n + x` for chain and five; in Käsekästchen a cell is a
+line, `state.n` is the boxes per side and `cells.length` is 2n(n+1) (numbering in
+`client/games/boxes-rules.js`), and a move that closes a box leaves the same player on turn. Five Wins ends in a draw not only on a full board
 but as soon as no window of `winLen` cells is free of enemy stones for any player still in
 (`FiveRules.canWin(state, p)`, #18) — a bot's own board model must mirror that or its
 "engine equals the rules" tests and `apply()` will disagree at the end of drawn games.
@@ -150,11 +153,13 @@ calmer.
   100 %** and no test may gate the deploy on a fixed strength number.
 - **Puzzles** (`tests/puzzles/<game>/puzzles.json`, proven by `scripts/puzzles/<game>/solver.mjs`):
   `evaluateBot(H, id, { difficulty, budget })` → `{ solved, total, pct, chance, byTag, failures }`.
-  `chance` is what blind random picking scores on that set (chain 23 %, five 5.7 %, isolation 20.8 %).
+  `chance` is what blind random picking scores on that set (chain 23 %, five 5.7 %,
+  isolation 20.8 %, boxes 29 %).
   `npm run puzzles` regenerates the sets, `npm run puzzles:verify` re-proves the tactical
   ones without the solvers.
-- **Benchmark** (`npm run benchmark [id]`): 60 (chain) / 100 (five) / 100 (isolation) seeded games against
-  Random at the highest difficulty, both colours, 20 000-node budget → win rate in %; plus
+- **Benchmark** (`npm run benchmark [id]`): 60 (chain) / 100 (five) / 100 (isolation) / 60 (boxes)
+  seeded games
+  against Random at the highest difficulty, both colours, 20 000-node budget → win rate in %; plus
   the puzzle score. Written to `client/bots/<id>/benchmark.js`, shown in the bot modal and
   the lobby's Opponent row as "47 % vs Random · 22 % puzzles". `.github/workflows/benchmark.yml`
   reruns it when bots, rules or tools change and opens an auto-merging PR with the new
@@ -188,9 +193,11 @@ const r = await H.Bots.playout("chain", { n: 6 }, [a, b], { maxMoves: 600 });
 | `sensei-five` | Sensei | Five Wins | Easy 30 ms · Normal 150 ms · Hard 600 ms · Very hard 1500 ms | Int8Array board with incremental line-pattern records (fours, threes, four-makers), alpha-beta negamax with iterative deepening, Zobrist TT, killers/history, exact forced-move handling (own four, enemy fours, open threes), VCF/VCT threat searches with exact mate distance; works for any board size and win length. 100 % vs Random, 154/154 puzzles at Very hard (Easy 69 %, Normal 98 %, Hard 100 %). Provides the win chance (evaluate: depth-2 search with forced fours free, open-three extension, VCF/VCT on long budgets; calibrated scale ≈ 1166, swing 0.9 %). 9×9 with sound defence is drawish; its edge grows on bigger boards. See its README. |
 | `random-isolation` | Random | Isolation | Normal | any legal step and any tile to break; `baseline: true` (benchmark opponent, fallback; never offered) |
 | `warden-isolation` | Warden | Isolation | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | Int8Array board with the rules' own "trapped when your turn comes" handling, paranoid alpha-beta (I maximise, everybody else minimises) with iterative deepening; the generator keeps every step but only the broken tiles near an opponent plus the tile just left, capped per level; evaluation = Voronoi territory (one multi-source BFS, king steps) + mobility + tempo, which is also the exact measure once the board falls apart. 100 % vs Random, 198/200 puzzles at Very hard (Easy 68.5 %, Normal 90 %, Hard 97 %). Provides the win chance (evaluate: the same search averaged over "me to move" and "the other seat to move", which removes the tempo artefact; calibrated scale ≈ 693, swing 11.7 %). Plays 2 to 4 seats. See its README. |
+| `random-boxes` | Random | Käsekästchen | Normal | any undrawn line; `baseline: true` (benchmark opponent, fallback; never offered) |
+| `fencer-boxes` | Fencer | Käsekästchen | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | two engines: an **exact endgame** (alpha-beta negamax to the last line with a transposition table keyed by the bitmask of lines drawn since the root, free captures forced) that solves any two-player position with up to 30 undrawn lines, so it plays the whole second half of a 5 × 5 game perfectly including the "all but two" double-dealing sacrifices; and **chain play** for the rest (take every free box, decline the last two of a chain while control is worth more, play the safe line that commits least, and open the shortest chain when everything is loony). 100 % vs Random, 149/170 puzzles at the 20 000-node benchmark budget (162/170 at its own Very hard budget; take-box, sacrifice and double-deal all 100 %). Provides the win chance (evaluate: the exact final box difference once the endgame is solvable, ±Infinity only for proven results, otherwise boxes won plus who has to open first; calibrated scale ≈ 3, swing 3.9 %). See its README. |
 
 Each bot folder's README describes its search and evaluation; `benchmark.js` carries the
-scores shown in the bot modal. Players see Creeper, Sensei and Warden as "Bot".
+scores shown in the bot modal. Players see Creeper, Sensei, Warden and Fencer as "Bot".
 
 ## 9. Persona: the bot's emojis
 

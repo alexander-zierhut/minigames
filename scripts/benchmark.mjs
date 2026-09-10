@@ -11,8 +11,8 @@ import { loadHeadless, ROOT } from "./headless.mjs";
 import { evaluateBot } from "./puzzles/runner.mjs";
 import { calibrate } from "./calibrate.mjs";
 
-const SERIES = { chain: { games: 60, config: { n: 6, chainRule: false }, maxMoves: 600 }, five: { games: 100, config: { n: 9, winLen: 5 }, maxMoves: 200 }, isolation: { games: 100, config: { n: 7 }, maxMoves: 200 } };
-const BASELINE = { chain: "random-chain", five: "random-five", isolation: "random-isolation" };
+const SERIES = { chain: { games: 60, config: { n: 6, chainRule: false }, maxMoves: 600 }, five: { games: 100, config: { n: 9, winLen: 5 }, maxMoves: 200 }, isolation: { games: 100, config: { n: 7 }, maxMoves: 200 }, boxes: { games: 60, config: { n: 4 }, maxMoves: 60 } };
+const BASELINE = { chain: "random-chain", five: "random-five", isolation: "random-isolation", boxes: "random-boxes" };
 // node budget instead of wall clock: the same bot always gets the same numbers (no CI drift, no diff)
 const BUDGET = { ms: Infinity, nodes: 20000 };
 
