@@ -13,11 +13,16 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  # How many parallel end-to-end shards. Keep this in step with the matrix below;
+  # `node scripts/ci/shards.mjs` prints the file list and the estimate per shard.
+  SHARDS: 4
+
 jobs:
-  test:
-    name: test
+  unit:
+    name: unit
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,24 +30,65 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Unit tests
+      - name: Unit tests (rules, jsdom, bots, puzzles, build)
         run: npm run test:unit
-      - name: End-to-end tests (headless Chrome, up to three browsers via PeerJS; one file at a time on the 2-core runner)
-        run: npm run test:e2e:ci
+
+  e2e:
+    # Every shard is its own runner and still runs its files one at a time: two
+    # Chrome-heavy files side by side on a 2-core runner is what used to make the suite
+    # flaky. The shards are balanced by measured duration (scripts/ci/shards.mjs), so the
+    # longest one decides the wall clock.
+    name: e2e ${{ matrix.shard }}/4
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: End-to-end tests (headless Chrome, up to three browsers via PeerJS)
         env:
           CHROME: /usr/bin/google-chrome
           E2E_SHOTS: ${{ runner.temp }}/shots
+          SHARD: ${{ matrix.shard }}
+        run: |
+          files="$(node scripts/ci/shards.mjs "$SHARD" "$SHARDS")"
+          echo "shard $SHARD/$SHARDS: $files"
+          node --test --test-concurrency=1 --test-timeout=300000 $files
       - name: Upload screenshots on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-screenshots
+          name: e2e-screenshots-${{ matrix.shard }}
           path: ${{ runner.temp }}/shots
           if-no-files-found: ignore
 
+  # The single check branch protection asks for: green only when the unit job and every
+  # e2e shard were green. Renaming or splitting the jobs above therefore never needs a
+  # change in the repository settings.
+  test:
+    name: test
+    needs: [unit, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: All test jobs passed
+        run: |
+          echo "unit: ${{ needs.unit.result }}"
+          echo "e2e:  ${{ needs.e2e.result }}"
+          [ "${{ needs.unit.result }}" = "success" ] || exit 1
+          [ "${{ needs.e2e.result }}" = "success" ] || exit 1
+
   deploy:
     name: deploy
-    needs: test
+    needs: [unit, e2e]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10

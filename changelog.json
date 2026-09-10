@@ -5,6 +5,11 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "internal",
+          "text": "The test pipeline runs in parallel jobs now: the unit tests and four balanced shards of browser tests instead of one long serial run, which takes it from up to ten minutes down to about two.",
+          "technical": true
+        },
+        {
           "type": "improvement",
           "text": "The title screen notices when a newer version of the page is online and offers a Reload button. If nothing happens for a while it reloads by itself, and a lobby or a running game is never interrupted.",
           "technical": true,
