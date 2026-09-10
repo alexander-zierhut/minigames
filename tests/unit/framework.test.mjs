@@ -128,6 +128,30 @@ test("Match: seats per mode, a bot seat that moves by itself, deferred work unti
     w.close();
 });
 
+test("names (#35): Match asks the table, a bot seat is Bot, a room seat nobody is in is Player k", () => {
+    const w = loadDom(); const M = w.eval("Match"); const S = w.eval("Settings"); const O = w.eval("Opponent");
+    const P = w.eval("Prefs"); const R = w.eval("Room");
+    S.init({}); O.init({});
+    P.set({ name: "Robin" });
+    // the table takes its names from the handler app.js gives it (offline: this device's seats)
+    M.init({ names: () => P.seatNames() });
+    M.reset("local");
+    M.start({ game: "five", n: 5, winLen: 4, players: 3, timer: 0 }, 1);
+    assert.equal(JSON.stringify(M.names.slice(0, 3)), JSON.stringify(P.seatNames(3)));
+    assert.equal(w.document.getElementById("p0-name").textContent, "Robin", "the HUD card shows my name");
+    assert.equal(w.document.getElementById("p1-name").textContent, P.seatNames(2)[1]);
+    M.reset("bot");
+    M.start({ game: "five", n: 6, winLen: 4, players: 2, timer: 0 }, 1);
+    assert.equal(M.names[0], "Robin"); assert.equal(M.names[1], "Bot", "the bot seat keeps its own name (#21)");
+    // online: my own seat is my preference, a seat we have never seen anybody in is "Player k"
+    M.reset("online", 1);
+    assert.equal(JSON.stringify(R.names()), JSON.stringify(["Player 1", "Robin"]));
+    P.set({ name: "Sam" });
+    assert.equal(JSON.stringify(R.names()), JSON.stringify(["Player 1", "Sam"]), "renaming shows at once on my own seat");
+    M.reset("local");
+    w.close();
+});
+
 test("Session: save / load / clear on sessionStorage, fail-safe", () => {
     const w = loadDom(); const Sess = w.eval("Session");
     assert.equal(Sess.load(), null);

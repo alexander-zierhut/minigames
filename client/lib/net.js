@@ -434,6 +434,12 @@ const Net = (() => {
         const x = conns.find((e) => e.id === id);
         if (x) x.seat = seat;
     }
+    // host: merge something the app learned about a connection into its meta (e.g. its
+    // name, #35 — the dial's metadata already carries seat / spectate / name)
+    function setMeta(id, patch) {
+        const x = conns.find((e) => e.id === id);
+        if (x) x.meta = { ...(x.meta || {}), ...(patch || {}) };
+    }
 
     function leave() {
         wantConnection = false;
@@ -458,7 +464,7 @@ const Net = (() => {
     }
 
     return {
-        open, send, sendTo, sendExcept, leave, retryNow, randomCode, normalizeCode, setSeat, peerConfig, isTurn, stats,
+        open, send, sendTo, sendExcept, leave, retryNow, randomCode, normalizeCode, setSeat, setMeta, peerConfig, isTurn, stats,
         get iceInfo() { return { ...iceInfo }; },
         // the transport's inner state for the dev panel (#31)
         get transport() { return { broker: !peer ? "none" : peer.destroyed ? "destroyed" : peer.disconnected ? "disconnected" : peer.open ? "open" : "opening", dialAttempts, channelFailures, everConnected }; },

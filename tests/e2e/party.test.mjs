@@ -5,7 +5,9 @@ import assert from "node:assert/strict";
 import { startServer, launchBrowser } from "./harness.mjs";
 
 let server, B;
-before(async () => { server = await startServer(); B = await launchBrowser(); await B.goto(server.url); await B.click("#btn-local"); });
+// a fixed name makes the local seat names deterministic (#35): seat 0 is me, the others are
+// the first default names that are not mine (Prefs.seatNames)
+before(async () => { server = await startServer(); B = await launchBrowser(); await B.goto(server.url); await B.ev("Prefs.set({ name: 'Alex' })"); await B.click("#btn-local"); });
 after(async () => { await B?.close(); await server?.close(); });
 
 test("four on one device: settings row, summary, four HUD cards, rotation, no win chance", async () => {
@@ -20,7 +22,10 @@ test("four on one device: settings row, summary, four HUD cards, rotation, no wi
     await B.click("#btn-start");
     assert.equal(await B.ev("document.querySelectorAll('#players .player').length"), 4);
     assert.equal(await B.ev("document.getElementById('p0-win-row').hidden"), true, "win chance only for two players");
-    assert.equal(await B.text("p2-name"), "Lime"); assert.equal(await B.text("p3-name"), "Rose");
+    const seats = JSON.parse(await B.ev("JSON.stringify(Prefs.seatNames(4))"));
+    assert.equal(seats[0], "Alex", "seat 0 is this device");
+    assert.equal(await B.text("p0-name"), seats[0]);
+    assert.equal(await B.text("p2-name"), seats[2]); assert.equal(await B.text("p3-name"), seats[3]);
     for (const i of [0, 1, 2, 3, 7]) await B.move(i);
     const st = await B.state();
     assert.equal(st.current, 1); assert.equal(JSON.stringify(st.movesBy), "[2,1,1,1]");
@@ -29,7 +34,7 @@ test("four on one device: settings row, summary, four HUD cards, rotation, no wi
     // seat 0 completes a diagonal of four while the others fill a row each
     for (const i of [8, 9, 10, 14, 15, 16, 17, 21]) await B.move(i);
     assert.equal((await B.state()).winner, 0);
-    assert.match(await B.text("overlay-title"), /Cyan wins!/);
+    assert.match(await B.text("overlay-title"), /Alex wins!/);
     await B.click("#overlay-again");
     assert.equal((await B.state()).current, 1, "game 2: the next seat starts");
     await B.click("#btn-menu");
@@ -51,7 +56,7 @@ test("three on one device in Chain React: elimination by the rules, MC skin bloc
     const st = await B.state();
     assert.equal(st.cells[4].owner, s(1));
     assert.equal(st.current, s(0), "s2 owns nothing after having moved: skipped");
-    assert.equal(await B.text("turn-name"), ["Diamond", "Gold", "Emerald"][s(0)]);
+    assert.equal(await B.text("turn-name"), JSON.parse(await B.ev("JSON.stringify(Prefs.seatNames(3))"))[s(0)], "the look never changes the names (#35)");
     await B.selectSkin("classic");
     await B.click("#btn-menu");
     await B.players(2);

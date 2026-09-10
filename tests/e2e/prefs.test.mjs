@@ -33,15 +33,15 @@ test("the button is there on title, lobby and game; the modal opens and closes",
 test("desktop: the section menu and the open section show side by side (#32)", async () => {
     await B.click("#prefs-btn");
     const box = (sel) => B.ev(`JSON.stringify(document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect())`).then(JSON.parse);
-    assert.equal(await B.ev("Prefs.section"), "look", "a section is open right away, nothing needs two taps");
-    const nav = await box("#prefs-nav"), pane = await box('.prefs-section[data-section="look"]');
+    assert.equal(await B.ev("Prefs.section"), "profile", "a section is open right away, nothing needs two taps");
+    const nav = await box("#prefs-nav"), pane = await box('.prefs-section[data-section="profile"]');
     assert.ok(nav.width > 0 && pane.width > 0, "both panes visible");
     assert.ok(nav.right <= pane.left + 1, `the menu is the left column (${nav.right} <= ${pane.left})`);
     assert.equal(await B.ev("getComputedStyle(document.getElementById('btn-prefs-back')).display"), "none", "no Back button with both panes");
     assert.equal(await B.text("prefs-sum-sound"), "30 % · Follow the look", "the row shows the section's state");
     await B.click("#prefs-nav-streaming");
     assert.equal(await B.ev("Prefs.section"), "streaming");
-    assert.equal(await B.ev("document.querySelector('.prefs-section[data-section=\"look\"]').hidden"), true);
+    assert.equal(await B.ev("document.querySelector('.prefs-section[data-section=\"profile\"]').hidden"), true);
     assert.ok(await B.ev("document.getElementById('prefs-nav-streaming').classList.contains('selected')"), "the open section is highlighted");
     await B.check("pref-hide-code", true);
     assert.equal(await B.text("prefs-sum-streaming"), "Code hidden");
@@ -78,6 +78,35 @@ test("volume, sound set and category toggles persist across a reload; never in t
     assert.equal(await B.ev("document.getElementById('pref-snd-turn').checked"), false);
     await B.set("pref-volume", 30); await B.set("pref-soundset", "auto"); await B.check("pref-snd-turn", true);
     await B.click("#btn-prefs-done");
+    assert.deepEqual(B.errors, []);
+});
+
+test("profile (#35): a name is drawn on the first visit, a new one survives a reload and reaches the board", async () => {
+    assert.equal(await B.ev("Prefs.DEFAULT_NAMES.includes(Prefs.get().name)"), true, "the first visit drew one of the default names");
+    await B.click("#prefs-btn");
+    await B.click("#prefs-nav-profile");
+    assert.equal(await B.ev("document.getElementById('pref-name').value"), await B.ev("Prefs.get().name"), "the field shows the current name");
+    assert.equal(await B.ev("document.getElementById('pref-name').maxLength"), 16);
+    await B.set("pref-name", "  Robin  ");
+    assert.equal(await B.ev("Prefs.get().name"), "Robin", "trimmed on the way in");
+    assert.equal(await B.text("prefs-sum-profile"), "Robin", "the menu row shows the name");
+    await B.click("#btn-prefs-done");
+    await B.goto(server.url);
+    assert.equal(await B.ev("Prefs.get().name"), "Robin", "kept across a reload");
+    await B.click("#prefs-btn");
+    assert.equal(await B.ev("document.getElementById('pref-name').value"), "Robin");
+    assert.equal(await B.text("prefs-sum-profile"), "Robin");
+    await B.click("#btn-prefs-done");
+    // on this device seat 0 is me and the others take the first default names that are not mine
+    await B.click("#btn-local"); await B.selectGame("five");
+    await B.click("#btn-settings"); await B.set("set-size", 5); await B.set("set-winlen", 4); await B.click("#btn-settings-done");
+    await B.click("#btn-start");
+    const seats = JSON.parse(await B.ev("JSON.stringify(Prefs.seatNames(2))"));
+    assert.equal(seats[0], "Robin");
+    assert.equal(await B.text("p0-name"), "Robin"); assert.equal(await B.text("p1-name"), seats[1]);
+    assert.match(await B.ev("document.getElementById('log').textContent"), /New game\. Robin starts\./);
+    await B.click("#btn-menu"); await B.click("#btn-lobby-back");
+    assert.equal(await B.screen(), "screen-menu");
     assert.deepEqual(B.errors, []);
 });
 
@@ -180,7 +209,7 @@ test("phone: the modal opens on the section menu, a row opens its section, Back 
         assert.equal(await modalFits(), true, "the menu fits without scrolling");
         await P.screenshot("prefs-phone-menu.png");
         // every section: one tap opens it, it fits the 360×780 phone, Back returns to the menu
-        for (const key of ["look", "sound", "streaming", "developer", "feedback"]) {
+        for (const key of ["profile", "look", "sound", "streaming", "developer", "feedback"]) {
             await P.click("#prefs-nav-" + key);
             assert.equal(await P.ev("Prefs.section"), key);
             assert.equal(await P.ev("getComputedStyle(document.getElementById('prefs-nav')).display"), "none", key + ": the menu steps aside");

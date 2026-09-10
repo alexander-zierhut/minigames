@@ -1,16 +1,16 @@
 /* Look ("skin"): a per-device choice, never sent to the friend and never a game setting.
-   The DOM is identical for every skin; a body class switches the CSS. Player names and
-   colours come from the skin (Cyan/Amber vs Diamond/Gold); seats 2 and 3 are prepared
-   for a future 4-player mode. */
+   The DOM is identical for every skin; a body class switches the CSS and nothing else.
+   Player names are no longer part of the look (#35): everyone picks their own name in the
+   preferences (Prefs.name) and the seats keep their colours. */
 
 "use strict";
 
 const Skins = (() => {
     const KEY = "chainreact.skin";
     const SKINS = {
-        classic: { cls: "", names: ["Cyan", "Amber", "Lime", "Rose"] },                // owner's favourite: don't touch
-        mcboard: { cls: "skin-mcboard", names: ["Diamond", "Gold", "Emerald", "Redstone"] },  // classic UI, Minecraft board
-        mc: { cls: "skin-mc", names: ["Diamond", "Gold", "Emerald", "Redstone"] },            // unified dark Minecraft UI
+        classic: { cls: "" },                         // owner's favourite: don't touch
+        mcboard: { cls: "skin-mcboard" },             // classic UI, Minecraft board
+        mc: { cls: "skin-mc" },                       // unified dark Minecraft UI
     };
     let current = "classic";
     let onChange = () => {};
@@ -35,5 +35,5 @@ const Skins = (() => {
         document.querySelectorAll(".skin-seg button").forEach((b) => b.addEventListener("click", () => set(b.dataset.skin)));
     }
 
-    return { init, set, names: () => SKINS[current].names, get current() { return current; } };
+    return { init, set, get current() { return current; } };
 })();
