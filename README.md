@@ -23,7 +23,12 @@ games and settings together in the room lobby; rematch or switch games without n
   (the *Players* setting). Uses PeerJS: the public PeerJS broker only brokers the
   handshake, then the game runs peer to peer (the room's host relays between guests).
   Anyone who joins when every seat is taken watches as a spectator, and the lobby's
-  spectate-link button (👀 next to "Share link") invites people to watch on purpose.
+  spectate-link button (👀 next to "Share link") invites people to watch on purpose. That
+  link carries a code of its own, so a viewer can watch without ever learning the room code.
+  In the room you can also swap: a player steps back with "Watch instead", a spectator
+  sits down with "Take a seat", so three people can take turns at two seats. Waiting alone
+  in a room? "Against a bot instead" puts a bot on the empty seat, and your friends can
+  watch that game or take the seat over when they arrive.
   A page refresh, leaving and coming back by the same link, even the room creator
   leaving — the room survives as long as one player is in it, and everybody keeps
   their seat, their colour and their name.
@@ -43,7 +48,10 @@ Blocks) and the sounds (volume, categories; the Classic look uses synthesized cu
 Blocks looks pixel block, explosion and level-up sounds). Emoji reactions for
 trash talk are in the top-right corner; a room chat lives under the game log (phones:
 behind the ☰ button). When a game is over, "Look at board" opens a replay bar to step
-through it move by move, in step with everyone else in the room.
+through it move by move, in step with everyone else in the room. Every game you play is
+also kept on your device: the title screen's **Replays** button lists them, plays any of
+them back with that same bar, saves one as a file and opens a replay file somebody sent
+you.
 
 The title screen has a Changelog (from `changelog.json`, kept current with every change).
 On Android the title screen offers "Add to home screen" so it runs like an installed app
@@ -65,7 +73,7 @@ room protocol and how to add a game.
 ## Layout
 
 - `index.html` — markup, templates, and the ordered list of stylesheets and scripts
-- `client/lib/` — `util`, `bus` (events), `log`, `clock`, `net` (PeerJS rooms), `preload`, `sound`, `install`
+- `client/lib/` — `util`, `bus` (events), `log`, `clock`, `net` (PeerJS rooms), `preload`, `sound`, `install`, `replays` (replay files + the IndexedDB store), `update` (a new build is offered on the title screen)
 - `client/games/rules.js` — the pure game loop (`Rules.create / step / eliminate / apply / replay`) every headless path shares
 - `client/games.js` — game registry, the engine shell every game shares, the generic HUD (rendered from a model the game returns)
 - `client/games/` — per game: pure `<key>-rules.js`, `<key>.js` (view + registration incl. its settings rows), `<key>.css`

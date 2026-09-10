@@ -75,7 +75,9 @@ writeFileSync(join(DIST, ASSETS, jsName), bundle);
 
 /* ---- index.html: one css link, one script tag, the version stamp ---- */
 let version = new Date().toISOString().slice(0, 10);
-try { version = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: ROOT, stdio: "pipe" }).toString().trim() + " " + version; } catch (e) { /* not a git checkout */ }
+let commit = "";
+try { commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, stdio: "pipe" }).toString().trim(); } catch (e) { /* not a git checkout */ }
+if (commit) version = commit.slice(0, 7) + " " + version;
 html = html.replace('<meta name="version" content="dev">', `<meta name="version" content="${version}">`);
 html = html.replace(linkTags[0][0], `<link rel="stylesheet" href="${ASSETS}/${cssName}">\n`);
 for (const m of linkTags.slice(1)) html = html.replace(m[0], "");
@@ -84,6 +86,11 @@ for (const m of scriptTags.slice(1)) html = html.replace(m[0], "");
 html = html.replace(/^\s*<!-- (stylesheets|scripts) are concatenated[^\n]*\n/gm, "");
 if (/client\//.test(html)) throw new Error("index.html still references client/ after rewrite");
 writeFileSync(join(DIST, "index.html"), html);
+
+/* ---- version.json: the same stamp next to index.html (#40). client/lib/update.js polls it
+       on the title screen; the deploy uploads it with no-cache, so a page that has been open
+       for a while notices a new build. ---- */
+writeFileSync(join(DIST, "version.json"), JSON.stringify({ version, commit, builtAt: new Date().toISOString() }, null, 2) + "\n");
 
 /* ---- root extras (icons) ---- */
 for (const f of ROOT_EXTRAS) if (existsSync(join(ROOT, f))) copyFileSync(join(ROOT, f), join(DIST, f));

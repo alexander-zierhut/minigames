@@ -74,7 +74,13 @@
         <div class="menu-foot">
             <!-- shown only when the browser offers to install the page as an app (Android Chrome) -->
             <button class="btn ghost install-btn" id="btn-install" hidden>📲 Add to home screen</button>
+            <button class="btn ghost install-btn" id="btn-replays">🎬 Replays</button>
             <button class="btn ghost install-btn" id="btn-changelog">📜 Changelog</button>
+        </div>
+        <!-- a newer version was deployed while this page was open (#40); title screen only -->
+        <div class="update-notice" id="update-notice" hidden>
+            <span>A new version is ready.</span>
+            <button class="btn small primary" id="btn-update-reload">Reload</button>
         </div>
     </div>
 </section>
@@ -113,6 +119,14 @@
             </div>
             <!-- one card per seat, from #tpl-lobby-player -->
             <div class="lobby-players" id="lobby-players"></div>
+            <!-- online only: swap between playing and watching in the lobby (#39) -->
+            <div class="seat-actions" id="seat-actions">
+                <button class="btn quiet small" id="btn-watch" hidden>Watch instead</button>
+                <button class="btn quiet small" id="btn-take-seat" hidden>Take a seat</button>
+                <!-- a two-seat room whose other seat is empty can play a bot instead of waiting (#36) -->
+                <button class="btn quiet small" id="btn-room-bot" hidden>Against a bot instead</button>
+                <button class="btn quiet small" id="btn-room-bot-off" hidden>Wait for a friend instead</button>
+            </div>
             <div class="lobby-status" id="lobby-status"></div>
             <div class="lobby-status" id="lobby-spectators"></div>
         </div>
@@ -149,6 +163,24 @@
             <button class="btn primary big" id="btn-start">Start game</button>
             <button class="btn quiet" id="btn-lobby-back">Leave</button>
         </div>
+    </div>
+</section>
+
+<!-- ===================== REPLAYS (#42: every game played on this device) ===================== -->
+<section id="screen-replays" class="screen" hidden>
+    <div class="menu-card replays-card">
+        <h1 class="title small">Replays</h1>
+        <p class="tagline small">Every game you play is saved on this device. Watch it again, save it as a file or open a file somebody sent you.</p>
+        <!-- All + one button per registered game, built by app.js -->
+        <div class="seg replay-filter" id="replay-filter"></div>
+        <p class="hint" id="replays-hint" hidden></p>
+        <!-- one .replay-item per saved game, from #tpl-replay -->
+        <div class="replay-list" id="replay-list"></div>
+        <div class="lobby-foot">
+            <button class="btn" id="btn-replay-upload">Open a replay file</button>
+            <button class="btn quiet" id="btn-replays-back">Back</button>
+        </div>
+        <input type="file" id="replay-file" accept="application/json,.json" hidden>
     </div>
 </section>
 
@@ -507,6 +539,19 @@
         <div class="bar win-bar" id="p{k}-win-row" hidden><div class="bar-fill p{k}" id="p{k}-win" style="width:50%"></div><span id="p{k}-win-pct">50 % win</span></div>
     </div>
 </template>
+<template id="tpl-replay">
+    <div class="replay-item">
+        <div class="replay-info">
+            <div class="replay-title"></div>
+            <div class="replay-sub"></div>
+        </div>
+        <div class="replay-buttons">
+            <button class="btn small primary" data-act="watch">Watch</button>
+            <button class="btn small icon" data-act="download" title="Save as a file" aria-label="Save as a file">⬇</button>
+            <button class="btn small icon" data-act="delete" title="Delete this replay" aria-label="Delete this replay">🗑</button>
+        </div>
+    </div>
+</template>
 <template id="tpl-lobby-player">
     <div class="lobby-player p{k}" id="lp-{k}"><span class="cube p{k}"></span><span class="lp-name"></span><span class="lp-you"></span><span class="lp-status" id="lp-{k}-status"></span></div>
 </template>
@@ -521,6 +566,8 @@
 <script src="client/lib/preload.js"></script>
 <script src="client/lib/sound.js"></script>
 <script src="client/lib/install.js"></script>
+<script src="client/lib/replays.js"></script>
+<script src="client/lib/update.js"></script>
 <script src="client/games/rules.js"></script>
 <script src="client/games.js"></script>
 <script src="client/games/chain-rules.js"></script>
