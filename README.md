@@ -23,9 +23,9 @@ games and settings together in the room lobby; rematch or switch games without n
 
 Settings (players, board size, animation speed, chess-style timer, chain-win rule,
 stones in a row) are shared live in the room lobby; anyone can change them. The ⚙ button in
-the top-left corner holds the per-device preferences: the look (Classic, MC board,
-Minecraft) and the sounds (volume, categories; the Classic look uses synthesized cues,
-the Minecraft looks the real block, TNT and level-up sounds). Emoji reactions for
+the top-left corner holds the per-device preferences: the look (Classic, Blocks board,
+Blocks) and the sounds (volume, categories; the Classic look uses synthesized cues, the
+Blocks looks pixel block, explosion and level-up sounds). Emoji reactions for
 trash talk are in the top-right corner; a room chat lives under the game log (phones:
 behind the ☰ button).
 
@@ -54,7 +54,7 @@ room protocol and how to add a game.
 - `client/bots.js`, `client/bots/<id>/` — bot registry + toolset; one folder per bot with its tests and benchmark score
 - `scripts/` — `headless.mjs` (rules + bots in Node), `benchmark.mjs` (`npm run benchmark`), puzzle solvers, verify, screenshots
 - `client/skins.js`, `client/prefs.js` (⚙ per-device preferences), `client/settings.js`, `client/reactions.js`, `client/app.js` (flow, room protocol)
-- `client/lib/sound.js`, `client/sounds/` — sound cues (synthesized Classic set, Minecraft .ogg files)
-- `client/css/` — base tokens, menu/lobby, game screen, Minecraft skins
-- `client/textures/` — 16×16 block textures used by the Minecraft skins
+- `client/lib/sound.js`, `client/sounds/` — sound cues (synthesized Classic set, the Blocks .ogg files)
+- `client/css/` — base tokens, menu/lobby, game screen, the Blocks skins
+- `client/textures/` — 16×16 block textures used by the Blocks skins
 - `tests/unit`, `tests/e2e`, `build.mjs`, `.github/workflows/ci.yml`

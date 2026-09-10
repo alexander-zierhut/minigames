@@ -192,6 +192,12 @@ already sits at 58px on phones. The MC skin restyles `.corner-btn` like `#react-
 
 ## Skins (`client/skins.js`, per device)
 
+**Naming (owner's decision):** the textured looks are called **"Blocks board"** and
+**"Blocks"** in every user-facing text (buttons, sound-set option, README, promotion) — the
+word "Minecraft" must not appear in the UI or in public texts. Internal keys, CSS classes
+and storage values stay `mcboard` / `mc` / `skin-mc*` for compatibility; this file may
+still say "MC" when describing the origin of the textures.
+
 One `.skin-seg` control, in the preferences modal only (`Skins.init` wires every
 instance it finds, so more could be added), stored in `localStorage["chainreact.skin"]`, never
 sent to the friend, never in the settings modal. The DOM is identical for every skin; a

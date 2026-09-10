@@ -22,7 +22,7 @@ test("built site loads only hashed assets, preloads textures, plays", async () =
     assert.ok(urls.some((u) => /\/assets\/app\.[0-9a-f]{10}\.js$/.test(u)), "hashed bundle requested");
     assert.ok(urls.some((u) => /\/assets\/main\.[0-9a-f]{10}\.css$/.test(u)), "hashed css requested");
     assert.ok(!urls.some((u) => u.includes("/client/")), "nothing from client/ requested");
-    const pngs = urls.filter((u) => u.endsWith(".png"));
+    const pngs = urls.filter((u) => u.includes("/assets/textures/") && u.endsWith(".png"));   // the manifest's icons are fetched too, unhashed by design
     assert.ok(pngs.length >= 10, `textures preloaded before any click (${pngs.length})`);
     assert.ok(pngs.every((u) => /\.[0-9a-f]{10}\.png$/.test(u)), "textures are hashed");
     assert.equal(await B.ev("document.getElementById('loader').hidden"), true);
