@@ -78,6 +78,10 @@ test("game: compact HUD, board outline visible, reactions inside the viewport, n
     assert.ok(await M.ev("document.getElementById('react-bar').classList.contains('collapsed')"), "reaction bar starts collapsed");
     await M.waitFor("document.getElementById('react-layer').style.top !== ''", { what: "reaction layer placed" });
     await M.click("#react-toggle");
+    // the list opens as a block under the 😜 toggle, never across the top towards the ⚙ (#43)
+    const bar = JSON.parse(await M.ev("JSON.stringify({ t: document.getElementById('react-toggle').getBoundingClientRect(), l: document.querySelector('#react-bar .react-list').getBoundingClientRect(), g: document.getElementById('prefs-btn').getBoundingClientRect() })"));
+    assert.ok(bar.l.top >= bar.t.bottom, `the emoji list sits under the toggle (${bar.l.top} >= ${bar.t.bottom})`);
+    assert.ok(bar.l.top >= bar.g.bottom, "the emoji list clears the ⚙ button");
     await M.click('#react-bar button[data-e="🔥"]');
     const layer = JSON.parse(await M.ev("JSON.stringify(document.getElementById('react-layer').getBoundingClientRect())"));
     assert.ok(layer.right <= 360 && layer.left >= 0, `reaction layer inside the viewport (${layer.left}..${layer.right})`);
