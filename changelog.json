@@ -6,6 +6,10 @@
       "entries": [
         {
           "type": "feature",
+          "text": "A third game: Käsekästchen. Draw a line between two dots, close a box and it is yours and you draw again, and whoever owns the most boxes when the last line is drawn wins. Two to four players, 2 to 10 boxes per side, with a bot that solves the endgame exactly."
+        },
+        {
+          "type": "feature",
           "text": "Five Wins: a new Yavalath rule in the settings. One stone short of the winning row loses (four wins, three loses with the classic values); with three or four players the loser is out and the rest play on. The bot does not know the rule yet, so a random opponent stands in."
         },
         {

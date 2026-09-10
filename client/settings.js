@@ -8,7 +8,8 @@
    into #game-settings, as `<label class="row" id="row-<key>" data-setting="<key>">` with the
    input `#set-<key>` (key lowercased). A row shows when the selected game lists that key.
    Every field of every game is read into the config (`config.<key>`), persisted and
-   mirrored to the room. Board-size limits come from `size` / `minSize(cfg)`. A game
+   mirrored to the room. Board-size limits come from `size` / `minSize(cfg)`, and its label
+   from `sizeLabel` when a game wants its own ("Boxes per side"). A game
    declares `players: { min, max }` (default 2–4): the picker grays out games that don't
    take the chosen player count, and the selection moves to one that does (#28).
    `setMinPlayers(n)` (the lobby says how many seats are taken) disables every smaller count
@@ -156,6 +157,7 @@ const Settings = (() => {
         inp.max = String(lim.max);
         inp.value = String(clamp(sizeFor[game] || def().size.default, lim.min, lim.max));
         $("size-hint").textContent = `(${lim.min}–${lim.max})`;
+        $("size-label").textContent = def().sizeLabel || "Board size";   // boxes: "Boxes per side"
     }
 
     // clamp typed numbers once a field is left (typing "1" on the way to "12" must not snap)

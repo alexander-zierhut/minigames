@@ -18,5 +18,5 @@ export function loadHeadless() {
         if (!existsSync(ROOT + f)) continue;                 // benchmark.js is generated; absent before the first run
         vm.runInContext(readFileSync(ROOT + f, "utf8"), ctx, { filename: f });
     }
-    return vm.runInContext("({ Util, Rules, ChainRules, FiveRules, Bots })", ctx);
+    return vm.runInContext("({ Util, Rules, ChainRules, FiveRules, BoxesRules, Bots })", ctx);
 }

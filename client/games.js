@@ -104,7 +104,9 @@ const Engine = (() => {
             setBusy(false);
             render();
             settled();
-            emit("game:turn", { player: state.current, state });
+            // "the turn passed": a game where a move may keep the mover on turn (boxes:
+            // closing a box) emits nothing here, so sounds and observers don't fire twice
+            if (state.current !== me) emit("game:turn", { player: state.current, state });
             if (hooks.onTurn) hooks.onTurn(state.current);
             return true;
         }
@@ -193,6 +195,9 @@ const Engine = (() => {
         function render() {
             if (!hooks.names || cells.length === 0 || cells.length !== state.cells.length) return;
             for (let i = 0; i < cells.length; i++) renderCell(i);
+            // a game whose board has parts that are not cells (boxes: the boxes themselves)
+            // paints them here; every other game leaves the hook out
+            if (view.renderBoard) view.renderBoard(position());
             renderHud();
         }
 
