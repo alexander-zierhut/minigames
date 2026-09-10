@@ -50,7 +50,7 @@ Scripts, in order (each defines the global named in brackets):
 | `client/winchance.js` | `WinChance` | win-chance bars: a Bus observer of `game:new` / `game:position` (no engine or game knows it) |
 | `client/bots/<id>/bot.js` | (registers) | one folder per bot: `bot.js`, generated `benchmark.js`, `bot.test.mjs` |
 | `client/skins.js` | `Skins` | look per device: body class, player names |
-| `client/prefs.js` | `Prefs` | per-device preferences ("⚙ Settings & Feedback" top-left): look, sound volume / categories, hide the room code, feedback link |
+| `client/prefs.js` | `Prefs` | per-device preferences ("⚙ Settings & Feedback" top-left): look, sound volume / categories, hide the room code, keep my IP private, feedback link |
 | `client/settings.js` | `Settings` | settings form ↔ config; the game rows are **built from the game definitions**; picker cards, persistence, summary |
 | `client/opponent.js` | `Opponent` | the bot modal: one bot per game, called "Bot" (`Opponent.NAME`), its scores and the difficulty; choice per game |
 | `client/bot-persona.js` | `BotPersona` | a bot seat's sparse emoji reactions, drawn from seeded weighted pools |
@@ -242,9 +242,11 @@ label, #22; kept in sync by `Skins`), the **Sound** rows (master volume slider
 `#pref-volume`, default 30 %; sound set `#pref-soundset`: follow the look / Classic /
 Blocks; one checkbox per category `#pref-snd-<cat>`, categories in `Prefs.CATEGORIES` =
 moves, explosions, results, turn, reactions, chat), **Streaming** (`#pref-hide-code`:
-enter rooms with the code hidden, #19), **Feedback**. Stored in
+enter rooms with the code hidden, #19; `#pref-private-ip` "Keep my IP always private":
+every connection is relayed through TURN, #30 — read by `Net` when the peer is created,
+so it takes effect on the next room), **Feedback**. Stored in
 `localStorage["chainreact.prefs"]` (`Prefs.get()` → `{ volume, soundSet, sounds: {…},
-hideCode }`, `Prefs.set(patch)` merges, clamps, persists, refills the form and calls
+hideCode, privateIp }`, `Prefs.set(patch)` merges, clamps, persists, refills the form and calls
 `onChange`). The modal is roomier than the settings one (`.prefs-rows` gap 14 px, 16 px
 and 540 px wide on desktop, #25).
 Never sent to the room, never part of `Settings.read()`. Layout rules: on phones
@@ -566,7 +568,14 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   just don't publish it in an obvious place (no `turn.json`, no plain string). Metered has
   no domain restriction and the owner explicitly rejected a rotation workflow as unreliable.
   The Peer is created asynchronously (`createPeer`, guarded by `openGen` so a room left
-  meanwhile is ignored). After 3 dials whose data channel never opened while the host is
+  meanwhile is ignored) with `Net.peerConfig(servers, relayOnly)`: **"Keep my IP always
+  private"** (#30, `handlers.relayOnly()` = `Prefs.privateIp`) sets `iceTransportPolicy:
+  "relay"`, so this side offers relay candidates only and nobody in the room learns its IP
+  (the other side may still connect directly to the relay; only my own preference relays
+  my side). `Net.iceInfo` = `{ relayOnly, turn, servers }` of the current peer; relay
+  demanded but no TURN entry in the list (Metered unreachable) → status `error` with
+  `NO_RELAY_TEXT` on every dial. The e2e `online` suite verifies the selected candidate
+  pair is `relay` on the host's side through `getStats()`. After 3 dials whose data channel never opened while the host is
   registered (`channelFailures`, or repeated `webrtc` errors) the status becomes `error`
   with a plain hint to try Wi‑Fi.
 - **Guest dial handshake**: the guest listens for data from the start (under load the
@@ -960,7 +969,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `BotPersona` | `attach({bot, seat, game, state, estimate, color, delays?, cooldownMs?})`, `detach()`, `POOLS` |
 | `Skins` | `init({onChange})`, `set(key)`, `names()`, `current` |
 | `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `setMode(mode)`, `game`, `fields` |
-| `Prefs` | `init({onChange, context})`, `get() → {volume, soundSet, sounds, hideCode}`, `set(patch)`, `open/close`, `feedbackUrl()`, `CATEGORIES`, `isOpen` |
+| `Prefs` | `init({onChange, context})`, `get() → {volume, soundSet, sounds, hideCode, privateIp}`, `set(patch)`, `open/close`, `feedbackUrl()`, `CATEGORIES`, `isOpen` |
 | `Opponent` | `init({onDone})`, `open(game)`, `current(game) → {id, difficulty, def}`, `summary(game)`, `NAME` ("Bot") |
 | `Reactions` | `init({onSend})`, `receive(emoji, color)`, `place()`, `durationFor(recent)` |
 | `Chat` | `init(...)`, `send`, `receive(msg)`, `enable(on)` (see chat section) |

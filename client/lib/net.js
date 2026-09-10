@@ -27,7 +27,15 @@ const Net = (() => {
     const relayUrl = () => atob(RELAY_SRC).split("").reverse().join("");
     const RELAY_CACHE_MS = 20 * 60 * 1000;
     const NO_PATH_TEXT = "Your networks block a direct connection (both on mobile data?). Try Wi‑Fi on one side.";
+    const NO_RELAY_TEXT = "No relay server is available right now, so a private connection is not possible. Turn off \"Keep my IP always private\" to play anyway.";
     let iceCache = null;        // { at, promise }
+    let iceInfo = { relayOnly: false, turn: false, servers: 0 };   // what the current peer was created with (dev panel, tests)
+    const isTurn = (s) => [].concat(s && s.urls || []).some((u) => /^turns?:/i.test(u));
+    // the RTCPeerConnection config: with relayOnly (#30, "Keep my IP always private") only relay
+    // candidates are offered, so the others (and a streamer's viewers) never see this device's IP
+    function peerConfig(servers, relayOnly) {
+        return { iceServers: servers, iceTransportPolicy: relayOnly ? "relay" : "all" };
+    }
 
     function iceServers() {
         if (iceCache && Date.now() - iceCache.at < RELAY_CACHE_MS) return iceCache.promise;
@@ -46,7 +54,9 @@ const Net = (() => {
         const gen = openGen;
         iceServers().then((servers) => {
             if (gen !== openGen || !wantConnection) return;
-            peer = new Peer(id, { debug: 0, config: { iceServers: servers } });
+            const relayOnly = !!(typeof handlers.relayOnly === "function" ? handlers.relayOnly() : handlers.relayOnly);
+            iceInfo = { relayOnly, turn: servers.some(isTurn), servers: servers.length };
+            peer = new Peer(id, { debug: 0, config: peerConfig(servers, relayOnly) });
             setup(peer);
         });
     }
@@ -70,7 +80,8 @@ const Net = (() => {
     let role = null;            // "host" | "guest"
     let handlers = {};          // onStatus(status, detail), onRole(role), onOpen(role, id), onClose(reason, id),
                                 // onMessage(msg, id), preferHost (bool), metadata() -> object sent with each dial
-                                // (my seat), admit(meta, peers) -> may a newcomer (no known seat) join? (host)
+                                // (my seat), admit(meta, peers) -> may a newcomer (no known seat) join? (host),
+                                // relayOnly() -> force every connection through the TURN relay (#30)
     let status = "idle";        // idle | connecting | waiting | connected | reconnecting | signaling | error
     let wantConnection = false;
     let openGen = 0;            // increments per open(); async peer creation checks it
@@ -196,6 +207,7 @@ const Net = (() => {
         if (!wantConnection || !peer || peer.destroyed || isOpen()) return;
         dialAttempts++;
         if (roomFull) { /* keep "room is full" on screen while we quietly try again */ }
+        else if (iceInfo.relayOnly && !iceInfo.turn) setStatus("error", NO_RELAY_TEXT);   // relay demanded, none to be had
         else if (channelFailures >= 3) setStatus("error", NO_PATH_TEXT);   // host is there, channel never opens
         else if (everConnected) setStatus("reconnecting", dialAttempts > 1 ? `Reconnecting to your friend… (try ${dialAttempts})` : "Reconnecting to your friend…");
         else setStatus("connecting", dialAttempts > 1 ? "Your friend isn't in the room yet. Waiting…" : "Looking for the room…");
@@ -424,7 +436,8 @@ const Net = (() => {
     }
 
     return {
-        open, send, sendTo, sendExcept, leave, retryNow, randomCode, normalizeCode, setSeat,
+        open, send, sendTo, sendExcept, leave, retryNow, randomCode, normalizeCode, setSeat, peerConfig, isTurn,
+        get iceInfo() { return { ...iceInfo }; },
         get code() { return code; },
         get role() { return role; },
         get status() { return status; },

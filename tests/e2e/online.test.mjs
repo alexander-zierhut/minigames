@@ -193,3 +193,31 @@ test("hide the room code (#19): bullets in the lobby and the HUD, nothing in the
     await A.click("#prefs-btn"); await A.check("pref-hide-code", false); await A.click("#btn-prefs-done");
     assert.deepEqual(A.errors, []); assert.deepEqual(B.errors, []);
 });
+
+test("keep my IP always private (#30): the next room is created with relay-only ICE; the friend still connects, through the relay", { skip: !ONLINE }, async () => {
+    await A.click("#prefs-btn"); await A.check("pref-private-ip", true); await A.click("#btn-prefs-done");
+    assert.equal(await A.ev("Prefs.get().privateIp"), true);
+    assert.equal(await A.ev("Net.iceInfo.relayOnly"), false, "the room I am in was created before: unchanged");
+    await A.click("#btn-lobby-back");
+    const third = await createRoom(A);
+    assert.equal(await A.ev("Net.iceInfo.relayOnly"), true);
+    assert.equal(await A.ev("Net.peer.options.config.iceTransportPolicy"), "relay", "the RTCPeerConnection only offers relay candidates");
+    const turn = await A.ev("Net.iceInfo.turn");
+    if (!turn) { console.log("no TURN server in the ICE list right now: connection check skipped"); assert.equal(await A.ev("Net.status"), "waiting"); }
+    else {
+        await B.goto(`${server.url}?room=${third}`);
+        await B.waitFor("Net.connected", { timeout: 60000, what: "guest connected through the relay" });
+        await A.waitFor("Net.connected", { timeout: 60000, what: "host connected" });
+        const local = await A.waitFor(`(async () => {
+            const c = [...Object.values(Net.peer.connections)].flat()[0]; if (!c || !c.peerConnection) return null;
+            const st = await c.peerConnection.getStats(); let out = null;
+            st.forEach((r) => { if (r.type === "candidate-pair" && (r.selected || (r.nominated && r.state === "succeeded"))) { const l = st.get(r.localCandidateId); if (l) out = l.candidateType; } });
+            return out; })()`, { timeout: 20000, what: "selected candidate pair known" });
+        assert.equal(local, "relay", "the host's side of the connection is a relay candidate: its IP stays with the TURN server");
+        assert.equal(await B.ev("Net.iceInfo.relayOnly"), false, "only my own preference relays my side");
+        await B.click("#btn-lobby-back");
+    }
+    await A.click("#prefs-btn"); await A.check("pref-private-ip", false); await A.click("#btn-prefs-done");
+    await A.click("#btn-lobby-back");
+    assert.deepEqual(A.errors, []); assert.deepEqual(B.errors, []);
+});

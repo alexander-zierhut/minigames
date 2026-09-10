@@ -155,6 +155,7 @@ const Room = (() => {
             onMessage,
             metadata: () => ({ seat: Match.me, spectate: Match.spectator }),
             admit: admitGuest,
+            relayOnly: () => Prefs.get().privateIp,   // "Keep my IP always private" (#30)
         }, preferHost === false ? "guest" : undefined);
         $("lobby-code").textContent = codeText(finalCode);
         setUrlRoom(finalCode);

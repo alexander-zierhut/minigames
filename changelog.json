@@ -5,6 +5,13 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "feature",
+          "text": "Streaming: a new preference \"Keep my IP always private\" sends every connection through the relay server, so nobody in the room learns your IP address.",
+          "refs": [
+            "#30"
+          ]
+        },
+        {
           "type": "fix",
           "text": "Spectators only watch: they can no longer change the game or the settings, start, ask for a rematch or send everyone back to the room. Chat and reactions still work.",
           "refs": [
