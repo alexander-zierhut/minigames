@@ -38,38 +38,60 @@ Scripts, in order (each defines the global named in brackets):
 | `client/lib/clock.js` | `Clock` | chess clock for N players |
 | `client/lib/net.js` | `Net` | PeerJS room transport |
 | `client/lib/preload.js` | `Preload` | first-visit texture preload with `#loader` bar |
-| `client/lib/sound.js` | `Sound` | Bus events → sound cues; synthesized Classic set, Minecraft files (see Sounds) |
-| `client/games/rules.js` | `Rules` | base state + turn passing shared by all rules modules |
-| `client/games.js` | `Games`, `Engine`, `Hud` | registry, the engine shell every game shares, HUD renderer |
+| `client/lib/sound.js` | `Sound` | Bus events → sound cues; synthesized Classic set, Blocks files (see Sounds) |
+| `client/lib/install.js` | `Install` | "Add to home screen" button (beforeinstallprompt) |
+| `client/games/rules.js` | `Rules` | base state, turn passing, the **pure game loop** (`create/step/eliminate/apply/replay`) shared by the engine, bots and scripts |
+| `client/games.js` | `Games`, `Engine`, `Hud` | registry, the engine shell every game shares, the generic HUD renderer |
 | `client/games/chain-rules.js` | `ChainRules` | Chain React rules, pure (no DOM) |
-| `client/games/chain.js` | `ChainView`, `ChainGame` | Chain React board/animation/HUD numbers + registration |
+| `client/games/chain.js` | `ChainView`, `ChainGame` | Chain React board/animation/HUD model + registration (settings rows declared here) |
 | `client/games/five-rules.js` | `FiveRules` | Five Wins rules, pure |
 | `client/games/five.js` | `FiveView`, `FiveGame` | Five Wins view + registration (smallest game: the template) |
-| `client/bots.js` | `Bots` | bot registry, the toolset bots play with, headless playout |
+| `client/bots.js` | `Bots` | bot registry, the toolset bots play with, headless playout, win-chance estimator |
+| `client/winchance.js` | `WinChance` | win-chance bars: a Bus observer of `game:new` / `game:position` (no engine or game knows it) |
 | `client/bots/<id>/bot.js` | (registers) | one folder per bot: `bot.js`, generated `benchmark.js`, `bot.test.mjs` |
 | `client/skins.js` | `Skins` | look per device: body class, player names |
-| `client/prefs.js` | `Prefs` | per-device preferences (⚙ top-left): look, sound volume / categories |
-| `client/settings.js` | `Settings` | settings form ↔ config, picker cards, persistence, summary |
+| `client/prefs.js` | `Prefs` | per-device preferences (⚙ top-left): look, sound volume / categories, feedback link |
+| `client/settings.js` | `Settings` | settings form ↔ config; the game rows are **built from the game definitions**; picker cards, persistence, summary |
 | `client/opponent.js` | `Opponent` | bot picker modal: step 1 list of bots with both scores, step 2 one bot + parameters; choice per game |
-| `client/bot-persona.js` | `BotPersona` | a bot seat's sparse emoji reactions (wave, GG, EZ, 👍/👏 for good moves, 😲/🤡 for blunders, 😔), drawn from seeded weighted pools |
+| `client/bot-persona.js` | `BotPersona` | a bot seat's sparse emoji reactions, drawn from seeded weighted pools |
+| `client/changelog.js` | `Changelog` | the title screen's changelog modal (`changelog.json`) |
 | `client/reactions.js` | `Reactions` | emoji reactions bar + floating layer |
 | `client/chat.js` | `Chat` | room chat: the input row under the HUD log, limits, lines into the log, Bus `chat` |
-| `client/app.js` | (none) | flow, room protocol, session restore, wiring, boot |
+| `client/session.js` | `Session` | the room session in sessionStorage (survives a refresh) |
+| `client/match.js` | `Match` | **the table**: mode, my seat, seats per player, the active engine, the clock, the bot seat, deferred work while a move animates |
+| `client/room.js` | `Room` | **the online room**: protocol handlers, presence, seat assignment, sync/desync, rematch votes, net box + banner, session save |
+| `client/app.js` | (none) | screens, the lobby, the flow (start / rematch / back / leave), wiring, boot |
 
 Stylesheets, in order: `client/css/base.css` (tokens, player colour variables, buttons,
-inputs, modal, toast, loader) → `client/css/menu.css` (title, lobby, picker, settings)
-→ `client/css/game.css` (game layout, generic board, HUD, overlay, banner, reactions)
-→ `client/css/skin-mc.css` (Minecraft board part shared by both MC skins + Minecraft
-UI part) → `client/games/chain.css` → `client/games/five.css` (each game's board,
-classic first, then its MC-skin rules).
+inputs, modal, toast, loader) → `client/css/menu.css` (title, lobby, picker, settings,
+changelog) → `client/css/game.css` (game layout, generic board, HUD incl. the generic
+`.game-box`, overlay, banner, reactions) → `client/css/skin-mc.css` (Blocks board part
+shared by both textured skins + Blocks UI part) → `client/games/chain.css` →
+`client/games/five.css` (each game's board, classic first, then its textured-skin rules).
 
 Other: `client/textures/*.png` — 16×16 Mojang block textures from the owner's own
-1.12.2 jar (personal use; MC skins stay opt-in). Only textures referenced from CSS are
-kept. `client/sounds/*.ogg` — Minecraft sounds from the owner's own installation
+1.12.2 jar (personal use; the textured skins stay opt-in). Only textures referenced from
+CSS are kept. `client/sounds/*.ogg` — Minecraft sounds from the owner's own installation
 (`~/.minecraft/assets/indexes/*.json` maps `minecraft/sounds/<path>.ogg` to
 `~/.minecraft/assets/objects/<hash[0:2]>/<hash>`; personal use), only the files
 `Sound.FILES` references. `README.md` is the short public readme; `CLAUDE.md` just imports this file.
 `server/` (a 2022 PHP stub) was deleted; don't bring it back.
+
+### Who owns what (the layering, top to bottom)
+
+```
+app.js      screens + lobby + flow            knows Match, Room, Settings, Opponent, …
+Room        online protocol, presence, sync   knows Match (engine, seats), Net, Settings, Clock, Chat
+Match       table: seats, engine, clock, bot  knows Games (engines), Clock, Bots, Opponent, BotPersona
+Games/Engine/Hud   one engine per game        knows Rules, Log, Bus, the game's view; never the app
+rules.js    pure loop                         knows nothing (no DOM, no settings, no Bus)
+observers   WinChance, Sound, BotPersona      listen to the Bus only
+```
+
+A game plugs in at the bottom: rules + view + registration. Everything above is generic
+and must stay that way — if a change needs `if (game === "chain")` anywhere above the
+engine, put the behaviour into the game definition instead (HUD model, settings list,
+summary parts, Bus events).
 
 ## Changelog (`changelog.json`, always kept up to date)
 
@@ -127,10 +149,10 @@ to try things").
 - **Title** (`#screen-menu`): title "ALZlper's Minigames", section *Online* with
   `Create room` + `Join room` (`#join-panel` with the code field appears on Join room),
   section *Offline* with `Local multiplayer` (`#btn-local`) and `Against a bot`
-  (`#btn-bot`). No Look control here any more (owner: only in the preferences, #9). Never
-  scrolls on a phone. The ⚙ preferences button (see
-  Preferences) floats top-left on every screen.
-- **Lobby** (`#screen-lobby`), same screen for local and online (`app.mode`): a centred
+  (`#btn-bot`), the foot with `#btn-install` (see Install) and `#btn-changelog`. No Look
+  control here (owner: only in the preferences, #9). Never scrolls on a phone. The ⚙
+  preferences button floats top-left on every screen.
+- **Lobby** (`#screen-lobby`), same screen for local and online (`Match.mode`): a centred
   head with the kind label, the room code and — online only — **one compact row** of
   `Share link` / `Spectate link` / `Copy code` under it (`#lobby-share`; 11px buttons on
   phones so the three fit 360px in one row, #15), one `.lobby-player` card per seat from
@@ -141,16 +163,21 @@ to try things").
   room`/`Back`. No chat in the lobby (#15) — chat lives in the game HUD only.
 - **Game** (`#screen-game`): board + HUD ("hut"). Result overlay: `Rematch`, `Look at
   board` (hides it; `#result-fab` brings it back), `Change game` (→ lobby). The HUD has
-  `Rematch` and `Back to room` too.
-- `app.mode` ∈ `local | bot | online`. Bot mode is the offline lobby with an extra
+  `Rematch` and `Back to room` too. `renderRematch()` in app.js is the only writer of the
+  Rematch buttons' texts (Spectating / Rematch / Waiting… / Accept rematch).
+- `Match.mode` ∈ `local | bot | online`. Bot mode is the offline lobby with an extra
   *Opponent* row (`#btn-opponent` → `#bot-modal`). Picking a game does **not** open the
   picker (#12): the default is the best-rated bot at its middle difficulty; the row shows
   it and opens the two-step picker (#11). You are seat 0, the bot seat 1.
-- `app.phase` ∈ `menu | lobby | game`; `app.gameNo` increments per started game (local
-  too); `startPlayerFor(g, players) = (g - 1) % players` → seat 0 starts game 1, then the
-  next seat, round-robin. `Settings.setMode(mode)` is called on every mode change
-  (`local` / `bot` / `online`): against a bot the *Players* row is hidden and the config
-  says 2.
+- `phase` (app.js) ∈ `menu | lobby | game` — Room reads it through its `phase()` handler.
+  `Match.gameNo` increments per started game (local too); `Match.startPlayerFor(g,
+  players) = (g - 1) % players` → seat 0 starts game 1, then the next seat, round-robin.
+  `Settings.setMode(mode)` is called on every mode change (`local` / `bot` / `online`):
+  against a bot the *Players* row is hidden and the config says 2.
+- The flow functions in app.js — `startGame(cfg, gameNo)`, `startFromLobby()`,
+  `requestRematch()`, `backToLobby(announce)`, `leaveRoom()`, `openLocalLobby(withBot)` —
+  are the only places that switch screens. Room calls `startGame` / `backToLobby` through
+  its handlers when the protocol says so; Match never switches screens.
 
 ## Settings (`client/settings.js`)
 
@@ -160,25 +187,32 @@ doesn't snap at "1"). Persisted in `localStorage["chainreact.settings"]` togethe
 `sizeFor` (remembered board size per game). Inputs have `autocomplete="off"` (Firefox
 restores form values on reload).
 
-- Shared rows: board size (limits and default from the game's `size` + optional
-  `minSize(cfg)`: chain 3–12, default 6; five 5–25, default 11 since #16 — a size
-  remembered in `sizeFor` wins over the default),
-  **players** (`#set-players`: 2 default / 3 / 4 — seats in the room and on one device;
-  hidden and forced to 2 against a bot), timer per player (Off default / 1 / 3 / 5 / 10
-  min / custom minutes).
-- Game rows carry `data-setting="<key>"`; a row is shown when the selected game lists
-  the key in its `settings` array. Today: `winLen` (five: 3–25, default 5, also the
-  board's minimum), `speed` (chain: Slow 1100 / Normal 750 / Fast 350 ms), `chainRule`
-  (chain: win on N explosions, off by default, N default 15; owner dislikes the rule but
-  wanted it available). Game inputs are described once in `FIELDS`.
+- Shared rows (in index.html): board size (limits and default from the game's `size` +
+  optional `minSize(cfg)`: chain 3–12, default 6; five 5–25, default 11 since #16 — a size
+  remembered in `sizeFor` wins over the default; `cfg` holds every game field's current
+  value), **players** (`#set-players`: 2 default / 3 / 4 — seats in the room and on one
+  device; hidden and forced to 2 against a bot), timer per player (Off default / 1 / 3 /
+  5 / 10 min / custom minutes).
+- **Game rows are generated** into `#game-settings` from every registered game's
+  `settings` list (`Settings.init` → `buildRows`). A setting is
+  `{ key, label, type: "int" | "select" | "bool", def, min?, max?, unit?, options?, with? }`;
+  `options` = `[[value, label], …]` for a select, `with` = a second `int` field in the same
+  row that is enabled only while the checkbox is on (chain's `chainRule` + `chainLen`).
+  The row is `<label class="row" id="row-<key>" data-setting="<key>">`, the input
+  `#set-<key>`, key lowercased (`set-winlen`, `set-chainrule`, `set-chainlen`). A row is
+  shown when the selected game's list contains its key. Today: five `winLen` (3–25,
+  default 5, also the board's minimum), chain `speed` (Slow 1100 / Normal 750 / Fast 350
+  ms) and `chainRule`/`chainLen` (win on N explosions, off by default, N default 15;
+  owner dislikes the rule but wanted it available).
 - `Settings.read()` returns the **config** a game starts with: `{ game, players, n,
-  timer, timerSel, timerCustom, winLen, speed, chainRule, chainLen }`. Engines get it as
-  `config` (plus `startPlayer`) and read only what they need.
+  timer, timerSel, timerCustom, …every game field of every game }` (all fields travel so
+  a mirrored settings message is complete for any game the room may pick). Engines get it
+  as `config` (plus `startPlayer`) and read only what they need.
 - Summary text: `n × n` · (`N players` when more than two) · `describeRules(cfg)` parts ·
   timer · `describeOptions(cfg)` parts (e.g. "7 × 7 · 5 in a row · 3 min timer",
   "4 × 4 · 3 players · no timer · 15-chain wins").
-- Any change → `onChange(config)` → app sends `lobby {s}` to the friend. `Settings.write`
-  runs silently (no echo) when applying the friend's settings.
+- Any change → `onChange(config)` → app sends `lobby {s}` to the friends (`Room.settingsChanged`).
+  `Settings.write` runs silently (no echo) when applying the friends' settings.
 - The **look is not a setting** (see Skins).
 
 ## Preferences (`client/prefs.js`, per device — the ⚙ button)
@@ -239,31 +273,63 @@ doesn't need `:is(.p0,.p1,…)`. MC skins do the same with `--tex-p` / `--tex-gl
 
 `Games.register(def)` creates an engine from `def.rules` + `def.view` and stores the
 definition (`Games.get(key)`, `Games.has`, `Games.keys()` in registration order; the first
-registered game is the default). app.js holds the active engine in `Game` and only uses:
+registered game is the default; `Games.positionAt(record, ply)` = `Rules.replay`). Match
+holds the active engine (`Match.engine`) and, like everything else, only uses:
 
 | Member | Contract |
 | --- | --- |
 | `state` (getter) | Current state object: `n, players, current, round, history, movesBy, out, outs, busy, over, winner (-1 = draw/none), finishWhy, cells` + game keys (chain: `chainNow, chainBest, explosions, chainRule, chainLen`; five: `winLen, winLine`). `out[p]` = eliminated from outside the rules (flag fall), `outs` = those eliminations in order `{ p, at: history length then, why }`. |
-| `newGame(config, hooks)` | Builds state via `rules.create`, board DOM via `view.build`, HUD cards via `Hud.build(players)`, clears the log, hides the overlay, logs "New game. X starts.", renders, calls `hooks.onTurn`. |
-| `play(i) → Promise<bool>` | A move by the current player (own click, relayed friend move). `false` if busy/illegal. Sets busy, `rules.place`, `hooks.onMoveApplied`, `await view.animateMove(ctx, i, me)`, `rules.conclude` → `finish` or next turn (`hooks.onTurn`). Bails out if `state.over` became true during the animation. |
-| `replay(history, outs = [])` | Applies moves instantly with `rules.place/settle/conclude` — the same functions the animated path uses — and the given eliminations at the history length they happened (`markOut`), then renders and finishes or calls `onTurn`. Determinism here keeps every client in sync; `replay([], outs)` applies a flag fall one missed. |
-| `finish(winner, why)` | Ends the game (also called by app.js for flag falls / remote timeouts): logs, renders, fills `#overlay-*` (title, `why` + `view.summary(state)`), emits `game:finish`, calls `onBusy(false)`, `onFinish`. |
-| `eliminate(p, why)` | A player is out without a move of the rules (flag fall — app.js calls it for the local clock and for a `timeout` message): `out[p]`, an entry in `outs`, "X is out." in the log (3+ players), the turn passes if it was theirs (`Rules.pass` skips `out`), the last one standing wins — with two players that simply ends the game ("Amber wins! Out of time!"). Returns false when nothing changed. |
+| `config` (getter) | The config the running game was started with (incl. `startPlayer`). |
+| `newGame(config, hooks)` | Builds state via `Rules.create`, board DOM via `view.build`, sets `body.game-<key>`, the sign title and `#board`'s class, HUD cards via `Hud.build(players, title)`, clears the log, hides the overlay, logs "New game. X starts.", emits `game:new` + `game:position`, renders, calls `hooks.onTurn`. |
+| `play(i) → Promise<bool>` | A move by the current player (own click, relayed friend move, bot). `false` if busy/illegal. Sets busy, `rules.place`, emits `game:move`, `hooks.onMoveApplied`, `await view.animateMove(ctx, i, me)`, `rules.conclude` → `finish` or next turn (`game:position`, `game:turn`, `hooks.onTurn`). Bails out if `state.over` became true during the animation. |
+| `replay(history, outs = [])` | `Rules.apply` on the live state — the same `step`/`eliminate` the instant path uses — then renders and finishes or emits `game:position` + calls `onTurn`. Determinism here keeps every client in sync; `replay([], outs)` applies a flag fall one missed. |
+| `finish(winner, why)` | Ends the game (also called for flag falls / remote timeouts): logs, renders, `Hud.overlay(...)` (title, `why` + `view.summary(state)`), emits `game:position` + `game:finish`, calls `onBusy(false)`, `onFinish`. |
+| `eliminate(p, why)` | `Rules.eliminate` + "X is out." in the log (3+ players); the turn passes if it was theirs, the last one standing wins — with two players that simply ends the game ("Amber wins! Out of time!"). Returns false when nothing changed. |
 | `abandon()` | Marks a running game over without a result (Back to room). |
 | `hash()` | 32-bit fingerprint of cells/current/over/winner/movesBy/out; equal on clients that are in sync (used by `move`/`sync`). |
-| `render()` | No-op until a board exists. Renders every cell (shared classes `p<k>`, `taken`, `last`, `can-place`/`locked`, then `view.renderCell`) and the HUD. |
+| `record()` | The game as data: `{ game, config, history, outs, over, winner, why }` — see "Game records". |
+| `render()` | No-op until a board exists. Renders every cell (shared classes `p<k>`, `taken`, `last`, `can-place`/`locked`, then `view.renderCell`) and the HUD from `view.hud(state)`. |
 | `isLegal(i, player)` | Pure check via the rules. |
 
-Hooks app.js passes (`hooks` object in app.js): `names` (getter → names for the current
-skin), `mayPlay(p)` (may this device move for p now: local seat + connected), `turnHint(p)`,
-`onCellClick(i)`, `onMoveApplied(i, p)`, `onTurn(p)`, `onBusy(bool)`, `onFinish(winner, why)`.
+Hooks (built once in `Match`, the engine never sees the app): `names` (getter → names for
+the current skin, bot seats show the bot's name), `mayPlay(p)` (may this device move for p
+now: local seat + `live()`), `turnHint(p)`, `onCellClick(i)`, `onMoveApplied(i, p)`,
+`onTurn(p)`, `onBusy(bool)`, `onFinish(winner, why)`. Tests build their own (`tests/unit/dom.mjs`).
 
-`Hud.build(players)` clones `#tpl-player` per seat (ids `p-{k}`, `p{k}-name`, `p{k}-you`,
-`clock-{k}`, `lbl-cells-{k}`, `p{k}-cells`, `lbl-pieces-{k}`, `p{k}-pieces`, `p{k}-bar`,
-`p{k}-pct`); it rebuilds only when the seat count changes and builds 2 cards at load.
-`Hud.render(state, hooks, model)` writes round label, turn box (`.turn-box p<k> [busy]`),
-`#board` classes `turn-p<k>` / `over`, turn name/hint, and per player the two stats, bar
-and `leading`/`active`. The model comes from `view.hud(state)` (see the guide).
+### HUD (`Hud`, generic — a game only supplies a model)
+
+`Hud.build(players, title)` clones `#tpl-player` per seat (ids `p-{k}`, `p{k}-name`,
+`p{k}-you`, `clock-{k}`, `p{k}-stats` (the stat rows), `p{k}-bar`, `p{k}-pct`,
+`p{k}-win-row/-win/-win-pct`); it rebuilds only when the seat count changes and builds 2
+cards at load. `Hud.render(state, hooks, model)` writes round label, turn box
+(`.turn-box p<k> [busy]`), `#board` classes `turn-p<k>` / `over`, turn name/hint, and per
+player the stat rows, the bar and `leading`/`active`; `#game-box` (rows `#game-stat-<j>`,
+class `hot`) when the model has a `box`, else hidden; `#mini-line2`. The model comes from
+`view.hud(state)`:
+
+```
+{ round: "Round 3",                                   // sign subtitle / phone round label
+  players: [{ stats: [[label, value], …], bar: 0..1, barText, leading }],   // one per seat, any number of stats
+  box?: { stats: [[label, value], …], hot? },        // an extra info box (chain: chain counters; first value highlighted)
+  line2?: "text" | [[label, value], …],             // second line of the phone turn box (values bold)
+  drawHint?: "no space left" }                       // under "Draw" when the game is drawn
+```
+
+`Hud.overlay(name, winner, sub)` fills the result overlay. Player stat rows get ids
+`p{k}-stat-<j>` (tests read them). The win bars are not part of the model: `WinChance`
+writes them itself (see Board / HUD layout rules).
+
+### Game records (replay-ready)
+
+A game is fully described by its **record** `{ game, config, history, outs }` (+ `over,
+winner, why` once finished; `Match.record()` adds `gameNo` and `clocks`). `config` carries
+`n`, `players`, `startPlayer` and the game's own keys. `Rules.replay(record, ply)` (=
+`Games.positionAt`) rebuilds the position after any number of moves without the DOM;
+`engine.newGame(config, hooks)` + `engine.replay(history.slice(0, ply), outs)` shows it on
+the board. The session (`Session`) and the `sync` message are that record, so a future
+"look at past games" feature only needs to keep records and step `ply` — no engine change.
+Rule: **anything that changes the position must be a history entry or an `outs` entry**
+(never a side channel), and `Rules.step` must stay the single way a move is resolved.
 
 ## Chain React rules (agreed with the owner; `chain-rules.js`)
 
@@ -319,36 +385,38 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
 
 - **Whose turn**: `#board.turn-p<k>` → 4px outline in the active colour. `fitBoard`
   subtracts 10px so the outline is never clipped on a full-width phone board.
-- **Win chance**: every player card has a `.win-bar` ("62 % win"). `Bots.estimator(game)`
-  → `{ bot, stages, at(state, nodes) }`: the strongest registered bot that offers
-  `evaluate(state, tools)` (a RAW score from player 0's view, ±Infinity when decided,
-  deterministic for a node budget, may be async) mapped through the bot's **calibration**
-  (`Bots.calibration(id, { scale, shift, brier, swing, … })` in its benchmark.js, fitted from
-  seeded self-play by `scripts/calibrate.mjs` = `npm run calibrate`, also run by the
-  benchmark; `Bots.toProbability` clamps to 0.5–99.5 %, only decided positions show 100/0);
-  else the rules module's `estimate` heuristic. The engine (games.js) computes it **only
-  when a move has settled** (never during the explosion animation), in **stages** of
+- **Win chance** (`client/winchance.js`, an observer — no engine or game code involved):
+  every player card has a `.win-bar` ("62 % win"). On `game:new` WinChance picks
+  `Bots.estimator(game)` when the game has two players → `{ bot, stages, at(state, nodes) }`:
+  the strongest registered bot that offers `evaluate(state, tools)` (a RAW score from
+  player 0's view, ±Infinity when decided, deterministic for a node budget, may be async)
+  mapped through the bot's **calibration** (`Bots.calibration(id, { scale, shift, brier,
+  swing, … })` in its benchmark.js, fitted from seeded self-play by `scripts/calibrate.mjs`
+  = `npm run calibrate`, also run by the benchmark; `Bots.toProbability` clamps to
+  0.5–99.5 %, only decided positions show 100/0); else the rules module's `estimate`
+  heuristic. On every `game:position` (a settled position: new game, move settled, replay,
+  elimination, end — **never during an animation**) it runs the stages of
   `Bots.ESTIMATE_STAGES` node budgets (2 000 quick + 12 000 + 60 000 in the background,
-  stopped after 5 s or when the next move comes) so the bar shows a number at once and
-  refines it; node budgets, not wall-clock, so both online clients see the same values
-  (a slow phone just shows them later). Display **smoothing**: a new value is blended with
-  a third of the previous move's value, except when either is ≥ 90 % or ≤ 10 % and never
-  once the game is over (owner: "a four in a row may show 99 %"). Phones show only the win
-  bar (`#hut .stat-bar` hidden), desktop shows the game's stat bar and the win bar. Only
-  for 2 players. Tests: `tests/unit/winchance.test.mjs`, `calibrate.test.mjs`.
+  stopped after 5 s or when the next position comes) so the bar shows a number at once and
+  refines it; node budgets, not wall-clock, so both online clients see the same values (a
+  slow phone just shows them later). Display **smoothing**: a new value is blended with a
+  third of the previous move's value, except when either is ≥ 90 % or ≤ 10 % and never
+  once the game is over (owner: "a four in a row may show 99 %"). Phones show only the
+  win bar (`#hut .stat-bar` hidden), desktop shows the game's stat bar and the win bar.
+  Rows are hidden with 3–4 players. Tests: `tests/unit/winchance.test.mjs`, `calibrate.test.mjs`.
 - **Last move**: every cell has a `.last-marker` child; the engine adds `.last` to the
   newest history cell. Chain: static thin white border at the cell edge. Five: static
-  white ring, **red** on MC skins (white is invisible on quartz). Owner: no marker
+  white ring, **red** on the textured skins (white is invisible on quartz). Owner: no marker
   animation. Hidden while a chain cell primes/booms and once the game is over
   (`#board.over`).
 - Board size = min(wrapper width, height) − 10 → `--board` (`fitBoard` in app.js, on
   resize and when `#hut` resizes). The page must **never scroll** on mobile: the HUD sits
   below the board in a compact two-row form (controls behind ☰); desktop shows the full
-  HUD beside the board (sign, stats, log, controls). `.players` is a 2-column grid, so 3–4
-  seats make two rows (the board shrinks accordingly on phones). `body.game-<key>` lets CSS hide
-  game-specific boxes (`body.game-five .chain-box`); `#board` gets the game key as class.
+  HUD beside the board (sign, stats, game box, log, controls). `.players` is a 2-column
+  grid, so 3–4 seats make two rows (the board shrinks accordingly on phones).
+  `body.game-<key>` lets CSS target one game; `#board` gets the game key as class.
 
-## Online play (`client/lib/net.js` + protocol in `app.js`)
+## Online play (`client/lib/net.js` + protocol in `client/room.js`)
 
 - Room code: 5 chars from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`; `normalizeCode` maps O→0,
   I/L→1. Peer id = `chainreact-v1-<CODE>`.
@@ -367,7 +435,7 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   `peer-unavailable` twice **takes over** the room id (`claimHost`), so the room lives
   on as long as anyone is in it and a host who left can come back by the same link (it
   then joins as guest). Roles can therefore swap; the app never derives seats from them.
-- **Seats** (`app.me`, player number 0…`players`−1, −1 = none) are sticky for a room
+- **Seats** (`Match.me`, player number 0…`players`−1, −1 = none) are sticky for a room
   visit: creator = 0, session restore = saved seat, a joining guest gets one from the
   host. Handshake on every (re)connect: guest → `hello {seat, spectate, rematch}` (seat
   −1 = none) → host assigns (`msg.seat` if it is < `players` and free, else the first
@@ -380,7 +448,7 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   settings'); when the *Players* setting changes the host **reseats** (`reseat`): seats ≥
   `players` are taken away (`state {you: -1}`), people without a seat get a free one.
 - **Presence** (`presentSeats()`): the host derives it from its connections (an open
-  connection with that seat, not in `app.left`), guests from the host's `roster
+  connection with that seat, not in Room's `left` set), guests from the host's `roster
   {present[], spectators, left[]}` message (sent on every change: hello, close, leave,
   reseat). `allHere()` = every seat filled and my connection up; `live()` = `!online ||
   allHere()` gates input and the clock (`syncLive()` pauses/resumes on every presence
@@ -405,13 +473,13 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
 - **Relay**: `onMessage` on the host stamps every guest message with `from` = the
   connection's seat and forwards the types in `RELAY` (`move, chat, react, tolobby,
   rematch, timeout, lobby`) to the other guests (`Net.sendExcept`) before handling
-  them itself; messages the host originates carry `from: app.me` (`netSend`). So every
+  them itself; messages the host originates carry `from: Match.me` (`netSend`). So every
   message everywhere says which seat sent it (−1 = a spectator). `sync` is pairwise
   (host ↔ one guest: `sendSyncTo` on hello, broadcast `sendSync` after a rematch or when
   the host wants everyone's state), `state`/`roster` come from the host only.
 - A former host whose id was taken over while its tab slept (`unavailable-id` with
   `everConnected`) joins as guest at once; only a fresh page (refresh) retries the claim.
-- **Newest intent wins** (`app.rev`): every phase change (start, rematch, back to room)
+- **Newest intent wins** (`Room.rev`): every phase change (start, rematch, back to room)
   bumps a room-state revision on both sides. `hello` and `state` carry `rev, phase,
   config, g`; a host whose guest reports a higher `rev` adopts the guest's phase before
   answering (`adoptRoomState`), a guest follows the host when `rev` is equal or higher.
@@ -423,8 +491,8 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   whose hash doesn't match is not applied; a sync is requested instead. `applySync`:
   identical prefix + longer history → the short side replays the tail; a prefix
   mismatch, a hash mismatch at equal length, or the host still lacking moves the guest
-  already sent (`app.syncSentAt`) → `resolveDesync`: the host just re-sends its sync,
-  the guest rebuilds the game from the host's history (`app.rebuiltAt` remembers the
+  already sent (`syncSentAt`) → `resolveDesync`: the host just re-sends its sync,
+  the guest rebuilds the game from the host's history (`rebuiltAt` remembers the
   attempt). A second mismatch at the same point → both back to the room with a toast,
   never two different games.
 - Share link = `<page URL without query>?room=CODE`; `?room=` on load auto-joins;
@@ -438,19 +506,19 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   relayed; the host reseats), `start {config, g}` (host started), `start-request` (a
   guest asks; host is authoritative), `tolobby` (anyone; abandons a running game;
   relayed), `sync {g, history, outs, clocks, h}` (on (re)connect / on gaps: the shorter
-  side replays the missing tail + eliminations; deferred in `app.pendingSync` while
+  side replays the missing tail + eliminations; deferred with `Match.whenIdle(…, "sync")` while
   animating), `move {i, n, g, h}` (`n` = history length before the move; queued in
-  `app.incoming`, applied when idle and `n` matches, else a sync is requested;
+  Room's `incoming`, applied when idle and `n` matches, else a sync is requested;
   relayed), `timeout {p, g}` (only the owner of the flagged clock decides — clocks drift;
-  relayed; deferred in `app.pendingOuts` while animating; → `Game.eliminate`), `rematch
-  {g}` (every seat must press: `app.rematchVotes`; relayed; the overlay button shows
+  relayed; deferred through `Match.flagged` → `whenIdle` while animating; → `engine.eliminate`), `rematch
+  {g}` (every seat must press: Room's `votes`; relayed; the overlay button shows
   "Waiting for opponent…" / "Waiting for others… (k/N)" / "Accept rematch"), `react
   {e}` (relayed; dot in the sender's colour), `chat {text}` (relayed, see Chat), `leave`
   (sent 250 ms before closing; the app treats that seat as gone at once — Start is
   disabled before the connection actually drops; the host tells the others via
   `roster.left`), `ping`/`pong` every 3 s per connection, 12 s silence → that connection
   is dropped → the guest redials. `rematch` with `g <= gameNo` is ignored (duplicates).
-  Handlers live in `HANDLERS` in app.js and receive `(msg, id)`.
+  Handlers live in `HANDLERS` in room.js and receive `(msg, id)`; the state they keep is the `r` object at the top of room.js (`rev, roster, left, netDetail, votes, incoming, syncSentAt, rebuiltAt`) — everything about *who sits where* is `Match`.
 - **ICE servers / TURN** (`iceServers()` in net.js): STUN alone cannot connect two players
   who are both on mobile data (carrier-grade NAT; the owner hit this on the go). So every
   `open()` fetches the ICE list (STUN + TURN with credentials) from the owner's **Metered**
@@ -485,7 +553,7 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   own seat, hands the others theirs back on `hello`, and a spectator that happens to
   win the claim stays a spectator (`onRole` gives seat 0 only to a seatless non-spectator).
 
-### Spectators (`app.spectator`, seat −1)
+### Spectators (`Match.spectator`, seat −1)
 
 Nobody is turned away: `admitGuest` always says yes, so whoever joins when every seat is
 taken becomes a spectator (the host's `hello` finds no free seat → `state {you: -1}`),
@@ -508,9 +576,9 @@ The old "room is full" answer only remains in net.js for an app that refuses new
   `c.on("open")` (or `c.open`), else the first `send` is silently dropped.
 - `peer.destroy()` emits `close` synchronously → peer handlers check they still belong
   to the current peer (`bindPeer`), otherwise a demoted host re-scheduled its claim.
-- `enterRoom` resets `app.config`/`gameNo` (a leftover local config once made the host
-  skip starting).
-- `Game.render()` runs from net callbacks; the engine guards it until a board exists.
+- `Room.enter` → `Match.reset("online", …)` clears config/gameNo (a leftover local config once
+  made the host skip starting).
+- `engine.render()` runs from net callbacks; the engine guards it until a board exists.
 - Headless tests: pick the CDP target with `type === "page"`; disable the cache.
 - The starter rotates per started game in a lobby, offline too: an e2e test that starts
   its Nth game must not assume seat 0 starts (`party.test.mjs` reads `state.current`).
@@ -524,19 +592,22 @@ The old "room is full" answer only remains in net.js for an app that refuses new
 
 ## Events (`Bus`)
 
-Fire-and-forget notifications for observers (the sound module subscribes here; the
-log emits too so a chat could mirror it). Current events and payloads:
-`game:new {game, config}`, `game:move {game, cell, player}` (a piece was placed),
-`game:turn {game, player}`, `game:finish {game, winner, why}`, `chain:prime {cells,
-player, ms}` (full cells start blinking; `ms` = how long), `chain:explode {cells,
-player, chain}` (one wave), `reaction {emoji, theirs}`, `chat {text, from, mine}` (a chat
-line was shown), `log {text, cls}`.
-`Sound` subscribes to all of them (below).
+Fire-and-forget notifications for observers (WinChance, Sound, BotPersona subscribe here;
+the log emits too so a chat could mirror it). Current events and payloads (`game` = the
+game key everywhere):
+`game:new {game, config, state}`, `game:move {game, cell, player}` (a piece was placed,
+before its animation), `game:position {game, state}` (**the settled position changed**:
+new game, a move settled, replay, elimination, end — the one event a position observer
+needs), `game:turn {game, player, state}` (after a move settled and the turn passed; not
+on replay), `game:finish {game, winner, why, state}`, `chain:prime {cells, player, ms}`
+(full cells start blinking; `ms` = how long), `chain:explode {cells, player, chain}` (one
+wave), `reaction {emoji, theirs}`, `chat {text, from, mine}` (a chat line was shown),
+`log {text, cls}`. A game may add its own events (`<key>:…`) for sounds and observers.
 
 ## Sounds (`client/lib/sound.js`)
 
 `Sound.init({ seats, player })` subscribes to the Bus; `seats()` returns the seat kinds
-(`app.seats.map(s => s.kind)`) and is the only thing the module knows about the game.
+(`Match.seats.map(s => s.kind)`) and is the only thing the module knows about the game.
 - **Mapping** (`Sound.map(event, data, kinds)`, pure): `game:move` → `place`;
   `chain:prime` → `prime` (the fuse, stopped after `ms`); `chain:explode` → `explode`
   (gain and pitch grow a little with the chain length); `game:finish` → `win` / `lose`
@@ -563,19 +634,26 @@ line was shown), `log {text, cls}`.
 - "Play a test sound" in the preferences modal plays `turn`. The whole module is
   fail-safe: any player exception is swallowed.
 
-## Seats, bots and more players
+## Seats, bots and more players (`client/match.js`)
 
-`app.seats[p] = { kind }` is built per game by `makeSeats`: `local` (this device moves for
-it), `remote` (a friend) or `bot`. `hooks.mayPlay(p)` = local seat + `live()`;
-`hooks.onTurn(p)` calls `botTurn(p)` for a bot seat: after `THINK_MS` (350 ms, so it doesn't
-feel instant) it asks the bot instance for a move on a **clone** of the state, re-checks
-that the same game is still on that turn (`gameNo`, phase, busy, over), falls back to a
-random legal move if the bot throws or answers illegally, then `Game.play(i)` like a click.
-`hooks.names` shows the bot's name on its seat. Player count is `config.players` (2–4 from
-the settings; 2 against a bot): rules, `Rules.pass`, `Clock`, HUD and lobby cards are
-written for N, the CSS has colours and MC textures for 4 seats, the host relays. "Play
-on this device" with 3–4 people = all seats `local`; a flag fall eliminates the seat
-(`flagged(p)` → `Game.eliminate`), with two players it ends the game as before.
+`Match.seats[p] = { kind }` is built per game by `makeSeats`: `local` (this device moves for
+it), `remote` (a friend) or `bot`. The engine hooks live in Match: `mayPlay(p)` = local seat
++ `live()`; `onTurn(p)` calls `botTurn(p)` for a bot seat: after `THINK_MS` (350 ms, so it
+doesn't feel instant) it asks the bot instance for a move on a **clone** of the state,
+re-checks that the same game is still on that turn (`running`, `gameNo`, busy, over), falls
+back to a random legal move if the bot throws or answers illegally, then `engine.play(i)`
+like a click. `Match.names` shows the bot's name on its seat. Player count is
+`config.players` (2–4 from the settings; 2 against a bot): rules, `Rules.pass`, `Clock`,
+HUD and lobby cards are written for N, the CSS has colours and textures for 4 seats, the
+host relays. "Play on this device" with 3–4 people = all seats `local`; a flag fall
+eliminates the seat (`Match.flagged(p)` → `engine.eliminate`), with two players it ends
+the game as before.
+
+`Match.whenIdle(fn, key?)` runs `fn` now if no move animates, else once the engine is idle
+(a key replaces an older entry with the same key): Room defers a `sync` there, flag falls
+are deferred there, and `onIdle()` (Room drains its move queue) runs after the deferred work.
+`Match.start(cfg, gameNo)` / `stop()` / `reset(mode, me, spectator)` / `setSeat(me,
+spectator)` / `record()` / `syncClock()` are what app.js and Room call.
 
 ## Bots (`client/bots.js`, `client/bots/<id>/`)
 
@@ -638,7 +716,7 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   score, middle difficulty (`Math.floor((n-1)/2)`); remembered `{ id, difficulty }` per game
   in `localStorage["chainreact.bots"]`; `Opponent.current(game)` / `summary(game)`.
 - **Persona** (`client/bot-persona.js`): `BotPersona.attach({ bot, seat, game, state,
-  estimate, color })` in `startGame` (bot mode), `detach()` on back-to-room / leave. Listens
+  estimate, color })` in `Match.start` (bot mode), `detach()` in `Match.stop` / `reset`. Listens
   to `game:new` (👋), `game:turn`/`game:move` (judges the human's move once it settled:
   praise when the bot's chance drops ≥ 15 points and the move was among the best, a
   surprised/teasing face when the move was among the worst 25 % and helped the bot ≥ 10
@@ -708,7 +786,7 @@ every bot folder into a bare VM — script list parsed from `index.html`).
 - **Rules**: `Chat.send(text)` trims and collapses whitespace, cuts to `Chat.MAX_LEN` =
   200, allows one line per `Chat.SEND_EVERY` = 300 ms, refuses when not online, shows
   my line at once in my colour, emits Bus `chat {text, from, mine: true}` and calls
-  `onSend(text)` → `Net.send({ t: "chat", text, from: app.me })`. `Chat.receive(msg)`
+  `onSend(text)` → `Room.say(text)` = `Net.send({ t: "chat", text, from: Match.me })`. `Chat.receive(msg)`
   applies the same length and rate limits (one accepted per 300 ms), colours the line
   with `msg.from` (−1 / unknown → "Spectator", class `x`) and emits `chat {…, mine:
   false}` (the sound module pings for other people's lines only). Enter in either input
@@ -737,14 +815,17 @@ set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px o
   `rules.test.mjs` runs the pure rules in a bare `vm` context (no DOM; 2- and 3-player
   rotation, elimination, legalMoves, draw). `dom.mjs` loads `index.html` + every client
   script except `app.js` into jsdom (script list parsed from index.html; `Element.animate`
-  polyfilled) for `chain.test.mjs` (caps, waves, board-decided stop, win, chain rule,
-  replay == play, hooks, HUD), `five.test.mjs`, `clock.test.mjs` (call `C.setup(0)` +
-  `w.close()` at the end or the interval keeps the file alive), `net.test.mjs` (codes),
-  `prefs.test.mjs` (defaults, clamping, persistence, form wiring), `sound.test.mjs`
-  (event → cue mapping with a fake player, perspective, prefs gate, sound sets),
-  `chat.test.mjs` (log boxes, limits, HTML safety, offline, chat survives a new game),
-  `reactions.test.mjs` (float duration from the recent rate with a mocked clock, own +
-  received, rate limits),
+  polyfilled) for `framework.test.mjs` (`Rules.step/apply/replay` == engine play, the
+  generic HUD from the model, settings rows generated from the definitions, Match seats /
+  bot seat / `whenIdle` / `record`, Session), `chain.test.mjs` (caps, waves, board-decided
+  stop, win, chain rule, replay == play, hooks, HUD), `five.test.mjs`, `clock.test.mjs`
+  (call `C.setup(0)` + `w.close()` at the end or the interval keeps the file alive),
+  `net.test.mjs` (codes), `prefs.test.mjs` (defaults, clamping, persistence, form wiring),
+  `sound.test.mjs` (event → cue mapping with a fake player, perspective, prefs gate, sound
+  sets), `chat.test.mjs` (log boxes, limits, HTML safety, offline, chat survives a new
+  game), `reactions.test.mjs` (float duration from the recent rate with a mocked clock,
+  own + received, rate limits), `winchance.test.mjs` (frozen while animating, stages,
+  smoothing), `persona.test.mjs`, `changelog.test.mjs`, `calibrate.test.mjs`, `puzzles.test.mjs`,
   `party.test.mjs` (3–4 players: `out`/`remaining`/pass in the pure rules, engine
   `eliminate` + `replay(history, outs)` == live play, two-player flag fall, settings
   players row / bot mode),
@@ -801,23 +882,28 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Bus` | `on(event, fn) → off`, `off`, `emit(event, data)` — events listed in "Events" |
 | `Log` | `add(text, cls)`, `chat(...)`, `clear()`; 40 lines, `#log` only |
 | `Clock` | `setup(seconds, onFlag, players)`, `setActive`, `pause`, `resume`, `stop`, `snapshot`, `restore`, `isEnabled` |
-| `Net` | `open(code, handlers, preferredRole)`, `send`, `sendTo/sendExcept` (host), `leave`, `retryNow`, `randomCode`, `normalizeCode`; getters `code, role, status, connected, peers`; handlers `onStatus, onRole, onOpen, onClose, onMessage, preferHost, metadata()` |
-| `Rules` | `base(config)`, `pass(state, alive)`, `index`, `inside`, `remaining`, `register(key, rules)`, `of(key)` |
+| `Net` | `open(code, handlers, preferredRole)`, `send`, `sendTo/sendExcept` (host), `leave`, `retryNow`, `randomCode`, `normalizeCode`; getters `code, role, status, connected, peers`; handlers `onStatus, onRole, onOpen, onClose, onMessage, preferHost, metadata(), admit` |
+| `Install` | `init()`, `offered` |
+| `Rules` | `base(config)`, `pass(state, alive)`, `remaining`, `index`, `inside`, `register(key, rules)`, `of(key)`, **`create(config[, rules])`, `step(rules, state, i) → result|null`, `eliminate(state, p, why)`, `apply(rules, state, history, outs) → applied`, `replay(record, ply) → state`** (`rules` = module or key) |
 | rules module | `create, ownerOf, isLegal, legalMoves, place, settle, conclude, estimate` (+ game helpers) — pure |
-| `Games` / engine | `register(def)`; engine `state, newGame, play, replay, finish, abandon, render, isLegal, hash` |
-| `Hud` | `build(players)`, `render(state, hooks, model)` |
+| `Games` / engine | `register(def)`, `get/has/keys`, `positionAt(record, ply)`; engine `state, config, newGame, play, replay, finish, eliminate, abandon, render, isLegal, hash, record` |
+| `Hud` | `build(players, title)`, `render(state, hooks, model)`, `overlay(name, winner, sub)` |
+| `WinChance` | Bus-driven; `display`, `estimator`, `REFINE_MS`, `SMOOTH`, `DECIDED` |
 | `Bots` | `register, get, list, forGame, create(id, {me, difficulty, seed, players, budget}), tools(game, opts), playout, rng, validate, benchmark/benchmarkOf, calibration/calibrationOf, estimator(game) → {bot, stages, at(state, nodes), quick}, toProbability(raw, cal), ESTIMATE_STAGES` |
 | bot definition | `id, name, game, version, description, difficulties [{id, label, thinkMs}], create(tools) → {move(state)}, evaluate?(state, tools) → raw` |
 | `BotPersona` | `attach({bot, seat, game, state, estimate, color, delays?, cooldownMs?})`, `detach()`, `POOLS` |
 | `Skins` | `init({onChange})`, `set(key)`, `names()`, `current` |
-| `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `game` |
+| `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `setMode(mode)`, `game`, `fields` |
 | `Prefs` | `init({onChange, context})`, `get()`, `set(patch)`, `open/close`, `feedbackUrl()`, `CATEGORIES`, `isOpen` |
 | `Opponent` | `init({onDone})`, `open(game)`, `current(game) → {id, difficulty, def}`, `summary(game)` |
 | `Reactions` | `init({onSend})`, `receive(emoji, color)`, `place()`, `durationFor(recent)` |
-| `Chat` | `init(...)`, `receive(msg)` (see chat section) |
+| `Chat` | `init(...)`, `send`, `receive(msg)`, `enable(on)` (see chat section) |
 | `Sound` | `Bus`-driven; `play(cue)` for tests, unlock on first gesture |
 | `Changelog` | `init()`, `open/close`, `render(doc)`, `refUrl(ref)`, `SHOW_DAYS` |
 | `Preload` | `textures()` |
+| `Session` | `save(data)`, `load()`, `clear()` |
+| `Match` | `init(handlers)`, `start(cfg, gameNo)`, `stop()`, `reset(mode, me, spectator)`, `setSeat(me, spectator)`, `record()`, `flagged(p)`, `whenIdle(fn, key)`, `syncClock()`, `startPlayerFor`, `playerColor`, `isLocal/isBot`; getters `engine, state, names, running, mode, me, spectator, seats, config, gameNo, bot`; `THINK_MS` |
+| `Room` | `init(handlers)`, `enter(code, preferHost, seat, spectate)`, `leave()`, `roomLink`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `settingsChanged(cfg)`, `say(text)`, `react(e)`, `tolobby()`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/allHere/live/who/two/playersNow/turnHint`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost` |
 
 Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM), `puzzles/runner.mjs`
 (`loadPuzzles`, `positionOf`, `evaluateBot`), `benchmark.mjs`, `calibrate.mjs`
@@ -874,6 +960,18 @@ chat, roster, leave, ping/pong` — fields in "Online play".
 - **Mobile layout bugs are usually stacking/overlap**, not events: an invisible flex
   container (the collapsed reaction list) swallowed taps on the ⚙ button.
 
+- **Refactor lessons (2026-09-10, the big one).** The e2e suite made a full restructure safe:
+  850-line app.js → Match (table) + Room (protocol) + a 230-line app.js, the chain-only
+  HUD box and settings rows out of index.html into the game definitions, win chance out of
+  the engine into a Bus observer, one pure `Rules.step` for every path that resolves a
+  move. What to keep doing: replace *state scattered across a big object* with modules that
+  own their state and expose getters; let observers subscribe to `game:position` instead of
+  threading calls through the engine; describe game-specific UI as data (HUD model,
+  settings list) and render it generically; when a queue of "do this once idle" appears
+  (pendingSync, pendingOuts, incoming), one `whenIdle(fn, key)` replaces them. Test ids that
+  encode game words (`p0-cells`) become generic (`p0-stat-0`) — update tests, don't keep
+  legacy ids alive in the framework.
+
 ## Owner preferences
 
 - Writes English and German; either is fine in replies.
@@ -888,27 +986,43 @@ chat, roster, leave, ping/pong` — fields in "Online play".
 
 # How to add a new game (step by step)
 
-A game is three files (rules, view + registration, CSS) plus two tags in `index.html`.
-Rooms, lobby sync, start/rematch/tolobby, reconnect + replay, clock, reactions, session
-restore, skins, HUD cards, settings persistence and the picker are generic.
+A game is three files (pure rules, view + registration, CSS) plus two tags in
+`index.html`, and usually a bot folder. Everything else is the framework and is generic:
+rooms and the host relay for 2–4 seats, lobby sync of the settings, start / rematch /
+back to room, reconnect + replay from the game record, session restore, the chess
+clock and flag falls, spectators, chat, reactions, sounds for the generic events, the
+bot seat, the bot persona, the win-chance bars, the generic HUD (stat rows, info box,
+phone line), skins and player colours, the picker card, the settings rows, the benchmark
+and puzzle tooling. **A game never touches app.js, room.js, match.js, games.js, settings.js
+or index.html's HUD markup.** If it seems to need to, extend the definition contract
+instead (and this file).
 
-## 1. Rules `client/games/<key>-rules.js` (pure — no DOM, no settings)
+Copy Five Wins (`five-rules.js`, `five.js`, `five.css`, `random-five`, `sensei-five`) — it
+is the smallest complete game.
 
-Expose a global `<Name>Rules` returning these functions (copy `five-rules.js`):
+## 1. Rules `client/games/<key>-rules.js` (pure — no DOM, no settings, no Bus)
+
+Expose a global `<Name>Rules` with these functions and register it (`Rules.register("<key>", <Name>Rules)`):
 
 | Function | Contract |
 | --- | --- |
-| `create(config, base)` | Return `Object.assign(base, { cells, …your keys })`. `base` comes from `Rules.base(config)` (n, players, current, round, history, movesBy, busy, over, winner, finishWhy). Read your own keys from `config` (they arrive from `Settings.read()` on both sides). |
+| `create(config, base)` | Return `Object.assign(base, { cells, …your keys })`. `base` comes from `Rules.base(config)` (n, players, current, round, history, movesBy, out, outs, busy, over, winner, finishWhy). Read your own keys from `config` (they arrive from `Settings.read()` on both sides, plus `startPlayer`). |
 | `ownerOf(state, i)` | Owner of cell i (-1 = none). Drives the shared `p<k>`/`taken` classes. |
 | `isLegal(state, i, player)` | Pure; `false` when `state.over`. |
-| `legalMoves(state, player)` | Array of cell ids (for bots and tests). |
+| `legalMoves(state, player)` | Array of cell ids (bots, tests, the random fallback). |
 | `place(state, i, player)` | Apply the move: `history.push(i)`, `movesBy[player]++`, your board change. |
 | `settle(state, player)` | Resolve everything that follows a placement instantly (chain waves; no-op for five). |
-| `conclude(state, player)` | Return `{ winner, why }` (winner -1 = draw) or `Rules.pass(state[, alive])` and return `null`. |
+| `conclude(state, player)` | Return `{ winner, why }` (winner -1 = draw) or `Rules.pass(state[, alive])` and return `null`. Respect `state.out` (eliminated seats): use `Rules.remaining(state)` / `Rules.pass`, which skip them; with 3–4 players decide what "everyone else is out" means (five: the last one wins). |
+| `estimate(state)` | Optional heuristic P(player 0 wins) in 0..1 for the win chance until a bot offers `evaluate` (see step 6). |
 
-A move must be a single integer (encode from/to as `from * n*n + to` if needed): `move`,
-`sync` and the session assume `history` is an array of numbers. Player numbers are
-0…players-1; names/colours come from the skin.
+`Rules.step(rules, state, i)` = place + settle + conclude is the **only** way any
+framework code resolves a move (engine replay, bots' `tools.apply`, playout, puzzle
+runner, calibration, a future replay viewer), so keep the three functions pure and
+deterministic and never resolve anything outside them. A move must be a single integer
+(encode from/to as `from * n*n + to` if needed): `move`, `sync`, the session and the
+record assume `history` is an array of numbers. Player numbers are 0…players-1;
+names/colours come from the skin. **Must work for 2, 3 and 4 players** (rotation via
+`Rules.pass`, eliminations via `state.out`) — the *Players* setting applies to every game.
 
 ## 2. View + registration `client/games/<key>.js`
 
@@ -918,9 +1032,9 @@ Expose `<Name>View` with:
 | --- | --- |
 | `build(board, state, config, onClick)` | Create one element per cell inside `board` (append a `<div class="last-marker">` child to each), wire `click → onClick(i)`, return the element array. Set CSS vars you need (chain sets `--speed`). |
 | `renderCell(el, state, i)` | Game-specific classes only (the engine already set `p<k>`, `taken`, `last`, `can-place`, `locked`). |
-| `hud(state)` | Return `{ round: "Move 3", players: [{ stats: [[label, value], [label, value]], bar: 0..1, barText, leading }], line2?, drawHint? }`; write your own extra HUD boxes here (chain writes `#chain-now` etc. and `#mini-line2`). |
+| `hud(state)` | **Data only** — return the HUD model, the framework renders it: `{ round: "Move 3", players: [{ stats: [[label, value], …], bar: 0..1, barText, leading }], box?: { stats: [[label, value], …], hot? }, line2?: "text" | [[label, value], …], drawHint? }`. One `players` entry per seat (`state.players`, 2–4). `box` is an extra info box on desktop (chain's chain counters); `line2` the phone turn box's second line. Never write DOM here. |
 | `summary(state)` | Second line of the result overlay ("12 moves"). |
-| `animateMove(ctx, i, player) → Promise` | Show the move. `ctx` gives `state`, `cells`, `board()`, `names()`, `renderCell(i)`, `renderHud()`, `render()`. Use the rules' step functions for anything that changes state so the instant path (`settle`) stays identical. Return early if `state.over` after an `await`. Emit `Bus` events for sounds. |
+| `animateMove(ctx, i, player) → Promise` | Show the move. `ctx` gives `state`, `cells`, `board()`, `names()`, `renderCell(i)`, `renderHud()`, `render()`. Use the rules' own step functions for anything that changes state so the instant path (`settle`) stays identical. Return early if `state.over` after an `await`. Emit your own `Bus` events (`<key>:…`) for sounds / observers. |
 
 Then register:
 
@@ -930,51 +1044,87 @@ const <Name>Game = Games.register({
     tagline: "One sentence under the picker.", desc: "Short card subtitle",
     preview: "...01....",                   // 9 chars: "." empty, digit = player
     size: { min: 5, max: 19, default: 9 },  // board-size input limits
-    minSize: (cfg) => 5,                    // optional, may depend on cfg (five: winLen)
-    settings: [],                           // data-setting keys of rows to show
-    describeRules: (cfg) => [],             // optional summary parts before the timer
-    describeOptions: (cfg) => [],           // optional summary parts after the timer
+    minSize: (cfg) => 5,                    // optional, may depend on the game fields (five: winLen)
+    settings: [                             // the game's rows in #settings-modal, built by settings.js
+        { key: "winLen", label: "In a row to win", type: "int", min: 3, max: 25, def: 5, unit: "stones" },
+        { key: "speed", label: "Animation speed", type: "select", def: 750, options: [[1100, "Slow"], [750, "Normal"]] },
+        { key: "rule", label: "Optional rule", type: "bool", def: false, with: { key: "ruleN", type: "int", min: 1, max: 9, def: 3, unit: "x" } },
+    ],
+    describeRules: (cfg) => [],             // optional summary parts before the timer ("5 in a row")
+    describeOptions: (cfg) => [],           // optional summary parts after the timer ("15-chain wins")
     rules: <Name>Rules, view: <Name>View,
 });
 ```
 
-The picker card is generated from this entry (no HTML to add). Keep the picker at ≤ 2
-cards per row (`.game-picker` grid is `1fr 1fr`; with 3+ games consider
-`repeat(auto-fit, minmax(150px, 1fr))`) and re-check the 360×780 lobby doesn't scroll.
-
-A new setting: add a `<label class="row" data-setting="<key>">` to `#settings-modal`,
-an entry in `FIELDS` in settings.js (`{ key, el, type: "int"|"bool", min, max, def }`),
-list the key in the game's `settings`. It is read into the config, persisted, mirrored
-to the friend and visible to the engine as `config.<key>` automatically.
+The picker card, the settings rows (`#row-<key>` / `#set-<key>`, lowercased) and the
+config keys (`config.<key>` on both sides of a room, persisted per device) all come from
+this entry — no HTML to add. Keep the picker at ≤ 2 cards per row (`.game-picker` grid is
+`1fr 1fr`; with 3+ games consider `repeat(auto-fit, minmax(150px, 1fr))`) and re-check
+the 360×780 lobby doesn't scroll.
 
 ## 3. CSS `client/games/<key>.css`
 
 `#board.<key>` grid (see `#board.five`) using `--board` and `--n`; your cell classes
 (five uses `.stone`, chain `.cell` + `.tile`). Colours via `var(--pc)`, `var(--pc-dark)`,
-`var(--block)` on `.taken` cells — never a seat number. Then the MC-skin rules under
-`:is(.skin-mc, .skin-mcboard)` (textures via `var(--tex-p)`, no rounded corners,
-`image-rendering: pixelated`, **no background transitions on textured tiles**). Hide
-HUD boxes you don't want with `body.game-<key> …`. New texture: extract from
+`var(--block)` on `.taken` cells — never a seat number (four seats have colours and
+textures already). Then the textured-skin rules under `:is(.skin-mc, .skin-mcboard)`
+(textures via `var(--tex-p)`, no rounded corners, `image-rendering: pixelated`, **no
+background transitions on textured tiles**). New texture: extract from
 `~/.minecraft/versions/1.12.2/1.12.2.jar` (`assets/minecraft/textures/blocks/<name>.png`,
-16×16) into `client/textures/` and add a `--tex-<x>` var in `skin-mc.css`.
+16×16) into `client/textures/` and add a `--tex-<x>` var in `skin-mc.css`. Game-specific
+HUD styling (rare) goes under `body.game-<key> …`.
 
 ## 4. Tags in `index.html`
 
 `<link rel="stylesheet" href="client/games/<key>.css">` after `five.css`;
 `<script src="client/games/<key>-rules.js">` and `<script src="client/games/<key>.js">`
-after `five.js` and before `skins.js`. Build and unit tests pick them up from there.
+after `five.js` and before `bots.js`. Build, the unit-test loader and the headless loader
+(`scripts/headless.mjs` matches `games/<key>-rules.js`) pick them up from there.
 
-## 5. Checklist before calling it done
+## 5. Sounds (optional)
 
-- Unit: rules in `tests/unit/rules.test.mjs` (no DOM) and an engine spec like
-  `five.test.mjs` (win, draw if possible, replay == play, HUD texts).
+The generic events (`game:move`, `game:turn`, `game:finish`, reactions, chat) already
+sound. For your own events add a case to `Sound.map` (event → cue), a synthesized cue to
+`SYNTH`, a file to `Sound.FILES` for the Blocks set and a category in `Prefs.CATEGORIES`
+only if none fits. Keep `Sound.map` pure (it is unit-tested with a fake player).
+
+## 6. A bot (expected for every game — the win chance and "Against a bot" depend on it)
+
+1. `client/bots/random-<key>/bot.js` (copy `random-five`, change `game`) — the benchmark
+   baseline; add `"random-<key>"` to `BASELINE` and a series to `SERIES` in
+   `scripts/benchmark.mjs`, and a series in `scripts/calibrate.mjs`.
+2. A real bot `client/bots/<name>-<key>/bot.js` with difficulties (easy → very strong,
+   `thinkMs` ≤ 5000, phone-friendly) and, ideally, `evaluate(state, tools)` — a raw score
+   from player 0's view, deterministic per node budget, ±Infinity when decided. With it the
+   win-chance bars use the bot (calibrated by the benchmark); without it the rules'
+   `estimate` heuristic is used. See `docs/bots.md` for the toolset, the contract and the
+   evaluator design guide (horizon effects, calibration, quiescence).
+3. Tags after a new `<!-- bots: <key> -->` anchor line in `index.html`, tests in the bot
+   folder, `npm run benchmark <id>` → commit `benchmark.js`. Two bots for one game make
+   the picker meaningful; the best-rated one is the default opponent.
+4. Puzzles (optional but valuable): `scripts/puzzles/<key>/solver.mjs` + `generate.mjs`
+   → `tests/puzzles/<key>/puzzles.json` (≥ 100 proven positions); `tests/unit/puzzles.test.mjs`
+   picks the set up and grades every bot. Never make a threshold a build requirement.
+
+## 7. Checklist before calling it done
+
+- Unit: rules in `tests/unit/rules.test.mjs` (no DOM; 2 and 3+ players, eliminations) and
+  an engine spec like `five.test.mjs` (win, draw if possible, replay == play, HUD texts via
+  `p{k}-stat-<j>`, win-chance rows for 2 players); a bot folder test; the conformance
+  suite in `bots.test.mjs` passes for every difficulty.
+- `Rules.replay` of the engine's `record()` equals the live state (`framework.test.mjs`
+  shows how) — this is what reconnects, refreshes and the future replay viewer rely on.
 - Local: lobby → pick game → Start → play to a win **and** a draw → overlay text →
-  Rematch → Back to room → switch to another game.
+  Rematch → Back to room → switch to another game. Against a bot: the picker lists the bots.
 - Online with two headless browsers (`tests/e2e/online.test.mjs`): guest sees the host's
   picker change; guest presses Start; moves sync both ways; guest refresh gets the board
   back via `replay`; both press Rematch; one presses Back to room. With three
   (`online-party.test.mjs`) if the game's rules depend on the player count.
-- Timer on: clock pauses during your animations, flag fall ends the game on both sides.
-- Phone viewport 360×780: lobby, game and result overlay don't scroll; HUD labels fit.
-- All three skins: board readable, MC textures don't flicker on hover.
-- No `Runtime.exceptionThrown` in either browser. Update this file and `README.md`.
+- Timer on: clock pauses during your animations, flag fall ends the game on both sides
+  (3+ players: the seat is out, play continues).
+- Phone viewport 360×780: lobby, game and result overlay don't scroll; HUD labels fit;
+  the game box (if any) shows only on desktop.
+- All three skins: board readable, textures don't flicker on hover.
+- No `Runtime.exceptionThrown` in either browser. Update this file (files table, rules
+  section for the game, events if you added any), `README.md`, `docs/bots.md` (bot list)
+  and `changelog.json`.

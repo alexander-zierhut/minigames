@@ -83,7 +83,7 @@
 .skin-mc * { text-shadow: var(--mc-shadow); }
 .skin-mc select, .skin-mc option, .skin-mc input { text-shadow: none; }
 .skin-mc .btn, .skin-mc select, .skin-mc input, .skin-mc .menu-card, .skin-mc .turn-box, .skin-mc .player,
-.skin-mc .chain-box, .skin-mc .log, .skin-mc .overlay-card, .skin-mc .gear, .skin-mc #hut, .skin-mc .bar,
+.skin-mc .game-box, .skin-mc .log, .skin-mc .overlay-card, .skin-mc .gear, .skin-mc #hut, .skin-mc .bar,
 .skin-mc .game-card, .skin-mc .game-preview, .skin-mc .sign, .skin-mc #net-banner, .skin-mc #toast, .skin-mc .you,
 .skin-mc .lobby-player, .skin-mc .seg { border-radius: 0; }
 
@@ -97,7 +97,7 @@
 }
 .skin-mc #hut { border-width: 3px 0 0 0; box-shadow: inset 0 0 0 2px #3a2a1c, 0 -10px 30px rgba(0,0,0,.6); }
 /* inner boxes: uniform near-black */
-.skin-mc .turn-box, .skin-mc .player, .skin-mc .chain-box, .skin-mc .log, .skin-mc .sign, .skin-mc .game-card,
+.skin-mc .turn-box, .skin-mc .player, .skin-mc .game-box, .skin-mc .log, .skin-mc .sign, .skin-mc .game-card,
 .skin-mc .net-box, .skin-mc .lobby-player {
     background: rgba(0,0,0,.62);
     border: 2px solid #000;
@@ -114,7 +114,7 @@
 .skin-mc .turn-hint, .skin-mc .turn-mini, .skin-mc .stat span, .skin-mc .net-box, .skin-mc .clock { color: var(--muted); }
 .skin-mc :is(.settings, .prefs-rows) .row { color: #fff; }
 .skin-mc .lobby-status, .skin-mc .turn-name, .skin-mc .player-head, .skin-mc .stat b, .skin-mc .log { color: #fff; }
-.skin-mc .log .x, .skin-mc .turn-mini b, .skin-mc .chain-box #chain-now { color: #ffaa00; }
+.skin-mc .log .x, .skin-mc .turn-mini b, .skin-mc .game-box .stat:first-child b { color: #ffaa00; }
 .skin-mc .clock.running { color: #fff; } .skin-mc .clock.low { color: #ff5555; }
 .skin-mc .you { background: #3a3a3a; color: #fff; border: 1px solid #000; }
 
@@ -159,7 +159,7 @@
 .skin-mc .lobby-player { border-color: var(--pc-dark, #000); }
 .skin-mc .bar { background: #000; border: 2px solid #3a3a3a; }
 .skin-mc .bar-fill { background: linear-gradient(var(--pc-light), var(--pc) 50%, var(--pc-dark)); }
-.skin-mc .chain-box.hot { border-color: #ffaa00; box-shadow: 0 0 12px rgba(255,170,0,.6); }
+.skin-mc .game-box.hot { border-color: #ffaa00; box-shadow: 0 0 12px rgba(255,170,0,.6); }
 .skin-mc #net-banner { background: #1a0a0a; border: 2px solid #ff5555; }
 .skin-mc #toast { background: #000; border: 2px solid #a0a0a0; }
 .skin-mc #overlay { background: rgba(0,0,0,.75); }

@@ -145,11 +145,8 @@
             <!-- one card per seat, from #tpl-player -->
             <div class="players" id="players"></div>
 
-            <div class="chain-box" id="chain-box">
-                <div class="stat"><span>Current chain</span><b id="chain-now">0</b></div>
-                <div class="stat"><span>Longest chain</span><b id="chain-best">0</b></div>
-                <div class="stat"><span>Explosions total</span><b id="explosions">0</b></div>
-            </div>
+            <!-- a game's extra info box (rows from the HUD model's `box`; hidden without one) -->
+            <div class="game-box" id="game-box" hidden></div>
 
             <div class="net-box" id="net-box" hidden>
                 <span class="net-dot" id="net-dot"></span>
@@ -206,7 +203,7 @@
 </section>
 
 <!-- ===================== SETTINGS ===================== -->
-<!-- rows with data-setting="…" are shown only for games listing that key in `settings` -->
+<!-- shared rows here; a game's own rows land in #game-settings and show for that game only -->
 <div id="settings-modal" class="modal" hidden>
     <div class="menu-card settings-card">
         <h1 class="title small">Settings</h1>
@@ -215,18 +212,8 @@
                 <span>Board size <small id="size-hint"></small></span>
                 <span class="inline"><input type="number" id="set-size" min="3" max="25" step="1" value="6" autocomplete="off"><small>× same</small></span>
             </label>
-            <label class="row" id="row-winlen" data-setting="winLen">
-                <span>In a row to win</span>
-                <span class="inline"><input type="number" id="set-winlen" min="3" max="25" step="1" value="5" autocomplete="off"><small>stones</small></span>
-            </label>
-            <label class="row" id="row-speed" data-setting="speed">
-                <span>Animation speed</span>
-                <select id="set-speed" autocomplete="off">
-                    <option value="1100">Slow</option>
-                    <option value="750" selected>Normal</option>
-                    <option value="350">Fast</option>
-                </select>
-            </label>
+            <!-- one row per game setting, built by settings.js from each game's `settings` list -->
+            <div class="game-settings" id="game-settings"></div>
             <label class="row" id="row-players">
                 <span>Players</span>
                 <select id="set-players" autocomplete="off">
@@ -249,14 +236,6 @@
             <label class="row" id="row-timer-custom" hidden>
                 <span>Custom minutes</span>
                 <input type="number" id="set-timer-custom" min="0.5" max="120" step="0.5" value="3" autocomplete="off">
-            </label>
-            <label class="row" id="row-chain" data-setting="chainRule">
-                <span>Win on a long chain</span>
-                <span class="inline">
-                    <input type="checkbox" id="set-chain" autocomplete="off">
-                    <input type="number" id="set-chain-len" min="5" max="99" value="15" autocomplete="off" disabled>
-                    <small>explosions</small>
-                </span>
             </label>
         </div>
         <button class="btn primary" id="btn-settings-done">Done</button>
@@ -376,8 +355,7 @@
     <div class="player p{k}" id="p-{k}">
         <div class="player-head"><span class="cube p{k}"></span> <span id="p{k}-name"></span> <span class="you" id="p{k}-you" hidden>you</span></div>
         <div class="clock" id="clock-{k}" hidden>3:00</div>
-        <div class="stat"><span id="lbl-cells-{k}">Cells</span><b id="p{k}-cells">0</b></div>
-        <div class="stat"><span id="lbl-pieces-{k}">Pieces</span><b id="p{k}-pieces">0</b></div>
+        <div class="stats" id="p{k}-stats"></div>
         <div class="bar stat-bar"><div class="bar-fill p{k}" id="p{k}-bar" style="width:0%"></div><span id="p{k}-pct">0%</span></div>
         <div class="bar win-bar" id="p{k}-win-row" hidden><div class="bar-fill p{k}" id="p{k}-win" style="width:50%"></div><span id="p{k}-win-pct">50 % win</span></div>
     </div>
@@ -395,6 +373,7 @@
 <script src="client/lib/net.js"></script>
 <script src="client/lib/preload.js"></script>
 <script src="client/lib/sound.js"></script>
+<script src="client/lib/install.js"></script>
 <script src="client/games/rules.js"></script>
 <script src="client/games.js"></script>
 <script src="client/games/chain-rules.js"></script>
@@ -402,6 +381,7 @@
 <script src="client/games/five-rules.js"></script>
 <script src="client/games/five.js"></script>
 <script src="client/bots.js"></script>
+<script src="client/winchance.js"></script>
 <script src="client/bots/random-chain/bot.js"></script>
 <script src="client/bots/random-chain/benchmark.js"></script>
 <!-- bots: chain (add new Chain React bots below this line) -->
@@ -420,6 +400,9 @@
 <script src="client/bot-persona.js"></script>
 <script src="client/reactions.js"></script>
 <script src="client/chat.js"></script>
+<script src="client/session.js"></script>
+<script src="client/match.js"></script>
+<script src="client/room.js"></script>
 <script src="client/app.js"></script>
 </body>
 </html>

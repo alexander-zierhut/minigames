@@ -54,15 +54,12 @@ export async function collect(H, def, series = SERIES[def.game]) {
         const a = Bots.create(def.id, { seed: 300 + g, me: 0, difficulty: middle, budget: { ms: Infinity, nodes: 4000 } });
         const b = vsRandom ? Bots.create(`random-${def.game}`, { seed: 900 + g, me: 1 }) : Bots.create(def.id, { seed: 600 + g, me: 1, difficulty: middle, budget: { ms: Infinity, nodes: 4000 } });
         const cfg = { ...series.config, startPlayer: g % 2 };
-        const state = rules.create(cfg, Rules.base(cfg));
+        const state = Rules.create(cfg, rules);
         const positions = [];
         for (let moves = 0; !state.over && moves < series.maxMoves; moves++) {
             const seat = state.current === 0 ? a : b;
             const i = await seat.move(state);
-            const p = state.current;
-            rules.place(state, i, p); rules.settle(state, p);
-            const r = rules.conclude(state, p);
-            if (r) { state.over = true; state.winner = r.winner; }
+            Rules.step(rules, state, i);
             if (!state.over) {
                 const t = Bots.tools(def.game, { seed: 0, budget: { ms: Infinity, nodes: BUDGET } });
                 positions.push(Number(await def.evaluate(JSON.parse(JSON.stringify(state)), t)));

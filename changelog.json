@@ -4,41 +4,237 @@
     {
       "date": "2026-09-10",
       "entries": [
-        { "type": "feature", "text": "Changelog button on the title screen (this list).", "refs": [] },
-        { "type": "improvement", "text": "The textured looks are now called \"Blocks board\" and \"Blocks\".", "refs": ["commit b315e3c"] },
-        { "type": "feature", "text": "Add to home screen on Android: the page installs like an app, with a new icon.", "refs": ["commit 7f4710a"] },
-        { "type": "improvement", "text": "Win chance is much calmer: it no longer changes during explosion animations, both bots evaluate positions properly (no more turn-to-turn flip-flops), the numbers are calibrated on real games, refined in the background while nobody moves, and lightly smoothed between moves except when a side is clearly winning.", "refs": ["commit ef4820d", "commit f35f322", "commit 7f4710a"] },
-        { "type": "feature", "text": "Five Wins ends in a draw as soon as no line can be completed any more, even with empty cells left.", "refs": ["#18"] },
-        { "type": "improvement", "text": "The room lobby is more compact: chat lives only in the game, the share buttons sit in one row under the code.", "refs": ["#15"] },
-        { "type": "improvement", "text": "A lone emoji floats slowly; only spam falls fast.", "refs": ["#17"] },
-        { "type": "improvement", "text": "Five Wins defaults to an 11 × 11 board.", "refs": ["#16"] },
-        { "type": "feature", "text": "Bots react like players: a wave at the start, GG at the end, EZ when they see the win coming, praise for strong moves, teasing faces for blunders. Seven new emojis for everyone.", "refs": ["#14"] },
-        { "type": "improvement", "text": "Bot picker rebuilt in two steps with both scores; picking a game no longer opens it, the default is the best bot on Normal.", "refs": ["#11", "#12"] },
-        { "type": "feature", "text": "Feedback button in the preferences opens a prefilled GitHub issue.", "refs": ["#8"] },
-        { "type": "improvement", "text": "Title screen: wider on desktop, shorter button names; the Look control lives only in the preferences.", "refs": ["#9", "#10"] },
-        { "type": "fix", "text": "On phones the preferences button could not be tapped during a game; the reaction toggle is aligned with it; no more accidental text selection.", "refs": ["#7", "#13"] },
-        { "type": "feature", "text": "Spectators: when a room is full, further people watch; a spectate link can be shared.", "refs": ["#2"] },
-        { "type": "feature", "text": "Rooms with three or four players.", "refs": ["#3"] },
-        { "type": "feature", "text": "Room chat in the game log.", "refs": ["#4"] },
-        { "type": "feature", "text": "Sounds: placing, explosions, win/lose, your turn, reactions — synthesized for Classic, block sounds for the Blocks looks; volume and categories in the preferences.", "refs": ["#5"] },
-        { "type": "feature", "text": "Preferences button (⚙) on every screen: look, sound volume and categories.", "refs": ["#6"] },
-        { "type": "feature", "text": "Real bots: Creeper (Chain React) and Sensei (Five Wins), Easy to Very hard, rated against Random and on proven puzzle sets; the ratings show in the picker.", "refs": ["commit c8fe98a", "commit c9b8856"] },
-        { "type": "feature", "text": "Live win chance for both players in every mode.", "refs": ["commit 86f6611"] },
-        { "type": "feature", "text": "Play against a bot: bot picker with difficulty, Random bots for both games.", "refs": ["commit cd18cfd"] },
-        { "type": "fix", "text": "Online play is robust against refreshes, leaving and rejoining, a host who disappears (the other player takes over the room), a third person joining, lost rematch requests and diverged boards (automatic re-sync).", "refs": ["commit cb20de2", "commit 8cb44ce"] },
-        { "type": "fix", "text": "Mobile-to-mobile online play works through a relay server.", "refs": ["commit 0fb717f"] }
+        {
+          "type": "improvement",
+          "text": "Changelog entries are more compact: type and links on one line, the text below.",
+          "refs": []
+        },
+        {
+          "type": "internal",
+          "text": "Big refactor: the games plug into a generic framework (HUD, settings rows, win chance, replay-ready game records); the app is split into table, room and screens. Nothing changes for players.",
+          "refs": []
+        },
+        {
+          "type": "feature",
+          "text": "Changelog button on the title screen (this list).",
+          "refs": []
+        },
+        {
+          "type": "improvement",
+          "text": "The textured looks are now called \"Blocks board\" and \"Blocks\".",
+          "refs": [
+            "commit b315e3c"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "Add to home screen on Android: the page installs like an app, with a new icon.",
+          "refs": [
+            "commit 7f4710a"
+          ]
+        },
+        {
+          "type": "improvement",
+          "text": "Win chance is much calmer: it no longer changes during explosion animations, both bots evaluate positions properly (no more turn-to-turn flip-flops), the numbers are calibrated on real games, refined in the background while nobody moves, and lightly smoothed between moves except when a side is clearly winning.",
+          "refs": [
+            "commit ef4820d",
+            "commit f35f322",
+            "commit 7f4710a"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "Five Wins ends in a draw as soon as no line can be completed any more, even with empty cells left.",
+          "refs": [
+            "#18"
+          ]
+        },
+        {
+          "type": "improvement",
+          "text": "The room lobby is more compact: chat lives only in the game, the share buttons sit in one row under the code.",
+          "refs": [
+            "#15"
+          ]
+        },
+        {
+          "type": "improvement",
+          "text": "A lone emoji floats slowly; only spam falls fast.",
+          "refs": [
+            "#17"
+          ]
+        },
+        {
+          "type": "improvement",
+          "text": "Five Wins defaults to an 11 × 11 board.",
+          "refs": [
+            "#16"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "Bots react like players: a wave at the start, GG at the end, EZ when they see the win coming, praise for strong moves, teasing faces for blunders. Seven new emojis for everyone.",
+          "refs": [
+            "#14"
+          ]
+        },
+        {
+          "type": "improvement",
+          "text": "Bot picker rebuilt in two steps with both scores; picking a game no longer opens it, the default is the best bot on Normal.",
+          "refs": [
+            "#11",
+            "#12"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "Feedback button in the preferences opens a prefilled GitHub issue.",
+          "refs": [
+            "#8"
+          ]
+        },
+        {
+          "type": "improvement",
+          "text": "Title screen: wider on desktop, shorter button names; the Look control lives only in the preferences.",
+          "refs": [
+            "#9",
+            "#10"
+          ]
+        },
+        {
+          "type": "fix",
+          "text": "On phones the preferences button could not be tapped during a game; the reaction toggle is aligned with it; no more accidental text selection.",
+          "refs": [
+            "#7",
+            "#13"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "Spectators: when a room is full, further people watch; a spectate link can be shared.",
+          "refs": [
+            "#2"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "Rooms with three or four players.",
+          "refs": [
+            "#3"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "Room chat in the game log.",
+          "refs": [
+            "#4"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "Sounds: placing, explosions, win/lose, your turn, reactions — synthesized for Classic, block sounds for the Blocks looks; volume and categories in the preferences.",
+          "refs": [
+            "#5"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "Preferences button (⚙) on every screen: look, sound volume and categories.",
+          "refs": [
+            "#6"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "Real bots: Creeper (Chain React) and Sensei (Five Wins), Easy to Very hard, rated against Random and on proven puzzle sets; the ratings show in the picker.",
+          "refs": [
+            "commit c8fe98a",
+            "commit c9b8856"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "Live win chance for both players in every mode.",
+          "refs": [
+            "commit 86f6611"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "Play against a bot: bot picker with difficulty, Random bots for both games.",
+          "refs": [
+            "commit cd18cfd"
+          ]
+        },
+        {
+          "type": "fix",
+          "text": "Online play is robust against refreshes, leaving and rejoining, a host who disappears (the other player takes over the room), a third person joining, lost rematch requests and diverged boards (automatic re-sync).",
+          "refs": [
+            "commit cb20de2",
+            "commit 8cb44ce"
+          ]
+        },
+        {
+          "type": "fix",
+          "text": "Mobile-to-mobile online play works through a relay server.",
+          "refs": [
+            "commit 0fb717f"
+          ]
+        }
       ]
     },
     {
       "date": "2026-09-09",
       "entries": [
-        { "type": "internal", "text": "Big refactor: pure game rules, shared engine, game registry, event bus, CSS per area — no visible change.", "refs": ["commit 29ae337"] },
-        { "type": "internal", "text": "Extensive unit and end-to-end test suite; deploys only after a green run.", "refs": ["commit 26a484d"] },
-        { "type": "fix", "text": "Favicons and app icons deploy correctly.", "refs": ["PR #1", "commit a0c84ad"] },
-        { "type": "improvement", "text": "Result dialog wider on desktop; the last-move marker hides after the game and no longer pulses in Five Wins.", "refs": ["commit a05a0d9"] },
-        { "type": "improvement", "text": "Textures preload on the first visit with a progress bar.", "refs": ["commit 10a9490"] },
-        { "type": "internal", "text": "Hashed bundle and automatic deploy to minigames.alzlper.com.", "refs": ["commit 555df93"] },
-        { "type": "feature", "text": "Chain React and Five Wins with a persistent room (one link for the whole evening), online play over PeerJS, local play, chess clock, settings shared live in the room, three looks, emoji reactions, result dialog with a look-at-board mode.", "refs": ["commit 1d60ec3"] }
+        {
+          "type": "internal",
+          "text": "Big refactor: pure game rules, shared engine, game registry, event bus, CSS per area — no visible change.",
+          "refs": [
+            "commit 29ae337"
+          ]
+        },
+        {
+          "type": "internal",
+          "text": "Extensive unit and end-to-end test suite; deploys only after a green run.",
+          "refs": [
+            "commit 26a484d"
+          ]
+        },
+        {
+          "type": "fix",
+          "text": "Favicons and app icons deploy correctly.",
+          "refs": [
+            "PR #1",
+            "commit a0c84ad"
+          ]
+        },
+        {
+          "type": "improvement",
+          "text": "Result dialog wider on desktop; the last-move marker hides after the game and no longer pulses in Five Wins.",
+          "refs": [
+            "commit a05a0d9"
+          ]
+        },
+        {
+          "type": "improvement",
+          "text": "Textures preload on the first visit with a progress bar.",
+          "refs": [
+            "commit 10a9490"
+          ]
+        },
+        {
+          "type": "internal",
+          "text": "Hashed bundle and automatic deploy to minigames.alzlper.com.",
+          "refs": [
+            "commit 555df93"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "Chain React and Five Wins with a persistent room (one link for the whole evening), online play over PeerJS, local play, chess clock, settings shared live in the room, three looks, emoji reactions, result dialog with a look-at-board mode.",
+          "refs": [
+            "commit 1d60ec3"
+          ]
+        }
       ]
     }
   ]

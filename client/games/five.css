@@ -49,7 +49,6 @@
 .stone .last-marker { inset: 10%; border-radius: 50%; }
 
 .game-preview.five i { border-radius: 50%; }
-body.game-five .chain-box { display: none !important; }
 
 /* ---- Minecraft board (both MC skins): quartz tiles on obsidian, blocks as stones ---- */
 :is(.skin-mc, .skin-mcboard) #board.five {

@@ -6,7 +6,7 @@
 "use strict";
 
 const ChainView = (() => {
-    const { $, sleep, restartClass } = Util;
+    const { sleep, restartClass } = Util;
     let speed = 750;        // ms, from the animation-speed setting
 
     /* ---------- board ---------- */
@@ -42,15 +42,10 @@ const ChainView = (() => {
         el.querySelectorAll(".tile.lamp").forEach((lamp, k) => lamp.classList.toggle("on", k < c.count));
     }
 
-    /* ---------- HUD ---------- */
+    /* ---------- HUD (data only; the framework renders it) ---------- */
     function hud(state) {
         const t = ChainRules.tally(state);
         const total = state.cells.length;
-        $("chain-now").textContent = state.chainNow;
-        $("chain-best").textContent = state.chainBest;
-        $("explosions").textContent = state.explosions;
-        $("chain-box").classList.toggle("hot", state.busy && state.chainNow >= 5);
-        $("mini-line2").innerHTML = `chain <b>${state.chainNow}</b> / best <b>${state.chainBest}</b>`;
         return {
             round: `Round ${state.round}`,
             players: t.map((x, k) => ({
@@ -59,6 +54,8 @@ const ChainView = (() => {
                 barText: Math.round(x.cells / total * 100) + "%",
                 leading: t.every((o, j) => j === k || x.cells > o.cells),
             })),
+            box: { stats: [["Current chain", state.chainNow], ["Longest chain", state.chainBest], ["Explosions total", state.explosions]], hot: state.busy && state.chainNow >= 5 },
+            line2: [["chain", state.chainNow], ["best", state.chainBest]],
         };
     }
 
@@ -171,7 +168,12 @@ const ChainGame = Games.register({
     desc: "Explosions & chain reactions",
     preview: "...01....",                  // 3×3 picker preview: . empty, digit = player
     size: { min: 3, max: 12, default: 6 },
-    settings: ["speed", "chainRule"],      // rows of #settings-modal shown for this game
+    // rows of #settings-modal for this game (built by settings.js, read into config.<key>)
+    settings: [
+        { key: "speed", label: "Animation speed", type: "select", def: 750, options: [[1100, "Slow"], [750, "Normal"], [350, "Fast"]] },
+        { key: "chainRule", label: "Win on a long chain", type: "bool", def: false,
+          with: { key: "chainLen", type: "int", min: 5, max: 99, def: 15, unit: "explosions" } },   // the number next to the checkbox
+    ],
     describeOptions: (cfg) => cfg.chainRule ? [`${cfg.chainLen}-chain wins`] : [],
     rules: ChainRules,
     view: ChainView,

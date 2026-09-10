@@ -20,17 +20,13 @@ export function loadPuzzles(game) {
 
 // the position of a puzzle, rebuilt with the rules; throws when the puzzle is inconsistent
 export function positionOf(H, puzzle) {
-    const rules = H.Rules.of(puzzle.config.game || game(puzzle));
-    const cfg = { ...puzzle.config };
-    const state = rules.create(cfg, H.Rules.base(cfg));
+    const key = puzzle.config.game || game(puzzle);
+    const rules = H.Rules.of(key);
+    const state = H.Rules.create(puzzle.config, key);
     for (const i of puzzle.history) {
-        const p = state.current;
         if (state.over) throw new Error(`${puzzle.id}: history continues after the game ended`);
-        if (!rules.isLegal(state, i, p)) throw new Error(`${puzzle.id}: illegal history move ${i} for player ${p}`);
-        rules.place(state, i, p);
-        rules.settle(state, p);
-        const r = rules.conclude(state, p);
-        if (r) { state.over = true; state.winner = r.winner; }
+        if (!rules.isLegal(state, i, state.current)) throw new Error(`${puzzle.id}: illegal history move ${i} for player ${state.current}`);
+        H.Rules.step(rules, state, i);
     }
     if (state.over) throw new Error(`${puzzle.id}: position is already over`);
     if (state.current !== puzzle.toMove) throw new Error(`${puzzle.id}: toMove ${puzzle.toMove} but ${state.current} is to move`);

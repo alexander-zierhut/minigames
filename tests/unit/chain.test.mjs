@@ -122,7 +122,7 @@ test("HUD reflects counts, turn and last-move marker", async () => {
     const { w, G } = fresh({ n: 4 });
     await G.play(5);
     const d = w.document;
-    assert.equal(d.getElementById("p0-cells").textContent, "1");
+    assert.equal(d.getElementById("p0-stat-0").textContent, "1");
     assert.equal(d.getElementById("turn-name").textContent, "Amber");
     assert.ok(d.getElementById("board").classList.contains("turn-p1"));
     assert.equal(d.querySelectorAll(".cell.last").length, 1);

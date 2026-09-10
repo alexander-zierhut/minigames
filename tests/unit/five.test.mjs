@@ -129,8 +129,8 @@ test("HUD: best row, stones, draw title", async () => {
     const { w, G } = fresh();
     await playAll(G, [0, 40, 1, 41, 2]);
     const d = w.document;
-    assert.equal(d.getElementById("p0-pieces").textContent, "3", "best row");
-    assert.equal(d.getElementById("p1-cells").textContent, "2", "stones");
+    assert.equal(d.getElementById("p0-stat-1").textContent, "3", "best row");
+    assert.equal(d.getElementById("p1-stat-0").textContent, "2", "stones");
     assert.equal(d.getElementById("p0-pct").textContent, "3 / 5");
     assert.equal(d.querySelectorAll(".stone.last").length, 1);
     G.finish(-1, "The board is full.");

@@ -1,13 +1,18 @@
-/* Game registry, engine shell and HUD.
+/* Game registry, engine shell and HUD — the framework side of a game.
 
    A game = pure rules (client/games/<key>-rules.js) + a view (board DOM, animation,
-   HUD numbers; client/games/<key>.js) + a definition (title, size limits, settings).
-   Games.register(def) wraps them into an engine with one uniform interface:
+   HUD numbers; client/games/<key>.js) + a definition (title, size limits, settings rows,
+   summary parts). Games.register(def) wraps them into an engine with one uniform
+   interface, and everything else (rooms, lobby, clock, chat, win chance, bots, replay,
+   session restore, sounds) works against that interface only:
 
-     state (getter)   newGame(config, hooks)   play(i) -> Promise<bool>   replay(history)
-     finish(winner, why)   eliminate(p, why)   abandon()   render()   isLegal(i, player)   hash()
+     state (getter)   newGame(config, hooks)   play(i) -> Promise<bool>   replay(history, outs)
+     finish(winner, why)   eliminate(p, why)   abandon()   render()   isLegal(i, player)
+     hash()   record()
 
-   app.js only ever talks to that interface, so adding a game never touches app.js. */
+   Bus events the engine emits (payloads in AGENTS.md "Events"): game:new, game:move,
+   game:turn, game:finish and game:position (the settled position changed — observers
+   such as the win chance listen to this one only). */
 
 "use strict";
 
@@ -16,8 +21,9 @@ const Games = (() => {
     const order = [];
 
     function register(def) {
+        if (!def || !def.key || !def.rules || !def.view) throw new Error("Games.register: key, rules and view are required");
         const engine = Engine.create(def);
-        defs[def.key] = { ...def, engine };
+        defs[def.key] = { settings: [], ...def, engine };
         order.push(def.key);
         return engine;
     }
@@ -25,7 +31,7 @@ const Games = (() => {
     const get = (key) => defs[has(key) ? key : order[0]];
     const keys = () => order.slice();
 
-    return { register, has, get, keys };
+    return { register, has, get, keys, positionAt: Rules.replay };
 })();
 
 /* ---------------- engine shell (shared by every game) ---------------- */
@@ -33,6 +39,7 @@ const Engine = (() => {
     function create(def) {
         const { rules, view } = def;
         let state = Object.assign(Rules.base({ n: 0 }), { cells: [] });
+        let config = null;
         let hooks = {};
         let cells = [];             // one element per cell, same order as state.cells
         const board = () => Util.$("board");
@@ -48,23 +55,28 @@ const Engine = (() => {
             render: () => render(),
         };
 
-        function newGame(config, h) {
+        const emit = (event, data) => Bus.emit(event, { game: def.key, ...data });
+        // the settled position changed (new game, move settled, replay, elimination, end)
+        const settled = () => emit("game:position", { state });
+
+        function newGame(cfg, h) {
             hooks = h || hooks;
-            state = rules.create(config, Rules.base(config));
-            estimator = null;
-            resetWinChance();
+            config = cfg;
+            state = Rules.create(cfg, rules);
             document.documentElement.style.setProperty("--n", state.n);
+            document.body.className = document.body.className.replace(/\bgame-\S+/g, "").trim();
+            document.body.classList.add("game-" + def.key);
             const el = board();
             el.className = def.key;
             el.innerHTML = "";
-            cells = view.build(el, state, config, (i) => { if (hooks.onCellClick) hooks.onCellClick(i); });
-            Hud.build(state.players);
+            cells = view.build(el, state, cfg, (i) => { if (hooks.onCellClick) hooks.onCellClick(i); });
+            Hud.build(state.players, def.title);
             Log.clear();
             Util.$("overlay").hidden = true;
             Log.add(`New game. ${hooks.names[state.current]} starts.`, "p" + state.current);
-            Bus.emit("game:new", { game: def.key, config });
+            emit("game:new", { config: cfg, state });
             render();
-            refreshWinChance();
+            settled();
             if (hooks.onTurn) hooks.onTurn(state.current);
         }
 
@@ -73,13 +85,13 @@ const Engine = (() => {
             if (hooks.onBusy) hooks.onBusy(busy);
         }
 
-        // a move by whoever is current: own click, the friend's relayed move (or a bot)
+        // a move by whoever is current: own click, the friend's relayed move, a bot
         async function play(i) {
             if (state.busy || !rules.isLegal(state, i, state.current)) return false;
             const me = state.current;
             setBusy(true);
             rules.place(state, i, me);
-            Bus.emit("game:move", { game: def.key, cell: i, player: me });
+            emit("game:move", { cell: i, player: me });
             if (hooks.onMoveApplied) hooks.onMoveApplied(i, me);
             await view.animateMove(ctx, i, me);          // resolves the move's consequences, animated
             if (state.over) return true;                 // finished from outside while animating
@@ -87,46 +99,25 @@ const Engine = (() => {
             if (result) { finish(result.winner, result.why); return true; }
             setBusy(false);
             render();
-            refreshWinChance();                          // the move has settled: now the chance may change
-            Bus.emit("game:turn", { game: def.key, player: state.current });
+            settled();
+            emit("game:turn", { player: state.current, state });
             if (hooks.onTurn) hooks.onTurn(state.current);
             return true;
         }
 
-        // apply moves instantly with the very same rule functions (reconnect, page refresh).
-        // `outs` = eliminations (flag falls) with the history length they happened at; they
-        // are replayed at the same point so every client passes the turn identically.
+        // apply moves instantly with the very same rule functions (reconnect, page refresh,
+        // a replay viewer). `outs` = eliminations with the history length they happened at.
         function replay(history, outs = []) {
-            const pending = outs.filter((o) => o && !state.out[o.p]).sort((a, b) => a.at - b.at);
-            const applyOuts = () => { while (pending.length && pending[0].at <= state.history.length) { const o = pending.shift(); markOut(o.p, o.why); } };
-            applyOuts();
-            for (const i of history) {
-                if (state.over) break;
-                const me = state.current;
-                if (!rules.isLegal(state, i, me)) break;
-                rules.place(state, i, me);
-                rules.settle(state, me);
-                const result = rules.conclude(state, me);
-                if (result) { state.over = true; state.winner = result.winner; state.finishWhy = result.why; }
-                applyOuts();
-            }
+            const before = state.outs.length;
+            Rules.apply(rules, state, history, outs);
+            for (const o of state.outs.slice(before)) logOut(o.p, o.why);
             render();
-            if (state.over) finish(state.winner, state.finishWhy);
-            else { refreshWinChance(); if (hooks.onTurn) hooks.onTurn(state.current); }
+            if (state.over) { finish(state.winner, state.finishWhy); return; }
+            settled();
+            if (hooks.onTurn) hooks.onTurn(state.current);
         }
 
-        // the state change of an elimination (shared by eliminate and replay): skipped from
-        // now on, the turn passes if it was theirs, the last one standing wins
-        function markOut(p, why) {
-            if (state.over || p < 0 || p >= state.players || state.out[p]) return false;
-            state.out[p] = true;
-            state.outs.push({ p, at: state.history.length, why });
-            if (state.players > 2) Log.add(`${hooks.names[p]} is out. ${why}`, "p" + p);
-            const left = Rules.remaining(state);
-            if (left.length <= 1) { state.over = true; state.winner = left.length ? left[0] : -1; state.finishWhy = why; return true; }
-            if (state.current === p) Rules.pass(state);
-            return true;
-        }
+        const logOut = (p, why) => { if (state.players > 2) Log.add(`${hooks.names[p]} is out. ${why}`, "p" + p); };
 
         function finish(winner, why) {
             state.over = true;
@@ -137,25 +128,24 @@ const Engine = (() => {
             const won = winner >= 0;
             Log.add(won ? `${names[winner]} wins! ${why}` : `Draw. ${why}`, won ? "p" + winner : "x");
             render();
-            refreshWinChance();                          // exact now: 100 / 0 / 50
-            Util.$("overlay-block").className = "overlay-block " + (won ? "p" + winner : "draw");
-            Util.$("overlay-title").textContent = won ? `${names[winner]} wins!` : "Draw!";
-            Util.$("overlay-sub").textContent = `${why}\n${view.summary(state)}`;
-            Util.$("overlay").hidden = false;
-            Bus.emit("game:finish", { game: def.key, winner, why });
+            Hud.overlay(won ? names[winner] : null, winner, `${why}\n${view.summary(state)}`);
+            settled();
+            emit("game:finish", { winner, why, state });
             if (hooks.onBusy) hooks.onBusy(false);
             if (hooks.onFinish) hooks.onFinish(winner, why);
         }
 
-        // a player is out without a move of the rules (flag fall; app.js calls this for the
-        // local clock and for a friend's `timeout`). With two players that ends the game.
+        // a player is out without a move of the rules (flag fall: the local clock or a
+        // friend's `timeout`). With two players that ends the game.
         function eliminate(p, why) {
             const was = state.current;
-            if (!markOut(p, why)) return false;
+            if (!Rules.eliminate(state, p, why)) return false;
+            logOut(p, why);
             if (state.over) { finish(state.winner, state.finishWhy); return true; }
             render();
+            settled();
             if (state.current !== was && !state.busy) {
-                Bus.emit("game:turn", { game: def.key, player: state.current });
+                emit("game:turn", { player: state.current, state });
                 if (hooks.onTurn) hooks.onTurn(state.current);
             }
             return true;
@@ -167,6 +157,15 @@ const Engine = (() => {
             let h = 0x811c9dc5;                                        // FNV-1a, 32 bit
             for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
             return h;
+        }
+
+        // the game as data: enough to rebuild any position (Games.positionAt) or show it later
+        function record() {
+            return {
+                game: def.key, config: config ? { ...config } : null,
+                history: state.history.slice(), outs: state.outs.slice(),
+                over: state.over, winner: state.over ? state.winner : null, why: state.over ? state.finishWhy : "",
+            };
         }
 
         // stop a running game without a result (back to the room while playing)
@@ -194,54 +193,12 @@ const Engine = (() => {
             }
             view.renderCell(el, state, i);
         }
-
-        /* Win chance (2 players): computed only when a move has settled — never while a move
-           animates — in stages of growing node budgets (Bots.ESTIMATE_STAGES) so the bar shows a
-           quick number first and refines it while nobody moves (deterministic budgets: both
-           online clients see the same values). Display smoothing blends a new value with the
-           previous move's value by a third, except in decided territory (≥ 90 % / ≤ 10 %). */
-        const REFINE_MS = 5000, SMOOTH = 0.33, DECIDED = 0.9;
-        let estimator = null;
-        const win = { token: 0, display: null, prev: null, timer: null };
-        function resetWinChance() { win.token++; win.display = null; win.prev = null; if (win.timer) clearTimeout(win.timer); }
-        function showWinChance(p) {
-            let shown = p;
-            const undecided = (v) => v < DECIDED && v > 1 - DECIDED;
-            if (!state.over && win.prev !== null && undecided(p) && undecided(win.prev)) shown = (1 - SMOOTH) * p + SMOOTH * win.prev;
-            win.display = [shown, 1 - shown];
-            renderHud();
-        }
-        function refreshWinChance() {
-            if (!estimator) estimator = typeof Bots !== "undefined" ? Bots.estimator(def.key) : null;
-            if (!estimator || state.players !== 2) return;
-            win.token++;
-            const token = win.token;
-            if (win.timer) clearTimeout(win.timer);
-            if (win.display) win.prev = win.display[0];              // the previous move's final value
-            const started = Date.now();
-            const stages = state.over ? [estimator.stages[0]] : estimator.stages;
-            const apply = (k, p) => {
-                if (token !== win.token || typeof document === "undefined" || !document) return;   // superseded, or the page is gone (tests)
-                showWinChance(p);
-                if (k + 1 < stages.length && !state.over && Date.now() - started < REFINE_MS) win.timer = setTimeout(() => run(k + 1), 0);
-            };
-            const run = (k) => {
-                if (token !== win.token || state.busy) return;
-                const r = estimator.at(state, stages[k]);
-                if (r && typeof r.then === "function") r.then((p) => apply(k, p)).catch(() => {});
-                else apply(k, r);                        // the quick stage is synchronous: the bar is right immediately
-            };
-            run(0);
-        }
-        function renderHud() {
-            const model = view.hud(state);
-            model.win = win.display;
-            Hud.render(state, hooks, model);
-        }
+        const renderHud = () => Hud.render(state, hooks, view.hud(state));
 
         return {
             get state() { return state; },
-            newGame, play, replay, finish, eliminate, abandon, render, hash,
+            get config() { return config; },
+            newGame, play, replay, finish, eliminate, abandon, render, hash, record,
             isLegal: (i, player) => rules.isLegal(state, i, player),
         };
     }
@@ -249,12 +206,13 @@ const Engine = (() => {
     return { create };
 })();
 
-/* ---------------- HUD: player cards, turn box, round label ---------------- */
+/* ---------------- HUD: sign, turn box, player cards, game box, overlay ---------------- */
 const Hud = (() => {
     const { $ } = Util;
 
-    // one .player card per seat, cloned from #tpl-player (ids p{k}-name, clock-{k}, …)
-    function build(players) {
+    // one .player card per seat, cloned from #tpl-player (ids p-{k}, p{k}-name, clock-{k}, p{k}-stats …)
+    function build(players, title) {
+        if (title !== undefined) $("sign-title").textContent = title.toUpperCase();
         const box = $("players");
         if (box.children.length === players) return;
         box.innerHTML = "";
@@ -262,9 +220,44 @@ const Hud = (() => {
         box.dataset.players = players;
     }
 
-    /* model (from view.hud): { round: "Round 3", players: [{ stats: [[label, value], [label, value]],
-       bar: 0..1, barText, leading }], line2?: text for the mobile HUD's second line };
-       the engine adds win: [p0, p1] (win chance from Bots.estimator) */
+    // label / value rows inside `box`, rebuilt only when the row count changes; ids `${prefix}-${j}`
+    function statRows(box, stats, prefix) {
+        if (box.children.length !== stats.length) {
+            box.innerHTML = "";
+            stats.forEach((_, j) => {
+                const row = document.createElement("div");
+                row.className = "stat";
+                row.innerHTML = `<span></span><b id="${prefix}-${j}"></b>`;
+                box.appendChild(row);
+            });
+        }
+        stats.forEach(([label, value], j) => {
+            const row = box.children[j];
+            row.firstElementChild.textContent = label;
+            row.lastElementChild.textContent = value;
+        });
+    }
+
+    // "chain 5 / best 7": parts [[label, value], …] with bold values, or a plain string
+    function miniLine(el, line2) {
+        if (line2 === undefined) return;
+        if (typeof line2 === "string") { el.textContent = line2; return; }
+        el.innerHTML = "";
+        line2.forEach(([label, value], j) => {
+            if (j) el.appendChild(document.createTextNode(" / "));
+            el.appendChild(document.createTextNode(label + " "));
+            const b = document.createElement("b");
+            b.textContent = value;
+            el.appendChild(b);
+        });
+    }
+
+    /* model (from view.hud(state)):
+       { round: "Round 3",
+         players: [{ stats: [[label, value], …], bar: 0..1, barText, leading }],   one per seat
+         box?: { stats: [[label, value], …], hot? },   an extra info box (chain: the chain counters)
+         line2?: string | [[label, value], …],         second line of the phone turn box
+         drawHint?: text under "Draw" }                (the win bars belong to WinChance) */
     function render(state, hooks, model) {
         const names = hooks.names;
         const p = state.current;
@@ -282,21 +275,26 @@ const Hud = (() => {
             : (hooks.turnHint ? hooks.turnHint(p) : "to move");
         model.players.forEach((m, k) => {
             $(`p${k}-name`).textContent = names[k];
-            $(`lbl-cells-${k}`).textContent = m.stats[0][0];
-            $(`p${k}-cells`).textContent = m.stats[0][1];
-            $(`lbl-pieces-${k}`).textContent = m.stats[1][0];
-            $(`p${k}-pieces`).textContent = m.stats[1][1];
+            statRows($(`p${k}-stats`), m.stats, `p${k}-stat`);
             $(`p${k}-bar`).style.width = Math.round(m.bar * 100) + "%";
             $(`p${k}-pct`).textContent = m.barText;
-            const win = model.win ? (k === 0 ? Math.round(model.win[0] * 100) : 100 - Math.round(model.win[0] * 100)) : null;   // win chance; the two always add to 100
-            $(`p${k}-win-row`).hidden = win === null;
-            if (win !== null) { $(`p${k}-win`).style.width = win + "%"; $(`p${k}-win-pct`).textContent = `${win} % win`; }
             $(`p-${k}`).classList.toggle("leading", !!m.leading);
             $(`p-${k}`).classList.toggle("active", !state.over && p === k);
         });
-        if (model.line2 !== undefined) $("mini-line2").textContent = model.line2;
+        const box = $("game-box");
+        box.hidden = !model.box;
+        if (model.box) { statRows(box, model.box.stats, "game-stat"); box.classList.toggle("hot", !!model.box.hot); }
+        miniLine($("mini-line2"), model.line2);
+    }
+
+    // the result overlay: `name` = the winner's name (null = draw), `sub` = why + the game's summary
+    function overlay(name, winner, sub) {
+        $("overlay-block").className = "overlay-block " + (name ? "p" + winner : "draw");
+        $("overlay-title").textContent = name ? `${name} wins!` : "Draw!";
+        $("overlay-sub").textContent = sub;
+        $("overlay").hidden = false;
     }
 
     if ($("players")) build(2);     // default cards so the clock / net box have targets before a game
-    return { build, render };
+    return { build, render, overlay };
 })();

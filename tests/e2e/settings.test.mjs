@@ -18,7 +18,7 @@ test("board size clamps per game; five's minimum follows the win length", async 
     assert.equal(await B.ev("document.getElementById('set-size').value"), "11", "five's fresh default is 11 × 11 (#16)");
     assert.equal(await B.ev("document.getElementById('row-winlen').hidden"), false);
     assert.equal(await B.ev("document.getElementById('row-speed').hidden"), true);
-    assert.equal(await B.ev("document.getElementById('row-chain').hidden"), true);
+    assert.equal(await B.ev("document.getElementById('row-chainrule').hidden"), true);
     await B.set("set-winlen", 8);
     assert.equal(await B.set("set-size", 5), "8", "board can't be smaller than the win length");
     assert.equal(await B.text("size-hint"), "(8–25)");
@@ -32,9 +32,9 @@ test("timer custom row and chain rule toggle", async () => {
     await B.set("set-timer", "custom");
     assert.equal(await B.ev("document.getElementById('row-timer-custom').hidden"), false);
     await B.set("set-timer-custom", 2);
-    await B.check("set-chain", true);
-    assert.equal(await B.ev("document.getElementById('set-chain-len').disabled"), false);
-    await B.set("set-chain-len", 20);
+    await B.check("set-chainrule", true);
+    assert.equal(await B.ev("document.getElementById('set-chainlen').disabled"), false);
+    await B.set("set-chainlen", 20);
     await B.click("#btn-settings-done");
     assert.match(await B.text("settings-summary"), /2 min timer · 20-chain wins/);
 });

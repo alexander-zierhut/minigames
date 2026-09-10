@@ -67,7 +67,7 @@ order = display order.
 | `legalMoves(state, p = state.current)` | cell ids |
 | `isLegal(state, i, p)` | pure check |
 | `clone(state)` | deep copy (JSON) |
-| `apply(state, i)` | position after `i` by the current player on a copy: place + settle + conclude; sets `over`/`winner` |
+| `apply(state, i)` | position after `i` by the current player on a copy (`Rules.step` = place + settle + conclude; sets `over`/`winner`/`finishWhy`) |
 | `outcome(state)` | `{ over, winner }` (`winner` null while running, -1 draw) |
 | `opponents(p = me)` | the other seats |
 | `deadline(ms = budget.ms)` | `{ expired(), tick(n = 1), left(), nodes() }` — expires on time **or** on `budget.nodes` |

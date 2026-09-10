@@ -1,21 +1,21 @@
 /* Game choice + settings: the form in #settings-modal, the picker cards in the lobby,
    persistence in localStorage, and the config object a game is started with.
-   Which rows a game shows comes from its registry entry (`settings: [...]`, matched
-   against the rows' data-setting attribute); board-size limits from `size`/`minSize`.
-   Any change calls onChange(config) so the room can mirror it to the friend. */
+
+   Shared rows (board size, players, timer) are in index.html; the game-specific rows are
+   BUILT here from every registered game's `settings` list (see Games / AGENTS.md):
+     { key, label, type: "int" | "select" | "bool", def, min?, max?, unit?, options?, with? }
+   into #game-settings, as `<label class="row" id="row-<key>" data-setting="<key>">` with the
+   input `#set-<key>` (key lowercased). A row shows when the selected game lists that key.
+   Every field of every game is read into the config (`config.<key>`), persisted and
+   mirrored to the room. Board-size limits come from `size` / `minSize(cfg)`.
+   Any change calls onChange(config) so the room can mirror it to the friends. */
 
 "use strict";
 
 const Settings = (() => {
     const { $, clamp } = Util;
     const KEY = "chainreact.settings";
-    // game-specific inputs: read into config.<key>, written back from a config
-    const FIELDS = [
-        { key: "winLen", el: "set-winlen", type: "int", min: 3, max: 25, def: 5 },
-        { key: "speed", el: "set-speed", type: "int", def: 750 },
-        { key: "chainRule", el: "set-chain", type: "bool" },
-        { key: "chainLen", el: "set-chain-len", type: "int", min: 5, max: 99, def: 15 },
-    ];
+    let fields = [];             // every game field: { key, el, type, min, max, def, game }
     let game = null;             // selected game key
     let maxPlayers = 4;          // 2 against a bot (setMode), else 4
     const sizeFor = {};          // remembered board size per game
@@ -24,47 +24,105 @@ const Settings = (() => {
     let silent = false;          // true while writing the friend's settings into the form
 
     const def = () => Games.get(game);
+    const idFor = (key) => "set-" + key.toLowerCase();
 
+    /* ---------- the game rows, from the definitions ---------- */
+    function buildRows() {
+        const box = $("game-settings");
+        box.innerHTML = "";
+        fields = [];
+        for (const key of Games.keys()) {
+            for (const s of Games.get(key).settings) box.appendChild(row(key, s));
+        }
+    }
+    function input(gameKey, s) {
+        let el;
+        if (s.type === "select") {
+            el = document.createElement("select");
+            for (const [value, label] of s.options) {
+                const o = document.createElement("option");
+                o.value = String(value); o.textContent = label; o.selected = value === s.def;
+                el.appendChild(o);
+            }
+        } else {
+            el = document.createElement("input");
+            if (s.type === "bool") { el.type = "checkbox"; el.checked = !!s.def; }
+            else { el.type = "number"; el.min = String(s.min); el.max = String(s.max); el.step = "1"; el.value = String(s.def); }
+        }
+        el.id = idFor(s.key);
+        el.autocomplete = "off";
+        fields.push({ key: s.key, el: el.id, type: s.type, min: s.min, max: s.max, def: s.def, options: s.options, game: gameKey, with: s.with ? s.with.key : null });
+        return el;
+    }
+    function row(gameKey, s) {
+        const label = document.createElement("label");
+        label.className = "row";
+        label.id = "row-" + s.key.toLowerCase();
+        label.dataset.setting = s.key;
+        const name = document.createElement("span");
+        name.textContent = s.label;
+        label.appendChild(name);
+        const main = input(gameKey, s);
+        if (s.unit || s.with) {
+            const inline = document.createElement("span");
+            inline.className = "inline";
+            inline.appendChild(main);
+            if (s.with) {                                   // a number that only counts while the checkbox is on
+                const sub = input(gameKey, s.with);
+                sub.disabled = !s.def;
+                inline.appendChild(sub);
+                if (s.with.unit) inline.appendChild(small(s.with.unit));
+            }
+            if (s.unit) inline.appendChild(small(s.unit));
+            label.appendChild(inline);
+        } else label.appendChild(main);
+        return label;
+    }
+    function small(text) { const el = document.createElement("small"); el.textContent = text; return el; }
+
+    /* ---------- read / write ---------- */
     function readField(f) {
         const el = $(f.el);
         if (f.type === "bool") return el.checked;
+        if (f.type === "select") { const o = f.options.find(([v]) => String(v) === el.value); return o ? o[0] : f.def; }
         const v = parseInt(el.value, 10) || f.def;
         return f.min !== undefined ? clamp(v, f.min, f.max) : v;
     }
+    const gameValues = () => Object.fromEntries(fields.map((f) => [f.key, readField(f)]));
     function sizeLimits() {
         const d = def();
-        const min = d.minSize ? Math.max(d.size.min, d.minSize({ winLen: readField(FIELDS[0]) })) : d.size.min;
+        const min = d.minSize ? Math.max(d.size.min, d.minSize(gameValues())) : d.size.min;
         return { min, max: d.size.max };
     }
 
-    // the config object a game is started with (and what the friend receives)
+    // the config object a game is started with (and what the friends receive)
     function read() {
         const d = def();
         const lim = sizeLimits();
         const timerSel = $("set-timer").value;
         const timer = timerSel === "custom" ? Math.round(parseFloat($("set-timer-custom").value || "3") * 60) : parseInt(timerSel, 10);
-        const cfg = {
+        return {
             game, players: clamp(parseInt($("set-players").value, 10) || 2, 2, maxPlayers),
             n: clamp(parseInt($("set-size").value, 10) || d.size.default, lim.min, lim.max),
             timer: Math.max(0, timer || 0), timerSel, timerCustom: $("set-timer-custom").value,
+            ...gameValues(),
         };
-        for (const f of FIELDS) cfg[f.key] = readField(f);
-        return cfg;
     }
 
-    // put a config into the form (localStorage restore, the friend's changes)
+    // put a config into the form (localStorage restore, the friends' changes)
     function write(s) {
         if (!s) return;
         silent = true;
         if (s.game && Games.has(s.game)) game = s.game;
         if (s.n) sizeFor[game] = s.n;
         if (s.players) $("set-players").value = String(clamp(parseInt(s.players, 10) || 2, 2, 4));
-        for (const f of FIELDS) {
+        for (const f of fields) {
             if (f.type === "bool") $(f.el).checked = !!s[f.key];
             else if (s[f.key]) $(f.el).value = String(s[f.key]);
         }
         if (s.timerSel) $("set-timer").value = s.timerSel;
         if (s.timerCustom) $("set-timer-custom").value = s.timerCustom;
+        syncDependents();
         selectGame(game, false);
         silent = false;
     }
@@ -91,8 +149,7 @@ const Settings = (() => {
 
     // clamp typed numbers once a field is left (typing "1" on the way to "12" must not snap)
     function clampInputs() {
-        const wl = $("set-winlen");
-        if (wl.value !== "") wl.value = String(readField(FIELDS[0]));
+        for (const f of fields) if (f.type === "int" && $(f.el).value !== "") $(f.el).value = String(readField(f));
         const lim = sizeLimits();
         const inp = $("set-size");
         inp.min = String(lim.min);
@@ -104,20 +161,25 @@ const Settings = (() => {
     function selectGame(key, announce = true) {
         game = Games.has(key) ? key : Games.keys()[0];
         const d = def();
+        const shown = d.settings.map((s) => s.key);
         document.querySelectorAll(".game-card").forEach((c) => c.classList.toggle("selected", c.dataset.game === game));
         $("menu-tagline").textContent = d.tagline;
-        document.querySelectorAll("#settings-modal [data-setting]").forEach((row) => { row.hidden = !d.settings.includes(row.dataset.setting); });
+        document.querySelectorAll("#settings-modal [data-setting]").forEach((r) => { r.hidden = !shown.includes(r.dataset.setting); });
         fillSize();
         if (announce) changed(); else renderSummary();
     }
 
+    // a number attached to a checkbox only counts while the box is checked
+    function syncDependents() {
+        for (const f of fields) if (f.with) $(idFor(f.with)).disabled = !$(f.el).checked;
+    }
     function syncUi() {
         $("row-timer-custom").hidden = $("set-timer").value !== "custom";
-        $("set-chain-len").disabled = !$("set-chain").checked;
+        syncDependents();
         changed();
     }
 
-    // any local change: persist, refresh the summary, tell the app (which tells the friend)
+    // any local change: persist, refresh the summary, tell the app (which tells the friends)
     function changed() {
         save();
         renderSummary();
@@ -168,18 +230,23 @@ const Settings = (() => {
         onChange = handlers.onChange || onChange;
         onSelectGame = handlers.onSelectGame || onSelectGame;
         renderPicker();
+        buildRows();
         $("btn-settings").addEventListener("click", open);
         $("btn-settings-done").addEventListener("click", close);
         $("settings-modal").addEventListener("click", (e) => { if (e.target === $("settings-modal")) close(); });
-        for (const id of ["set-players", "set-speed", "set-timer", "set-timer-custom", "set-chain", "set-chain-len"]) {
+        for (const id of ["set-players", "set-timer", "set-timer-custom"]) {
             $(id).addEventListener("change", syncUi);
             $(id).addEventListener("input", syncUi);
         }
-        for (const id of ["set-size", "set-winlen"]) $(id).addEventListener("change", clampInputs);
+        for (const f of fields) {
+            if (f.type === "int") $(f.el).addEventListener("change", clampInputs);
+            else { $(f.el).addEventListener("change", syncUi); $(f.el).addEventListener("input", syncUi); }
+        }
+        $("set-size").addEventListener("change", clampInputs);
         game = Games.keys()[0];
         load();
         selectGame(game, false);
     }
 
-    return { init, read, write, selectGame, summary, setMode, get game() { return game; } };
+    return { init, read, write, selectGame, summary, setMode, get game() { return game; }, get fields() { return fields.map((f) => f.key); } };
 })();

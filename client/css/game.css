@@ -62,7 +62,7 @@
     background: var(--panel);
     border-top: 2px solid var(--line);
 }
-#hut .sign, #hut .chain-box, #hut .stat, #hut .controls, #hut .chat-row { display: none; }
+#hut .sign, #hut .game-box, #hut .stat, #hut .controls, #hut .chat-row { display: none; }
 #hut.show-controls .controls { display: flex; }
 /* phones: the log shows its last two lines; the chat input sits behind ☰ (online only) */
 #hut .log { min-height: 0; max-height: 40px; padding: 3px 8px; font-size: 11px; gap: 1px; }
@@ -119,9 +119,10 @@ body.online #hut.show-controls .chat-row { display: flex; }
 .bar-fill { height: 100%; transition: width .4s ease; background: linear-gradient(90deg, var(--pc-dark), var(--pc)); }
 .bar span { position: absolute; inset: 0; text-align: center; font-size: 11px; line-height: 16px; color: #fff; text-shadow: 0 1px 2px #000; font-weight: 800; }
 
-.chain-box { padding: 6px 10px; background: var(--bg2); border: 2px solid var(--line); border-radius: 10px; font-size: 13px; }
-.chain-box #chain-now { color: #ff9b3d; }
-.chain-box.hot { border-color: #ff6a00; box-shadow: 0 0 12px rgba(255,106,0,.6); }
+/* a game's extra info box (chain: the chain counters); the first value is highlighted, `.hot` glows */
+.game-box { padding: 6px 10px; background: var(--bg2); border: 2px solid var(--line); border-radius: 10px; font-size: 13px; }
+.game-box .stat:first-child b { color: #ff9b3d; }
+.game-box.hot { border-color: #ff6a00; box-shadow: 0 0 12px rgba(255,106,0,.6); }
 
 .net-box { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); padding: 0 4px; }
 .net-dot { width: 9px; height: 9px; border-radius: 50%; background: #666; }
@@ -201,7 +202,7 @@ body.online #hut.show-controls .chat-row { display: flex; }
         width: 340px; flex: 0 0 340px; max-height: 100%; overflow: auto;
         border: 2px solid var(--line); border-radius: 16px; padding: 14px; gap: 10px;
     }
-    #hut .sign, #hut .chain-box { display: block; }
+    #hut .sign, #hut .game-box:not([hidden]) { display: block; }
     #hut .stat, #hut .controls { display: flex; }
     #hut .stat-bar { display: block; }
     #hut .log { max-height: 150px; min-height: 80px; padding: 6px 10px; font-size: 12px; gap: 2px; overflow-y: auto; overscroll-behavior: contain; }

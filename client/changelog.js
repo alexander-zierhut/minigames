@@ -21,23 +21,27 @@ const Changelog = (() => {
         return null;
     }
 
+    // one entry: a head line (type badge + GitHub links), the text on the line below
     function entryEl(e) {
         const li = document.createElement("li");
         li.className = "cl-entry " + (e.type || "improvement");
+        const head = document.createElement("div");
+        head.className = "cl-head";
         const tag = document.createElement("span");
         tag.className = "cl-type";
         tag.textContent = TYPE_LABEL[e.type] || e.type || "";
-        const text = document.createElement("span");
-        text.className = "cl-text";
-        text.textContent = e.text;
-        li.append(tag, text);
+        head.appendChild(tag);
         for (const ref of e.refs || []) {
             const r = refUrl(ref);
             if (!r) continue;
             const a = document.createElement("a");
             a.href = r.url; a.target = "_blank"; a.rel = "noopener"; a.className = "cl-ref"; a.textContent = r.label;
-            li.append(" ", a);
+            head.appendChild(a);
         }
+        const text = document.createElement("div");
+        text.className = "cl-text";
+        text.textContent = e.text;
+        li.append(head, text);
         return li;
     }
 

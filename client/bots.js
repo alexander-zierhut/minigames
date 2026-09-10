@@ -131,12 +131,7 @@ const Bots = (() => {
             // the state after `i` is played by the current player (place + settle + conclude), on a copy
             apply(state, i) {
                 const s = t.clone(state);
-                const p = s.current;
-                if (!rules.isLegal(s, i, p)) throw new Error(`illegal move ${i} for player ${p}`);
-                rules.place(s, i, p);
-                rules.settle(s, p);
-                const r = rules.conclude(s, p);
-                if (r) { s.over = true; s.winner = r.winner; s.finishWhy = r.why; }
+                Rules.step(rules, s, i);
                 return s;
             },
             outcome: (state) => ({ over: !!state.over, winner: state.over ? state.winner : null }),
@@ -171,16 +166,12 @@ const Bots = (() => {
     /* ---------- headless playout (tests, benchmark) ---------- */
     // seats: one player per seat: a bot instance (from create) or a function state -> move
     async function playout(game, config, seats, { maxMoves = 2000, rules = Rules.of(game) } = {}) {
-        const state = rules.create({ players: seats.length, ...config }, Rules.base({ players: seats.length, ...config }));
+        const state = Rules.create({ players: seats.length, ...config }, rules);
         for (let moves = 0; !state.over && moves < maxMoves; moves++) {
             const seat = seats[state.current];
             const i = await (typeof seat === "function" ? seat(state) : seat.move(state));
             if (!rules.isLegal(state, i, state.current)) throw new Error(`seat ${state.current} played illegal move ${i}`);
-            const p = state.current;
-            rules.place(state, i, p);
-            rules.settle(state, p);
-            const r = rules.conclude(state, p);
-            if (r) { state.over = true; state.winner = r.winner; state.finishWhy = r.why; }
+            Rules.step(rules, state, i);
         }
         return { over: state.over, winner: state.over ? state.winner : null, moves: state.history.length, history: state.history.slice(), state };
     }

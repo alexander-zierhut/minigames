@@ -1,5 +1,5 @@
-/* Five Wins — board view (stones, drop + winning-line jump), HUD numbers; registers
-   the game. The smallest complete game: use it as the template for a new one. */
+/* Five Wins — board view (stones, drop + winning-line jump), HUD model; registers the
+   game. The smallest complete game: use it as the template for a new one. */
 
 "use strict";
 
@@ -63,7 +63,7 @@ const FiveGame = Games.register({
     preview: "0.110...0",
     size: { min: 5, max: 25, default: 11 },
     minSize: (cfg) => Math.max(5, cfg.winLen),     // the board can't be smaller than the row to win
-    settings: ["winLen"],
+    settings: [{ key: "winLen", label: "In a row to win", type: "int", min: 3, max: 25, def: 5, unit: "stones" }],
     describeRules: (cfg) => [`${cfg.winLen} in a row`],
     rules: FiveRules,
     view: FiveView,

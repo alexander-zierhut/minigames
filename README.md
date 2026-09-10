@@ -49,12 +49,14 @@ room protocol and how to add a game.
 ## Layout
 
 - `index.html` — markup, templates, and the ordered list of stylesheets and scripts
-- `client/lib/` — `util`, `bus` (events), `log`, `clock`, `net` (PeerJS rooms), `preload`
-- `client/games.js` — game registry, the engine shell every game shares, HUD renderer
-- `client/games/` — per game: pure `<key>-rules.js`, `<key>.js` (view + registration), `<key>.css`
-- `client/bots.js`, `client/bots/<id>/` — bot registry + toolset; one folder per bot with its tests and benchmark score
+- `client/lib/` — `util`, `bus` (events), `log`, `clock`, `net` (PeerJS rooms), `preload`, `sound`, `install`
+- `client/games/rules.js` — the pure game loop (`Rules.create / step / eliminate / apply / replay`) every headless path shares
+- `client/games.js` — game registry, the engine shell every game shares, the generic HUD (rendered from a model the game returns)
+- `client/games/` — per game: pure `<key>-rules.js`, `<key>.js` (view + registration incl. its settings rows), `<key>.css`
+- `client/bots.js`, `client/bots/<id>/` — bot registry + toolset; one folder per bot with its tests and benchmark score; `client/winchance.js` shows the bars
 - `scripts/` — `headless.mjs` (rules + bots in Node), `benchmark.mjs` (`npm run benchmark`), puzzle solvers, verify, screenshots
-- `client/skins.js`, `client/prefs.js` (⚙ per-device preferences), `client/settings.js`, `client/reactions.js`, `client/app.js` (flow, room protocol)
+- `client/match.js` (the table: seats, engine, clock, bot seat), `client/room.js` (online protocol, presence, sync), `client/session.js`, `client/app.js` (screens, lobby, flow)
+- `client/skins.js`, `client/prefs.js` (⚙ per-device preferences), `client/settings.js`, `client/opponent.js`, `client/reactions.js`, `client/chat.js`, `client/changelog.js`
 - `client/lib/sound.js`, `client/sounds/` — sound cues (synthesized Classic set, the Blocks .ogg files)
 - `client/css/` — base tokens, menu/lobby, game screen, the Blocks skins
 - `client/textures/` — 16×16 block textures used by the Blocks skins
