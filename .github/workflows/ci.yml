@@ -27,8 +27,8 @@ jobs:
       - run: npm ci
       - name: Unit tests
         run: npm run test:unit
-      - name: End-to-end tests (headless Chrome, two browsers via PeerJS)
-        run: npm run test:e2e
+      - name: End-to-end tests (headless Chrome, up to three browsers via PeerJS; one file at a time on the 2-core runner)
+        run: npm run test:e2e:ci
         env:
           CHROME: /usr/bin/google-chrome
           E2E_SHOTS: ${{ runner.temp }}/shots

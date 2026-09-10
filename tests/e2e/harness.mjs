@@ -3,7 +3,7 @@
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { spawn, execSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, extname } from "node:path";
 
@@ -41,21 +41,37 @@ function chromePath() {
     throw new Error("no Chrome found; set CHROME=/path/to/chrome");
 }
 
-export async function launchBrowser({ width = 1400, height = 900, mobile = false } = {}) {
-    const profile = mkdtempSync(join(tmpdir(), "minigames-chrome-"));
-    const port = 20000 + Math.floor(Math.random() * 20000);
+// Chrome picks a free debugging port itself (--remote-debugging-port=0) and writes it to
+// DevToolsActivePort in the profile: no port collisions between parallel test files.
+async function spawnChrome(profile, width, height) {
+    let stderr = "";
     const proc = spawn(chromePath(), [
         "--headless=new", "--no-sandbox", "--disable-gpu", "--hide-scrollbars", "--disable-dev-shm-usage",
-        `--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, `--window-size=${Math.max(width, 500)},${height}`, "about:blank",
-    ], { stdio: "ignore" });
-    let target = null;
-    for (let i = 0; i < 240 && !target; i++) {          // a 2-core CI runner with 4 Chromes up needs a while
+        `--user-data-dir=${profile}`, "--remote-debugging-port=0", `--window-size=${Math.max(width, 500)},${height}`, "about:blank",
+    ], { stdio: ["ignore", "ignore", "pipe"] });
+    proc.stderr.on("data", (d) => { stderr += d; });
+    const portFile = join(profile, "DevToolsActivePort");
+    let target = null, port = 0;
+    for (let i = 0; i < 240 && !target; i++) {          // up to 60 s: a 2-core CI runner with several Chromes up is slow
         try {
-            const list = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
-            target = list.find((t) => t.type === "page");
-        } catch (e) { await sleep(250); }
+            if (!port && existsSync(portFile)) port = parseInt(readFileSync(portFile, "utf8").split("\n")[0], 10);
+            if (port) {
+                const list = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
+                target = list.find((t) => t.type === "page");
+            }
+        } catch (e) { /* not up yet */ }
+        if (!target) await sleep(250);
     }
-    if (!target) { proc.kill("SIGKILL"); throw new Error("chrome did not start"); }
+    if (!target) { proc.kill("SIGKILL"); throw new Error("chrome did not start\n" + stderr.slice(-800)); }
+    return { proc, target };
+}
+
+export async function launchBrowser({ width = 1400, height = 900, mobile = false } = {}) {
+    const profile = mkdtempSync(join(tmpdir(), "minigames-chrome-"));
+    let launched;
+    try { launched = await spawnChrome(profile, width, height); }
+    catch (e) { console.warn("chrome launch failed once, retrying:", e.message.split("\n")[0]); await sleep(2000); launched = await spawnChrome(profile, width, height); }
+    const { proc, target } = launched;
     const ws = new WebSocket(target.webSocketDebuggerUrl);
     await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
     let id = 0; const pending = new Map();

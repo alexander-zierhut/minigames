@@ -14,7 +14,8 @@
     "benchmark": "node scripts/benchmark.mjs",
     "puzzles": "node scripts/puzzles/chain/generate.mjs && node scripts/puzzles/five/generate.mjs",
     "puzzles:verify": "node scripts/puzzles/verify.mjs",
-    "screenshots": "node scripts/screenshots.mjs"
+    "screenshots": "node scripts/screenshots.mjs",
+    "test:e2e:ci": "node --test --test-concurrency=1 --test-timeout=300000 'tests/e2e/**/*.test.mjs'"
   },
   "devDependencies": {
     "esbuild": "0.24.2",
