@@ -278,14 +278,23 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
 
 - **Whose turn**: `#board.turn-p<k>` → 4px outline in the active colour. `fitBoard`
   subtracts 10px so the outline is never clipped on a full-width phone board.
-- **Win chance**: every player card has a `.win-bar` ("62 % win") fed by
-  `Bots.estimator(game)` — the strongest registered bot that offers `estimate(state,
-  tools)` (probability that player 0 wins; cheap, deterministic, exact when over), else the
-  rules module's `estimate` heuristic (chain: material share; five: best rows²). Computed
-  locally on every client from the same state, so both sides see the same numbers online
-  too. Phones show only the win bar (`#hut .stat-bar` hidden), desktop shows the game's
-  stat bar (cells % / best row) and the win bar. Only for 2 players (`#p{k}-win-row`
-  stays hidden otherwise).
+- **Win chance**: every player card has a `.win-bar` ("62 % win"). `Bots.estimator(game)`
+  → `{ bot, stages, at(state, nodes) }`: the strongest registered bot that offers
+  `evaluate(state, tools)` (a RAW score from player 0's view, ±Infinity when decided,
+  deterministic for a node budget, may be async) mapped through the bot's **calibration**
+  (`Bots.calibration(id, { scale, shift, brier, swing, … })` in its benchmark.js, fitted from
+  seeded self-play by `scripts/calibrate.mjs` = `npm run calibrate`, also run by the
+  benchmark; `Bots.toProbability` clamps to 0.5–99.5 %, only decided positions show 100/0);
+  else the rules module's `estimate` heuristic. The engine (games.js) computes it **only
+  when a move has settled** (never during the explosion animation), in **stages** of
+  `Bots.ESTIMATE_STAGES` node budgets (2 000 quick + 12 000 + 60 000 in the background,
+  stopped after 5 s or when the next move comes) so the bar shows a number at once and
+  refines it; node budgets, not wall-clock, so both online clients see the same values
+  (a slow phone just shows them later). Display **smoothing**: a new value is blended with
+  a third of the previous move's value, except when either is ≥ 90 % or ≤ 10 % and never
+  once the game is over (owner: "a four in a row may show 99 %"). Phones show only the win
+  bar (`#hut .stat-bar` hidden), desktop shows the game's stat bar and the win bar. Only
+  for 2 players. Tests: `tests/unit/winchance.test.mjs`, `calibrate.test.mjs`.
 - **Last move**: every cell has a `.last-marker` child; the engine adds `.last` to the
   newest history cell. Chain: static thin white border at the cell edge. Five: static
   white ring, **red** on MC skins (white is invisible on quartz). Owner: no marker

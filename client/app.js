@@ -347,7 +347,7 @@
             const seed = (Number(Util.load(sessionStorage, "chainreact.botseed")) || Date.now()) + app.gameNo;
             app.bot = choice ? Bots.create(choice.id, { me: 1, difficulty: choice.difficulty, seed: seed >>> 0, players }) : null;
             if (!app.bot) app.seats[1].kind = "local";                     // no bot for this game: play both sides
-            if (app.bot) BotPersona.attach({ bot: app.bot, seat: 1, game: def.key, state: () => Game.state, estimate: Bots.estimator(def.key), color: playerColor(1) });
+            if (app.bot) { const est = Bots.estimator(def.key); BotPersona.attach({ bot: app.bot, seat: 1, game: def.key, state: () => Game.state, estimate: (st) => est.at(st, 300), color: playerColor(1) }); }
             else BotPersona.detach();
         } else { app.bot = null; BotPersona.detach(); }
         document.body.className = document.body.className.replace(/\bgame-\S+/g, "").trim();

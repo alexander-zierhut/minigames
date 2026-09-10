@@ -51,7 +51,8 @@ const Engine = (() => {
         function newGame(config, h) {
             hooks = h || hooks;
             state = rules.create(config, Rules.base(config));
-            estimate = null;
+            estimator = null;
+            resetWinChance();
             document.documentElement.style.setProperty("--n", state.n);
             const el = board();
             el.className = def.key;
@@ -63,6 +64,7 @@ const Engine = (() => {
             Log.add(`New game. ${hooks.names[state.current]} starts.`, "p" + state.current);
             Bus.emit("game:new", { game: def.key, config });
             render();
+            refreshWinChance();
             if (hooks.onTurn) hooks.onTurn(state.current);
         }
 
@@ -85,6 +87,7 @@ const Engine = (() => {
             if (result) { finish(result.winner, result.why); return true; }
             setBusy(false);
             render();
+            refreshWinChance();                          // the move has settled: now the chance may change
             Bus.emit("game:turn", { game: def.key, player: state.current });
             if (hooks.onTurn) hooks.onTurn(state.current);
             return true;
@@ -109,7 +112,7 @@ const Engine = (() => {
             }
             render();
             if (state.over) finish(state.winner, state.finishWhy);
-            else if (hooks.onTurn) hooks.onTurn(state.current);
+            else { refreshWinChance(); if (hooks.onTurn) hooks.onTurn(state.current); }
         }
 
         // the state change of an elimination (shared by eliminate and replay): skipped from
@@ -134,6 +137,7 @@ const Engine = (() => {
             const won = winner >= 0;
             Log.add(won ? `${names[winner]} wins! ${why}` : `Draw. ${why}`, won ? "p" + winner : "x");
             render();
+            refreshWinChance();                          // exact now: 100 / 0 / 50
             Util.$("overlay-block").className = "overlay-block " + (won ? "p" + winner : "draw");
             Util.$("overlay-title").textContent = won ? `${names[winner]} wins!` : "Draw!";
             Util.$("overlay-sub").textContent = `${why}\n${view.summary(state)}`;
@@ -191,14 +195,47 @@ const Engine = (() => {
             view.renderCell(el, state, i);
         }
 
-        let estimate = null;                 // win-chance estimator, picked once per game
+        /* Win chance (2 players): computed only when a move has settled — never while a move
+           animates — in stages of growing node budgets (Bots.ESTIMATE_STAGES) so the bar shows a
+           quick number first and refines it while nobody moves (deterministic budgets: both
+           online clients see the same values). Display smoothing blends a new value with the
+           previous move's value by a third, except in decided territory (≥ 90 % / ≤ 10 %). */
+        const REFINE_MS = 5000, SMOOTH = 0.33, DECIDED = 0.9;
+        let estimator = null;
+        const win = { token: 0, display: null, prev: null, timer: null };
+        function resetWinChance() { win.token++; win.display = null; win.prev = null; if (win.timer) clearTimeout(win.timer); }
+        function showWinChance(p) {
+            let shown = p;
+            const undecided = (v) => v < DECIDED && v > 1 - DECIDED;
+            if (!state.over && win.prev !== null && undecided(p) && undecided(win.prev)) shown = (1 - SMOOTH) * p + SMOOTH * win.prev;
+            win.display = [shown, 1 - shown];
+            renderHud();
+        }
+        function refreshWinChance() {
+            if (!estimator) estimator = typeof Bots !== "undefined" ? Bots.estimator(def.key) : null;
+            if (!estimator || state.players !== 2) return;
+            win.token++;
+            const token = win.token;
+            if (win.timer) clearTimeout(win.timer);
+            if (win.display) win.prev = win.display[0];              // the previous move's final value
+            const started = Date.now();
+            const stages = state.over ? [estimator.stages[0]] : estimator.stages;
+            const apply = (k, p) => {
+                if (token !== win.token || typeof document === "undefined" || !document) return;   // superseded, or the page is gone (tests)
+                showWinChance(p);
+                if (k + 1 < stages.length && !state.over && Date.now() - started < REFINE_MS) win.timer = setTimeout(() => run(k + 1), 0);
+            };
+            const run = (k) => {
+                if (token !== win.token || state.busy) return;
+                const r = estimator.at(state, stages[k]);
+                if (r && typeof r.then === "function") r.then((p) => apply(k, p)).catch(() => {});
+                else apply(k, r);                        // the quick stage is synchronous: the bar is right immediately
+            };
+            run(0);
+        }
         function renderHud() {
             const model = view.hud(state);
-            if (!estimate) estimate = typeof Bots !== "undefined" ? Bots.estimator(def.key) : null;
-            if (estimate) {
-                const p0 = estimate(state);
-                model.win = state.players === 2 ? [p0, 1 - p0] : null;
-            }
+            model.win = win.display;
             Hud.render(state, hooks, model);
         }
 

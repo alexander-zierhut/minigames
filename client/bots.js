@@ -10,8 +10,18 @@
        description: "…",
        difficulties: [{ id: "normal", label: "Normal", thinkMs: 50 }],   // at least one; shown in the UI
        create(tools) { return { move(state) { … return cellIndex; } }; },
-       estimate(state, tools) { … return probabilityThatPlayer0Wins; },   // optional, cheap, deterministic
+       evaluate(state, tools) { … return rawScore; },   // optional: player 0's advantage, see "win chance" below
    })
+
+   Win chance: a bot may offer evaluate(state, tools) → a raw score from PLAYER 0's point of
+   view (0 = even, positive = player 0 better, ±Infinity = decided; draw = 0). It must honour
+   tools.budget.nodes (deterministic for a given budget — no wall clock — so both online
+   clients get the same number), be cheap at small budgets (a few ms at 2 000 nodes) and get
+   better, not jumpier, with more nodes. The framework turns it into a probability with a
+   per-bot calibration (scale/shift) fitted from self-play by scripts/calibrate.mjs and baked
+   into benchmark.js as Bots.calibration(id, {...}); Bots.estimator(game) picks the strongest
+   evaluating bot and runs it in stages (ESTIMATE_STAGES) so the HUD can show a quick number
+   first and refine it while nobody moves.
 
    create(tools) is called once per game and returns an instance; move(state) may return
    the cell index or a Promise of it. The instance may keep state across moves (caches,
@@ -27,6 +37,8 @@ const Bots = (() => {
     const defs = {};
     const order = [];
     const results = {};          // id -> benchmark result (from the generated benchmark.js files)
+    const calibrations = {};     // id -> { scale, shift, … } (also from benchmark.js)
+    const ESTIMATE_STAGES = [2000, 12000, 60000];   // node budgets of the progressive win-chance refinement
 
     /* ---------- seeded random numbers (mulberry32): same seed, same game ---------- */
     function rng(seed) {
@@ -66,18 +78,39 @@ const Bots = (() => {
     const forGame = (game) => list().filter((b) => b.game === game);
     function benchmark(id, result) { results[id] = result; }
     const benchmarkOf = (id) => results[id] || null;
+    function calibration(id, c) { calibrations[id] = c; }
+    const calibrationOf = (id) => calibrations[id] || null;
 
-    // win-chance estimator for a game: probability that player 0 wins, from the strongest
-    // registered bot that offers estimate(state, tools) (highest benchmark score first),
-    // else the rules module's own heuristic. Used by the HUD after every move.
+    // raw score -> probability that player 0 wins, with the bot's calibration (or its default)
+    function toProbability(raw, cal) {
+        if (raw === Infinity) return 1;
+        if (raw === -Infinity) return 0;
+        if (!Number.isFinite(raw)) return 0.5;
+        const scale = (cal && cal.scale) || 1, shift = (cal && cal.shift) || 0;
+        const p = 1 / (1 + Math.exp(-(raw - shift) / scale));
+        return Math.min(0.995, Math.max(0.005, p));
+    }
+
+    /* Win-chance estimator for a game: { stages, at(state, nodes) -> P(player 0 wins), quick(state) }.
+       Uses the strongest registered bot that offers evaluate() (highest benchmark score first),
+       else the rules module's own heuristic. `at` is deterministic for a given node budget, so
+       both online clients agree; the HUD runs the stages in the background between moves. */
     function estimator(game) {
         const rules = Rules.of(game);
-        const withEstimate = forGame(game).filter((b) => typeof b.estimate === "function")
+        const candidates = forGame(game).filter((b) => typeof b.evaluate === "function")
             .sort((a, b) => ((benchmarkOf(b.id) || {}).score || 0) - ((benchmarkOf(a.id) || {}).score || 0));
-        const def = withEstimate[0];
-        const t = def ? tools(game, { seed: 0, budget: { ms: 15, nodes: 500 } }) : null;
-        const fn = def ? (state) => def.estimate(state, t) : rules && rules.estimate ? rules.estimate : () => 0.5;
-        return (state) => Math.min(1, Math.max(0, Number(fn(state)) || 0));
+        const def = candidates[0];
+        const heuristic = (state) => Math.min(1, Math.max(0, Number(rules && rules.estimate ? rules.estimate(state) : 0.5) || 0));
+        if (!def) return { bot: null, stages: [0], at: heuristic, quick: heuristic };
+        const cal = calibrationOf(def.id) || def.calibration || null;
+        // evaluate() may return a Promise (long budgets yield to the page); `at` follows suit
+        const at = (state, nodes) => {
+            if (state.over) return state.winner < 0 ? 0.5 : state.winner === 0 ? 1 : 0;
+            const t = tools(game, { seed: 0, budget: { ms: Infinity, nodes } });
+            const raw = def.evaluate(state, t);
+            return raw && typeof raw.then === "function" ? raw.then((r) => toProbability(Number(r), cal)) : toProbability(Number(raw), cal);
+        };
+        return { bot: def.id, stages: ESTIMATE_STAGES.slice(), at, quick: (state) => at(state, ESTIMATE_STAGES[0]) };
     }
 
     /* ---------- toolset ---------- */
@@ -152,5 +185,5 @@ const Bots = (() => {
         return { over: state.over, winner: state.over ? state.winner : null, moves: state.history.length, history: state.history.slice(), state };
     }
 
-    return { register, get, list, forGame, benchmark, benchmarkOf, estimator, tools, create, playout, rng, validate };
+    return { register, get, list, forGame, benchmark, benchmarkOf, calibration, calibrationOf, estimator, toProbability, ESTIMATE_STAGES, tools, create, playout, rng, validate };
 })();

@@ -112,13 +112,24 @@ The app adds a 350 ms pause before asking the bot, re-checks that the same game 
 on that turn when the answer arrives, and falls back to a random legal move if a bot
 throws or answers illegally (logged in the HUD log).
 
-## 5. Win chance (`estimate`)
+## 5. Win chance (`evaluate` + calibration)
 
-`Bots.estimator(game)` returns `state → P(player 0 wins)`: the strongest registered bot of
-the game that defines `estimate` (by benchmark score), else the rules' heuristic. The HUD
-shows it as "62 % win" for both players after every move, in every mode; online both
-clients compute it from the same state. Requirements for `estimate`: deterministic, ≤ ~15 ms,
-exact at terminal positions (1 / 0 / 0.5), roughly 0.5 on an empty board.
+A bot may define `evaluate(state, tools) → raw score` from player 0's point of view
+(0 = even, positive = player 0 better, ±Infinity = decided by rule or by a forced win the
+search proved; draw = 0). Rules: honour `tools.budget.nodes` exactly like `move()` (no
+wall clock — both online clients must get the same number), be cheap at 2 000 nodes (a few
+ms), get better rather than jumpier with more nodes (even search depths, quiescence,
+average of the last two depths), may return a Promise and yield on long budgets.
+
+The framework does the rest: `scripts/calibrate.mjs` plays seeded self-play games, records
+(raw, result) for every settled position and fits `p = σ((raw − shift) / scale)`; the
+benchmark bakes `Bots.calibration(id, { scale, shift, brier, swing, samples })` into
+`benchmark.js`. `Bots.estimator(game)` picks the strongest evaluating bot, applies its
+calibration (`Bots.toProbability`, clamped to 0.5–99.5 %) and exposes `at(state, nodes)`;
+the HUD calls it only when a move has settled, in node stages (2 000 → 12 000 → 60 000,
+background, ≤ 5 s), with a light display smoothing outside decided territory. `swing`
+(mean |Δp| between consecutive positions in self-play) is the number to watch: lower is
+calmer.
 
 ## 6. Testing a bot
 
