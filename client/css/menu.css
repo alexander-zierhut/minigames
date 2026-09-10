@@ -202,7 +202,9 @@
 /* ---- preferences modal (⚙) ---- */
 .prefs-card { max-width: 460px; gap: 18px; }
 .prefs-rows { gap: 14px; }
-.prefs-card .section-title { margin-top: 8px; }
+.prefs-rows .section-title:not(:first-child) { margin-top: 10px; padding-top: 16px; border-top: 1px solid var(--line); }   /* Look / Sound / Streaming / Feedback stand apart */
+.prefs-rows .row { grid-template-columns: 1fr 1fr; gap: 16px; }   /* the slider and the select line up with the second checkbox column */
+.prefs-rows .hint, .bot-card .hint { text-align: left; }         /* left-to-right forms get left-aligned hints */
 .prefs-rows > .seg { flex: 0 0 auto; }
 .prefs-card .row > span:first-child { white-space: nowrap; }
 .pref-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; font-size: 14px; }
@@ -211,7 +213,7 @@
 @media (min-width: 900px) {
     .prefs-card { max-width: 540px; padding: 32px 36px; gap: 22px; }
     .prefs-rows { gap: 16px; }
-    .prefs-card .section-title { margin-top: 10px; }
+    .prefs-rows .section-title:not(:first-child) { margin-top: 14px; padding-top: 20px; }
 }
 #prefs-modal.muted .pref-toggles { opacity: .5; }
 /* phones: the cards start below the ⚙ button */

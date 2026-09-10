@@ -105,9 +105,11 @@ first 7 days open, older days behind "Show older", so any length works). Interna
 changes get `type: internal` or no entry. **Two audiences (#27):** the modal's "Show
 technical changes too" toggle (`#changelog-tech`, off by default, remembered in
 `localStorage["chainreact.changelog"]`) is the only way to see `internal` entries and
-entries flagged `technical: true` (cosmetic, naming, tooling — anything that doesn't
-change how the game plays or give players something to try); days left empty are skipped.
-Flag every such entry, so the default list stays short. No em dashes in texts (#24). `tests/unit/changelog.test.mjs` validates the
+entries flagged `technical: true`; days left empty are skipped. **Flag generously** — the
+owner wants the default list short: layout and spacing, naming, tooling, fixes of UI
+glitches, and "meta" features (preferences, feedback link, the changelog itself) are all
+technical. Unflagged = a rule or default that changes play, a new way to play (rooms,
+spectators, chat, sounds, bots, home screen), or a fix that changes what happens in a game. No em dashes in texts (#24). `tests/unit/changelog.test.mjs` validates the
 file (dates descending, known types, resolvable refs).
 
 ## Install as an app (Android)
@@ -702,11 +704,14 @@ every bot folder into a bare VM — script list parsed from `index.html`).
 - **Instance**: `Bots.create(id, { me, difficulty, seed, players, budget })` → `{ def,
   tools, difficulty, move(state) }`. `create(tools)` runs once per game and may keep state
   (caches, opening books); `move(state)` returns a cell index or a Promise of one.
-- **Budgets** (the reason strong bots stay phone-friendly and tests stay deterministic):
-  every difficulty may declare `thinkMs` (≤ 5000; the per-move time in the app, default
-  50). `tools.budget = { ms, nodes }`: the app uses the time (`nodes: Infinity`), the
-  conformance tests and the benchmark pass a **node budget** (`ms: Infinity`, 2 000 resp.
-  20 000 nodes) so a searching bot gives identical answers on any machine. Bots take
+- **Budgets** (the reason a level is exactly as strong everywhere and tests stay
+  deterministic): every difficulty declares `nodes` (an integer ≤ 1 000 000, default
+  2 000; Creeper 2 000 / 10 000 / 30 000 / 100 000, Sensei … / 60 000 — Very hard is
+  ~0.15 s resp. ~0.5 s on a desktop). `tools.budget = { ms: Infinity, nodes }` **everywhere**
+  — the app uses the level's nodes, the conformance tests and the benchmark pass 2 000
+  resp. 20 000 — so a searching bot gives identical answers on any machine; there is no
+  wall-clock budget in the app any more (owner: difficulty must never depend on the
+  device). `ms` still exists in the toolset for a caller that wants a time cap. Bots take
   `const d = tools.deadline()` per move and `d.tick()` per searched node, stop when it
   returns true (iterative deepening keeps the last finished depth), and `await
   tools.yield()` every few thousand nodes on long levels so the page stays responsive.
@@ -744,8 +749,9 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   future versions of a bot (a bot near 100 % is compared on puzzles and self-play).
 - **UI**: `Opponent` (client/opponent.js) renders `#bot-modal` in one step (#21): icon,
   `#bot-name` "Bot", `#bot-desc` (the bot's description), `#bot-badges` ("vs Random" and
-  "puzzles" or "not rated"), `#bot-meta` ("Plays Five Wins. Rated over …"), a *Parameters*
-  box with the `#bot-difficulty` control — hidden with one level — and its think-time hint,
+  "puzzles" or "not rated"; no rating boilerplate text), a *Parameters* box with the
+  `#bot-difficulty` control — hidden with one level — and its hint ("Easy: searches up to
+  2 000 positions per move."),
   Cancel, Play. Default per game = middle difficulty (`Math.floor((n-1)/2)`); remembered
   `{ id, difficulty }` per game in `localStorage["chainreact.bots"]`;
   `Opponent.current(game)` / `summary(game)` ("Bot · Normal · 100 % vs Random · 100 %
@@ -930,7 +936,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Hud` | `build(players, title)`, `render(state, hooks, model)`, `overlay(name, winner, sub)` |
 | `WinChance` | Bus-driven; `display`, `estimator`, `REFINE_MS`, `SMOOTH`, `DECIDED` |
 | `Bots` | `register, get, list, forGame, botFor(game), create(id, {me, difficulty, seed, players, budget}), tools(game, opts), playout, rng, validate, benchmark/benchmarkOf, calibration/calibrationOf, estimator(game) → {bot, stages, at(state, nodes), quick}, toProbability(raw, cal), ESTIMATE_STAGES` |
-| bot definition | `id, name, game, version, description, difficulties [{id, label, thinkMs}], create(tools) → {move(state)}, evaluate?(state, tools) → raw, baseline?` |
+| bot definition | `id, name, game, version, description, difficulties [{id, label, nodes}], create(tools) → {move(state)}, evaluate?(state, tools) → raw, baseline?` |
 | `BotPersona` | `attach({bot, seat, game, state, estimate, color, delays?, cooldownMs?})`, `detach()`, `POOLS` |
 | `Skins` | `init({onChange})`, `set(key)`, `names()`, `current` |
 | `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `setMode(mode)`, `game`, `fields` |
@@ -1135,7 +1141,8 @@ only if none fits. Keep `Sound.map` pure (it is unit-tested with a fake player).
    baseline; add `"random-<key>"` to `BASELINE` and a series to `SERIES` in
    `scripts/benchmark.mjs`, and a series in `scripts/calibrate.mjs`.
 2. A real bot `client/bots/<name>-<key>/bot.js` with difficulties (easy → very strong,
-   `thinkMs` ≤ 5000, phone-friendly) and, ideally, `evaluate(state, tools)` — a raw score
+   node budgets `nodes` ≤ 1 000 000, phone-friendly: a second or two on a slow phone at
+   the top level) and, ideally, `evaluate(state, tools)` — a raw score
    from player 0's view, deterministic per node budget, ±Infinity when decided. With it the
    win-chance bars use the bot (calibrated by the benchmark); without it the rules'
    `estimate` heuristic is used. See `docs/bots.md` for the toolset, the contract and the

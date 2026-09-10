@@ -40,10 +40,10 @@ Bots.register({
     description: "One sentence for the bot modal.",
     // baseline: true,                 // only the Random bots: benchmark opponent + fallback, never offered, not benchmarked
     difficulties: [                    // ≥ 1, shown as a segmented control when > 1
-        { id: "easy",     label: "Easy",      thinkMs: 30 },
-        { id: "normal",   label: "Normal",    thinkMs: 150 },
-        { id: "hard",     label: "Hard",      thinkMs: 600 },
-        { id: "insane",   label: "Very hard", thinkMs: 1500 },   // thinkMs ≤ 5000: phones
+        { id: "easy",     label: "Easy",      nodes: 2000 },      // node budget per move: the same
+        { id: "normal",   label: "Normal",    nodes: 10000 },     // strength on every device
+        { id: "hard",     label: "Hard",      nodes: 30000 },
+        { id: "insane",   label: "Very hard", nodes: 100000 },    // ≤ 1 000 000; keep the top level a few seconds on a slow phone
     ],
     create(tools) {                    // once per game; may keep state (caches, books)
         return { move(state) { /* … */ return cellIndex; } };   // or a Promise of it
@@ -88,12 +88,13 @@ but as soon as no window of `winLen` cells is free of enemy stones for any playe
 
 ## 4. Budgets: strong on a phone, deterministic in CI
 
-Every difficulty declares `thinkMs`. `Bots.create(id, { difficulty, seed, me, budget })`
-builds `tools.budget`:
+Every difficulty declares `nodes`. `Bots.create(id, { difficulty, seed, me, budget })`
+builds `tools.budget`; there is no wall-clock budget in the app (a level must be exactly as
+strong on every device, and the same position must get the same move):
 
 | Caller | budget | why |
 | --- | --- | --- |
-| app (`botTurn`) | `{ ms: thinkMs, nodes: Infinity }` | real time on the player's device |
+| app (`botTurn`) | `{ ms: Infinity, nodes: <the level's nodes> }` | deterministic strength; Very hard ≈ 0.15–0.5 s on a desktop |
 | conformance tests | `{ ms: Infinity, nodes: 2000 }` | same answers on any machine |
 | benchmark, puzzle grading | `{ ms: Infinity, nodes: 20000 }` | numbers never drift → no diff, no PR |
 

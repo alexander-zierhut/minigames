@@ -3,15 +3,15 @@
 A real gomoku engine for any board size (5–25) and win length (3–25), pure and headless
 (`bot.js`, one classic script, registers as `sensei-five`). Four levels:
 
-| id | label | thinkMs | search |
+| id | label | nodes | search |
 | --- | --- | --- | --- |
-| `easy` | Easy | 30 | takes a win in one, blocks a four 75 % of the time, otherwise a greedy pick by cell potential with seeded noise (weighted among the best 1–3 candidates, sometimes anything near a stone) |
-| `normal` | Normal | 150 | alpha-beta depth 2, 10 candidates per node, exact handling of fours and open threes |
-| `hard` | Hard | 600 | iterative deepening to depth 4, 12 candidates, root threat search (8 fours / 4 threats) |
-| `very-hard` | Very hard | 1500 | iterative deepening until the budget ends (cap 24), 12 candidates, root threat search (16 fours / 10 threats), VCF below the leaves, the chosen move is re-checked against an enemy threat sequence |
+| `easy` | Easy | 2 000 | takes a win in one, blocks a four 75 % of the time, otherwise a greedy pick by cell potential with seeded noise (weighted among the best 1–3 candidates, sometimes anything near a stone) |
+| `normal` | Normal | 10 000 | alpha-beta depth 2, 10 candidates per node, exact handling of fours and open threes |
+| `hard` | Hard | 30 000 | iterative deepening to depth 4, 12 candidates, root threat search (8 fours / 4 threats) |
+| `very-hard` | Very hard | 60 000 | iterative deepening until the budget ends (cap 24), 12 candidates, root threat search (16 fours / 10 threats), VCF below the leaves, the chosen move is re-checked against an enemy threat sequence |
 
-In the app the budget is the level's `thinkMs`; tests and the benchmark pass a node budget
-(`ms: Infinity`) and get identical moves on every machine. `d.tick()` is called once per
+The budget is always a node budget (the level's `nodes` in the app, `ms: Infinity`; 2 000 /
+20 000 in tests and the benchmark), so every machine gets identical moves. `d.tick()` is called once per
 searched node (alpha-beta node or threat-search node). Hard / Very hard `await tools.yield()`
 every 2 000 nodes.
 

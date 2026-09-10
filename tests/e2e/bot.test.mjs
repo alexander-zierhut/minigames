@@ -22,13 +22,13 @@ test("bot lobby: sane default (middle level), the one-step modal with scores and
     assert.equal(await B.ev("document.getElementById('bot-modal').hidden"), false);
     assert.equal(await B.ev("document.querySelectorAll('.bot-option, #bot-step-list').length"), 0, "no list step any more");
     assert.equal(await B.text("bot-name"), "Bot");
-    assert.match(await B.text("bot-meta"), /^Plays Five Wins\. Rated over \d+ games against Random and \d+ solved puzzles \(\d{4}-\d{2}-\d{2}\)\.$/);
     assert.match(await B.ev("document.querySelector('#bot-badges .bot-badge').textContent"), /\d+(\.\d+)? % vs Random/, "benchmark score baked in");
     assert.equal(await B.ev("document.getElementById('bot-difficulty-row').hidden"), false);
     assert.equal(await B.ev("document.querySelectorAll('#bot-difficulty button').length"), 4);
     assert.equal(await B.ev("document.querySelector('#bot-difficulty button.selected').dataset.difficulty"), "normal");
     await B.click('#bot-difficulty button[data-difficulty="easy"]');
-    assert.equal(await B.text("bot-difficulty-hint"), "Easy: thinks up to 30 ms per move.");
+    assert.equal(await B.text("bot-difficulty-hint"), "Easy: searches up to 2\u202f000 positions per move.");
+    assert.equal(await B.ev("document.getElementById('bot-meta')"), null, "no rating boilerplate");
     await B.click("#btn-bot-cancel");
     assert.equal(await B.ev("document.getElementById('bot-modal').hidden"), true);
     assert.match(await B.text("opponent-summary"), /^Bot · Normal · /, "Cancel keeps the old level");

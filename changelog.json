@@ -5,11 +5,21 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "improvement",
+          "text": "Bot levels are fully deterministic: each level searches a fixed number of positions per move, the same on every device, instead of a time limit."
+        },
+        {
+          "type": "improvement",
+          "text": "Preferences: the slider and the sound set line up with the checkboxes, the sections are separated, hints are left-aligned; the bot dialog lost its rating boilerplate; fewer entries in the default changelog view.",
+          "technical": true
+        },
+        {
           "type": "feature",
           "text": "Changelog: by default only what changes the game for you is listed; a toggle shows the technical entries too.",
           "refs": [
             "#27"
-          ]
+          ],
+          "technical": true
         },
         {
           "type": "feature",
@@ -31,14 +41,16 @@
           "refs": [
             "#22",
             "#25"
-          ]
+          ],
+          "technical": true
         },
         {
           "type": "fix",
           "text": "Settings: the rows are evenly spaced again.",
           "refs": [
             "#26"
-          ]
+          ],
+          "technical": true
         },
         {
           "type": "improvement",
@@ -62,7 +74,8 @@
         {
           "type": "feature",
           "text": "Changelog button on the title screen (this list).",
-          "refs": []
+          "refs": [],
+          "technical": true
         },
         {
           "type": "improvement",
@@ -86,7 +99,8 @@
             "commit ef4820d",
             "commit f35f322",
             "commit 7f4710a"
-          ]
+          ],
+          "technical": true
         },
         {
           "type": "feature",
@@ -100,7 +114,8 @@
           "text": "The room lobby is more compact: chat lives only in the game, the share buttons sit in one row under the code.",
           "refs": [
             "#15"
-          ]
+          ],
+          "technical": true
         },
         {
           "type": "improvement",
@@ -130,14 +145,16 @@
           "refs": [
             "#11",
             "#12"
-          ]
+          ],
+          "technical": true
         },
         {
           "type": "feature",
           "text": "Feedback button in the preferences opens a prefilled GitHub issue.",
           "refs": [
             "#8"
-          ]
+          ],
+          "technical": true
         },
         {
           "type": "improvement",
@@ -154,7 +171,8 @@
           "refs": [
             "#7",
             "#13"
-          ]
+          ],
+          "technical": true
         },
         {
           "type": "feature",
@@ -189,7 +207,8 @@
           "text": "Preferences button (⚙) on every screen: look, sound volume and categories.",
           "refs": [
             "#6"
-          ]
+          ],
+          "technical": true
         },
         {
           "type": "feature",

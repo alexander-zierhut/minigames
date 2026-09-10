@@ -8,7 +8,7 @@
        id: "random-chain",            // folder name under client/bots/
        name: "Random", game: "chain", version: 1,
        description: "…",
-       difficulties: [{ id: "normal", label: "Normal", thinkMs: 50 }],   // at least one; shown in the UI
+       difficulties: [{ id: "normal", label: "Normal", nodes: 2000 }],   // at least one; shown in the UI
        create(tools) { return { move(state) { … return cellIndex; } }; },
        evaluate(state, tools) { … return rawScore; },   // optional: player 0's advantage, see "win chance" below
    })
@@ -25,8 +25,9 @@
 
    create(tools) is called once per game and returns an instance; move(state) may return
    the cell index or a Promise of it. The instance may keep state across moves (caches,
-   opening books). Searching bots work against tools.budget: in the app it is a time
-   budget (the difficulty's thinkMs), in tests and the benchmark a node budget so results
+   opening books). Searching bots work against tools.budget: a node budget everywhere —
+   the difficulty's `nodes` in the app, 2 000 / 20 000 in tests and the benchmark — so a
+   level is exactly as strong on every device and the same position gets the same move;
    are deterministic — call tools.deadline() once per move and d.tick() per node.
    The benchmark workflow writes client/bots/<id>/benchmark.js, which calls
    Bots.benchmark(id, result) so the score is baked into the deployed page. */
@@ -62,7 +63,7 @@ const Bots = (() => {
         if (!Array.isArray(def.difficulties) || def.difficulties.length === 0) fail("difficulties must list at least one { id, label }");
         for (const d of def.difficulties) {
             if (!d || typeof d.id !== "string" || typeof d.label !== "string") fail("difficulty needs id and label");
-            if (d.thinkMs !== undefined && !(d.thinkMs > 0 && d.thinkMs <= 5000)) fail("thinkMs must be 1..5000 ms (phones!)");
+            if (d.nodes !== undefined && !(Number.isInteger(d.nodes) && d.nodes > 0 && d.nodes <= 1000000)) fail("nodes must be an integer 1..1 000 000 (phones!)");
         }
         if (typeof def.create !== "function") fail("create(tools) missing");
         if (def.baseline !== undefined && typeof def.baseline !== "boolean") fail("baseline must be true or false");
@@ -124,7 +125,7 @@ const Bots = (() => {
     /* ---------- toolset ---------- */
     // rules: the game's pure rules module; me: the bot's seat; seed: for reproducible games;
     // budget: { ms, nodes } per move (either may be Infinity)
-    function tools(game, { rules = Rules.of(game), me = 1, seed = 1, difficulty = "normal", players = 2, budget = { ms: 50, nodes: Infinity } } = {}) {
+    function tools(game, { rules = Rules.of(game), me = 1, seed = 1, difficulty = "normal", players = 2, budget = { ms: Infinity, nodes: 2000 } } = {}) {
         if (!rules) throw new Error(`no rules registered for game "${game}"`);
         const random = rng(seed);
         const t = {
@@ -145,7 +146,7 @@ const Bots = (() => {
             outcome: (state) => ({ over: !!state.over, winner: state.over ? state.winner : null }),
             opponents: (p = me) => Array.from({ length: players }, (_, k) => k).filter((k) => k !== p),
             // budget helper for searching bots: const d = tools.deadline(); … if (d.tick()) stop;
-            // expires on the time budget (app) or the node budget (tests, benchmark), whichever comes first
+            // expires on the node budget (the app, tests and the benchmark alike) or a time budget if one is set
             deadline(ms = budget.ms) {
                 const end = ms === Infinity ? Infinity : Date.now() + ms;
                 let nodes = 0;
@@ -159,12 +160,12 @@ const Bots = (() => {
     }
 
     // a ready-to-play instance of a registered bot. options.budget overrides the difficulty's
-    // think time ({ ms, nodes }); the app passes nothing (time), tools pass nodes.
+    // node budget ({ ms, nodes }); the app passes nothing, tests and the benchmark their own nodes.
     function create(id, options = {}) {
         const def = get(id);
         if (!def) throw new Error(`unknown bot "${id}"`);
         const level = def.difficulties.find((d) => d.id === options.difficulty) || def.difficulties[0];
-        const budget = { ms: level.thinkMs || 50, nodes: Infinity, ...(options.budget || {}) };
+        const budget = { ms: Infinity, nodes: level.nodes || 2000, ...(options.budget || {}) };
         const t = tools(def.game, { ...options, difficulty: level.id, budget });
         const instance = def.create(t) || {};
         if (typeof instance.move !== "function") throw new Error(`bot "${id}" returned no move()`);

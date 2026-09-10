@@ -46,17 +46,13 @@ const Opponent = (() => {
         if (!b) return `<span class="bot-badge muted">not rated</span>`;
         return `<span class="bot-badge"><b>${b.score} %</b> vs Random</span>` + (b.puzzles ? `<span class="bot-badge"><b>${b.puzzles.pct} %</b> puzzles</span>` : "");
     }
-    const thinkTime = (ms) => (ms >= 1000 ? `${ms / 1000} s` : `${ms} ms`);
+    const thousands = (n) => String(n).replace(/\B(?=(\d{3})+$)/g, "\u202f");   // 2 000, 100 000
 
     function render() {
         const def = current(game).def;
         $("bot-name").textContent = NAME;
         $("bot-desc").textContent = def.description || "";
         $("bot-badges").innerHTML = badges(def.id);
-        const b = Bots.benchmarkOf(def.id);
-        $("bot-meta").textContent = `Plays ${Games.get(game).title}. ` + (b
-            ? `Rated over ${b.games} games against Random${b.puzzles ? ` and ${b.puzzles.total} solved puzzles` : ""} (${b.at}).`
-            : "Not rated yet.");
         const seg = $("bot-difficulty");
         seg.innerHTML = "";
         $("bot-difficulty-row").hidden = def.difficulties.length <= 1;
@@ -69,7 +65,7 @@ const Opponent = (() => {
             seg.appendChild(btn);
         }
         const lv = level(def, difficulty);
-        $("bot-difficulty-hint").textContent = lv.thinkMs ? `${lv.label}: thinks up to ${thinkTime(lv.thinkMs)} per move.` : "";
+        $("bot-difficulty-hint").textContent = lv.nodes ? `${lv.label}: searches up to ${thousands(lv.nodes)} positions per move.` : "";
     }
 
     function open(g) {

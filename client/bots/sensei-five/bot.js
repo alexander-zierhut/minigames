@@ -916,10 +916,10 @@ Bots.register({
     version: 1,
     description: "Reads the lines: fours, open threes, forcing sequences. Very hard searches for forced wins.",
     difficulties: [
-        { id: "easy", label: "Easy", thinkMs: 30 },
-        { id: "normal", label: "Normal", thinkMs: 150 },
-        { id: "hard", label: "Hard", thinkMs: 600 },
-        { id: "very-hard", label: "Very hard", thinkMs: 1500 },
+        { id: "easy", label: "Easy", nodes: 2000 },          // node budgets: deterministic strength on every device
+        { id: "normal", label: "Normal", nodes: 10000 },     // (depth-2 finishes early; the cap only guards huge boards)
+        { id: "hard", label: "Hard", nodes: 30000 },
+        { id: "very-hard", label: "Very hard", nodes: 60000 },   // ~0.5 s on a desktop, a couple of seconds on a slow phone
     ],
     create(tools) {
         const s = new SenseiFive.Searcher(tools, SenseiFive.LEVELS[tools.difficulty] || SenseiFive.LEVELS.normal);

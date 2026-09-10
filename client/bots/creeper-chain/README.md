@@ -5,15 +5,15 @@ game state and the toolset (`Bots.tools`), never the DOM, so it runs identically
 browser and in Node. Under a node budget the same seed gives the same move on any
 machine; `tools.random` is used only for Easy's noise.
 
-| Level | id | thinkMs | search |
+| Level | id | nodes | search |
 | --- | --- | --- | --- |
-| Easy | `easy` | 30 | one ply on the static evaluation; 30 % random moves, otherwise one of the best three (seeded) |
-| Normal | `normal` | 150 | alpha-beta to 2 plies + quiescence |
-| Hard | `hard` | 600 | iterative deepening to 4 plies + quiescence, yields to the page |
-| Very hard | `veryhard` | 1500 | iterative deepening as deep as the budget allows (depth 60 cap), yields to the page |
+| Easy | `easy` | 2 000 | one ply on the static evaluation; 30 % random moves, otherwise one of the best three (seeded) |
+| Normal | `normal` | 10 000 | alpha-beta to 2 plies + quiescence |
+| Hard | `hard` | 30 000 | iterative deepening to 4 plies + quiescence, yields to the page |
+| Very hard | `veryhard` | 100 000 | iterative deepening as deep as the budget allows (depth 60 cap), yields to the page |
 
-In the app the budget is the level's `thinkMs`; tests and the benchmark pass a node
-budget (2 000 / 20 000 nodes). At 20 000 nodes on 6×6 (four games each, desktop):
+The budget is always a node budget (the level's `nodes` in the app, 2 000 / 20 000 in
+tests and the benchmark), so a level plays identically on every device. At 20 000 nodes on 6×6 (four games each, desktop):
 Easy 0.1 ms, Normal 0.5 ms, Hard 10 ms (max 19), Very hard 22 ms per move (max 29),
 ≈ 1 µs per node, reaching 4–5 plies plus quiescence. Very hard's 1.5 s therefore
 covers hundreds of thousands of nodes even on a mid-range phone.

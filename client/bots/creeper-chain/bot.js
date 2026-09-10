@@ -558,12 +558,12 @@
         name: "Creeper",
         game: "chain",
         version: 1,
-        description: "Looks ahead and blows things up. Very hard searches as deep as the clock allows.",
+        description: "Looks ahead and blows things up. Very hard searches as deep as its budget allows.",
         difficulties: [
-            { id: "easy", label: "Easy", thinkMs: 30 },
-            { id: "normal", label: "Normal", thinkMs: 150 },
-            { id: "hard", label: "Hard", thinkMs: 600 },
-            { id: "veryhard", label: "Very hard", thinkMs: 1500 },
+            { id: "easy", label: "Easy", nodes: 2000 },          // node budgets: deterministic strength on every device
+            { id: "normal", label: "Normal", nodes: 10000 },     // (depth-2 finishes early; the cap only guards huge boards)
+            { id: "hard", label: "Hard", nodes: 30000 },
+            { id: "veryhard", label: "Very hard", nodes: 100000 },   // ~0.15 s on a desktop, a second or two on a slow phone
         ],
         create(tools) {
             const level = LEVELS[tools.difficulty] || LEVELS.normal;
