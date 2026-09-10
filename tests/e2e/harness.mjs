@@ -151,6 +151,7 @@ export async function launchBrowser({ width = 1400, height = 900, mobile = false
         state: async () => JSON.parse(await B.ev(`JSON.stringify((document.body.classList.contains('game-five') ? FiveGame : ChainGame).state)`)),
         selectSkin: (k) => B.click(`.skin-seg button[data-skin=${k}]`),
         selectGame: (k) => B.click(`.game-card[data-game=${k}]`),
+        players: (n) => B.click(`#set-players button[data-players="${n}"]`),     // the lobby's players control (#28)
         // seeded "random" legal play until the game is over: the same seed always produces the same game
         async randomGame(maxMoves = 400, seed = 12345) {
             return JSON.parse(await B.ev(`(async () => {

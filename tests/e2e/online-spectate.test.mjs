@@ -26,7 +26,7 @@ test("two players start a game; a third browser joins the running game as a spec
     code = await createRoom(A);
     await joinRoom(B, server.url, code);
     await bothConnected(A, B);
-    await A.selectGame("chain"); await A.click("#btn-settings"); await A.set("set-players", 2); await A.set("set-size", 4); await A.set("set-speed", 350); await A.set("set-timer", 0); await A.click("#btn-settings-done");
+    await A.selectGame("chain"); await A.players(2); await A.click("#btn-settings"); await A.set("set-size", 4); await A.set("set-speed", 350); await A.set("set-timer", 0); await A.click("#btn-settings-done");
     await B.waitFor("document.getElementById('set-size').value === '4'", { what: "guest mirrors" });
     await A.click("#btn-start");
     await inGame(A); await inGame(B);
@@ -86,7 +86,7 @@ test("the spectate link keeps someone a spectator even with a free seat; leaving
     await inLobby(A); await inLobby(B); await inLobby(C);
     assert.equal(await C.text("btn-start"), "Spectating");
     assert.equal(await C.ev("document.getElementById('btn-start').disabled"), true);
-    await A.click("#btn-settings"); await A.set("set-players", 3); await A.click("#btn-settings-done");
+    await A.players(3);
     await C.waitFor("document.querySelectorAll('.lobby-player').length === 3", { what: "spectator mirrors players 3" });
     await sleep(600);
     assert.equal(await C.text("btn-start"), "Spectating", "asked to spectate: no seat handed out");

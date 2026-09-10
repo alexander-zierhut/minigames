@@ -36,7 +36,7 @@ async function showRoomLobby() {
     await M.ev("document.getElementById('lobby-code').textContent = 'ABCDE'; document.getElementById('lobby-share').hidden = false; document.getElementById('lobby-players').hidden = false; document.getElementById('lobby-spectators').textContent = '2 spectators watching'; true");
 }
 test("online-shaped lobby with four seats: share buttons in one row under the code, no scroll, every skin (#15)", async () => {
-    await M.click("#btn-settings"); await M.set("set-players", 4); await M.click("#btn-settings-done");
+    await M.players(4);
     for (const skin of ["classic", "mcboard", "mc"]) {
         await M.selectSkin(skin);                 // re-renders the lobby (builds the four seat cards)
         await showRoomLobby();
@@ -50,7 +50,7 @@ test("online-shaped lobby with four seats: share buttons in one row under the co
         await M.screenshot(`mobile-lobby-${skin}.png`);
     }
     await M.selectSkin("classic");
-    await M.click("#btn-settings"); await M.set("set-players", 2); await M.click("#btn-settings-done");
+    await M.players(2);
 });
 
 test("game: compact HUD, board outline visible, reactions inside the viewport, no scroll", async () => {

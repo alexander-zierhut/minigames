@@ -113,13 +113,14 @@ test("settings: players 2/3/4 in the config and summary; against a bot it is alw
     const w = loadDom(); const d = w.document; const S = w.eval("Settings");
     S.init({});
     assert.equal(S.read().players, 2);
-    d.getElementById("set-players").value = "3";
-    d.getElementById("set-players").dispatchEvent(new w.Event("change"));
+    d.querySelector('#set-players button[data-players="3"]').click();      // the lobby's control (#28)
     assert.equal(S.read().players, 3);
+    assert.equal(d.querySelector("#set-players button.selected").dataset.players, "3");
     assert.match(S.summary(), /· 3 players ·/);
     assert.equal(JSON.parse(w.localStorage.getItem("chainreact.settings")).players, 3, "persisted");
     S.write({ game: "five", players: 4, n: 9 });                 // the friend's settings (silent, not persisted)
     assert.equal(S.read().players, 4);
+    assert.equal(d.querySelector("#set-players button.selected").dataset.players, "4", "the control follows");
     S.setMode("bot");
     assert.equal(d.getElementById("row-players").hidden, true);
     assert.equal(S.read().players, 2, "a bot game is two players");

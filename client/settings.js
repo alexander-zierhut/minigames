@@ -1,13 +1,16 @@
 /* Game choice + settings: the form in #settings-modal, the picker cards in the lobby,
    persistence in localStorage, and the config object a game is started with.
 
-   Shared rows (board size, players, timer) are in index.html; the game-specific rows are
+   Shared rows (board size, timer) are in index.html; the players control is the lobby's
+   segmented row (#set-players, #28) so everyone sees the room takes two to four; the game-specific rows are
    BUILT here from every registered game's `settings` list (see Games / AGENTS.md):
      { key, label, type: "int" | "select" | "bool", def, min?, max?, unit?, options?, with? }
    into #game-settings, as `<label class="row" id="row-<key>" data-setting="<key>">` with the
    input `#set-<key>` (key lowercased). A row shows when the selected game lists that key.
    Every field of every game is read into the config (`config.<key>`), persisted and
-   mirrored to the room. Board-size limits come from `size` / `minSize(cfg)`.
+   mirrored to the room. Board-size limits come from `size` / `minSize(cfg)`. A game
+   declares `players: { min, max }` (default 2–4): the picker grays out games that don't
+   take the chosen player count, and the selection moves to one that does (#28).
    Any change calls onChange(config) so the room can mirror it to the friends. */
 
 "use strict";
@@ -17,6 +20,7 @@ const Settings = (() => {
     const KEY = "chainreact.settings";
     let fields = [];             // every game field: { key, el, type, min, max, def, game }
     let game = null;             // selected game key
+    let players = 2;             // seats in the room / on this device (the lobby's players control)
     let maxPlayers = 4;          // 2 against a bot (setMode), else 4
     const sizeFor = {};          // remembered board size per game
     let onChange = () => {};
@@ -24,6 +28,7 @@ const Settings = (() => {
     let silent = false;          // true while writing the friend's settings into the form
 
     const def = () => Games.get(game);
+    const supports = (key, n = clamp(players, 2, maxPlayers)) => { const p = Games.get(key).players; return n >= p.min && n <= p.max; };
     const idFor = (key) => "set-" + key.toLowerCase();
 
     /* ---------- the game rows, from the definitions ---------- */
@@ -102,7 +107,7 @@ const Settings = (() => {
         const timerSel = $("set-timer").value;
         const timer = timerSel === "custom" ? Math.round(parseFloat($("set-timer-custom").value || "3") * 60) : parseInt(timerSel, 10);
         return {
-            game, players: clamp(parseInt($("set-players").value, 10) || 2, 2, maxPlayers),
+            game, players: clamp(players, 2, maxPlayers),
             n: clamp(parseInt($("set-size").value, 10) || d.size.default, lim.min, lim.max),
             timer: Math.max(0, timer || 0), timerSel, timerCustom: $("set-timer-custom").value,
             ...gameValues(),
@@ -115,7 +120,7 @@ const Settings = (() => {
         silent = true;
         if (s.game && Games.has(s.game)) game = s.game;
         if (s.n) sizeFor[game] = s.n;
-        if (s.players) $("set-players").value = String(clamp(parseInt(s.players, 10) || 2, 2, 4));
+        if (s.players) players = clamp(parseInt(s.players, 10) || 2, 2, 4);
         for (const f of fields) {
             if (f.type === "bool") $(f.el).checked = !!s[f.key];
             else if (s[f.key]) $(f.el).value = String(s[f.key]);
@@ -123,6 +128,7 @@ const Settings = (() => {
         if (s.timerSel) $("set-timer").value = s.timerSel;
         if (s.timerCustom) $("set-timer-custom").value = s.timerCustom;
         syncDependents();
+        renderPlayers();
         selectGame(game, false);
         silent = false;
     }
@@ -160,9 +166,16 @@ const Settings = (() => {
 
     function selectGame(key, announce = true) {
         game = Games.has(key) ? key : Games.keys()[0];
+        if (!supports(game)) game = Games.keys().find((k) => supports(k)) || game;   // this game doesn't take that many: the first that does
         const d = def();
         const shown = d.settings.map((s) => s.key);
-        document.querySelectorAll(".game-card").forEach((c) => c.classList.toggle("selected", c.dataset.game === game));
+        document.querySelectorAll(".game-card").forEach((c) => {
+            c.classList.toggle("selected", c.dataset.game === game);
+            const ok = supports(c.dataset.game);
+            c.classList.toggle("unsupported", !ok);
+            c.disabled = !ok;
+            c.title = ok ? "" : `Not for ${players} players`;
+        });
         $("menu-tagline").textContent = d.tagline;
         document.querySelectorAll("#settings-modal [data-setting]").forEach((r) => { r.hidden = !shown.includes(r.dataset.setting); });
         fillSize();
@@ -198,6 +211,18 @@ const Settings = (() => {
     }
     function renderSummary() { $("settings-summary").textContent = summary(); }
 
+    /* ---------- players (the lobby's segmented control, #28) ---------- */
+    const playersText = (p) => (p.min === p.max ? `${p.min} players` : `${p.min} to ${p.max} players`);
+    function renderPlayers() {
+        document.querySelectorAll("#set-players button").forEach((b) => { b.classList.toggle("selected", parseInt(b.dataset.players, 10) === players); });
+    }
+    function setPlayers(n) {
+        players = clamp(parseInt(n, 10) || 2, 2, 4);
+        renderPlayers();
+        selectGame(game, false);                       // grays out games that don't take that many (and moves off one)
+        changed();
+    }
+
     // one picker card per registered game (preview: 9 chars, "." empty, digit = player)
     function renderPicker() {
         const picker = $("game-picker");
@@ -208,9 +233,10 @@ const Settings = (() => {
             card.className = "game-card";
             card.dataset.game = key;
             const tiles = [...d.preview].map((ch) => `<i${/\d/.test(ch) ? ` class="p${ch}"` : ""}></i>`).join("");
-            card.innerHTML = `<span class="game-preview ${key}">${tiles}</span><span class="game-name"></span><span class="game-desc"></span>`;
+            card.innerHTML = `<span class="game-preview ${key}">${tiles}</span><span class="game-name"></span><span class="game-desc"></span><span class="game-players"></span>`;
             card.querySelector(".game-name").textContent = d.title;
             card.querySelector(".game-desc").textContent = d.desc;
+            card.querySelector(".game-players").textContent = playersText(d.players);
             card.addEventListener("click", () => { selectGame(key); onSelectGame(key); });
             picker.appendChild(card);
         }
@@ -234,7 +260,8 @@ const Settings = (() => {
         $("btn-settings").addEventListener("click", open);
         $("btn-settings-done").addEventListener("click", close);
         $("settings-modal").addEventListener("click", (e) => { if (e.target === $("settings-modal")) close(); });
-        for (const id of ["set-players", "set-timer", "set-timer-custom"]) {
+        document.querySelectorAll("#set-players button").forEach((b) => b.addEventListener("click", () => setPlayers(b.dataset.players)));
+        for (const id of ["set-timer", "set-timer-custom"]) {
             $(id).addEventListener("change", syncUi);
             $(id).addEventListener("input", syncUi);
         }
@@ -245,8 +272,9 @@ const Settings = (() => {
         $("set-size").addEventListener("change", clampInputs);
         game = Games.keys()[0];
         load();
+        renderPlayers();
         selectGame(game, false);
     }
 
-    return { init, read, write, selectGame, summary, setMode, get game() { return game; }, get fields() { return fields.map((f) => f.key); } };
+    return { init, read, write, selectGame, setPlayers, summary, setMode, supports, get game() { return game; }, get players() { return players; }, get fields() { return fields.map((f) => f.key); } };
 })();

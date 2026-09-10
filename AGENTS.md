@@ -164,11 +164,14 @@ to try things").
   online only, see "Hidden room code") and — online only — **one compact row** of
   `Share link` / `Spectate link` / `Copy code` under it (`#lobby-share`; 11px buttons on
   phones so the three fit 360px in one row, #15), one `.lobby-player` card per seat from
-  `#tpl-lobby-player` (online only; as many as the *Players* setting says, "connected" /
+  `#tpl-lobby-player` (online only; as many as the *Players* control says, "connected" /
   "not here yet" / "ready" per seat, `#lobby-spectators` counts people without a seat),
-  the game picker (one `.game-card[data-game]` per registered game, built by
-  `Settings.init`), settings summary button → `#settings-modal`, `Start game`, `Leave
-  room`/`Back`. No chat in the lobby (#15) — chat lives in the game HUD only.
+  the **Players** row (`#row-players`: the segmented `#set-players` with 2 / 3 / 4, #28 —
+  in the lobby so everyone sees the room takes up to four; hidden against a bot), the game
+  picker (one `.game-card[data-game]` per registered game, built by `Settings.init`; each
+  card says "2 to 4 players" and a game that doesn't take the chosen count is grayed out,
+  `.unsupported` + `disabled`, #28), settings summary button → `#settings-modal`, `Start
+  game`, `Leave room`/`Back`. No chat in the lobby (#15) — chat lives in the game HUD only.
 - **Game** (`#screen-game`): board + HUD ("hut"). Result overlay: `Rematch`, `Look at
   board` (hides it; `#result-fab` brings it back), `Change game` (→ lobby). The HUD has
   `Rematch` and `Back to room` too. `renderRematch()` in app.js is the only writer of the
@@ -183,7 +186,7 @@ to try things").
   `Match.gameNo` increments per started game (local too); `Match.startPlayerFor(g,
   players) = (g - 1) % players` → seat 0 starts game 1, then the next seat, round-robin.
   `Settings.setMode(mode)` is called on every mode change (`local` / `bot` / `online`):
-  against a bot the *Players* row is hidden and the config says 2.
+  against a bot the lobby's *Players* row is hidden and the config says 2.
 - The flow functions in app.js — `startGame(cfg, gameNo)`, `startFromLobby()`,
   `requestRematch()`, `backToLobby(announce)`, `leaveRoom()`, `openLocalLobby(withBot)` —
   are the only places that switch screens. Room calls `startGame` / `backToLobby` through
@@ -200,9 +203,12 @@ restores form values on reload).
 - Shared rows (in index.html): board size (limits and default from the game's `size` +
   optional `minSize(cfg)`: chain 3–12, default 6; five 5–25, default 11 since #16 — a size
   remembered in `sizeFor` wins over the default; `cfg` holds every game field's current
-  value), **players** (`#set-players`: 2 default / 3 / 4 — seats in the room and on one
-  device; hidden and forced to 2 against a bot), timer per player (Off default / 1 / 3 /
-  5 / 10 min / custom minutes).
+  value), timer per player (Off default / 1 / 3 / 5 / 10 min / custom minutes). **Players**
+  is not in the modal: it is the lobby's segmented control (`#set-players`, 2 default / 3 /
+  4, `Settings.setPlayers(n)` / `Settings.players`; hidden and forced to 2 against a bot,
+  #28). Every game declares `players: { min, max }` (default 2–4, `Games.register` fills
+  it in); `Settings.supports(key)` says whether the selected count fits, the picker grays
+  the others out and `selectGame` moves off an unsupported game to the first that fits.
 - **Game rows are generated** into `#game-settings` from every registered game's
   `settings` list (`Settings.init` → `buildRows`). A setting is
   `{ key, label, type: "int" | "select" | "bool", def, min?, max?, unit?, options?, with? }`;
@@ -1097,6 +1103,7 @@ const <Name>Game = Games.register({
     preview: "...01....",                   // 9 chars: "." empty, digit = player
     size: { min: 5, max: 19, default: 9 },  // board-size input limits
     minSize: (cfg) => 5,                    // optional, may depend on the game fields (five: winLen)
+    players: { min: 2, max: 4 },            // optional (default 2–4): the picker grays the card out otherwise (#28)
     settings: [                             // the game's rows in #settings-modal, built by settings.js
         { key: "winLen", label: "In a row to win", type: "int", min: 3, max: 25, def: 5, unit: "stones" },
         { key: "speed", label: "Animation speed", type: "select", def: 750, options: [[1100, "Slow"], [750, "Normal"]] },

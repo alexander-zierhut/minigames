@@ -10,9 +10,11 @@ after(async () => { await B?.close(); await server?.close(); });
 
 test("four on one device: settings row, summary, four HUD cards, rotation, no win chance", async () => {
     await B.selectGame("five");
-    await B.click("#btn-settings");
-    assert.equal(await B.ev("document.getElementById('row-players').hidden"), false);
-    await B.set("set-players", 4); await B.set("set-size", 7); await B.set("set-winlen", 4);
+    assert.equal(await B.ev("document.getElementById('row-players').hidden"), false, "the players control sits in the lobby (#28)");
+    assert.equal(await B.ev("document.querySelector('#settings-modal #set-players, #settings-modal #row-players')"), null, "not in the settings modal any more");
+    await B.players(4);
+    assert.equal(await B.ev("document.querySelector('#set-players button.selected').dataset.players"), "4");
+    await B.click("#btn-settings"); await B.set("set-size", 7); await B.set("set-winlen", 4);
     await B.click("#btn-settings-done");
     assert.match(await B.text("settings-summary"), /^7 × 7 · 4 players · 4 in a row/);
     await B.click("#btn-start");
@@ -35,7 +37,7 @@ test("four on one device: settings row, summary, four HUD cards, rotation, no wi
 
 test("three on one device in Chain React: elimination by the rules, MC skin blocks for seats 2 and 3", async () => {
     await B.selectGame("chain");
-    await B.click("#btn-settings"); await B.set("set-players", 3); await B.set("set-size", 3); await B.set("set-speed", 350); await B.click("#btn-settings-done");
+    await B.players(3); await B.click("#btn-settings"); await B.set("set-size", 3); await B.set("set-speed", 350); await B.click("#btn-settings-done");
     await B.click("#btn-start");
     assert.equal((await B.state()).players, 3);
     assert.equal(await B.ev("document.querySelectorAll('#players .player').length"), 3);
@@ -52,16 +54,14 @@ test("three on one device in Chain React: elimination by the rules, MC skin bloc
     assert.equal(await B.text("turn-name"), ["Diamond", "Gold", "Emerald"][s(0)]);
     await B.selectSkin("classic");
     await B.click("#btn-menu");
-    await B.click("#btn-settings"); await B.set("set-players", 2); await B.click("#btn-settings-done");
+    await B.players(2);
     assert.deepEqual(B.errors, []);
 });
 
 test("against a bot the players row is hidden and the game is two players", async () => {
     await B.click("#btn-lobby-back");
     await B.click("#btn-bot");
-    await B.click("#btn-settings");
-    assert.equal(await B.ev("document.getElementById('row-players').hidden"), true);
-    await B.click("#btn-settings-done");
+    assert.equal(await B.ev("document.getElementById('row-players').hidden"), true, "no players control against a bot");
     assert.equal(await B.ev("Settings.read().players"), 2);
     await B.click("#btn-lobby-back");
 });

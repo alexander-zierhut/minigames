@@ -25,12 +25,12 @@ after(async () => { await A?.close(); await B?.close(); await C?.close(); await 
 
 test("three seats: the host sets players 3, two guests join and get seats 1 and 2, start waits for everyone", { skip: !ONLINE }, async () => {
     code = await createRoom(A);
-    await A.click("#btn-settings"); await A.set("set-players", 3); await A.click("#btn-settings-done");
+    await A.players(3);
     assert.equal(await A.ev("document.querySelectorAll('.lobby-player').length"), 3);
     assert.match(await A.text("btn-start"), /Waiting for 2 more players/);
     await joinRoom(B, server.url, code);
     await A.waitFor("document.getElementById('lp-1-status').textContent === 'connected'", { what: "host sees guest 1" });
-    await B.waitFor("document.querySelectorAll('.lobby-player').length === 3 && document.getElementById('set-players').value === '3'", { what: "guest mirrors players 3" });
+    await B.waitFor("document.querySelectorAll('.lobby-player').length === 3 && document.querySelector('#set-players button.selected').dataset.players === '3'", { what: "guest mirrors players 3" });
     assert.equal(await seat(B), 1);
     assert.match(await A.text("btn-start"), /Waiting for 1 more player…/);
     assert.equal(await A.ev("document.getElementById('btn-start').disabled"), true);

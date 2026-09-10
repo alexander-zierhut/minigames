@@ -21,8 +21,9 @@ games and settings together in the room lobby; rematch or switch games without n
   and coming back by the same link, even the room creator leaving — the room survives
   as long as one player is in it, and everybody keeps their colour.
 
-Settings (players, board size, animation speed, chess-style timer, chain-win rule,
-stones in a row) are shared live in the room lobby; anyone can change them. The ⚙ button in
+The number of players (two, three or four) is picked right in the lobby; the settings
+(board size, animation speed, chess-style timer, chain-win rule, stones in a row) are
+shared live in the room lobby; anyone can change them. The ⚙ button in
 the top-left corner holds the per-device preferences: the look (Classic, Blocks board,
 Blocks) and the sounds (volume, categories; the Classic look uses synthesized cues, the
 Blocks looks pixel block, explosion and level-up sounds). Emoji reactions for

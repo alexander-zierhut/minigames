@@ -137,3 +137,28 @@ test("Session: save / load / clear on sessionStorage, fail-safe", () => {
     assert.equal(Sess.load(), null);
     w.close();
 });
+
+test("picker (#28): a game declares how many players it takes; others are grayed out and the selection moves off them", () => {
+    const w = loadDom(); const d = w.document; const S = w.eval("Settings"); const Games = w.eval("Games");
+    assert.equal(JSON.stringify(Games.get("chain").players), JSON.stringify({ min: 2, max: 4 }), "default: two to four");
+    // a two-player-only game registered before the picker is built
+    Games.register({ key: "duo", title: "Duo", tagline: "t", desc: "d", preview: ".........", players: { min: 2, max: 2 }, size: { min: 3, max: 9, default: 5 }, rules: w.eval("FiveRules"), view: w.eval("FiveView") });
+    S.init({});
+    assert.equal(d.querySelector('.game-card[data-game="duo"] .game-players').textContent, "2 players");
+    assert.equal(d.querySelector('.game-card[data-game="five"] .game-players').textContent, "2 to 4 players");
+    S.selectGame("duo");
+    assert.equal(S.game, "duo");
+    d.querySelector('#set-players button[data-players="3"]').click();
+    const duo = d.querySelector('.game-card[data-game="duo"]');
+    assert.ok(duo.classList.contains("unsupported")); assert.equal(duo.disabled, true);
+    assert.equal(S.supports("duo"), false); assert.equal(S.supports("chain"), true);
+    assert.equal(S.game, "chain", "the selection moved to the first game that takes three");
+    assert.equal(S.read().players, 3);
+    S.selectGame("duo");
+    assert.equal(S.game, "chain", "cannot select a grayed-out game");
+    d.querySelector('#set-players button[data-players="2"]').click();
+    assert.equal(duo.classList.contains("unsupported"), false); assert.equal(duo.disabled, false);
+    S.setMode("bot");
+    assert.equal(d.getElementById("row-players").hidden, true, "against a bot the control is hidden (always two)");
+    w.close();
+});

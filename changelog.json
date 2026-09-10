@@ -5,6 +5,13 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "improvement",
+          "text": "The number of players is picked right in the lobby (2 / 3 / 4) instead of inside the settings; games that don't take that many players are grayed out.",
+          "refs": [
+            "#28"
+          ]
+        },
+        {
           "type": "fix",
           "text": "Online: a player or spectator whose first connection attempt stalled and who reconnected no longer counts twice in the room.",
           "technical": true

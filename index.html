@@ -39,7 +39,7 @@
 <section id="screen-menu" class="screen">
     <div class="menu-card">
         <h1 class="title">ALZlper's Minigames</h1>
-        <p class="tagline">Chain React and Five Wins. Create a room once, then play, rematch and switch games together.</p>
+        <p class="tagline">Chain React and Five Wins for two to four friends. Create a room once, then play, rematch and switch games together.</p>
 
         <div class="menu-actions">
             <div class="section">
@@ -87,6 +87,16 @@
                 <button class="btn small primary" id="btn-share">Share link</button>
                 <button class="btn small" id="btn-share-spectate">Spectate link</button>
                 <button class="btn small" id="btn-copy-code">Copy code</button>
+            </div>
+        </div>
+
+        <!-- how many seats (#28): here in the lobby, so everyone sees the room takes up to four; hidden against a bot -->
+        <div class="lobby-row" id="row-players">
+            <span class="lobby-row-label">Players</span>
+            <div class="seg players-seg" id="set-players">
+                <button data-players="2" class="selected">2</button>
+                <button data-players="3">3</button>
+                <button data-players="4">4</button>
             </div>
         </div>
 
@@ -218,14 +228,6 @@
             </label>
             <!-- one row per game setting, built by settings.js from each game's `settings` list -->
             <div class="game-settings" id="game-settings"></div>
-            <label class="row" id="row-players">
-                <span>Players</span>
-                <select id="set-players" autocomplete="off">
-                    <option value="2" selected>2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                </select>
-            </label>
             <label class="row">
                 <span>Timer per player</span>
                 <select id="set-timer" autocomplete="off">

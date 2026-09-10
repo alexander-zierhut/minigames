@@ -127,6 +127,12 @@
     -webkit-background-clip: text; background-clip: text; color: transparent;
     user-select: all;
 }
+/* the players control (#28): label left, 2 / 3 / 4 segments right */
+.lobby-row { display: flex; align-items: center; gap: 12px; }
+.lobby-row-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); flex: 0 0 auto; }
+.players-seg { flex: 1; }
+.players-seg button { font-size: 14px; padding: 7px 4px; }
+.players-seg button:disabled { opacity: .4; cursor: not-allowed; }
 .lobby-players { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .lobby-player {
     display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700;
@@ -145,6 +151,8 @@
     .lobby-actions .btn.small { padding: 5px 9px; font-size: 11px; }
     .lobby-status { font-size: 12px; min-height: 16px; }
     .lobby-players { gap: 6px; }
+    .players-seg button { padding: 5px 4px; font-size: 13px; }
+    .lobby-card .game-players { display: none; }
     .lobby-player { padding: 6px 10px; }
     .lobby-card .game-card { padding: 8px 8px 8px; gap: 4px; }
     .lobby-card .game-preview { width: 56px; height: 56px; }
@@ -166,6 +174,10 @@
 .game-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 8px 24px rgba(124,140,255,.25); }
 .game-name { font-weight: 800; font-size: 15px; }
 .game-desc { font-size: 11px; color: var(--muted); }
+.game-players { font-size: 10px; color: var(--muted); opacity: .8; }
+/* a game that doesn't take the chosen number of players is grayed out (#28) */
+.game-card.unsupported { opacity: .4; cursor: not-allowed; }
+.game-card.unsupported:hover { border-color: var(--line); }
 .game-preview {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px;
     width: 66px; height: 66px; padding: 4px;
