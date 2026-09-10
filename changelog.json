@@ -5,6 +5,11 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "improvement",
+          "text": "A round of layout polish: the settings button keeps its full name on phones, the emoji list opens under its button instead of across the top, the update notice sits above the title card, Learn and Replays are two buttons in the title foot, the replays filter shows the games with their tiles, a game's Learn page scrolls as a whole, and a scenario's explanation can be folded away while a tutorial keeps the board still.",
+          "technical": true
+        },
+        {
           "type": "internal",
           "text": "The test pipeline runs in parallel jobs now: the unit tests and four balanced shards of browser tests instead of one long serial run, which takes it from up to ten minutes down to about two.",
           "technical": true
