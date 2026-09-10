@@ -8,7 +8,8 @@
    into #game-settings, as `<label class="row" id="row-<key>" data-setting="<key>">` with the
    input `#set-<key>` (key lowercased). A row shows when the selected game lists that key.
    Every field of every game is read into the config (`config.<key>`), persisted and
-   mirrored to the room. Board-size limits come from `size` / `minSize(cfg)`. A game
+   mirrored to the room. Board-size limits come from `size` / `minSize(cfg)`, and its label
+   from `sizeLabel` when a game wants its own ("Boxes per side"). A game
    declares `players: { min, max }` (default 2–4): the picker grays out games that don't
    take the chosen player count, and the selection moves to one that does (#28).
    `setMinPlayers(n)` (the lobby says how many seats are taken) disables every smaller count
@@ -159,6 +160,7 @@ const Settings = (() => {
         inp.max = String(lim.max);
         inp.value = String(clamp(sizeFor[game] || def().size.default, lim.min, lim.max));
         $("size-hint").textContent = `(${lim.min}–${lim.max})`;
+        $("size-label").textContent = def().sizeLabel || "Board size";   // boxes: "Boxes per side"
     }
 
     // clamp typed numbers once a field is left (typing "1" on the way to "12" must not snap)
@@ -277,12 +279,16 @@ const Settings = (() => {
 
     /* ---------- the room's bot (#36) ----------
        Offline "Against a bot" is a mode; in a room the bot is part of the config, so it
-       travels in `lobby {s}` / `start {config}` / `state` and everybody sees it on seat 1.
-       It always takes seat 1, the seat opposite the one human in a two-seat room. */
+       travels in `lobby {s}` / `start {config}` / `state` and everybody sees it on its seat.
+       It takes seat 1 by default, the seat opposite the one human in a two-seat room; a
+       caller that needs the other side says so (#43: "Play from here" hands the human the
+       seat that is to move, so the bot may end up on seat 0). Everything else reads the
+       seat off `config.bot.seat`, never a constant. */
     const BOT_SEAT = 1;
     function normalizeBot(v) {
         if (!v || !v.id || !Bots.get(v.id)) return null;
-        return { id: v.id, difficulty: v.difficulty, seat: BOT_SEAT };
+        const seat = Number.isInteger(v.seat) && v.seat >= 0 && v.seat < 4 ? v.seat : BOT_SEAT;
+        return { id: v.id, difficulty: v.difficulty, seat };
     }
     // pick / drop the room's bot; `announce` false writes it without telling the friends
     function setBot(choice, announce = true) {

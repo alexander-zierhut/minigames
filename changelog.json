@@ -12,6 +12,37 @@
           ]
         },
         {
+          "type": "improvement",
+          "text": "A round of layout polish: the settings button keeps its full name on phones, the emoji list opens under its button instead of across the top, the update notice sits above the title card, Learn and Replays are two buttons in the title foot, the replays filter shows the games with their tiles, a game's Learn page scrolls as a whole, and a scenario's explanation can be folded away while a tutorial keeps the board still.",
+          "technical": true
+        },
+        {
+          "type": "feature",
+          "text": "Replays can be analysed: the bot walks through the game, shows the win chance of every move as a line graph, tells you at each step whether the move was the best one and how much it gave away, and gives every player a score out of 100.",
+          "refs": [
+            "#43"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "\"Play from here\" in the analysis panel continues a replay from the move you are looking at: you take the side that is to move, a bot takes the other, and because it opens a room you can still share the watch link.",
+          "refs": [
+            "#43"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "The replay bar has a Play button that walks through the game by itself, and in a room everyone watches along at the same pace.",
+          "refs": [
+            "#43"
+          ]
+        },
+        {
+          "type": "internal",
+          "text": "Link previews: the site has a description, Open Graph and Twitter card tags and a share image; a source-available license was added.",
+          "technical": true
+        },
+        {
           "type": "internal",
           "text": "The test pipeline runs in parallel jobs now: the unit tests and four balanced shards of browser tests instead of one long serial run, which takes it from up to ten minutes down to about two.",
           "technical": true
@@ -58,6 +89,14 @@
           "refs": [
             "#41"
           ]
+        },
+        {
+          "type": "feature",
+          "text": "A new game: Käsekästchen. Draw a line between two dots, close a box and it is yours and you draw again, and whoever owns the most boxes when the last line is drawn wins. Two to four players, 2 to 10 boxes per side, with a bot that solves the endgame exactly, a lesson in Learn and eight training positions."
+        },
+        {
+          "type": "feature",
+          "text": "A new game: Isolation. Every player has one pawn, you step to a neighbouring tile and then break any tile away, and whoever cannot move when their turn comes is trapped. Two to four players, boards from 5 to 12, and a bot to practise against. It has its own tutorial and training positions in the Learn section."
         },
         {
           "type": "feature",

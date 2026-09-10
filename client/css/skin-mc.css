@@ -44,6 +44,8 @@
 :is(.skin-mc, .skin-mcboard) .last-marker { border-radius: 0; }
 /* premove (#37): the dashes need a dark backing on quartz and on glass blocks */
 :is(.skin-mc, .skin-mcboard) #board > .premove { box-shadow: inset 0 0 0 calc(var(--premove-w) * 2) rgba(0,0,0,.6); }
+/* the analysis marker (#43) needs the same backing on quartz and glass */
+:is(.skin-mc, .skin-mcboard) #board > .best-move { box-shadow: inset 0 0 0 calc(var(--best-w) * 2) rgba(0,0,0,.6); }
 
 /* the player blocks in the HUD / overlay / picker show the real textures */
 :is(.skin-mc, .skin-mcboard) :is(.turn-block, .cube, .overlay-block) {
@@ -179,6 +181,11 @@
 .skin-mc .prefs-nav-row { border-radius: 0; background: rgba(0,0,0,.62); border-color: #000; box-shadow: inset 0 0 0 1px #3a3a3a; color: #fff; }
 .skin-mc .prefs-nav-row:hover { border-color: #a0a0a0; box-shadow: inset 0 0 0 1px #a0a0a0; }
 .skin-mc .prefs-nav-row.selected { border-color: #fff; box-shadow: inset 0 0 0 1px #fff; }
+/* the replay bar and its analysis panel (#38, #43): square, near-black boxes like the HUD */
+.skin-mc #replay-bar, .skin-mc #replay-panel, .skin-mc #an-graph, .skin-mc .an-progress-track { border-radius: 0; }
+.skin-mc #replay-bar, .skin-mc #replay-panel { background: rgba(0,0,0,.72); border-color: #000; box-shadow: inset 0 0 0 1px #3a3a3a, 0 10px 30px rgba(0,0,0,.6); }
+.skin-mc #an-graph, .skin-mc .an-progress-track { background: rgba(0,0,0,.62); box-shadow: inset 0 0 0 1px #3a3a3a; }
+.skin-mc #analysis-bar { background: #55ff55; }
 .skin-mc .loader-title { background: none; color: var(--mc-title); text-shadow: var(--mc-title-shadow); }
 .skin-mc .loader-bar { border-radius: 0; border-color: #000; background: #000; }
 .skin-mc .loader-fill { background: #55ff55; }

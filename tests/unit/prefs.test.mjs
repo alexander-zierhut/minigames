@@ -11,6 +11,7 @@ test("defaults: quiet volume, every sound category on, sound set follows the loo
     assert.equal(JSON.stringify(P.CATEGORIES), JSON.stringify(["moves", "explosions", "results", "turn", "reactions", "chat"]));
     for (const c of P.CATEGORIES) assert.equal(p.sounds[c], true, c);
     assert.equal(p.hideCode, false, "rooms show their code unless asked (#19)");
+    assert.equal(p.winGraph, true, "the win chance graph in replays is on (#43)");
     assert.equal(p.privateIp, false, "direct connections unless asked (#30)");
     assert.equal(p.developer, false, "no developer panel unless asked (#31)");
     w.close();
@@ -59,7 +60,14 @@ test("init fills the form, form changes flow into the prefs and onChange", () =>
     d.getElementById("pref-private-ip").checked = true;
     d.getElementById("pref-private-ip").dispatchEvent(new w.Event("change"));
     assert.equal(P.get().privateIp, true);
-    assert.equal(changes.length, 4);
+    // the win chance graph in the replay analysis (#43) is a checkbox in the Look section
+    assert.equal(d.getElementById("pref-win-graph").checked, true, "on by default");
+    d.getElementById("pref-win-graph").checked = false;
+    d.getElementById("pref-win-graph").dispatchEvent(new w.Event("change"));
+    assert.equal(P.get().winGraph, false);
+    assert.match(P.sectionSummary("look"), /no win graph/, "the Look row says it is off");
+    assert.equal(JSON.parse(w.localStorage.getItem("chainreact.prefs")).winGraph, false, "…and it is remembered");
+    assert.equal(changes.length, 5);
     // open / close
     assert.equal(P.isOpen, false);
     d.getElementById("prefs-btn").click();

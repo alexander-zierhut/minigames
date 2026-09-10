@@ -188,6 +188,15 @@ test("phone in a game: the ⚙ button is actually tappable and lines up with the
         assert.ok(Math.abs(r.g.top - r.t.top) <= 1, `⚙ and 😜 share the top edge (${r.g.top} vs ${r.t.top})`);
         const hit = await M.ev(`document.elementFromPoint(${(r.g.left + r.g.right) / 2}, ${(r.g.top + r.g.bottom) / 2})?.id`);
         assert.equal(hit, "prefs-btn", "nothing covers the ⚙ button");
+        assert.match(await M.text("prefs-btn"), /Settings & Feedback/, "the full label on a phone too (#43)");
+        // the open emoji list drops below the toggle, never left across the ⚙ button (#43)
+        await M.click("#react-toggle");
+        const list = JSON.parse(await M.ev("JSON.stringify(document.querySelector('#react-bar .react-list').getBoundingClientRect())"));
+        assert.ok(list.top >= r.t.bottom, `the list opens under the toggle (${list.top} >= ${r.t.bottom})`);
+        assert.ok(list.top >= r.g.bottom && list.right <= 360, `the list clears the ⚙ button (${JSON.stringify(list)})`);
+        const stillHit = await M.ev(`document.elementFromPoint(${(r.g.left + r.g.right) / 2}, ${(r.g.top + r.g.bottom) / 2})?.id`);
+        assert.equal(stillHit, "prefs-btn", "the open list does not cover the ⚙ button");
+        await M.click("#react-toggle");
         await M.click("#prefs-btn");
         assert.equal(await M.ev("document.getElementById('prefs-modal').hidden"), false, "the preferences open during a game");
         await M.click("#btn-prefs-done");

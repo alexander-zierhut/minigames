@@ -52,7 +52,12 @@ const UNSOLVED_DEPTH = 6;            // a proof without a ply count (five's exha
 // tag -> the title a player sees; the order is also the order titles are preferred in
 const TAGS = [
     ["win-in-1", "Win in one move"],
+    ["avoid-trap", "Do not walk into the trap"],
     ["must-block", "Block the threat"],
+    ["take-box", "Take the free box"],
+    ["sacrifice", "Give away as little as possible"],
+    ["double-deal", "Give two boxes away to keep control"],
+    ["safe-move", "Play a line that hands nothing over"],
     ["double-threat", "Make two threats at once"],
     ["win-in-2", "Win in two moves"],
     ["avoid-loss", "Only one move holds"],
@@ -64,6 +69,7 @@ const TAGS = [
     ["win-in-6", "Win in six moves"],
     ["win-in-7", "Win in seven moves"],
     ["win-in-9", "Win in nine moves"],
+    ["separated", "Win the race for room"],
 ];
 const TITLE = new Map(TAGS);
 const TAG_ORDER = TAGS.map(([t]) => t);
@@ -180,6 +186,7 @@ export function select(facts) {
         const rows = takeTier(band, puzzleQuota[k], order);
         const pfh = play[k];
         if (pfh) rows.push({ ...pfh, tier: tier.id, kind: "play-from-here", difficulty: difficultyOf({ ...pfh, kind: "play-from-here", tier: tier.id }) });
+        rows.sort((a, b) => (a.difficulty - b.difficulty) || (a.id < b.id ? -1 : 1));   // easy first, whatever came in
         for (const row of rows) out.push({ ...row, tier: tier.id, level: facts.levels[tier.id] });
     });
     return dress(out, facts);
@@ -271,7 +278,10 @@ export async function collectFacts(H, game) {
     const rules = H.Rules.of(game);
     let seed = 1;
     for (const p of data.puzzles) {
-        if (p.toMove !== 0 || p.value === "loss" || !Array.isArray(p.best) || !p.best.length) continue;
+        // a Learn table always starts at seat 0 (Match.start numbers the game 1), so a puzzle
+        // whose own config starts somebody else could not be replayed here
+        if (p.toMove !== 0 || (p.config.startPlayer || 0) !== 0) continue;
+        if (p.value === "loss" || !Array.isArray(p.best) || !p.best.length) continue;
         const state = positionOf(H, p);
         const legal = rules.legalMoves(state, 0);
         const easy = await botMove(H, def.id, ids[0], state, seed);
@@ -308,6 +318,7 @@ export async function collectFacts(H, game) {
 async function playPositions(H, game, data, def, est) {
     const biggest = data.puzzles.slice().sort((a, b) => (b.config.n - a.config.n) || (a.id < b.id ? -1 : 1))[0];
     const config = { ...biggest.config, players: 2 };
+    delete config.startPlayer;                   // a Learn table is always game 1: seat 0 starts
     const rules = H.Rules.of(game);
     const level = levelAt(def, SELFPLAY_LEVEL).id;
     const out = [];
@@ -329,7 +340,9 @@ async function playPositions(H, game, data, def, est) {
         const state = H.Rules.create(config, rules);
         let hit = null;
         for (let ply = 0; ply < total && !hit; ply++) {
-            if (ply >= from && ply <= to && ply % 2 === 0 && !state.over) {
+            // you are seat 0, so the position has to be one where seat 0 is to move — asked of
+            // the state, never of the ply's parity (Käsekästchen lets a seat move twice)
+            if (ply >= from && ply <= to && state.current === 0 && !state.over) {
                 const chance = Number(await est.at(state, CHANCE_NODES));
                 if (chance >= PLAY_CHANCE[0] && chance <= PLAY_CHANCE[1]) {
                     hit = { id: `${game}-play-${out.length + 1}`, config, history: played.history.slice(0, ply), chance: Math.round(chance * 1000) / 1000, ply, of: total, seed };
