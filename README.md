@@ -15,7 +15,9 @@ games and settings together in the room lobby; rematch or switch games without n
 - **Online:** one player creates a room and shares the link (or the 5-letter code).
   Everybody typing the same code also works; a room seats two, three or four players
   (the *Players* setting). Uses PeerJS: the public PeerJS broker only brokers the
-  handshake, then the game runs peer to peer (the room's host relays between guests). A page refresh, leaving
+  handshake, then the game runs peer to peer (the room's host relays between guests).
+  Anyone who joins when every seat is taken watches as a spectator, and the lobby's
+  "Spectate link" invites people to watch on purpose. A page refresh, leaving
   and coming back by the same link, even the room creator leaving — the room survives
   as long as one player is in it, and everybody keeps their colour.
 

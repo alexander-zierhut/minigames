@@ -104,7 +104,7 @@ to try things").
   **Look** control. Never scrolls on a phone. The ⚙ preferences button (see
   Preferences) floats top-left on every screen.
 - **Lobby** (`#screen-lobby`), same screen for local and online (`app.mode`): room code +
-  Share/Copy (online only), one `.lobby-player` card per seat from `#tpl-lobby-player`
+  Share link / Spectate link / Copy code (online only), one `.lobby-player` card per seat from `#tpl-lobby-player`
   (online only; as many as the *Players* setting says, "connected" / "not here yet" /
   "ready" per seat, `#lobby-spectators` counts people without a seat), the room chat
   (online only), the game picker (one `.game-card[data-game]` per registered game, built
@@ -369,7 +369,8 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   attempt). A second mismatch at the same point → both back to the room with a toast,
   never two different games.
 - Share link = `<page URL without query>?room=CODE`; `?room=` on load auto-joins;
-  `history.replaceState` keeps `?room=` in the URL while in a room.
+  `history.replaceState` keeps `?room=` (and `&spectate=1` for a spectator) in the URL
+  while in a room. Spectate link = `?room=CODE&spectate=1` (see Spectators).
 - Messages (JSON over reliable DataConnections; every message carries `from` = the
   sender's seat; game messages carry `g` = gameNo): `hello {seat, spectate, rev, phase,
   config, g, rematch}`, `state {you, settings, rev, phase, config, g, rematch}` (host →
@@ -424,6 +425,24 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   the id; one wins, the others get `unavailable-id` and dial it. The new host keeps its
   own seat, hands the others theirs back on `hello`, and a spectator that happens to
   win the claim stays a spectator (`onRole` gives seat 0 only to a seatless non-spectator).
+
+### Spectators (`app.spectator`, seat −1)
+
+Nobody is turned away: `admitGuest` always says yes, so whoever joins when every seat is
+taken becomes a spectator (the host's `hello` finds no free seat → `state {you: -1}`),
+and the **Spectate link** (`?room=CODE&spectate=1`, `#btn-share-spectate` in the lobby)
+makes someone a spectator on purpose even with a free seat (`hello {spectate: true}`;
+`reseat` never hands such a connection a seat, a plain-link spectator gets one when a
+seat frees up or *Players* grows). Spectators get everything the host sends (`state`,
+`roster`, `sync`, relayed `move`/`chat`/`react`/…): they see the board live with every
+cell `locked` (`makeSeats` → all seats `remote`, `mayPlay` false), "spectating" as the
+turn hint, "Spectating" in the HUD net box, on the lobby's Start button and on both
+Rematch buttons (disabled; a rematch request never shows them the overlay prompt), can
+chat ("Spectator: …", class `chat x`) and react (white dot). `#lobby-spectators` shows
+"N spectator(s) watching" from `roster.spectators`. The session stores `spectator`, so a
+refresh keeps spectating; `metadata {spectate}` goes with every dial. The sound module
+hears a neutral `over` for them. A spectator that wins a host takeover stays seatless.
+The old "room is full" answer only remains in net.js for an app that refuses newcomers.
 
 ### Gotchas already hit
 - Host: the `connection` event fires before the data channel is open → attach on
@@ -662,13 +681,16 @@ colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
   reactions, chat both ways (colour, text only, lobby mirror), guest refresh, tolobby,
   switch game, rematch, host refresh, guest leave +
   rejoin, host leave → guest takes over → host returns as guest; `SKIP_ONLINE=1` skips),
-  `online-edge` (third player → room full; both refresh in the lobby; guest closes the
+  `online-edge` (third player → spectator, players stay connected; both refresh in the lobby; guest closes the
   tab mid-game without goodbye and returns by link; rematch asked while the friend was
   away; host's tab dies, guest goes back to the room, host returns → both in the lobby;
   a corrupted guest board is rebuilt from the host; a board that keeps differing sends
   both back to the room; both type the same new code at once), `party` (offline: four
   on one device with rotation and alternating starter, three in Chain React with
   elimination by the rules and the MC textures of seats 2/3, bot mode = 2 players),
+  `online-spectate` (**three browsers**: a third joins a running two-player game as a
+  spectator — locked board, moves arrive, chat as "Spectator", refresh keeps spectating,
+  follows a rematch, spectate link with a free seat, leaving drops the count),
   `online-party` (**three browsers**: players 3, seats 1 and 2, start waits for
   everyone, moves by every seat relayed to everyone, chat/reaction colours, a guest
   refresh restores seat + board, rematch by every seat, one Back to room moves all),

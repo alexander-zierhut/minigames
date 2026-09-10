@@ -77,6 +77,7 @@
 .lobby-head .label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); }
 .lobby-head .room-code { font-size: 32px; letter-spacing: 5px; margin-top: 0; }
 .lobby-actions { display: flex; gap: 6px; flex-direction: column; align-items: stretch; }
+.lobby-actions .btn { white-space: nowrap; }
 .room-code {
     font-size: 44px;
     font-weight: 900;
@@ -101,9 +102,11 @@
 .lobby-chat .log { min-height: 0; max-height: 96px; overflow-y: auto; overscroll-behavior: contain; }
 /* phones: a tighter lobby card so players, chat, picker and buttons fit 360×780 without scrolling */
 @media (max-width: 899px) {
-    .lobby-card { gap: 8px; padding: 16px 16px; }
+    .lobby-card { gap: 7px; padding: 16px 16px; }
     .lobby-head .room-code { font-size: 28px; letter-spacing: 4px; }
     .lobby-actions { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; }
+    .lobby-actions .btn.small { padding: 5px 10px; }
+    .lobby-status { font-size: 12px; min-height: 16px; }
     .lobby-players { gap: 6px; }
     .lobby-player { padding: 6px 10px; }
     .lobby-chat .log { max-height: 40px; padding: 3px 8px; font-size: 11px; gap: 1px; }

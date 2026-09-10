@@ -355,6 +355,8 @@
         app.incoming = [];
         app.pendingSync = null;
         app.pendingOuts = [];
+        $("btn-restart").disabled = app.spectator;
+        $("btn-restart").textContent = app.spectator ? "Spectating" : "Rematch";
         Clock.setup(cfg.timer, onFlag, players);
         Game.newGame({ ...cfg, startPlayer }, hooks);
         renderNetBox();
@@ -432,14 +434,9 @@
         presenceChanged();                            // host: the guest's hello assigns its seat and sends the roster
     }
 
-    // host: may a newcomer without a seat of ours join? (a returning seat holder replaces
-    // its stale connection inside Net; spectators are always welcome)
-    function admitGuest(meta) {
-        const n = playersNow();
-        if (meta.spectate) return true;
-        if (meta.seat >= 0 && meta.seat < n && meta.seat !== app.me && !Net.peers.some((p) => p.open && p.seat === meta.seat)) return true;
-        return freeSeat(takenSeats(), n) >= 0;
-    }
+    // host: may a newcomer without a seat of ours join? Always — with every seat taken it
+    // becomes a spectator (a returning seat holder replaces its stale connection inside Net)
+    function admitGuest() { return true; }
     const takenSeats = (exceptId) => new Set([app.me, ...Net.peers.filter((p) => p.open && p.id !== exceptId).map((p) => p.seat)]);
     function freeSeat(taken, n) { for (let k = 0; k < n; k++) if (!taken.has(k)) return k; return -1; }
 
@@ -752,7 +749,7 @@
         catch (e) { prompt("Copy this link:", link); }
     }
     $("btn-share").addEventListener("click", () => shareLink(roomLink(Net.code), `Play ${Games.get(Settings.game).title} with me!`));
-    if ($("btn-share-spectate")) $("btn-share-spectate").addEventListener("click", () => shareLink(roomLink(Net.code, true), `Watch us play ${Games.get(Settings.game).title}!`));
+    $("btn-share-spectate").addEventListener("click", () => shareLink(roomLink(Net.code, true), `Watch us play ${Games.get(Settings.game).title}!`));
     $("btn-copy-code").addEventListener("click", async () => {
         try { await navigator.clipboard.writeText(Net.code); toast("Code copied"); }
         catch (e) { prompt("Room code:", Net.code); }

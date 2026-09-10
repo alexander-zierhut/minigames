@@ -18,18 +18,20 @@ before(async () => {
 });
 after(async () => { await A?.close(); await B?.close(); await C?.close(); await server?.close(); });
 
-test("a third person gets 'room is full' and the two players stay connected", { skip: !ONLINE }, async () => {
+test("a third person finds every seat taken and becomes a spectator; the two players stay connected", { skip: !ONLINE }, async () => {
     code = await createRoom(A);
     await joinRoom(B, server.url, code);
     await bothConnected(A, B);
     C = await launchBrowser();
     await C.goto(`${server.url}?room=${code}`);
-    await C.waitFor("Net.status === 'error' && document.getElementById('lobby-status').textContent.includes('full')", { timeout: 40000, what: "third player told the room is full" });
+    await C.waitFor("Net.connected && document.getElementById('btn-start').textContent === 'Spectating'", { timeout: 40000, what: "third person told it is spectating" });
     assert.equal(await C.ev("document.getElementById('btn-start').disabled"), true);
-    await sleep(1500);
+    await A.waitFor("document.getElementById('lobby-spectators').textContent === '1 spectator watching'", { what: "host counts the spectator" });
     assert.equal(await A.ev("Net.connected"), true, "host still connected to the first guest");
     assert.equal(await B.ev("Net.connected"), true);
-    assert.equal(await C.ev("Net.status"), "error", "no reconnect loop for the third player");
+    assert.equal(await A.text("lp-1-status"), "connected");
+    await C.click("#btn-lobby-back");
+    await A.waitFor("document.getElementById('lobby-spectators').textContent === ''", { timeout: 20000, what: "spectator left" });
     await C.close(); C = null;
 });
 
