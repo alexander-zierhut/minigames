@@ -128,6 +128,56 @@ test("Match: seats per mode, a bot seat that moves by itself, deferred work unti
     w.close();
 });
 
+test("a room's bot (#36): part of the config, run by the transport host, a plain remote seat for everybody else", async () => {
+    const w = loadDom(); const M = w.eval("Match"); const S = w.eval("Settings"); const O = w.eval("Opponent"); const Bots = w.eval("Bots");
+    S.init({}); O.init({});
+    w.sessionStorage.setItem("chainreact.botseed", "7");
+    // the settings carry it, so it travels with `lobby` / `start` / `state`
+    S.setMode("online");
+    assert.equal(S.read().bot, null, "a room starts without a bot");
+    const pick = O.current("five", S.read());
+    S.setBot(pick);
+    assert.equal(JSON.stringify(S.read().bot), JSON.stringify({ id: pick.id, difficulty: pick.difficulty, seat: 1 }), "always the seat opposite the human");
+    assert.equal(S.summary().includes("×"), true, "the summary itself is unchanged");
+    S.write({ ...S.read(), bot: null });
+    assert.equal(S.bot, null, "a mirrored config without a bot clears it");
+    S.setBot({ id: "no-such-bot", difficulty: "easy" });
+    assert.equal(S.bot, null, "an unknown bot id is ignored");
+    S.setBot(pick);
+    S.setMode("local");
+    assert.equal(S.bot, null, "a room's bot never follows into offline play");
+    S.setMode("online"); S.setBot(pick);
+    // the host runs the seat…
+    const cfg = { game: "five", n: 6, winLen: 4, players: 2, timer: 0, bot: S.read().bot };
+    M.init({ hostsBot: () => true });
+    M.reset("online", 0);
+    M.start(cfg, 1);
+    assert.equal(JSON.stringify(M.seats.map((s) => s.kind)), JSON.stringify(["local", "bot"]));
+    assert.equal(M.names[1], "Bot");
+    assert.equal(M.bot.def.id, pick.id);
+    let relayed = [];
+    M.init({ hostsBot: () => true, onLocalMove: (i) => relayed.push(i) });
+    await M.engine.play(0);
+    await new Promise((r) => setTimeout(r, M.THINK_MS + 400));
+    assert.equal(M.state.history.length, 2, "the bot moved on the host");
+    assert.equal(relayed.length, 1, "and its move is offered to the room like my own");
+    // …everybody else sees a remote seat that is called "Bot"
+    M.init({ hostsBot: () => false, onLocalMove: () => {} });
+    M.reset("online", 0);
+    M.start(cfg, 1);
+    assert.equal(JSON.stringify(M.seats.map((s) => s.kind)), JSON.stringify(["local", "remote"]));
+    assert.equal(M.names[1], "Bot", "the name is the same everywhere");
+    assert.equal(M.bot, null, "no bot instance where it is not run");
+    // a takeover mid-game hands the seat to the new host
+    M.init({ hostsBot: () => true, onLocalMove: () => {} });
+    M.refreshSeats();
+    assert.equal(JSON.stringify(M.seats.map((s) => s.kind)), JSON.stringify(["local", "bot"]));
+    assert.ok(M.bot && Bots.get(M.bot.def.id), "the new host built the instance");
+    M.stop(); M.reset("local"); M.init({ hostsBot: () => false });
+    S.setMode("local");
+    w.close();
+});
+
 test("names (#35): Match asks the table, a bot seat is Bot, a room seat nobody is in is Player k", () => {
     const w = loadDom(); const M = w.eval("Match"); const S = w.eval("Settings"); const O = w.eval("Opponent");
     const P = w.eval("Prefs"); const R = w.eval("Room");

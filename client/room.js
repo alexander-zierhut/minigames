@@ -35,6 +35,9 @@ const Room = (() => {
         roster: { present: [], spectators: 0, left: [], names: [] },   // who is here (guests: from the host's roster message)
         lastNames: [],          // per seat the last name we saw there, so an empty seat still says who (#35)
         left: new Set(),        // seats that said goodbye (their connection may still be closing) — banner wording
+        spec: null,             // the room's spectator code (players only; never sent to a viewer, #29)
+        watch: false,           // I came through the spectate link: watch only, I never learn the room code
+        chose: false,           // I gave my seat up on purpose (#39): no reseat hands it back by itself
         codeHidden: false,      // the room code is hidden (lobby, HUD net box, address bar) — streaming, #19
         netDetail: "",          // last status detail from Net (banner text)
         votes: new Set(),       // seats that pressed Rematch for the next game (everyone must)
@@ -69,6 +72,8 @@ const Room = (() => {
             if (out[k]) r.lastNames[k] = out[k];
             else out[k] = r.lastNames[k] || `Player ${k + 1}`;
         }
+        const b = botSeat();                          // the room's bot is simply "Bot" for everybody (#36)
+        if (b >= 0 && b < n) out[b] = Opponent.NAME;
         return out;
     }
     // my name changed in the preferences: the host re-rosters, a guest tells the host
@@ -85,6 +90,11 @@ const Room = (() => {
     // seats of the running game, else of the settings (the lobby)
     const playersNow = () => (inGame() && Match.config ? Match.config.players : Settings.read().players) || 2;
     const two = () => playersNow() === 2;
+    // the seat the room's bot holds, -1 = none (the running game's bot, else the lobby's, #36)
+    const botSeat = () => {
+        const cfg = inGame() && Match.config ? Match.config : Settings.read();
+        return cfg && cfg.bot ? cfg.bot.seat : -1;
+    };
     // how a seat is called in messages: with two players the classic "your friend", else the name
     const who = (seat) => (two() ? "Your friend" : names()[seat] || "Someone");
     const otherPlayer = (p, players = 2) => (p + 1) % players;
@@ -99,6 +109,8 @@ const Room = (() => {
         const present = new Array(n).fill(!online());
         if (!online()) return present;
         if (Match.me >= 0 && Match.me < n) present[Match.me] = true;
+        const b = botSeat();                          // the bot is here as long as its host is (#36)
+        if (b >= 0 && b < n && (isHost() || Net.connected)) present[b] = true;
         if (!Net.connected) return present;
         if (isHost()) { for (const p of Net.peers) if (p.open && p.seat >= 0 && p.seat < n && !r.left.has(p.seat)) present[p.seat] = true; }
         else for (let k = 0; k < n; k++) if (r.roster.present[k]) present[k] = true;
@@ -106,14 +118,15 @@ const Room = (() => {
     }
     const missingSeats = () => presentSeats().map((v, k) => (v ? -1 : k)).filter((k) => k >= 0);
     const occupiedSeats = () => presentSeats().filter(Boolean).length;                // seats with somebody in them (#34)
-    const allHere = () => online() && Net.connected && missingSeats().length === 0;   // every seat filled and connected
+    // every seat filled and my connection up (a host playing the room's bot alone needs no guest, #36)
+    const allHere = () => online() && (Net.connected || isHost()) && missingSeats().length === 0;
     const live = () => !online() || allHere();                                        // the game may run (clock, input)
     const someoneLeft = (seats) => seats.some((k) => r.left.has(k) || r.roster.left.includes(k));
 
     // host: what everyone should know about presence; sent on every change
     function computeRoster() {
         const n = playersNow();
-        let spectators = 0;
+        let spectators = Match.spectator ? 1 : 0;     // a host without a seat watches too (#39)
         for (const p of Net.peers) if (p.open && (p.seat < 0 || p.seat >= n)) spectators++;
         return { present: presentSeats(), spectators, left: [...r.left], names: names() };
     }
@@ -133,6 +146,7 @@ const Room = (() => {
     // take a seat (room creation, session restore, or assigned by the host in `state`)
     function setSeat(me, spectator = false) {
         Match.setSeat(me, spectator);
+        setUrlRoom(Net.code);                         // ?spectate=1 follows the seat, so a refresh keeps the role (#39)
         renderNetBox();
         h.renderLobby();
         h.onVotes();                                  // the Rematch / Back-to-room buttons follow the seat (#29)
@@ -140,24 +154,33 @@ const Room = (() => {
     }
 
     /* ---------- enter / leave ---------- */
-    function roomLink(code, spectate) {
+    // a link into this room: ?room=CODE for players, ?watch=SPECTATOR CODE for viewers.
+    // The two codes are independent, so dropping a parameter never promotes a viewer (#29).
+    function link(param, code) {
         const url = new URL(location.href);
         url.search = "";
         url.hash = "";
-        url.searchParams.set("room", code);
-        if (spectate) url.searchParams.set("spectate", "1");
+        if (code) url.searchParams.set(param, code);
         return url.toString();
     }
-    // the address bar carries ?room=CODE (&spectate=1) while in a room, unless the code is hidden
+    const roomLink = (code = Net.code) => link("room", code);
+    const spectateLink = () => link("watch", r.watch ? Net.code : r.spec);
+    // the address bar while in a room: ?watch=SPECCODE for a viewer, else ?room=CODE
+    // (&spectate=1 for somebody without a seat) unless the code is hidden
     function setUrlRoom(code) {
         const url = new URL(location.href);
-        if (r.codeHidden) code = null;
-        if (code) url.searchParams.set("room", code); else { url.searchParams.delete("room"); url.searchParams.delete("spectate"); }
-        if (code && Match.spectator) url.searchParams.set("spectate", "1");
+        url.searchParams.delete("room");
+        url.searchParams.delete("spectate");
+        url.searchParams.delete("watch");
+        if (r.watch) { if (code) url.searchParams.set("watch", code); }
+        else if (code && !r.codeHidden) {
+            url.searchParams.set("room", code);
+            if (Match.spectator) url.searchParams.set("spectate", "1");
+        }
         history.replaceState(null, "", url.toString());
     }
-    // what the lobby / HUD show as the code: bullets while hidden
-    const codeText = (code = Net.code) => (r.codeHidden ? "•••••" : (code || "…"));
+    // what the lobby / HUD show as the code: nothing to show for a viewer, bullets while hidden
+    const codeText = (code = Net.code) => (r.watch ? "Watching" : r.codeHidden ? "•••••" : (code || "…"));
     // hide / show the code (a streamer's viewers must not join): lobby, HUD, URL and the session follow
     function hideCode(on) {
         r.codeHidden = !!on;
@@ -167,14 +190,22 @@ const Room = (() => {
         save();
     }
 
-    // preferHost: true = I created / hosted this room, false = joining by code or link.
-    // seat: my player number if I already have one (creator: 0, refresh: from the session).
-    // spectate: watch only (spectate link, or a refresh of a spectator).
-    // hidden: enter with the code hidden (the preference, or the session's state on a refresh).
-    function enter(code, preferHost, seat = -1, spectate = false, hidden = Prefs.get().hideCode) {
+    // opts:
+    //   preferHost  true = I created / hosted this room, false = joining by code or link
+    //   seat        my player number if I already have one (creator: 0, refresh: the session)
+    //   spectate    no seat (a refresh of a spectator, or the spectate link)
+    //   watch       I came through the spectate link: `code` is the spectator code, I dial
+    //               the host's spectator peer and never learn the room code (#29)
+    //   spec        the room's spectator code (creator / a refreshing player)
+    //   hidden      enter with the code hidden (the preference, or the session on a refresh)
+    function enter(code, opts = {}) {
+        const { preferHost, seat = -1, spectate = false, watch = false, spec = null, hidden = Prefs.get().hideCode } = opts;
         if (goodbye) { clearTimeout(goodbye); goodbye = null; }   // a room left a moment ago: Net.open closes it now, the delayed shutdown must not hit the new room
-        Match.reset("online", seat, spectate);
-        Object.assign(r, { rev: 0, roster: { present: [], spectators: 0, left: [], names: [] }, lastNames: [], left: new Set(), votes: new Set(), incoming: [], syncSentAt: -1, rebuiltAt: null, codeHidden: !!hidden });
+        Match.reset("online", seat, spectate || watch);
+        Object.assign(r, {
+            rev: 0, roster: { present: [], spectators: 0, left: [], names: [] }, lastNames: [], left: new Set(), votes: new Set(),
+            incoming: [], syncSentAt: -1, rebuiltAt: null, codeHidden: !!hidden && !watch, watch: !!watch, spec: watch ? null : spec, chose: false,
+        });
         announced = myName();
         Chat.enable(true);
         Settings.setMode("online");
@@ -189,7 +220,13 @@ const Room = (() => {
                 updateBanner(status);
             },
             onRole: (role) => {
-                if (role === "host") { r.left.clear(); if (Match.me < 0 && !Match.spectator) setSeat(0); }
+                if (role === "host") {
+                    r.left.clear();
+                    if (Match.me < 0 && !Match.spectator) setSeat(0);
+                    if (!r.spec) r.spec = Net.randomCode();      // a room without a spectator code yet (created, or taken over)
+                    Net.hostSpectators(r.spec);                  // the viewers' peer moves with the host (#29)
+                }
+                Match.refreshSeats();                            // the room's bot runs on the host (#36)
                 h.renderLobby();
                 save();
             },
@@ -199,7 +236,7 @@ const Room = (() => {
             metadata: () => ({ seat: Match.me, spectate: Match.spectator, name: myName() }),
             admit: admitGuest,
             relayOnly: () => Prefs.get().privateIp,   // "Keep my IP always private" (#30)
-        }, preferHost === false ? "guest" : undefined);
+        }, watch ? "spectator" : preferHost === false ? "guest" : undefined);
         $("lobby-code").textContent = codeText(finalCode);
         setUrlRoom(finalCode);
         h.renderLobby();
@@ -215,6 +252,7 @@ const Room = (() => {
             if (sent) goodbye = setTimeout(() => { goodbye = null; Net.leave(); }, 250); else Net.leave();   // let the goodbye go out first
         } else Net.leave();
         Session.clear();
+        Settings.setBot(null, false);                       // the next room starts without a bot (#36)
         Chat.enable(false);
         setUrlRoom(null);
         $("net-banner").hidden = true;
@@ -242,9 +280,9 @@ const Room = (() => {
     }
     const votedMyself = () => r.votes.has(Match.me);
     const rematchWaitText = () => (two() ? "Waiting for opponent…" : `Waiting for others… (${r.votes.size}/${playersNow()})`);
-    // everyone pressed: start the next game
+    // everyone pressed: start the next game (the room's bot always says yes, #36)
     function rematchComplete() {
-        for (let k = 0; k < playersNow(); k++) if (!r.votes.has(k)) return false;
+        for (let k = 0; k < playersNow(); k++) if (k !== botSeat() && !r.votes.has(k)) return false;
         startGame(Match.config, Match.gameNo + 1);
         Log.add("Rematch!", "x");
         sendSync();
@@ -261,8 +299,13 @@ const Room = (() => {
     // host: may a newcomer without a seat of ours join? Always — with every seat taken it
     // becomes a spectator (a returning seat holder replaces its stale connection inside Net)
     function admitGuest() { return true; }
-    const takenSeats = (exceptId) => new Set([Match.me, ...Net.peers.filter((p) => p.open && p.id !== exceptId).map((p) => p.seat)]);
+    // seats nobody may be given: mine, everyone else's, and the room bot's (#36)
+    const takenSeats = (exceptId) => new Set([Match.me, botSeat(), ...Net.peers.filter((p) => p.open && p.id !== exceptId).map((p) => p.seat)]);
     function freeSeat(taken, n) { for (let k = 0; k < n; k++) if (!taken.has(k)) return k; return -1; }
+    // may this connection ever hold a seat? A spectate-link viewer never can (#29), and
+    // somebody who chose to watch only gets one back by asking for it (#39)
+    const watcherConn = (p) => !!(p && p.spectator);
+    const wantsSeat = (p) => !watcherConn(p) && !(p.meta && p.meta.spectate);
 
     // host: the number of seats changed (settings) — nobody keeps a seat that no longer
     // exists, and people without a seat get a free one (unless they chose to spectate)
@@ -272,12 +315,65 @@ const Room = (() => {
         if (Match.me >= n) { const s = freeSeat(takenSeats(), n); setSeat(s, s < 0); }
         for (const p of Net.peers) if (p.open && p.seat >= n) { Net.setSeat(p.id, -1); sendState(p.id, -1); }
         for (const p of Net.peers) {
-            if (!p.open || p.seat >= 0 || (p.meta && p.meta.spectate)) continue;
+            if (!p.open || p.seat >= 0 || !wantsSeat(p)) continue;
             const s = freeSeat(takenSeats(), n);
             if (s < 0) break;
             Net.setSeat(p.id, s);
             sendState(p.id, s);
         }
+        rosterChanged();
+    }
+
+    /* ---------- the room's bot (#36) ----------
+       A two-seat room whose other seat is empty can play against a bot instead of waiting.
+       The choice is part of the settings config, so everyone sees it and it travels with
+       `lobby` / `start` / `state`; the transport host runs the seat. A person always beats
+       the bot to a seat: the bot steps aside when a friend joins the lobby, and when
+       everyone comes back from a game with somebody waiting to play. */
+    function dropBot(why) {
+        if (!isHost() || botSeat() < 0) return;
+        Settings.setBot(null, false);
+        netSend({ t: "lobby", s: Settings.read() });   // …and the friends mirror it
+        h.renderLobby();
+        if (why) toast(why);
+    }
+    // the host is back in the lobby: give the bot's seat to somebody who is waiting for one
+    function enteredLobby() {
+        if (!online() || !isHost()) return;
+        if (botSeat() >= 0 && Net.peers.some((p) => p.open && p.seat < 0 && wantsSeat(p))) dropBot("The bot steps aside for a friend.");
+        reseat();
+    }
+
+    /* ---------- swapping seat and spectator role in the lobby (#39) ----------
+       Three people who want to play two against one and then swap who plays used to end
+       up in odd states, so a seat change is one round trip through the host: it decides,
+       tags the connection ("wants no seat" survives a reconnect through the dial's
+       metadata) and answers with the usual `state` / `roster`. Never during a game. */
+    const ANY_SEAT = -2;                                     // "any free seat, you pick"
+    // a free seat right now (the lobby's Take a seat is disabled without one)
+    const seatFree = () => online() && missingSeats().length > 0;
+    function switchSeat(want) {
+        if (!online() || inGame() || r.watch) return;
+        if (want === -1 ? Match.me < 0 : Match.me >= 0) return;        // already there
+        if (want !== -1 && !seatFree()) return;
+        if (isHost()) { applySeatWish(null, want); return; }
+        netSend({ t: "seat", want });
+    }
+    // host: hand a seat to a connection (`id` null = to myself), or take its seat away
+    function applySeatWish(id, want) {
+        const n = playersNow();
+        if (want === -1) {
+            if (id === null) { r.chose = true; setSeat(-1, true); }
+            else { Net.setSeat(id, -1); Net.setMeta(id, { spectate: true }); sendState(id, -1); }
+            rosterChanged();
+            return;
+        }
+        const taken = takenSeats(id === null ? undefined : id);
+        const s = (Number.isInteger(want) && want >= 0 && want < n && !taken.has(want)) ? want : freeSeat(taken, n);
+        if (s < 0) { if (id !== null) sendState(id, -1); return; }     // nothing free: leave them watching
+        r.left.delete(s);
+        if (id === null) { r.chose = false; setSeat(s, false); }
+        else { Net.setSeat(id, s); Net.setMeta(id, { spectate: false }); sendState(id, s); }
         rosterChanged();
     }
 
@@ -288,8 +384,10 @@ const Room = (() => {
             rematch: inGame() && Match.state.over && votedMyself(),
         };
     }
+    // the spectator code is room state the players share; a viewer never receives it (it
+    // already has it) and, most of all, no message ever carries the room code itself (#29)
     function sendState(id, guestSeat) {
-        Net.sendTo(id, { t: "state", from: Match.me, you: guestSeat, settings: Settings.read(), names: names(), ...roomState() });
+        Net.sendTo(id, { t: "state", from: Match.me, you: guestSeat, settings: Settings.read(), names: names(), ...roomState(), spec: guestSeat >= 0 ? r.spec : undefined });
     }
     function syncMessage() {
         const st = Match.state;
@@ -325,10 +423,14 @@ const Room = (() => {
         // else it watches (also when it asked to spectate)
         hello(msg, id) {
             if (!isHost()) return;
+            const conn = Net.peers.find((p) => p.id === id);
             const n = playersNow();
+            // a friend arriving in the lobby beats the room's bot: it steps aside (#36)
+            if (!msg.spectate && !watcherConn(conn) && !inGame() && botSeat() >= 0 && freeSeat(takenSeats(id), n) < 0) dropBot("A friend joined. The bot steps aside.");
             const taken = takenSeats(id);
             let seat = -1;
-            if (!msg.spectate) seat = (msg.seat >= 0 && msg.seat < n && !taken.has(msg.seat)) ? msg.seat : freeSeat(taken, n);
+            // a spectate-link viewer only ever watches, whatever its hello says (#29)
+            if (!msg.spectate && !watcherConn(conn)) seat = (msg.seat >= 0 && msg.seat < n && !taken.has(msg.seat)) ? msg.seat : freeSeat(taken, n);
             Net.setSeat(id, seat);
             Net.setMeta(id, { name: Prefs.cleanName(msg.name) });      // the dial's metadata already had it; this keeps it fresh
             if (seat >= 0) r.left.delete(seat);
@@ -348,6 +450,7 @@ const Room = (() => {
             const you = msg.you >= 0 ? msg.you : -1;
             if (msg.names) r.roster.names = msg.names;
             r.left.clear();
+            if (msg.spec) r.spec = msg.spec;          // players carry the spectator code, so a takeover keeps the link alive (#29)
             setSeat(you, you < 0);
             Settings.write(msg.settings);
             if (msg.rev >= r.rev) {
@@ -367,6 +470,13 @@ const Room = (() => {
             }
             setUrlRoom(Net.code);
             if (msg.rematch) HANDLERS.rematch({ g: Match.gameNo + 1, from: msg.from });
+        },
+        // a guest wants to sit down or step back to watching (#39); the host decides
+        seat(msg, id) {
+            if (!isHost() || inGame()) return;
+            const conn = Net.peers.find((p) => p.id === id);
+            if (!conn || watcherConn(conn)) return;   // a spectate-link viewer only ever watches (#29)
+            applySeatWish(id, msg.want === -1 ? -1 : msg.want);
         },
         // somebody renamed themselves (#35). Only the host acts on it: it keeps the name on
         // that connection and sends a fresh roster, so everyone (spectators included) agrees.
@@ -540,8 +650,8 @@ const Room = (() => {
         if (!online()) return;
         $("net-dot").className = "net-dot " + Net.status;
         const missing = Net.connected ? missingSeats().length : 0;
-        $("net-text").textContent = Match.spectator && Net.connected ? "Spectating" : missing && !two() ? `Waiting for ${missing}…` : (STATUS_TEXT[Net.status] || Net.status);
-        $("net-code").textContent = Net.code ? "Room " + codeText() : "";
+        $("net-text").textContent = Match.spectator && Net.connected ? (r.watch ? "Watching" : "Spectating") : missing && !two() ? `Waiting for ${missing}…` : (STATUS_TEXT[Net.status] || Net.status);
+        $("net-code").textContent = r.watch || !Net.code ? "" : "Room " + codeText();   // a viewer never sees a code (#29)
         for (let k = 0; k < 4; k++) { const you = $(`p${k}-you`); if (you) you.hidden = Match.me !== k; }
         Game().render();                              // cell locks depend on the connection
     }
@@ -578,7 +688,8 @@ const Room = (() => {
         const game = inGame();
         const rec = Match.record();
         Session.save({
-            code: Net.code, me: Match.me, spectator: Match.spectator, role: Net.role, gameNo: Match.gameNo, rev: r.rev, phase: h.phase(), config: Match.config,
+            code: Net.code, me: Match.me, spectator: Match.spectator, watch: r.watch, spec: r.spec, role: Net.role,
+            gameNo: Match.gameNo, rev: r.rev, phase: h.phase(), config: Match.config,
             history: game ? rec.history : [], outs: game ? rec.outs : [], clocks: rec.clocks, codeHidden: r.codeHidden,
         });
     }
@@ -593,9 +704,10 @@ const Room = (() => {
     function init(handlers) { h = { ...h, ...handlers }; }
 
     return {
-        init, enter, leave, roomLink, hideCode, codeText, newGame, bump, save, render, renderNetBox, updateBanner, turnHint,
+        init, enter, leave, roomLink, spectateLink, hideCode, codeText, newGame, bump, save, render, renderNetBox, updateBanner, turnHint,
         presentSeats, missingSeats, occupiedSeats, allHere, live, who, two, playersNow, names, nameChanged,
-        startFromLobby, requestRematch, rematchWaitText, sendMove, sendSync, reseat,
+        startFromLobby, requestRematch, rematchWaitText, sendMove, sendSync, reseat, seatFree, enteredLobby, botSeat,
+        watchInstead: () => switchSeat(-1), takeSeat: (seat = ANY_SEAT) => switchSeat(seat),
         onIdle: processIncoming,
         onChanged: (kind) => { if (kind === "move") r.syncSentAt = -1; save(); },
         onFlag: (p) => netSend({ t: "timeout", p, g: Match.gameNo }),
@@ -605,10 +717,12 @@ const Room = (() => {
         // spectators step through a finished game on their own (the host would refuse it anyway)
         review: (ply) => { if (!Match.spectator) netSend({ t: "review", ply, g: Match.gameNo }); },
         accepts, keepsSeats, PLAYERS_ONLY,
-        react: (e) => netSend({ t: "react", e }),
+        // `seat` overrides the sender: the room's bot reacts from its own seat (#36)
+        react: (e, seat) => netSend({ t: "react", e, ...(seat >= 0 ? { from: seat } : {}) }),
         get rev() { return r.rev; }, set rev(v) { r.rev = v; },
         get spectators() { return r.roster.spectators; },
         get votes() { return r.votes; }, get votedMyself() { return votedMyself(); },
         get online() { return online(); }, get codeHidden() { return r.codeHidden; }, get isHost() { return isHost(); },
+        get watching() { return r.watch; }, get spec() { return r.spec; },
     };
 })();

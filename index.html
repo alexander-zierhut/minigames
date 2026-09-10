@@ -72,6 +72,11 @@
             <button class="btn ghost install-btn" id="btn-replays">🎬 Replays</button>
             <button class="btn ghost install-btn" id="btn-changelog">📜 Changelog</button>
         </div>
+        <!-- a newer version was deployed while this page was open (#40); title screen only -->
+        <div class="update-notice" id="update-notice" hidden>
+            <span>A new version is ready.</span>
+            <button class="btn small primary" id="btn-update-reload">Reload</button>
+        </div>
     </div>
 </section>
 
@@ -109,6 +114,14 @@
             </div>
             <!-- one card per seat, from #tpl-lobby-player -->
             <div class="lobby-players" id="lobby-players"></div>
+            <!-- online only: swap between playing and watching in the lobby (#39) -->
+            <div class="seat-actions" id="seat-actions">
+                <button class="btn quiet small" id="btn-watch" hidden>Watch instead</button>
+                <button class="btn quiet small" id="btn-take-seat" hidden>Take a seat</button>
+                <!-- a two-seat room whose other seat is empty can play a bot instead of waiting (#36) -->
+                <button class="btn quiet small" id="btn-room-bot" hidden>Against a bot instead</button>
+                <button class="btn quiet small" id="btn-room-bot-off" hidden>Wait for a friend instead</button>
+            </div>
             <div class="lobby-status" id="lobby-status"></div>
             <div class="lobby-status" id="lobby-spectators"></div>
         </div>
@@ -481,6 +494,7 @@
 <script src="client/lib/sound.js"></script>
 <script src="client/lib/install.js"></script>
 <script src="client/lib/replays.js"></script>
+<script src="client/lib/update.js"></script>
 <script src="client/games/rules.js"></script>
 <script src="client/games.js"></script>
 <script src="client/games/chain-rules.js"></script>

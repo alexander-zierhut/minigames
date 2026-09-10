@@ -41,6 +41,7 @@ Scripts, in order (each defines the global named in brackets):
 | `client/lib/sound.js` | `Sound` | Bus events → sound cues; synthesized Classic set, Blocks files (see Sounds) |
 | `client/lib/install.js` | `Install` | "Add to home screen" button (beforeinstallprompt) |
 | `client/lib/replays.js` | `Replays` | replay files (format, version + migrations, validation) and the IndexedDB store of the games this device played (#42) |
+| `client/lib/update.js` | `Update` | polls `version.json` on the title screen, the "new version" notice and the idle reload (#40) |
 | `client/games/rules.js` | `Rules` | base state, turn passing, the **pure game loop** (`create/step/eliminate/apply/replay`) shared by the engine, bots and scripts |
 | `client/games.js` | `Games`, `Engine`, `Hud` | registry, the engine shell every game shares, the generic HUD renderer |
 | `client/games/chain-rules.js` | `ChainRules` | Chain React rules, pure (no DOM) |
@@ -133,12 +134,27 @@ No service worker (nothing is cached; the deploy's hashed assets handle freshnes
   `assets/main.<hash>.css` (all stylesheets concatenated, `../textures/x.png` rewritten
   to hashed names) + `assets/textures/<name>.<hash>.png` + `assets/sounds/<name>.<hash>.ogg`
   (every `client/sounds/<file>` string in the JS bundle is rewritten to the hashed path —
-  that is how `Sound.FILES` finds them) + the icon files. Hashes are content hashes →
-  cache busting by filename. Env: `DIST_DIR`, `SKIP_MINIFY=1`.
-- `.github/workflows/ci.yml`: job `test` (npm ci → unit → e2e) on push to `main`, PRs
-  and manual; job `deploy` (`needs: test`, pushes to `main` only): build, `aws s3 sync`
+  that is how `Sound.FILES` finds them) + the icon files + **`version.json`** (#40:
+  `{ version, commit, builtAt }`, `version` = the very stamp that goes into
+  `<meta name="version">`, `commit` = the full sha; `dev` unbundled). Hashes are content
+  hashes → cache busting by filename. Env: `DIST_DIR`, `SKIP_MINIFY=1`.
+- `.github/workflows/ci.yml` runs on push to `main`, on PRs and manually, **in parallel
+  jobs**: `unit` (npm ci → `npm run test:unit`, the build test included) and `e2e`,
+  a matrix of `SHARDS` = 4 shard jobs. Every shard checks out, `npm ci` (with the
+  setup-node npm cache) and runs its own list of e2e files
+  (`node scripts/ci/shards.mjs <shard> <SHARDS>`, see Tests) with
+  `node --test --test-concurrency=1 --test-timeout=300000`, so a shard still runs one
+  Chrome-heavy file at a time; `fail-fast: false` keeps a flaky online shard from
+  cancelling the others, and each shard uploads its `E2E_SHOTS` folder as
+  `e2e-screenshots-<n>` on failure. A tiny gate job **literally named `test`**
+  (`needs: [unit, e2e]`, `if: always()`) fails unless both results are `success`: that is
+  the check branch protection requires, so the jobs above can be renamed or resharded
+  without touching the repository settings. Wall clock: about 2 minutes instead of 7 to 10.
+  Job `deploy` (`needs: [unit, e2e]`, pushes to `main` only): build, `aws s3 sync`
   assets with `Cache-Control: public, max-age=31536000, immutable`, root files with
-  1-day cache, `index.html` with `no-cache`, then `--delete` sync of stale files.
+  1-day cache, `index.html` **and `version.json`** with `no-cache` (both uploaded one by
+  one), then `--delete` sync of stale files that excludes `version.json` so its
+  no-cache header cannot be overwritten.
   Bucket `minigames.alzlper.com`, region `nl-ams`, endpoint `https://s3.nl-ams.scw.cloud`.
   Credentials: repo secrets `SCW_ACCESS_KEY` / `SCW_SECRET_KEY` = non-expiring API key of
   IAM application `minigames-website` (id `300c3839-68e5-4fc9-9a66-9321af7ffe1e`, policy
@@ -147,7 +163,7 @@ No service worker (nothing is cached; the deploy's hashed assets handle freshnes
   access, that application full access, `*` GetObject. Website mode (index + error
   document `index.html`); DNS CNAME to `minigames.alzlper.com.s3-website.nl-ams.scw.cloud`.
 - Branch protection on `main` requires the `test` check for PRs (admins not enforced,
-  so the owner can push directly).
+  so the owner can push directly) — that is the gate job above, never a real test job.
 
 ## Flow: title → room lobby → game (the "party" model)
 
@@ -160,9 +176,22 @@ to try things").
   spectators." — the seat count itself is picked in the lobby, #28),
   section *Offline* with `Local multiplayer` (`#btn-local`) and `Against a bot`
   (`#btn-bot`), the foot with `#btn-install` (see Install), `#btn-replays` (🎬, the replays
-  screen, #42) and `#btn-changelog`. No Look
+  screen, #42) and `#btn-changelog`, and under
+  it `#update-notice` (see "Version updates"). No Look
   control here (owner: only in the preferences, #9). Never scrolls on a phone. The ⚙
   preferences button floats top-left on every screen.
+- **Version updates** (`client/lib/update.js`, #40): while the title screen shows, `Update`
+  fetches `version.json` (`cache: "no-store"`, 4 s cap) on load, whenever the tab becomes
+  visible and every `Update.EVERY_MS` (3 min), and compares it with the running
+  `<meta name="version">` (`Update.isNewer(running, latest)`: two different non-empty
+  stamps, never "dev", so the unbundled dev page and the tests never poll). A different
+  stamp sets `Update.available` and shows `#update-notice` ("A new version is ready." plus
+  `#btn-update-reload`). **Only on the title screen**: `app.js`'s `show()` calls
+  `Update.screenChanged()`, which hides the notice in the lobby and in a game and shows it
+  again on the way back, so a result that arrives elsewhere simply waits. After
+  `Update.AUTO_MS` (20 s) with the notice up and no click or key press the page reloads
+  itself once (`Update.reload`, replaceable in tests); every failure (offline, 404,
+  timeout, garbage) is silent.
 - **Lobby** (`#screen-lobby`), same screen for local and online (`Match.mode`), in **three
   calm blocks** separated by a hairline (`.lobby-group`, one `border-top`), then one primary
   action:
@@ -180,14 +209,17 @@ to try things").
      `#tpl-lobby-player` (online only; as many as the *Players* control says; the name, a
      small `(you)` in `.lp-you`, and `#lp-<k>-status` "connected" / "not here yet" /
      "ready"; an absent seat gets `.absent` = a dashed, muted placeholder card; the card
-     wraps its status onto a second line rather than cutting a long name off), and the
-     notes `#lobby-status` / `#lobby-spectators` ("N spectator(s) watching"). **The coming
-     seat controls go here**: "Watch instead" / "Take this seat" on the seat cards, and
-     "Against a bot instead" while a two-player room waits, both under `#lobby-players`.
+     wraps its status onto a second line rather than cutting a long name off), then the
+     quiet seat controls `#seat-actions` (`#btn-watch` "Watch instead" for a seated player,
+     `#btn-take-seat` "Take a seat" for a spectator, disabled without a free seat, #39;
+     `#btn-room-bot` "Against a bot instead" while a two-seat room waits for the friend and
+     `#btn-room-bot-off` "Wait for a friend instead" once a bot is set, #36) and
+     the notes `#lobby-status` / `#lobby-spectators` ("N spectator(s) watching").
   3. **Group "Game"** (`#group-game`): the picker (one `.game-card[data-game]` per
      registered game, built by `Settings.init`; each card says "2 to 4 players" and a game
      that doesn't take the chosen count is grayed out, `.unsupported` + `disabled`, #28),
-     its tagline (`#menu-tagline`), the *Opponent* row in bot mode (`#btn-opponent`) and
+     its tagline (`#menu-tagline`), the *Opponent* row (`#btn-opponent`, in bot mode and
+     while a room has a bot, #36) and
      the settings summary button (`#btn-settings` → `#settings-modal`).
   Then `.lobby-foot`: `Start game` (`#btn-start`, the one big primary button, its text also
   says why it is disabled) and a quiet text button `Leave room` / `Back` (`#btn-lobby-back`,
@@ -232,7 +264,7 @@ to try things").
   "Bot" wherever a player sees it (`Opponent.NAME`; `Bots.botFor(game, cfg)` picks it): the
   modal is one step (description, scores, difficulty, Cancel / Play). Picking a game does
   **not** open it (#12): the default is the middle difficulty; the row shows the choice.
-  You are seat 0, the bot seat 1.
+  You are seat 0, the bot seat 1. **A room can play a bot too (#36)**, see "The room's bot".
 - `phase` (app.js) ∈ `menu | lobby | game | replays` — Room reads it through its `phase()` handler.
   `Match.gameNo` increments per started game (local too); `Match.startPlayerFor(g,
   players) = (g - 1) % players` → seat 0 starts game 1, then the next seat, round-robin.
@@ -281,8 +313,12 @@ restores form values on reload).
   ms) and `chainRule`/`chainLen` (win on N explosions, off by default, N default 15;
   owner dislikes the rule but wanted it available).
 - `Settings.read()` returns the **config** a game starts with: `{ game, players, n,
-  timer, timerSel, timerCustom, …every game field of every game }` (all fields travel so
-  a mirrored settings message is complete for any game the room may pick). Engines get it
+  timer, timerSel, timerCustom, bot, …every game field of every game }` (all fields travel so
+  a mirrored settings message is complete for any game the room may pick). `bot` (#36) is
+  `null` or `{ id, difficulty, seat: 1 }`: `Settings.setBot(choice[, announce])` /
+  `Settings.bot`, cleared by `setMode` for anything but `online` and by `Room.leave`, so it
+  belongs to one room and never leaks into offline play. It is deliberately **not** part of
+  the summary text: the lobby's *Opponent* row shows it. Engines get it
   as `config` (plus `startPlayer`) and read only what they need.
 - Summary text: `n × n` · (`N players` when more than two) · `describeRules(cfg)` parts ·
   timer · `describeOptions(cfg)` parts (e.g. "7 × 7 · 5 in a row · 3 min timer",
@@ -589,14 +625,25 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
 
 - Room code: 5 chars from `ABCDEFGHJKMNPQRSTUVWXYZ23456789`; `normalizeCode` maps O→0,
   I/L→1. Peer id = `chainreact-v1-<CODE>`.
+- **Two codes per room (#29)**: the room code (players) and an independent **spectator
+  code** (`Net.randomCode()`, never derived from the room code). The host registers a
+  **second peer** `chainreact-v1-s-<SPECTATOR CODE>` (`Net.hostSpectators(code)`,
+  `Net.SPEC_PREFIX`; retried 4× on `unavailable-id`, torn down in `leave()` and whenever
+  this device stops hosting). Viewers open the room with `Net.open(spec, handlers,
+  "spectator")`: they dial that peer, never claim a room id (no takeover) and never learn
+  the room code. Such connections are tagged `spectator: true` in `Net.peers` and can never
+  hold a seat. The spectator code is room state the players share (`Room.spec`, in `state
+  {spec}` to seated guests only and in the session), so whoever ends up hosting registers
+  the same viewer peer and the 👀 link keeps working.
 - **Transport role**: whoever claims the room peer id is `host`; on `unavailable-id` the
   others become `guest` and dial the host — so "Create room" and "both type the same
-  code" share `Net.open(code, handlers, preferredRole)`. The host keeps **one
-  DataConnection per guest** (`conns`, each `{ c, id: "c<n>", seat, meta, lastPong }`):
+  code" share `Net.open(code, handlers, preferredRole)` (`preferredRole` = `"guest"` /
+  `"spectator"` / undefined). The host keeps **one
+  DataConnection per guest** (`conns`, each `{ c, id: "c<n>", seat, meta, spectator, lastPong }`):
   `Net.send(obj)` broadcasts from the host (guests send to the host), `Net.sendTo(id,
   obj)` / `Net.sendExcept(id, obj)` address one guest / all but one, `Net.peers` lists
-  `{ id, seat, meta, open, silent }`, `Net.setSeat(id, seat)` tags a connection with the
-  seat the app assigned. `Net.connected` = at least one open connection (host) / the
+  `{ id, seat, meta, spectator, open, silent }`, `Net.setSeat(id, seat)` tags a connection
+  with the seat the app assigned, `Net.setSpectate(id, on)` with "does not want one" (#39). `Net.connected` = at least one open connection (host) / the
   host connection (guest). Handlers get the connection id: `onOpen(role, id)`,
   `onClose(reason, id)`, `onMessage(msg, id)` (`"host"` on a guest); `admit(meta,
   peers)` lets the app decide whether a newcomer may join. `handlers.preferHost` (a former
@@ -617,6 +664,37 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   number of seats is `config.players` (`playersNow()`: the running game's, else the
   settings'); when the *Players* setting changes the host **reseats** (`reseat`): seats ≥
   `players` are taken away (`state {you: -1}`), people without a seat get a free one.
+- **The room's bot (#36)**: instead of waiting for the friend, a two-seat room can put a
+  bot on the empty seat. It is **room state in the config** (`config.bot = { id, difficulty,
+  seat: 1 }`, see Settings), so it travels in `lobby {s}` / `start {config}` / `state` and
+  everybody sees "Bot / ready" on that seat card, the *Opponent* row to change the level and
+  an enabled Start. `#btn-room-bot` opens the usual bot modal (Play sets it, with the room's
+  settings, so a rule variant picks a bot that knows it), `#btn-room-bot-off` clears it; if the
+  room's rules change under a bot that cannot play them (#35's Yavalath), `Match.setupBot` puts
+  the one `Opponent.current(game, config)` names on the seat instead.
+  The **transport host runs the seat** (`Match.makeSeats` asks `hostsBot()` =
+  `Room.isHost`; for everybody else it is a `remote` seat called "Bot"): `botTurn` relays its
+  move through `onLocalMove` like a click, its persona's reactions go out through
+  `onBotReact` as `react {from: 1}`, and `Room.onRole` → `Match.refreshSeats()` hands the
+  seat to whoever hosts after a takeover or a refresh (a fresh seed then, which is fine).
+  Presence treats the bot seat as present while its host is (`presentSeats`), `allHere()`
+  therefore works with nobody else in the room, `rematchComplete()` counts the bot as having
+  voted, and `takenSeats` protects its seat. **A person always beats the bot to a seat**: it
+  steps aside (`dropBot`, a toast, a `lobby` message) when a friend joins the lobby with no
+  free seat left, and when everyone is back in the lobby with somebody waiting for a seat
+  (`Room.enteredLobby()`, called by app.js's `backToLobby`); during a running game the
+  newcomer simply watches. Spectate-link viewers never displace it.
+- **Swapping seat and spectator role (#39)**, in the lobby only (never under a running
+  game): `Room.watchInstead()` / `Room.takeSeat()` send `seat {want}` (`-1` = watch, a seat
+  number, or `Room`'s `ANY_SEAT`); the host decides in `applySeatWish` (its own switch takes
+  the same path with `id = null`): it frees the seat (`Net.setSeat(id, -1)` +
+  `Net.setSpectate(id, true)`, so a later `reseat` does not hand it straight back and the
+  next dial's metadata says the same) or gives a free one, then answers `state {you}` to
+  that connection and a `roster` to everyone. `Room.setSeat` follows through everywhere:
+  `Match.setSeat`, the URL (`&spectate=1` for a seatless player, so a refresh keeps the
+  role), the net box, the lobby, the Rematch buttons and the session. A spectate-link
+  connection is refused (`spectator` in `Net.peers`), and the *Players* control alone never
+  re-seats somebody who chose to watch — only "Take a seat" does.
 - **Presence** (`presentSeats()`): the host derives it from its connections (an open
   connection with that seat, not in Room's `left` set), guests from the host's `roster
   {present[], spectators, left[], names[]}` message (sent on every change: hello, close,
@@ -686,9 +764,11 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   the guest rebuilds the game from the host's history (`rebuiltAt` remembers the
   attempt). A second mismatch at the same point → both back to the room with a toast,
   never two different games.
-- Share link = `<page URL without query>?room=CODE`; `?room=` on load auto-joins;
-  `history.replaceState` keeps `?room=` (and `&spectate=1` for a spectator) in the URL
-  while in a room. Spectate link = `?room=CODE&spectate=1` (see Spectators).
+- Share link = `<page URL without query>?room=CODE` (`Room.roomLink()`); `?room=` on load
+  auto-joins; `history.replaceState` keeps `?room=` (and `&spectate=1` for somebody without
+  a seat) in the URL while in a room. **Spectate link = `?watch=<SPECTATOR CODE>`**
+  (`Room.spectateLink()`, #29): a code of its own, so removing a parameter cannot promote a
+  viewer; a viewer's address bar carries only `?watch=` (see Spectators).
 - **Hidden room code** (#19, streamers): `Room.hideCode(on)` / `Room.codeHidden` — the
   lobby code and the HUD net box show `•••••` (`Room.codeText()`), `setUrlRoom` drops
   `?room=` from the address bar, the session stores `codeHidden`, and the boot rejoins a
@@ -696,11 +776,12 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   matching `?room=`). `Net.code`, the share / spectate links and `Copy code` are untouched
   — hiding is display only, per device, never sent to the room. The lobby's eye button
   (`#btn-hide-code`, 👁 / 🙈) toggles it; `Prefs.hideCode` makes new rooms start hidden
-  (`Room.enter(code, preferHost, seat, spectate, hidden = Prefs.get().hideCode)`).
+  (`Room.enter(code, { hidden: Prefs.get().hideCode, … })`).
 - Messages (JSON over reliable DataConnections; every message carries `from` = the
   sender's seat; game messages carry `g` = gameNo): `hello {seat, spectate, name, rev, phase,
-  config, g, rematch}`, `state {you, settings, names, rev, phase, config, g, rematch}` (host →
-  one guest), `roster {present, spectators, left, names}` (host → all), `name {name}` (#35:
+  config, g, rematch}`, `state {you, settings, names, rev, phase, config, g, rematch, spec}` (host →
+  one guest; `spec` = the room's spectator code, only to a seated guest, #29),
+  `roster {present, spectators, left, names}` (host → all), `name {name}` (#35:
   I renamed myself; guest → host only, never relayed — the host stores it on that connection
   and sends a fresh `roster`), `welcome`/`full`
   (transport level, host → guest on accept/reject), `lobby {s}` (settings changed;
@@ -716,7 +797,9 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   "Waiting for opponent…" / "Waiting for others… (k/N)" / "Accept rematch"), `review
   {ply, g}` (#38: I am looking at the position after `ply` moves of the finished game;
   relayed; receivers in the same finished game show the same ply and open the replay bar,
-  spectators included), `react
+  spectators included), `seat {want}` (#39: a guest asks the host for a seat (`-1` = to
+  watch instead); not relayed, the host answers `state` + `roster`; a spectate-link
+  connection is always refused), `react
   {e}` (relayed; dot in the sender's colour), `chat {text}` (relayed, see Chat), `leave`
   (sent 250 ms before closing; the app treats that seat as gone at once — Start is
   disabled before the connection actually drops; the host tells the others via
@@ -756,10 +839,11 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   `everConnected` picks the wording ("isn't here yet" vs "seems to be away");
   `ERROR_TEXT` maps PeerJS error types to plain sentences. `visibilitychange`/`online` →
   `Net.retryNow()`. The HUD net box shows "Waiting for N…" when seats are empty (3+).
-- Page refresh: `sessionStorage["chainreact.session"]` = code, me (seat), spectator,
-  role, gameNo, rev, phase, config, history, outs, clocks, codeHidden. With a matching
-  `?room=` (or a hidden code) the board is rebuilt from it (`replay(history, outs)`), then
-  the handshake fills in the rest.
+- Page refresh: `sessionStorage["chainreact.session"]` = code (the spectator code for a
+  viewer), me (seat), spectator, watch, spec, role, gameNo, rev, phase, config, history,
+  outs, clocks, codeHidden. With a matching `?room=` / `?watch=` (or a hidden code) the
+  board is rebuilt from it (`replay(history, outs)`), then the handshake fills in the rest.
+  `spec` is what lets a refreshing host register the same viewer peer again.
 - Takeover with several guests: every guest that misses the host twice tries to claim
   the id; one wins, the others get `unavailable-id` and dial it. The new host keeps its
   own seat, hands the others theirs back on `hello`, and a spectator that happens to
@@ -767,20 +851,32 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
 
 ### Spectators (`Match.spectator`, seat −1)
 
-Nobody is turned away: `admitGuest` always says yes, so whoever joins when every seat is
-taken becomes a spectator (the host's `hello` finds no free seat → `state {you: -1}`),
-and the **Spectate link** (`?room=CODE&spectate=1`, `#btn-share-spectate` in the lobby)
-makes someone a spectator on purpose even with a free seat (`hello {spectate: true}`;
-`reseat` never hands such a connection a seat, a plain-link spectator gets one when a
-seat frees up or *Players* grows). Spectators get everything the host sends (`state`,
+There are two ways to end up without a seat, and they differ in one thing only: whether
+the device knows the room code.
+- **Room-code spectators**: `admitGuest` always says yes, so whoever joins with the room
+  code when every seat is taken becomes a spectator (the host's `hello` finds no free seat
+  → `state {you: -1}`), as does a player who chose "Watch instead" (#39). They may take a
+  seat again ("Take a seat", see Seat switching); `reseat` alone never hands a seat to a
+  connection whose `meta.spectate` says it does not want one.
+- **Spectate-link viewers (#29)**: the 👀 link `?watch=<SPECTATOR CODE>`
+  (`#btn-share-spectate` → `Room.spectateLink()`) uses the room's second code and the host's
+  second peer, so the viewer never receives the room code in any message (`state` carries
+  `spec` only to seated guests; `roster`, `sync`, `lobby`, `chat` never carry a code at all,
+  and the dev panel prints none). Its connection is `spectator: true` in `Net.peers`: the
+  host's `hello` refuses it a seat whatever the message says, `reseat` skips it and it can
+  never take a seat. Its lobby shows "Watching" instead of the code, with no eye and no
+  share / copy button (only 👀 to pass its own link on); the HUD net box says "Watching"
+  with no code; `Room.watching` / `Room.codeText()` say so. It never claims the room id, so
+  when the host hands hosting over it simply reconnects to the new host by the same link.
+Both get everything the host sends (`state`,
 `roster`, `sync`, relayed `move`/`chat`/`react`/…): they see the board live with every
 cell `locked` (`makeSeats` → all seats `remote`, `mayPlay` false), "spectating" as the
 turn hint, "Spectating" in the HUD net box, on the lobby's Start button and on both
 Rematch buttons (disabled; a rematch request never shows them the overlay prompt), can
 chat ("Spectator: …", class `chat x`) and react (white dot), and step through a finished
 game with the replay bar for themselves (their `review` never reaches anyone else). `#lobby-spectators` shows
-"N spectator(s) watching" from `roster.spectators`. The session stores `spectator`, so a
-refresh keeps spectating; `metadata {spectate}` goes with every dial. The sound module
+"N spectator(s) watching" from `roster.spectators`. The session stores `spectator` and
+`watch`, so a refresh keeps spectating; `metadata {spectate}` goes with every dial. The sound module
 hears a neutral `over` for them. A spectator that wins a host takeover stays seatless.
 **Spectators only watch (#29):** the host refuses `Room.PLAYERS_ONLY` messages (`move,
 timeout, rematch, tolobby, lobby, start-request, review`) from a seatless connection before
@@ -871,7 +967,10 @@ re-checks that the same game is still on that turn (`running`, `gameNo`, busy, o
 back to a random legal move if the bot throws or answers illegally, then `engine.play(i)`
 like a click. **Names (#35)**: `Match.init({ names })` gets the seat names from app.js
 (`Room.names()` online, `Prefs.seatNames()` offline) and `Match.names` shows "Bot"
-(`Opponent.NAME`) on a bot seat. Player count is
+(`Opponent.NAME`) on a bot seat — in a room on every device, not only on the one running it
+(#36: `Room.names()` names the room's bot seat too, `Match.refreshSeats()` rebuilds the seats
+and the instance when hosting changes, `hostsBot()` says whether this device runs it).
+Player count is
 `config.players` (2–4 from the settings; 2 against a bot): rules, `Rules.pass`, `Clock`,
 HUD and lobby cards are written for N, the CSS has colours and textures for 4 seats, the
 host relays. "Play on this device" with 3–4 people = all seats `local`; a flag fall
@@ -978,7 +1077,9 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   `Opponent.current(game)` / `summary(game)` ("Bot · Normal · 100 % vs Random · 100 %
   puzzles") / `Opponent.NAME`.
 - **Persona** (`client/bot-persona.js`): `BotPersona.attach({ bot, seat, game, state,
-  estimate, color })` in `Match.start` (bot mode), `detach()` in `Match.stop` / `reset`. Listens
+  estimate, color, post })` wherever `Match` runs a bot seat (offline or the room's bot),
+  `detach()` in `Match.stop` / `reset`; `post` decides how a reaction is shown (default
+  `Reactions.receive`; in a room `Match` also relays it, #36). Listens
   to `game:new` (👋), `game:turn`/`game:move` (judges the human's move once it settled:
   praise when the bot's chance drops ≥ 15 points and the move was among the best, a
   surprised/teasing face when the move was among the worst 25 % and helped the bot ≥ 10
@@ -1105,11 +1206,13 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   script except `app.js` into jsdom (script list parsed from index.html; `Element.animate`
   polyfilled) for `framework.test.mjs` (`Rules.step/apply/replay` == engine play, the
   generic HUD from the model, settings rows generated from the definitions, Match seats /
-  bot seat / `whenIdle` / `record`, the seat names of #35 through `Match.init({ names })` and
+  bot seat / `whenIdle` / `record`, the room's bot in the config and its seat kinds per
+  device (#36), the seat names of #35 through `Match.init({ names })` and
   `Room.names()`, Session), `chain.test.mjs` (caps, waves, board-decided
   stop, win, chain rule, replay == play, hooks, HUD), `five.test.mjs`, `clock.test.mjs`
   (call `C.setup(0)` + `w.close()` at the end or the interval keeps the file alive),
-  `net.test.mjs` (codes), `prefs.test.mjs` (defaults, clamping, persistence, form wiring,
+  `net.test.mjs` (codes, the spectator peer id and that no room code can produce it, #29),
+  `prefs.test.mjs` (defaults, clamping, persistence, form wiring,
   the sections: `showSection` / `section` / `sectionSummary` and the menu rows, #32; the name
   of #35: a default drawn from `DEFAULT_NAMES` and persisted at once, `cleanName`, the empty
   fallback, `seatNames`, the field and the Profile row),
@@ -1127,8 +1230,17 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   on stop and at the end), `persona.test.mjs`, `changelog.test.mjs`, `calibrate.test.mjs`, `puzzles.test.mjs`,
   `party.test.mjs` (3–4 players: `out`/`remaining`/pass in the pure rules, engine
   `eliminate` + `replay(history, outs)` == live play, two-player flag fall, settings
-  players row / bot mode, the min-players floor and `Room.keepsSeats` of #34),
-  `build.test.mjs` (`SKIP_MINIFY=1 DIST_DIR=<tmp>`; hashed names, icons, deterministic).
+  players row / bot mode, the min-players floor and `Room.keepsSeats` of #34, the seat
+  request a spectator may send while everything else stays vetoed, #39),
+  `update.test.mjs` (#40: `isNewer`, a fake fetch, the notice on the title screen only, the
+  flag surviving until it shows, the idle reload happening once with an injected `reload`,
+  silence on every failure; each test calls `Update.stop()` + `w.close()` or the poll
+  interval keeps the file alive),
+  `build.test.mjs` (`SKIP_MINIFY=1 DIST_DIR=<tmp>`; hashed names, icons, deterministic,
+  `version.json` matching the meta stamp),
+  `ci.test.mjs` (the e2e shard split — every file in exactly one shard for 1 to 6
+  shards, shards balanced within a factor of 1.5, an unmeasured file placed, the size
+  table only naming files that exist, and `ci.yml`'s matrix / gate job matching the script).
   Cross-realm arrays: compare via `JSON.stringify`, not `deepStrictEqual`.
 - **E2E** (`npm run test:e2e`, `tests/e2e/*.test.mjs`): `harness.mjs` starts a static
   server (port 0) and headless Chrome via CDP (no Playwright; Node 22 `WebSocket`/`fetch`;
@@ -1165,28 +1277,56 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   both back to the room; both type the same new code at once), `party` (offline: four
   on one device with rotation and alternating starter, three in Chain React with
   elimination by the rules and the MC textures of seats 2/3, bot mode = 2 players),
-  `online-spectate` (**three browsers**: a third joins a running two-player game as a
-  spectator — locked board, moves arrive, chat as "Spectator", refresh keeps spectating,
-  follows a rematch, spectate link with a free seat, leaving drops the count),
+  `online-spectate` (**three browsers**: a third watches a running two-player game through
+  the `?watch=` spectate link — locked board, moves arrive, the room code appears nowhere,
+  no share / copy / eye in its lobby, chat as "Spectator", refresh keeps spectating,
+  follows a rematch, never gets a seat even with one free or by forging a `hello`, finds
+  the room again after the host handed hosting over, leaving drops the count),
+  `online-seats` (**three browsers**, #39: a third joins a full two-seat room and watches,
+  the host steps back with "Watch instead", the spectator takes the free seat and plays a
+  game against the guest while the host watches, back in the lobby the roles swap again, a
+  bigger *Players* count never re-seats a voluntary spectator, refreshes keep every role),
   `online-party` (**three browsers**: players 3, seats 1 and 2, start waits for
   everyone, moves by every seat relayed to everyone, chat/reaction colours, a guest
   refresh restores seat + board, rematch by every seat, one Back to room moves all, the
   players control cannot drop below the people in the room and the host refuses a forged
   `lobby` that tries it, #34),
   `bot` (offline vs bot: the one-step modal with scores and difficulty, "Bot" in the HUD, bot moves by itself, rematch, a premove clicked while the bot thinks, both games in the replays list),
+  `online-bot` (**three browsers**, #36: alone in a two-seat room "Against a bot instead"
+  puts a bot on the empty seat, it plays and a spectate-link viewer sees its moves and its
+  reactions, a friend joining mid-game watches and gets the seat back in the lobby when the
+  bot steps aside, the bot returns when the friend leaves and keeps playing across a refresh
+  of the host),
   `replays` (#42: a finished local game is saved and survives a reload in real IndexedDB, the
   list, watching one from move 0 to the end, saving it as a file and validating that file,
   opening `tests/replays/v1-chain.json` through the file input, the game filter, a refused
   file, deleting, and a 360×780 list that scrolls inside the card), `dist` (built bundle: hashed assets only,
-  preloader, playable, hashed sound files fetched after the audio unlock). Files run 2 at a time; each launches its own Chrome. `B.blank()`
+  preloader, playable, hashed sound files fetched after the audio unlock),
+  `update` (#40: the dev page never asks for version.json, a newer version from a `data:`
+  URL shows the notice on the title screen and hides it in the lobby, an idle title screen
+  reloads once with `Update.reload` counted instead, and the notice still fits 360×780).
+  Files run 2 at a time locally; each launches its own Chrome. `B.blank()`
   navigates to about:blank (a closed tab); outline colours transition for .25s → wait
   before reading computed styles. Any new join/rejoin behaviour gets a scenario in
   `online-edge` — the owner wants joining to feel rock solid.
+- **How CI runs them**: not one long serial run any more but four shard jobs, each
+  on its own runner and each running its files one at a time.
+  `scripts/ci/shards.mjs` owns the split: it lists `tests/e2e/*.test.mjs`, sizes each file
+  from a table of **measured seconds on the runner** (`SIZES`; a file that is not in it is
+  guessed, 45 s when its name starts with `online` because those need two or three
+  browsers, else 25 s) and hands them out longest-first to the emptiest shard, so a new
+  e2e file lands somewhere automatically and nothing has to be registered.
+  `node scripts/ci/shards.mjs` prints all shards with their estimate, `node
+  scripts/ci/shards.mjs 2 4` the file list of shard 2 (that is what the workflow runs).
+  Rooms use random codes, so two shards playing online at the same time cannot collide.
+  Refresh `SIZES` when a file grows a lot (`gh run view <id> --log` has a duration per
+  test); the numbers only steer the split, a wrong one costs balance, never correctness.
 
 ## Folders that are never deployed
 
 `docs/` (`docs/bots.md` = bot system reference and the list of current bots — keep it in
 step with the code), `scripts/` (headless loader, puzzle runner, benchmark, puzzle solvers/generators,
+`ci/shards.mjs` = the e2e shard split,
 verify, screenshot tour), `tests/` (incl. `tests/replays/`, the replay format samples). The deploy uploads `dist/`
 only; `build.mjs` bundles nothing outside `index.html`'s tags and `client/textures`.
 
@@ -1200,8 +1340,9 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Bus` | `on(event, fn) → off`, `off`, `emit(event, data)` — events listed in "Events" |
 | `Log` | `add(text, cls)`, `chat(...)`, `clear()`; 40 lines, `#log` only |
 | `Clock` | `setup(seconds, onFlag, players)`, `setActive`, `pause`, `resume`, `stop`, `snapshot`, `restore`, `isEnabled` |
-| `Net` | `open(code, handlers, preferredRole)`, `send`, `sendTo/sendExcept` (host), `setSeat(id, seat)`, `setMeta(id, patch)` (host), `leave`, `retryNow`, `randomCode`, `normalizeCode`; getters `code, role, status, connected, peers`; handlers `onStatus, onRole, onOpen, onClose, onMessage, preferHost, metadata(), admit` |
+| `Net` | `open(code, handlers, preferredRole)` (`"guest"` / `"spectator"`), `send`, `sendTo/sendExcept` (host), `setSeat(id, seat)`, `setMeta(id, patch)` (host), `hostSpectators(specCode)`, `leave`, `retryNow`, `randomCode`, `normalizeCode`, `PREFIX/SPEC_PREFIX`; getters `code, role, status, connected, peers, watching, iceInfo, transport`; handlers `onStatus, onRole, onOpen, onClose, onMessage, preferHost, metadata(), admit, relayOnly` |
 | `Install` | `init()`, `offered` |
+| `Update` | `init({url, current, onTitle, reload})`, `check()`, `isNewer(running, latest)`, `screenChanged()`, `stop()`; getters `available, latest, current`; writable `AUTO_MS`, `reload`; `EVERY_MS`, `TIMEOUT_MS` |
 | `Rules` | `base(config)`, `pass(state, alive)`, `remaining`, `index`, `inside`, `register(key, rules)`, `of(key)`, **`create(config[, rules])`, `step(rules, state, i) → result|null`, `eliminate(state, p, why)`, `apply(rules, state, history, outs) → applied`, `replay(record, ply) → state`** (`rules` = module or key) |
 | rules module | `create, ownerOf, isLegal, legalMoves, place, settle, conclude, estimate` (+ game helpers) — pure |
 | `Games` / engine | `register(def)`, `get/has/keys`, `positionAt(record, ply)`; engine `state, config, previewPly, newGame, play, replay, preview, finish, eliminate, abandon, render, isLegal, hash, record` |
@@ -1209,30 +1350,31 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `WinChance` | Bus-driven; `display`, `estimator`, `REFINE_MS`, `SMOOTH`, `DECIDED` |
 | `Bots` | `register, get, list, forGame, botFor(game, config), supports(id, config), create(id, {me, difficulty, seed, players, budget}), tools(game, opts), playout, rng, validate, benchmark/benchmarkOf, calibration/calibrationOf, estimator(game, config) → {bot, stages, at(state, nodes), quick}, toProbability(raw, cal), ESTIMATE_STAGES` |
 | bot definition | `id, name, game, version, description, difficulties [{id, label, nodes}], create(tools) → {move(state)}, evaluate?(state, tools) → raw, supports?(config) → bool, baseline?` |
-| `BotPersona` | `attach({bot, seat, game, state, estimate, color, delays?, cooldownMs?})`, `detach()`, `POOLS` |
+| `BotPersona` | `attach({bot, seat, game, state, estimate, color, post?, delays?, cooldownMs?})`, `detach()`, `POOLS` |
 | `Skins` | `init({onChange})`, `set(key)`, `current` (no `names()` since #35) |
-| `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `setMode(mode)`, `setPlayers(n)`, `setMinPlayers(n)`, `setLocked(on)`, `supports(key)`, `MIN_PLAYERS_HINT`, `game`, `players`, `minPlayers`, `locked`, `fields` |
+| `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `setMode(mode)`, `setPlayers(n)`, `setMinPlayers(n)`, `setBot(choice, announce?)`, `setLocked(on)`, `supports(key)`, `MIN_PLAYERS_HINT`, `BOT_SEAT`, `game`, `players`, `minPlayers`, `bot`, `locked`, `fields` |
 | `Prefs` | `init({onChange, context})`, `get() → {name, defaultName, volume, soundSet, sounds, hideCode, privateIp, developer}`, `set(patch)`, `open/close`, `feedbackUrl()`, `cleanName(s)`, `seatNames(count)`, `showSection(key)`, `sectionSummary(key)`, `CATEGORIES`, `SECTIONS`, `DEFAULT_NAMES`, `NAME_MAX`, `isOpen`, `section` |
-| `Opponent` | `init({onDone})`, `open(game)`, `current(game) → {id, difficulty, def}`, `summary(game)`, `NAME` ("Bot") |
+| `Opponent` | `init({onDone(game, played)})`, `open(game, config, choice?)`, `current(game, config) → {id, difficulty, def}`, `summary(game, config, choice?)`, `NAME` ("Bot") |
 | `Reactions` | `init({onSend, color})`, `receive(emoji, color)`, `place()`, `durationFor(recent)` |
 | `Chat` | `init(...)`, `send`, `receive(msg)`, `enable(on)` (see chat section) |
 | `Sound` | `Bus`-driven; `play(cue)` for tests, unlock on first gesture |
 | `Changelog` | `init()`, `open/close`, `render(doc[, all])`, `refUrl(ref)`, `technical(entry)`, `showTechnical`, `SHOW_DAYS` |
 | `Preload` | `textures()` |
-| `Session` | `save(data)`, `load()`, `clear()` (shape incl. `codeHidden`) |
+| `Session` | `save(data)`, `load()`, `clear()` (shape incl. `codeHidden`, `watch`, `spec`) |
 | `Replays` | `FORMAT`, `VERSION`, `MIGRATIONS`, `migrate(doc)`, `validate(doc) → {ok, error}`, `parse(text) → {ok, doc, error}`, `fromRecord(record, names, mode, opts)`, `idFor`, `fileName`, `when(iso)`, `summary(doc, id)`, `store.{save, list({game}), get, remove, clear, persistent}` (async, IndexedDB with a memory fallback) |
-| `Match` | `init(handlers)`, `start(cfg, gameNo)`, `watch(record)`, `stop()`, `reset(mode, me, spectator)`, `setSeat(me, spectator)`, `record()`, `flagged(p)`, `whenIdle(fn, key)`, `syncClock()`, `startPlayerFor`, `playerColor`, `isLocal/isBot`; getters `engine, state, names, running, mode, me, spectator, seats, config, gameNo, bot, botInfo, premove`; `THINK_MS` |
-| `Room` | `init(handlers)`, `enter(code, preferHost, seat, spectate, hidden)`, `leave()`, `roomLink`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `settingsChanged(cfg)`, `say(text)`, `react(e)`, `tolobby()`, `review(ply)`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/occupiedSeats/allHere/live/who/two/playersNow/turnHint`, `names()`, `nameChanged()`, `accepts(msg, seat)`, `keepsSeats(msg, occupied)`, `PLAYERS_ONLY`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden` |
+| `Match` | `init(handlers)`, `start(cfg, gameNo)`, `watch(record)`, `stop()`, `reset(mode, me, spectator)`, `setSeat(me, spectator)`, `refreshSeats()`, `record()`, `flagged(p)`, `whenIdle(fn, key)`, `syncClock()`, `startPlayerFor`, `playerColor`, `isLocal/isBot`; getters `engine, state, names, running, mode, me, spectator, seats, config, gameNo, bot, botInfo, premove`; `THINK_MS` |
+| `Room` | `init(handlers)`, `enter(code, { preferHost, seat, spectate, watch, spec, hidden })`, `leave()`, `roomLink(code?)`, `spectateLink()`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `seatFree()`, `watchInstead()`, `takeSeat(seat?)`, `enteredLobby()`, `botSeat()`, `settingsChanged(cfg)`, `say(text)`, `react(e, seat?)`, `tolobby()`, `review(ply)`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/occupiedSeats/allHere/live/who/two/playersNow/turnHint`, `names()`, `nameChanged()`, `accepts(msg, seat)`, `keepsSeats(msg, occupied)`, `PLAYERS_ONLY`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden`, `watching`, `spec` |
 
 Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM), `puzzles/runner.mjs`
 (`loadPuzzles`, `positionOf`, `evaluateBot`), `benchmark.mjs`, `calibrate.mjs`
 (`collect`, `fitLogistic`, `metrics`, `calibrate`), `puzzles/<game>/solver.mjs` +
-`generate.mjs`, `puzzles/verify.mjs`, `screenshots.mjs`.
+`generate.mjs`, `puzzles/verify.mjs`, `screenshots.mjs`, `ci/shards.mjs` (`listFiles`,
+`sizeOf`, `shards(files, count)`, `shardOf(n, count)`, `estimate`, `SIZES`).
 
 Protocol messages (host relays everything to the other guests): `hello, state, welcome/full
 (transport), lobby, start, start-request, tolobby, sync, move, timeout, rematch, review,
-react, chat, roster, name, leave, ping/pong` — fields in "Online play"; `name` and `roster`
-are the two that never get relayed (host to all, or guest to host only).
+seat, react, chat, roster, name, leave, ping/pong` — fields in "Online play"; `seat`, `name`
+and `roster` are the ones that never get relayed (host to all, or guest to host only).
 
 ## Lessons learned (keep these in mind before "improving" things)
 
@@ -1261,6 +1403,11 @@ are the two that never get relayed (host to all, or guest to host only).
   files and a third Chrome didn't come up under load: Chrome now picks its own port
   (`DevToolsActivePort`), launches retry once, and CI runs e2e files one at a time.
   Diagnostics on timeouts (page state + screenshot) turned "flaky" into "explainable".
+  **Parallelism belongs between runners, not inside one**: four shard jobs, each
+  still strictly serial, took CI from 7 to 10 minutes down to about 2 without bringing
+  the old port and startup flakiness back. Balance the shards by measured seconds (the
+  longest one is the wall clock) and keep a gate job under the name branch protection
+  requires, so resharding never needs a settings change.
 - **PeerJS ordering.** The first data message can arrive before the guest's own `open`
   event under load; `destroy()` emits `close` synchronously; a "room full" verdict can be
   the guest's own stale connection — handshake `welcome`/`full`, listen before `open`,
