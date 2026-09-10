@@ -344,9 +344,9 @@ restores form values on reload).
 
 ## Preferences (`client/prefs.js`, per device — the ⚙ button)
 
-`#prefs-btn` (class `corner-btn`, a pill fixed top-left on every screen: "⚙ Settings &
-Feedback" on desktop, "⚙ Settings" on phones via `.corner-long` / `.corner-short`, #25)
-opens `#prefs-modal`.
+`#prefs-btn` (class `corner-btn`, a pill fixed top-left on every screen, "⚙ Settings &
+Feedback" **everywhere** — the short phone label of #25 is gone (#43), phones only get a
+slightly smaller pill so it and the 😜 toggle never meet at 360 px) opens `#prefs-modal`.
 
 **Two levels (#32)**, because the list had grown too long: a **menu** (`#prefs-nav`) with
 one row per section (`#prefs-nav-<key>`, styled like the lobby's `.settings-summary`: icon,
@@ -1255,9 +1255,13 @@ route respectively.
 `#react-bar` top-right, starts collapsed behind the 😜 toggle; emojis 😂 🔥 💀 🤡 😱 👏 👍
 😎 🫡 😄 🥰 😲 😔 👋 🚨 🤖 + "L"/"EZ"/"GG" chips (the bar's own box never catches taps —
 `pointer-events: none` except the list and the toggle — and the toggle sits on the top
-edge next to ⚙, #7/#13; the expanded list stops 124px short of the left edge). `Reactions.place()` (called after every `fitBoard`) puts `#react-layer` **right
+edge next to ⚙, #7/#13). **The bar is a column (#43)**: the toggle on top (CSS `order: -1`,
+it comes second in the DOM) and the list right under it, right-aligned and 206px wide, so
+it wraps at five emojis per row and never reaches left across the ⚙ button; collapsed it
+is invisible and takes no taps. `Reactions.place()` (called after every `fitBoard`) puts `#react-layer` **right
 next to the board** when there is ≥ 66px of space (desktop), else in the free strip
-above the full-width board (or below it if that's bigger) — never over the board, never
+above the full-width board (at its left edge, where the open list is not) or below it if
+that strip is bigger — never over the board, never
 off-screen. Emojis drift right → left while falling the layer's height (wobble, fade,
 max 14 on screen). **Speed follows the rate** (#17): `Reactions.durationFor(recent)` with
 `recent` = reactions shown (own + received alike) in the last `RATE_WINDOW` 3 s before
