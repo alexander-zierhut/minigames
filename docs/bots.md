@@ -157,10 +157,12 @@ const r = await H.Bots.playout("chain", { n: 6 }, [a, b], { maxMoves: 600 });
 | id | name | game | difficulties | what it does |
 | --- | --- | --- | --- | --- |
 | `random-chain` | Random | Chain React | Normal | any legal move; the benchmark baseline |
+| `creeper-chain` | Creeper | Chain React | Easy 30 ms · Normal 150 ms · Hard 600 ms · Very hard 1500 ms | negamax alpha-beta with iterative deepening, Zobrist TT, killers/history, PVS + LMR, quiescence over explosive captures, on an Int8Array engine proven equal to the rules; evaluation = pieces + safe corner/edge bonus − exposure penalty, tuned by self-play. 100 % vs Random, 159/159 puzzles at Very hard (Easy 32 %, Normal 87 %, Hard 95 %). Provides the win chance. See its README. |
 | `random-five` | Random | Five Wins | Normal | any empty cell; the benchmark baseline |
+| `sensei-five` | Sensei | Five Wins | Easy 30 ms · Normal 150 ms · Hard 600 ms · Very hard 1500 ms | Int8Array board with incremental line-pattern records (fours, threes, four-makers), alpha-beta negamax with iterative deepening, Zobrist TT, killers/history, exact forced-move handling (own four, enemy fours, open threes), VCF/VCT threat searches with exact mate distance; works for any board size and win length. 100 % vs Random, 144/144 puzzles at Very hard (Easy 69 %, Normal 95 %, Hard 99 %). Provides the win chance. 9×9 with sound defence is drawish; its edge grows on bigger boards. See its README. |
 
-Real bots with Easy → Very hard levels are being added; each bot folder's README (when
-present) describes its search and evaluation, and its `benchmark.js` carries the scores.
+Each bot folder's README describes its search and evaluation; `benchmark.js` carries the
+scores shown in the picker.
 
 ## 9. Adding a bot — checklist
 
