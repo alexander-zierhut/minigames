@@ -32,8 +32,9 @@
    Levels: Easy = one ply with noise; Normal = two plies; Hard = four plies;
    Very hard = as deep as the budget allows.
 
-   estimate(state) gives the win chance of player 0 for the HUD: a fixed 600-node,
-   3-ply search mapped through a logistic curve. */
+   evaluate(state, tools) is the win-chance evaluation for the HUD (see "Judge" below):
+   a raw score from player 0's point of view in "pieces of advantage", searched under
+   tools.budget.nodes so every client computes the same number. */
 
 "use strict";
 
@@ -416,6 +417,41 @@
                 if (s.value - last >= every) { last = s.value; await breathe(); }
             }
         }
+        /* Judge (win-chance evaluation): iterative deepening over the given depth list,
+           yielding the node count after every root move like iterate(), returning the
+           scores of the depths that were fully completed: [{ depth, score }] for pos.mover,
+           starting with depth 0 = the quiescence value of the root itself. A depth the
+           budget cuts short is dropped entirely — a partial iteration would judge some
+           moves deeper than others — and the loop stops once a depth proves a forced
+           result (deeper cannot change it). */
+        *judge(pos, depths) {
+            const root = this.stack[0];
+            root.cnt.set(pos.cnt); root.own.set(pos.own);
+            root.mover = pos.mover; root.moved = pos.moved; root.cells0 = pos.cells0; root.cells1 = pos.cells1; root.over = false;
+            const scores = [];
+            const q = this.quiesce(root, 0, -INF, INF, this.p.qdepth);
+            if (this.aborted) return scores;
+            scores.push({ depth: 0, score: q });
+            yield this.nodes;
+            if (q > WIN_MIN || q < -WIN_MIN) return scores;
+            const m = this.genMoves(root, 0, -1), order = Array.from(this.moveBuf[0].ids.subarray(0, m));
+            const child = this.stack[1];
+            for (const depth of depths) {
+                let alpha = -INF, best = -INF, bestMove = -1;
+                for (const i of order) {
+                    applyInto(root, i, child, this.rule);
+                    const v = -this.negamax(child, depth - 1, 1, -INF, -alpha);
+                    if (this.aborted) return scores;
+                    if (v > best) { best = v; bestMove = i; }
+                    if (v > alpha) alpha = v;
+                    yield this.nodes;
+                }
+                scores.push({ depth, score: best });
+                order.splice(order.indexOf(bestMove), 1); order.unshift(bestMove);
+                if (best > WIN_MIN || best < -WIN_MIN) break;
+            }
+            return scores;
+        }
     }
 
     /* ---------- levels ---------- */
@@ -443,34 +479,78 @@
         return tools.pick(scored.slice(0, level.spread)).i;
     }
 
-    /* ---------- win-chance estimate for the HUD ----------
-       P(player 0 wins): a fixed 600-node, 3-ply search (no clock, so every client gets the
-       same number) plus the material share, mapped through a logistic curve whose scale
-       grows with the board (the evaluation counts pieces). Nothing is claimed before both
-       players have moved, and while the board is still nearly empty the estimate is pulled
-       towards 50 %: early judgements are mostly about tempo, not about who is winning. */
-    const EST_NODES = 600, EST_DEPTH = 3;
-    let estimator = null;                                   // its own small search, reused
-    function estimate(state) {
-        if (state.over) return state.winner === 0 ? 1 : state.winner === 1 ? 0 : 0.5;
-        if (state.players !== 2) return 0.5;
-        const pos = fromState(state), geo = pos.geo;
-        if (pos.moved !== 3) return 0.5;
-        let used = 0;
-        const deadline = { tick: () => ++used >= EST_NODES };          // fixed cap, no clock
-        if (!estimator) estimator = new Search(12);
-        estimator.reset(geo, ruleOf(state), deadline);
-        const r = estimator.run(pos, EST_DEPTH);
-        let v = r.depth === 0 ? evaluate(pos, DEFAULTS) : r.score;   // for the side to move
-        if (pos.mover === 1) v = -v;                                   // … now for player 0
-        if (v > WIN_MIN) return 0.98;
-        if (v < -WIN_MIN) return 0.02;
-        let m0 = 0, m1 = 0;
-        for (let i = 0; i < geo.N; i++) { if (pos.own[i] === 0) m0 += pos.cnt[i]; else if (pos.own[i] === 1) m1 += pos.cnt[i]; }
-        const z = v / (8 + geo.N / 3) + 3 * (m0 - m1) / (m0 + m1);
-        const sig = Math.min(0.97, Math.max(0.03, 1 / (1 + Math.exp(-z))));
-        const confidence = Math.min(1, (m0 + m1) / (geo.N / 2));
-        return 0.5 + (sig - 0.5) * confidence;
+    /* ---------- Judge: win-chance evaluation for the HUD ----------
+       evaluate(state, tools) → raw score for PLAYER 0 (0 = even, + = player 0 better,
+       ±Infinity = decided by rule or proven within the search), in the evaluation's units
+       (≈ pieces of advantage). The framework maps it to a probability with a calibration
+       fitted from self-play, so only consistency matters here — and stability: the HUD
+       must not flip from move to move because a shallow search always hands the side to
+       move the initiative (the odd/even horizon effect of Chain React). Hence:
+       - iterative deepening over EVEN depths only (both sides get to answer; blending
+         odd and even depths brought the zigzag back, because which depths complete
+         changes with the mover),
+       - only fully completed depths count; the value is the mean of the last three
+         completed ones (depth 0 = the root's quiescence value, so a 2 000-node call on
+         6×6 blends depths 0 and 2, 12 000 nodes 0, 2 and 4) — measured on self-play, the
+         blend is smoother AND predicts the outcome better than the last depth alone,
+       - a deep quiescence over explosive captures at every leaf, so no forced chain is
+         left hanging in the static evaluation (quiescence 3 → 10 halved the swing),
+       - no late-move reductions (they judge some moves shallower than others).
+       Tried and rejected: a "tempo-neutral" leaf (quiescence for the mover averaged with
+       the opponent's on the null move) — in Chain React the side not to move nearly
+       always has a capture threat, so it doubled the swing instead of removing it.
+       Budget: tools.budget.nodes exactly (deadline().tick() per node, no wall clock), so
+       a given budget gives the same number on every client. Above YIELD_BUDGET nodes the
+       search awaits tools.yield() every YIELD_EVERY nodes and returns a Promise; below it
+       the number comes back synchronously. A pooled Search per call keeps a pending
+       background refinement and a fresh quick call from sharing scratch buffers. */
+    const JUDGE = { ...DEFAULTS, qdepth: 10, lmr: false, evenOnly: true, blend: 3 };
+    const JUDGE_MAX_DEPTH = 40;
+    const YIELD_BUDGET = 5000;                              // node budgets above this yield to the page
+    const judgePool = [];
+    function judgeDepths() {
+        const out = [];
+        for (let d = JUDGE.evenOnly ? 2 : 1; d <= JUDGE_MAX_DEPTH; d += JUDGE.evenOnly ? 2 : 1) out.push(d);
+        return out;
+    }
+    // completed scores (for pos.mover) → raw score for player 0
+    function judgeValue(pos, scores) {
+        let v;
+        if (scores.length === 0) v = evaluate(pos, JUDGE);               // budget too small for a single quiescence
+        else {
+            const last = scores[scores.length - 1].score;
+            if (last > WIN_MIN) v = Infinity;
+            else if (last < -WIN_MIN) v = -Infinity;
+            else {
+                const k = Math.min(JUDGE.blend, scores.length);
+                v = 0;
+                for (let j = scores.length - k; j < scores.length; j++) v += scores[j].score;
+                v /= k;
+            }
+        }
+        return pos.mover === 0 ? v : -v;
+    }
+    function evaluateState(state, tools) {
+        if (state.over) return state.winner === 0 ? Infinity : state.winner === 1 ? -Infinity : 0;
+        if (state.players !== 2) return 0;
+        const pos = fromState(state), rule = ruleOf(state);
+        const budget = tools.budget.nodes, deadline = tools.deadline();
+        const search = judgePool.pop() || new Search(15, JUDGE);
+        search.p = JUDGE;
+        search.reset(pos.geo, rule, deadline);
+        const it = search.judge(pos, judgeDepths());
+        const finish = (scores) => { judgePool.push(search); return judgeValue(pos, scores); };
+        if (!(budget > YIELD_BUDGET)) {
+            for (;;) { const s = it.next(); if (s.done) return finish(s.value); }
+        }
+        return (async () => {
+            let last = 0;
+            for (;;) {
+                const s = it.next();
+                if (s.done) return finish(s.value);
+                if (s.value - last >= YIELD_EVERY) { last = s.value; await tools.yield(); }
+            }
+        })();
     }
 
     const def = Bots.register({
@@ -500,8 +580,8 @@
                 },
             };
         },
-        estimate,
+        evaluate: evaluateState,
     });
     // internals for bot.test.mjs (rules equivalence, evaluation, search) — not part of the bot API
-    def.internals = { geometry, fromState, apply, applyInto, makePos, evaluate, Search, DEFAULTS, LEVELS, WIN, WIN_MIN };
+    def.internals = { geometry, fromState, apply, applyInto, makePos, evaluate, Search, DEFAULTS, JUDGE, LEVELS, WIN, WIN_MIN };
 })();

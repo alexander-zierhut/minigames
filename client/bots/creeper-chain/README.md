@@ -47,19 +47,48 @@ covers hundreds of thousands of nodes even on a mid-range phone.
   quiescence). Hard and Very hard `await tools.yield()` every ~2 000 nodes (checked after
   each root move).
 
-## Win chance (`estimate`)
+## Win chance (`evaluate`)
 
-`estimate(state)` → P(player 0 wins), used by the HUD after every move:
+`evaluate(state, tools)` → raw score for **player 0** (0 = even, positive = player 0
+better, ±Infinity = decided by rule or proven by the search), in the evaluation's units
+(≈ pieces of advantage). The framework maps it to a probability with a calibration fitted
+from self-play (`scripts/calibrate.mjs`); a clear advantage is about **S ≈ 10** units
+(maximum-likelihood scale on ten Normal-vs-Normal games at 12 000 nodes: 10; at 2 000 and
+60 000 nodes: 9).
 
-- terminal positions are exact (1 / 0 / 0.5); 0.5 until both players have moved;
-- otherwise a fixed 600-node, 3-ply search (no clock: every client computes the same
-  number), scaled by `8 + N/3` (N = cells), plus three times the material share
-  `(pieces0 − pieces1) / pieces`, through a logistic curve clamped to 3–97 %; a proven
-  forced win/loss shows 98 % / 2 %;
-- while the board holds fewer than N/2 pieces the result is pulled towards 50 % in
-  proportion (opening judgements are about tempo, not about who is winning), which keeps
-  the first-move advantage within a few points;
-- ≈ 1–2 ms on 6×6.
+Built for stability, because a small odd-depth search always credits the side to move and
+that side alternates — the old 600-node estimate zigzagged by ±4 points every move:
+
+- iterative deepening over **even depths only**; only fully completed depths count and the
+  result is the mean of the last three (depth 0 = the root's quiescence value, so
+  2 000 nodes on 6×6 blend depths 0 and 2, 12 000 nodes 0/2/4, 60 000 nodes up to 6);
+- a **10-ply quiescence** over explosive captures at every leaf (no hanging chain in the
+  static evaluation), no late-move reductions;
+- the node budget is honoured exactly (`tools.deadline()`, one tick per node, no clock), so
+  both online clients compute the same number; above 5 000 nodes the search yields to the
+  page every 2 000 nodes and returns a Promise, below that a plain number;
+- terminal positions are exact, a proven forced win/loss is ±Infinity (an immediate
+  takeover for the side to move is always found), an empty board is 0, mirror images
+  negate exactly.
+
+Measured on the same ten games (six seeded random plies, then Creeper Normal vs Normal on
+6×6, 679 positions), p = logistic(raw / 10), mean |Δp| between consecutive positions:
+
+| | all steps | undecided steps | mover bias | ms/position |
+| --- | --- | --- | --- | --- |
+| old `estimate` (600 nodes) | 0.0563 | 0.0548 | ±0.039 | 0.5 |
+| `evaluate` 2 000 nodes | 0.0503 | 0.0437 | ±0.016 | 1.8 |
+| `evaluate` 12 000 nodes | 0.0579 | 0.0427 | ±0.008 | 15 |
+| `evaluate` 60 000 nodes | 0.0549 | 0.0365 | ±0.006 | 59 |
+
+"Undecided" = neither position is a proven win; the mover bias is the mean of
+p − (p_before + p_after)/2 by side to move. The "all steps" number does not fall because
+the judge proves forced wins that a depth-2 Normal bot then throws away — a real
+100 → 0 swing (and ±Infinity by contract), not a jumpy evaluator; the finite part gets
+calmer with every stage. Blending odd and even depths (bias back to ±0.048), a
+tempo-neutral leaf (mover's and opponent's quiescence averaged: swing 0.11) and a
+3-ply quiescence (0.084) were tried and rejected. `bot.test.mjs` re-measures this and
+asserts all steps < 0.065, undecided < 0.05, bias < 0.02.
 
 ## Numbers (node budgets, deterministic)
 
@@ -76,5 +105,8 @@ Random 22 %) and the head-to-head results; its thresholds sit below the measured
   and the static evaluation carries more weight.
 - Quiescence only looks at the mover's explosive captures; a long-range double threat
   beyond the horizon can still surprise it.
+- The win chance is as strong as its 2–6 plies: in wild endgames it proves wins the
+  players do not see, so the HUD can legitimately jump between 100 % and 0 % when weak
+  players blunder them away.
 - Two players only (the app fixes `players` at 2); with a different seat count it plays
   the toolset's fallback.
