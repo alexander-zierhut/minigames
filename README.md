@@ -42,7 +42,7 @@ room protocol and how to add a game.
 - `client/games.js` — game registry, the engine shell every game shares, HUD renderer
 - `client/games/` — per game: pure `<key>-rules.js`, `<key>.js` (view + registration), `<key>.css`
 - `client/bots.js`, `client/bots/<id>/` — bot registry + toolset; one folder per bot with its tests and benchmark score
-- `tools/` — `headless.mjs` (rules + bots in Node), `benchmark.mjs` (`npm run benchmark`)
+- `scripts/` — `headless.mjs` (rules + bots in Node), `benchmark.mjs` (`npm run benchmark`)
 - `client/skins.js`, `client/settings.js`, `client/reactions.js`, `client/app.js` (flow, room protocol)
 - `client/css/` — base tokens, menu/lobby, game screen, Minecraft skins
 - `client/textures/` — 16×16 block textures used by the Minecraft skins

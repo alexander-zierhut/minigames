@@ -18,9 +18,9 @@ client/bots.js                Bots.register · Bots.create · Bots.tools · Bots
         ├── client/app.js                   bot seat: hooks.onTurn → botTurn → bot.move(clone) → Game.play(i)
         ├── client/opponent.js              picker UI (bot, difficulty, scores), choice per game
         │
-        ├── tools/headless.mjs              loads util + rules + bots into a bare Node VM (no DOM)
-        ├── tools/puzzles.mjs               replay a puzzle, grade a bot on a puzzle set
-        ├── tools/benchmark.mjs             series vs Random + puzzle score → benchmark.js
+        ├── scripts/headless.mjs              loads util + rules + bots into a bare Node VM (no DOM)
+        ├── scripts/puzzles/runner.mjs               replay a puzzle, grade a bot on a puzzle set
+        ├── scripts/benchmark.mjs             series vs Random + puzzle score → benchmark.js
         └── scripts/puzzles/<key>/          solver + generator of the proven puzzle sets
             tests/puzzles/<key>/puzzles.json
 ```
@@ -145,7 +145,7 @@ exact at terminal positions (1 / 0 / 0.5), roughly 0.5 on an empty board.
 ## 7. Headless playouts
 
 ```js
-const H = loadHeadless();                                   // tools/headless.mjs
+const H = loadHeadless();                                   // scripts/headless.mjs
 const a = H.Bots.create("random-chain", { seed: 1, me: 0 });
 const b = H.Bots.create("random-chain", { seed: 2, me: 1 });
 const r = await H.Bots.playout("chain", { n: 6 }, [a, b], { maxMoves: 600 });

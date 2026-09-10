@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { loadHeadless } from "../../../tools/headless.mjs";
+import { loadHeadless } from "../../../scripts/headless.mjs";
 import { solve, solveExhaustive, proveWin, Board, symmetries, canonical } from "../../../scripts/puzzles/five/solver.mjs";
 
 const { Rules, FiveRules } = loadHeadless();

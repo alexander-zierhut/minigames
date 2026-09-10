@@ -2,8 +2,8 @@
    budgets (ms: Infinity) so the numbers are the same on every machine. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { loadHeadless } from "../../../tools/headless.mjs";
-import { loadPuzzles, evaluateBot } from "../../../tools/puzzles.mjs";
+import { loadHeadless } from "../../../scripts/headless.mjs";
+import { loadPuzzles, evaluateBot } from "../../../scripts/puzzles/runner.mjs";
 
 const H = loadHeadless();
 const { Bots, Rules } = H;

@@ -9,8 +9,8 @@
    machine. Thresholds sit below what the bot really reaches (see README.md). */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { loadHeadless } from "../../../tools/headless.mjs";
-import { evaluateBot } from "../../../tools/puzzles.mjs";
+import { loadHeadless } from "../../../scripts/headless.mjs";
+import { evaluateBot } from "../../../scripts/puzzles/runner.mjs";
 
 const H = loadHeadless();
 const { Bots, Rules } = H;

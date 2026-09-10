@@ -11,7 +11,7 @@
    per-size / per-tag quotas → replay every kept history with the real ChainRules as a
    final check → write puzzles.json (ids sequential, sorted by board size and move count). */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { loadHeadless } from "../../../tools/headless.mjs";
+import { loadHeadless } from "../../headless.mjs";
 import { solve, fromState, apply, legalMoves, winsNow, losesNow, canonicalKey } from "./solver.mjs";
 
 const OUT = new URL("../../../tests/puzzles/chain/puzzles.json", import.meta.url).pathname;

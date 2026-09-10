@@ -13,8 +13,9 @@ on:
       - "client/bots.js"
       - "client/games/rules.js"
       - "client/games/*-rules.js"
-      - "tools/benchmark.mjs"
-      - "tools/headless.mjs"
+      - "scripts/benchmark.mjs"
+      - "scripts/headless.mjs"
+      - "scripts/puzzles/runner.mjs"
   workflow_dispatch:
 
 permissions:
@@ -36,7 +37,7 @@ jobs:
         with:
           node-version: 22
       - name: Run the benchmark
-        run: node tools/benchmark.mjs | tee "$GITHUB_STEP_SUMMARY"
+        run: node scripts/benchmark.mjs | tee "$GITHUB_STEP_SUMMARY"
       - name: Open a pull request with the new scores
         id: pr
         uses: peter-evans/create-pull-request@v7

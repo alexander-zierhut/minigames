@@ -371,7 +371,7 @@ N, the CSS has colours for 4 seats, the protocol needs the relay described in ne
 ## Bots (`client/bots.js`, `client/bots/<id>/`)
 
 Bots are pure and headless: no DOM, only the game's rules module + the toolset. The same
-code runs in the browser and in Node (`tools/headless.mjs` loads util, rules, bots.js and
+code runs in the browser and in Node (`scripts/headless.mjs` loads util, rules, bots.js and
 every bot folder into a bare VM — script list parsed from `index.html`).
 
 - **Registry**: `Bots.register({ id, name, game, version, description, difficulties:
@@ -408,7 +408,7 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   legal cell, roughly uniform, seed reproduces a whole game). A real bot's tests should
   prove strength facts: beats Random by a margin, blocks an open four, takes a win in one,
   never worse than depth-1 greedy, etc. (VM realm: compare arrays via `JSON.stringify`.)
-- **Benchmark** (`npm run benchmark` = `tools/benchmark.mjs [id…]`): every bot plays a
+- **Benchmark** (`npm run benchmark` = `scripts/benchmark.mjs [id…]`): every bot plays a
   seeded series against the Random bot of its game (chain 100 games 6×6, five 200 games
   9×9, both colours, highest difficulty) → score = win rate in % (draw = ½) plus
   `games, opponent, avgMoves, version, commit, at` (60 chain / 100 five games, 20 000-node
@@ -437,7 +437,7 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   folder has `solver.test.mjs` (the solver on hand-made positions + the set's consistency,
   re-solving every puzzle), each script folder a README with the guarantee and the limits.
   `scripts/puzzles/verify.mjs` (`npm run puzzles:verify`) re-proves the tactical puzzles
-  with a solver-independent one-ply check and prints the blind-random baseline. `tools/puzzles.mjs` replays a puzzle (`positionOf`) and grades a bot
+  with a solver-independent one-ply check and prints the blind-random baseline. `scripts/puzzles/runner.mjs` replays a puzzle (`positionOf`) and grades a bot
   (`evaluateBot` → solved/total/pct, per tag, failures); `tests/unit/puzzles.test.mjs`
   checks every set (≥ 100, replayable, legal best moves) and prints every bot's score; the
   benchmark stores it as `puzzles: { solved, total, pct, chance }` in `benchmark.js`
@@ -510,8 +510,8 @@ colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
 ## Folders that are never deployed
 
 `docs/` (`docs/bots.md` = bot system reference and the list of current bots — keep it in
-step with the code), `scripts/` (puzzle solvers/generators, verify, screenshot tour),
-`tools/` (headless loader, puzzle runner, benchmark), `tests/`. The deploy uploads `dist/`
+step with the code), `scripts/` (headless loader, puzzle runner, benchmark, puzzle solvers/generators,
+verify, screenshot tour), `tests/`. The deploy uploads `dist/`
 only; `build.mjs` bundles nothing outside `index.html`'s tags and `client/textures`.
 
 ## Owner preferences

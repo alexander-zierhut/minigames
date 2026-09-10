@@ -3,8 +3,8 @@
    the threshold it must reach. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { loadHeadless } from "../../tools/headless.mjs";
-import { puzzleGames, loadPuzzles, positionOf, evaluateBot } from "../../tools/puzzles.mjs";
+import { loadHeadless } from "../../scripts/headless.mjs";
+import { puzzleGames, loadPuzzles, positionOf, evaluateBot } from "../../scripts/puzzles/runner.mjs";
 
 const H = loadHeadless();
 const games = puzzleGames();

@@ -3,7 +3,7 @@
    works" a checked fact rather than a hope). Runs without a DOM. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { loadHeadless } from "../../tools/headless.mjs";
+import { loadHeadless } from "../../scripts/headless.mjs";
 
 const H = loadHeadless();
 const { Bots, Rules } = H;

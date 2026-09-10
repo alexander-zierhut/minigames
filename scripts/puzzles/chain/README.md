@@ -1,7 +1,7 @@
 # Chain React puzzles
 
 Positions from Chain React whose perfect moves are **proven** by a solver, so bots can be
-graded on how many of them they find. Consumed by the shared runner `tools/puzzles.mjs`
+graded on how many of them they find. Consumed by the shared runner `scripts/puzzles/runner.mjs`
 (`evaluateBot`), which replays each `history` with the real `ChainRules` and checks whether
 the bot's move is in `best`.
 

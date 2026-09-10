@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { loadHeadless } from "../../../tools/headless.mjs";
+import { loadHeadless } from "../../../scripts/headless.mjs";
 
 const { Bots, Rules } = loadHeadless();
 const cfg = { n: 5, winLen: 4 };

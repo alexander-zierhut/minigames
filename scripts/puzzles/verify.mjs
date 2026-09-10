@@ -3,8 +3,8 @@
    win-in-1 / must-block / avoid-loss puzzle with a plain one-ply look-ahead through the
    real rules, and prints what blind random picking would score on each set (the baseline
    to read bot scores against).   node scripts/puzzles/verify.mjs [chain|five] */
-import { loadHeadless } from "../../tools/headless.mjs";
-import { puzzleGames, loadPuzzles, positionOf } from "../../tools/puzzles.mjs";
+import { loadHeadless } from "../headless.mjs";
+import { puzzleGames, loadPuzzles, positionOf } from "./runner.mjs";
 
 const H = loadHeadless();
 const games = process.argv[2] ? [process.argv[2]] : puzzleGames();

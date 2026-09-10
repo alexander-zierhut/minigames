@@ -3,7 +3,7 @@
    solver.mjs (proven results only), filtered for diversity and "a mistake is possible",
    de-duplicated under the 8 board symmetries. Nothing here uses Math.random. */
 import { writeFileSync } from "node:fs";
-import { loadHeadless } from "../../../tools/headless.mjs";
+import { loadHeadless } from "../../headless.mjs";
 import { solve, solveExhaustive, Board, canonical } from "./solver.mjs";
 
 const OUT = new URL("../../../tests/puzzles/five/puzzles.json", import.meta.url);

@@ -4,7 +4,7 @@
    the `best` moves. Format (binding for the generators):
      { game, generated, solver, puzzles: [{ id, config, history, toMove, best, value, depth, tags, note }] } */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { ROOT } from "./headless.mjs";
+import { ROOT } from "../headless.mjs";
 
 export const PUZZLE_DIR = `${ROOT}tests/puzzles/`;
 

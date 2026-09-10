@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { loadHeadless } from "../../../tools/headless.mjs";
+import { loadHeadless } from "../../../scripts/headless.mjs";
 import { solve, fromState, apply, legalMoves, losesNow, winsNow, SYMMETRIES, mapCell, MATE } from "../../../scripts/puzzles/chain/solver.mjs";
 
 const { Rules, ChainRules, Bots } = loadHeadless();
