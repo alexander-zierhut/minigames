@@ -48,6 +48,8 @@
                     <button class="btn primary big" id="btn-create">Create room</button>
                     <button class="btn big" id="btn-join-open">Join room</button>
                 </div>
+                <!-- the seats are picked in the lobby (#28); say here that a room holds four -->
+                <p class="hint" id="menu-online-hint">One room for up to 4 players, plus spectators.</p>
                 <div id="join-panel" hidden>
                     <div class="join-row">
                         <input id="join-code" placeholder="ROOM CODE" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false">
@@ -75,7 +77,8 @@
 <!-- ===================== LOBBY (room) ===================== -->
 <section id="screen-lobby" class="screen" hidden>
     <div class="menu-card lobby-card">
-        <!-- kind, room code, and (online) one compact row of share buttons under it -->
+        <!-- head: the kind, the room code with its eye, and (online) the share actions:
+             one primary "Share link" plus two small icon buttons (copy code / spectate link) -->
         <div class="lobby-head">
             <div class="label" id="lobby-kind">Room</div>
             <div class="room-code-row">
@@ -85,48 +88,55 @@
             </div>
             <div class="lobby-actions" id="lobby-share">
                 <button class="btn small primary" id="btn-share">Share link</button>
-                <button class="btn small" id="btn-share-spectate">Spectate link</button>
-                <button class="btn small" id="btn-copy-code">Copy code</button>
+                <button class="btn small icon" id="btn-copy-code" title="Copy the room code" aria-label="Copy the room code">📋</button>
+                <button class="btn small icon" id="btn-share-spectate" title="Copy a link for spectators" aria-label="Copy a link for spectators">👀</button>
             </div>
         </div>
 
-        <!-- how many seats (#28): here in the lobby, so everyone sees the room takes up to four; hidden against a bot -->
-        <div class="lobby-row" id="row-players">
-            <span class="lobby-row-label">Players</span>
-            <div class="seg players-seg" id="set-players">
-                <button data-players="2" class="selected">2</button>
-                <button data-players="3">3</button>
-                <button data-players="4">4</button>
+        <!-- group "Players": how many seats (#28), the seat cards, and the room's notes.
+             Future seat controls ("Watch instead" / "Take this seat", "Against a bot instead")
+             belong in this group, under #lobby-players. -->
+        <div class="lobby-group" id="group-players">
+            <!-- hidden against a bot (always two) -->
+            <div class="lobby-row" id="row-players">
+                <span class="lobby-row-label">Players</span>
+                <div class="seg players-seg" id="set-players">
+                    <button data-players="2" class="selected">2</button>
+                    <button data-players="3">3</button>
+                    <button data-players="4">4</button>
+                </div>
             </div>
+            <!-- one card per seat, from #tpl-lobby-player -->
+            <div class="lobby-players" id="lobby-players"></div>
+            <div class="lobby-status" id="lobby-status"></div>
+            <div class="lobby-status" id="lobby-spectators"></div>
         </div>
 
-        <!-- one card per seat, from #tpl-lobby-player -->
-        <div class="lobby-players" id="lobby-players"></div>
-        <div class="lobby-status" id="lobby-status"></div>
-        <div class="lobby-status" id="lobby-spectators"></div>
-
-        <div class="section">
-            <div class="section-title">Game</div>
+        <!-- group "Game": the picker, its tagline, the opponent (bot mode) and the settings -->
+        <div class="lobby-group" id="group-game">
+            <div class="lobby-row"><span class="lobby-row-label">Game</span></div>
             <!-- one card per registered game, built by settings.js -->
             <div class="game-picker" id="game-picker"></div>
             <p class="tagline small" id="menu-tagline"></p>
+
+            <!-- bot mode only: which bot, which difficulty (opens #bot-modal) -->
+            <button class="settings-summary" id="btn-opponent" hidden>
+                <span class="gear-icon">🤖</span>
+                <span id="opponent-summary">Opponent</span>
+                <span class="chev">›</span>
+            </button>
+
+            <button class="settings-summary" id="btn-settings">
+                <span class="gear-icon">⚙</span>
+                <span id="settings-summary">Settings</span>
+                <span class="chev">›</span>
+            </button>
         </div>
 
-        <!-- bot mode only: which bot, which difficulty (opens #bot-modal) -->
-        <button class="settings-summary" id="btn-opponent" hidden>
-            <span class="gear-icon">🤖</span>
-            <span id="opponent-summary">Opponent</span>
-            <span class="chev">›</span>
-        </button>
-
-        <button class="settings-summary" id="btn-settings">
-            <span class="gear-icon">⚙</span>
-            <span id="settings-summary">Settings</span>
-            <span class="chev">›</span>
-        </button>
-
-        <button class="btn primary big" id="btn-start">Start game</button>
-        <button class="btn ghost" id="btn-lobby-back">Leave</button>
+        <div class="lobby-foot">
+            <button class="btn primary big" id="btn-start">Start game</button>
+            <button class="btn quiet" id="btn-lobby-back">Leave</button>
+        </div>
     </div>
 </section>
 
@@ -375,7 +385,7 @@
     </div>
 </template>
 <template id="tpl-lobby-player">
-    <div class="lobby-player p{k}" id="lp-{k}"><span class="cube p{k}"></span><span class="lp-name"></span><span class="lp-status" id="lp-{k}-status"></span></div>
+    <div class="lobby-player p{k}" id="lp-{k}"><span class="cube p{k}"></span><span class="lp-name"></span><span class="lp-you"></span><span class="lp-status" id="lp-{k}-status"></span></div>
 </template>
 
 <!-- scripts are concatenated in this order by build.mjs; every file defines one global -->

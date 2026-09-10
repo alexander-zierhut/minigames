@@ -154,25 +154,44 @@ One room, one link, the whole evening (owner's request after "we sent 3–4 link
 to try things").
 
 - **Title** (`#screen-menu`): title "ALZlper's Minigames", section *Online* with
-  `Create room` + `Join room` (`#join-panel` with the code field appears on Join room),
+  `Create room` + `Join room` (`#join-panel` with the code field appears on Join room) and
+  under them the muted hint `#menu-online-hint` ("One room for up to 4 players, plus
+  spectators." — the seat count itself is picked in the lobby, #28),
   section *Offline* with `Local multiplayer` (`#btn-local`) and `Against a bot`
   (`#btn-bot`), the foot with `#btn-install` (see Install) and `#btn-changelog`. No Look
   control here (owner: only in the preferences, #9). Never scrolls on a phone. The ⚙
   preferences button floats top-left on every screen.
-- **Lobby** (`#screen-lobby`), same screen for local and online (`Match.mode`): a centred
-  head with the kind label, the room code with its hide / show eye button (`#btn-hide-code`,
-  online only, see "Hidden room code") and — online only — **one compact row** of
-  `Share link` / `Spectate link` / `Copy code` under it (`#lobby-share`; 11px buttons on
-  phones so the three fit 360px in one row, #15), one `.lobby-player` card per seat from
-  `#tpl-lobby-player` (online only; as many as the *Players* control says, "connected" /
-  "not here yet" / "ready" per seat, `#lobby-spectators` counts people without a seat),
-  the **Players** row (`#row-players`: the segmented `#set-players` with 2 / 3 / 4, #28 —
-  in the lobby so everyone sees the room takes up to four; hidden against a bot; a count
-  below the seats people already sit in is disabled, #34), the game
-  picker (one `.game-card[data-game]` per registered game, built by `Settings.init`; each
-  card says "2 to 4 players" and a game that doesn't take the chosen count is grayed out,
-  `.unsupported` + `disabled`, #28), settings summary button → `#settings-modal`, `Start
-  game`, `Leave room`/`Back`. No chat in the lobby (#15) — chat lives in the game HUD only.
+- **Lobby** (`#screen-lobby`), same screen for local and online (`Match.mode`), in **three
+  calm blocks** separated by a hairline (`.lobby-group`, one `border-top`), then one primary
+  action:
+  1. **Head** (`.lobby-head`): the kind label (`#lobby-kind`: "Room" / "Local game" /
+     "Against a bot"), the room code (`#lobby-code`) with its hide / show eye button
+     (`#btn-hide-code`, online only, see "Hidden room code") and — online only — one row of
+     share actions (`#lobby-share`): the primary `Share link` (`#btn-share`) plus two small
+     icon buttons, 📋 `#btn-copy-code` and 👀 `#btn-share-spectate` (both carry `title` +
+     `aria-label`), so the three actions are not three equal buttons.
+  2. **Group "Players"** (`#group-players`, hidden against a bot because everything in it
+     is): the **Players** row (`#row-players`: the label plus the segmented `#set-players`
+     with 2 / 3 / 4, #28 — in the lobby so everyone sees the room takes up to four; hidden
+     against a bot by `Settings.setMode`; a count below the seats people already sit in is
+     disabled, #34), one `.lobby-player` card per seat from
+     `#tpl-lobby-player` (online only; as many as the *Players* control says; the name, a
+     small `(you)` in `.lp-you`, and `#lp-<k>-status` "connected" / "not here yet" /
+     "ready"; an absent seat gets `.absent` = a dashed, muted placeholder card; the card
+     wraps its status onto a second line rather than cutting a long name off), and the
+     notes `#lobby-status` / `#lobby-spectators` ("N spectator(s) watching"). **The coming
+     seat controls go here**: "Watch instead" / "Take this seat" on the seat cards, and
+     "Against a bot instead" while a two-player room waits, both under `#lobby-players`.
+  3. **Group "Game"** (`#group-game`): the picker (one `.game-card[data-game]` per
+     registered game, built by `Settings.init`; each card says "2 to 4 players" and a game
+     that doesn't take the chosen count is grayed out, `.unsupported` + `disabled`, #28),
+     its tagline (`#menu-tagline`), the *Opponent* row in bot mode (`#btn-opponent`) and
+     the settings summary button (`#btn-settings` → `#settings-modal`).
+  Then `.lobby-foot`: `Start game` (`#btn-start`, the one big primary button, its text also
+  says why it is disabled) and a quiet text button `Leave room` / `Back` (`#btn-lobby-back`,
+  class `btn quiet`). No chat in the lobby (#15) — chat lives in the game HUD only. The
+  whole card must fit 360×780 without scrolling in all three looks (`mobile.test.mjs`,
+  screenshots `mobile-lobby-<skin>.png`).
 - **Game** (`#screen-game`): board + HUD ("hut"). Result overlay: `Rematch`, `Look at
   board` (hides it and opens the replay bar), `Change game` (→ lobby). The HUD has
   `Rematch` and `Back to room` too. `renderRematch()` in app.js is the only writer of the
@@ -898,8 +917,8 @@ route respectively.
   row only renders while online (`body.online`). Desktop: the HUD log scrolls
   (`max-height: 150px; overflow-y: auto`), the row sits under it. Phones: the log shows
   its last two lines (40px) and the chat row is behind ☰ (`#hut.show-controls`). The
-  lobby card is tighter on phones (gap 7, padding 16) so an online lobby with four seat
-  cards fits 360×780.
+  lobby card is tighter on phones (gap 8, padding 16, smaller seat cards) so an online
+  lobby with four seat cards fits 360×780.
 - **Rules**: `Chat.send(text)` trims and collapses whitespace, cuts to `Chat.MAX_LEN` =
   200, allows one line per `Chat.SEND_EVERY` = 300 ms, refuses when not online, shows
   my line at once in my colour, emits Bus `chat {text, from, mine: true}` and calls
@@ -961,8 +980,9 @@ set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px o
   `prefs` (⚙ on every screen, look sync, persistence, sounds: locked until a gesture,
   cues logged in order, mc files fetched, mute; phone: clear of cards/board/😜,
   landscape), `skins` (computed styles per skin), `mobile` (360×780: title, local lobby,
-  an online-shaped lobby with four seats in every skin — share row on one line, no
-  scroll, screenshots `mobile-lobby-<skin>.png` — game, overlay, replay bar above the HUD), `online` (two browsers through
+  an online-shaped lobby with four seats in every skin — share row on one line with
+  `Share link` wider than the two icon buttons, the two groups, seat names never cut off,
+  no scroll, screenshots `mobile-lobby-<skin>.png` — game, overlay, replay bar above the HUD), `online` (two browsers through
   the real PeerJS broker: join by link, settings mirror, guest start, move sync,
   reactions, chat both ways (colour, text only, HUD input), guest refresh, tolobby,
   switch game, rematch, host refresh, replay of a finished game stepped from both sides,

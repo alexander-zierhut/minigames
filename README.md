@@ -17,9 +17,10 @@ games and settings together in the room lobby; rematch or switch games without n
   (the *Players* setting). Uses PeerJS: the public PeerJS broker only brokers the
   handshake, then the game runs peer to peer (the room's host relays between guests).
   Anyone who joins when every seat is taken watches as a spectator, and the lobby's
-  "Spectate link" invites people to watch on purpose. A page refresh, leaving
-  and coming back by the same link, even the room creator leaving — the room survives
-  as long as one player is in it, and everybody keeps their colour.
+  spectate-link button (👀 next to "Share link") invites people to watch on purpose.
+  A page refresh, leaving and coming back by the same link, even the room creator
+  leaving — the room survives as long as one player is in it, and everybody keeps
+  their colour.
 
 The number of players (two, three or four) is picked right in the lobby and can never be
 set below the people already sitting in the room; the settings

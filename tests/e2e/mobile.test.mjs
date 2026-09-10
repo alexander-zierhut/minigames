@@ -35,17 +35,24 @@ test("lobby (local) and settings modal fit", async () => {
 async function showRoomLobby() {
     await M.ev("document.getElementById('lobby-code').textContent = 'ABCDE'; document.getElementById('lobby-share').hidden = false; document.getElementById('lobby-players').hidden = false; document.getElementById('lobby-spectators').textContent = '2 spectators watching'; true");
 }
-test("online-shaped lobby with four seats: share buttons in one row under the code, no scroll, every skin (#15)", async () => {
+test("online-shaped lobby with four seats: one Share button plus two icons under the code, no scroll, every skin", async () => {
     await M.players(4);
     for (const skin of ["classic", "mcboard", "mc"]) {
         await M.selectSkin(skin);                 // re-renders the lobby (builds the four seat cards)
         await showRoomLobby();
         assert.equal(await M.ev("document.querySelectorAll('.lobby-player').length"), 4);
-        const btns = JSON.parse(await M.ev("JSON.stringify(['btn-share', 'btn-share-spectate', 'btn-copy-code'].map(id => { const r = document.getElementById(id).getBoundingClientRect(); return { top: Math.round(r.top), left: Math.round(r.left), right: Math.round(r.right) }; }))"));
-        assert.ok(btns.every((b) => b.top === btns[0].top), `${skin}: share buttons on one row (${JSON.stringify(btns)})`);
+        // the share row: "Share link" carries the text, copy code and spectate link are small icon buttons
+        const btns = JSON.parse(await M.ev("JSON.stringify(['btn-share', 'btn-copy-code', 'btn-share-spectate'].map(id => { const r = document.getElementById(id).getBoundingClientRect(); return { top: Math.round(r.top), left: Math.round(r.left), right: Math.round(r.right), w: Math.round(r.width) }; }))"));
+        assert.ok(btns.every((b) => b.top === btns[0].top), `${skin}: share row on one line (${JSON.stringify(btns)})`);
         assert.ok(btns.every((b) => b.left >= 16 && b.right <= 344), `${skin}: buttons inside the card (${JSON.stringify(btns)})`);
+        assert.ok(btns[0].w > btns[1].w && btns[0].w > btns[2].w, `${skin}: Share link is the primary, the other two are icons (${JSON.stringify(btns)})`);
         assert.ok(btns[0].top >= await M.ev("document.getElementById('lobby-code').getBoundingClientRect().bottom"), `${skin}: buttons under the room code`);
         assert.equal(await M.ev("document.getElementById('lobby-chat')"), null, "no lobby chat");
+        // the two groups: the players control and the seat cards, then the picker and the settings
+        assert.ok(await M.ev("document.getElementById('group-players').contains(document.getElementById('row-players')) && document.getElementById('group-players').contains(document.getElementById('lobby-players'))"), "players control and seats in one group");
+        assert.ok(await M.ev("document.getElementById('group-game').contains(document.getElementById('game-picker')) && document.getElementById('group-game').contains(document.getElementById('btn-settings'))"), "picker and settings in one group");
+        // seat names are never cut off (the status wraps inside the card instead)
+        assert.ok(await M.ev("[...document.querySelectorAll('.lobby-player .lp-name')].every(e => e.scrollWidth <= e.clientWidth + 1)"), `${skin}: seat names fit`);
         await assertNoScroll(`${skin}: online lobby with four seats`);
         await M.screenshot(`mobile-lobby-${skin}.png`);
     }
