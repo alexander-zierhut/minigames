@@ -59,6 +59,10 @@ html, body {
 button, input, select { font-family: inherit; }
 
 .screen { height: 100dvh; width: 100%; overflow-x: hidden; }
+/* no accidental text selection on touch (it broke tapping on phones); inputs and the room
+   code stay selectable */
+.screen, .modal, #overlay, .corner-btn, #react-bar { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+input, textarea { user-select: text; -webkit-user-select: text; }
 [hidden] { display: none !important; }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
 @keyframes blink { 50% { opacity: .4; } }
@@ -98,7 +102,8 @@ input[type="range"] { accent-color: var(--accent); width: 100%; margin: 0; }
 /* ---- corner buttons: ⚙ preferences top-left (every screen); the reaction toggle
    top-right is styled in game.css. Cards and the board keep clear of them on phones. ---- */
 .corner-btn {
-    position: fixed; left: 10px; top: 10px; z-index: 46;
+    position: fixed; left: 10px; top: 10px; z-index: 47;
+    touch-action: manipulation;
     width: 40px; height: 40px; font-size: 20px; line-height: 1; padding: 0;
     background: var(--panel2); color: var(--text); border: 2px solid var(--line); border-radius: 50%;
     cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,.5);

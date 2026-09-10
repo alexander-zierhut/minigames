@@ -220,10 +220,15 @@ body.online #hut.show-controls .chat-row { display: flex; }
 }
 
 /* ---- emoji reactions: small, short, in the corner, never on the board ---- */
+/* The bar's box spans the top strip (the collapsed list still takes layout space): it must
+   never catch taps itself (#13: it sat over the ⚙ button on phones), and the toggle sits
+   at the top edge so it lines up with ⚙ (#7). */
 #react-bar {
     position: fixed; right: 10px; top: 10px; z-index: 46;
-    display: flex; align-items: center; gap: 6px;
+    display: flex; align-items: flex-start; gap: 6px;
+    pointer-events: none;
 }
+#react-bar .react-list, #react-toggle { pointer-events: auto; }
 #react-bar .react-list {
     display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end;
     max-width: min(420px, calc(100vw - 70px));
