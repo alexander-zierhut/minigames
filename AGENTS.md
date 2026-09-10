@@ -1917,7 +1917,9 @@ and `roster` are the ones that never get relayed (host to all, or guest to host 
   of who is to move. Undecided move-to-move change 4.9 % → 0.18 %, undecided flips over 15
   points 45 of 253 → 0 of 234, mover bias −0.009 → 0.000, stage disagreements 12 of 120 → 0
   (5 × 5; 7 × 7 went 5.6 % → 0.8 % and 100 of 567 → 0). Being right about *nothing* beats
-  being nervous about everything.
+  being nervous about everything. Rewriting an evaluator also means **bumping the bot's
+  `version`** (cached replay analyses are stamped with it, #43) and re-running `npm run
+  learn:scenarios`, because the ladder's "play it out" positions are picked by win chance.
 - **Prove a search reduction, don't reason about it.** "If a capture is available, take it"
   looks obviously right in dots and boxes and is **wrong**: eating a chain to the end hands
   control away, which is the whole point of the "all but two" sacrifice. Only a capture that
