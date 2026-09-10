@@ -5,6 +5,21 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "improvement",
+          "text": "Emoji reactions now glow lightly in the colour of the player who sent them, so you can see at a glance who is reacting.",
+          "refs": [
+            "#33"
+          ]
+        },
+        {
+          "type": "improvement",
+          "text": "The settings menu is shorter: it now opens on a short list of sections (Look, Sound, Streaming, Developer, Feedback) that each say what they are set to, and one tap opens the one you want.",
+          "technical": true,
+          "refs": [
+            "#32"
+          ]
+        },
+        {
           "type": "fix",
           "text": "The number of players in a room can no longer be set below the number of people already sitting in it, so nobody loses their seat without leaving first.",
           "refs": [

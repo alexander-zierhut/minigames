@@ -280,7 +280,17 @@
     });
     Opponent.init({ onDone: () => renderLobby() });
     Changelog.init();
-    Reactions.init({ onSend: (e) => { if (Room.online) Room.react(e); } });
+    Reactions.init({
+        onSend: (e) => { if (Room.online) Room.react(e); },
+        // my own reaction glows in my seat's colour (#33); a spectator's is white, and with
+        // everyone on one device it takes the colour of whoever is to move
+        color: () => {
+            if (Match.me >= 0) return Match.playerColor(Match.me);
+            if (Match.spectator) return Match.playerColor(-1);
+            const s = Match.state;
+            return Match.playerColor(s ? s.current : -1);
+        },
+    });
     Chat.init({
         online: () => Room.online,
         me: () => Match.me,

@@ -272,18 +272,39 @@ restores form values on reload).
 
 `#prefs-btn` (class `corner-btn`, a pill fixed top-left on every screen: "⚙ Settings &
 Feedback" on desktop, "⚙ Settings" on phones via `.corner-long` / `.corner-short`, #25)
-opens `#prefs-modal`: the **Look** control (the only `.skin-seg`, full width, no extra
+opens `#prefs-modal`.
+
+**Two levels (#32)**, because the list had grown too long: a **menu** (`#prefs-nav`) with
+one row per section (`#prefs-nav-<key>`, styled like the lobby's `.settings-summary`: icon,
+name, `#prefs-sum-<key>` = `Prefs.sectionSummary(key)` describing the current state,
+chevron) and one **panel** per section (`#prefs-panes` → `.prefs-section[data-section=<key>]`,
+`.prefs-rows` inside). Sections in order: `Prefs.SECTIONS` = look, sound, streaming,
+developer, feedback. `Prefs.showSection(key)` opens one (`null` = the menu),
+`Prefs.section` says which is open; the card carries `on-section` while one is.
+On **phones** (`max-width: 899px`) exactly one level shows: the modal opens on the menu, a
+row opens its panel with a "‹ Back" button (`#btn-prefs-back`), Done (`#btn-prefs-done`)
+closes from anywhere, and every single section fits 360×780 without scrolling. On
+**desktop** (`min-width: 900px`) `.prefs-body` is a two-pane grid: the menu is the left
+column (the open row `selected`, its summary on a second line, no chevron) and the panel
+sits beside it, so nothing is ever two taps away; `open()` selects the first section right
+away. `.prefs-body` scrolls internally only as a last resort so Done stays visible.
+**Adding a section = one nav row + one `.prefs-section` panel in index.html + one entry in
+`SECTIONS`** (and a `sectionSummary` case); nothing else knows about them.
+
+The sections hold: the **Look** control (the only `.skin-seg`, full width, no extra
 label, #22; kept in sync by `Skins`), the **Sound** rows (master volume slider
 `#pref-volume`, default 30 %; sound set `#pref-soundset`: follow the look / Classic /
 Blocks; one checkbox per category `#pref-snd-<cat>`, categories in `Prefs.CATEGORIES` =
 moves, explosions, results, turn, reactions, chat), **Streaming** (`#pref-hide-code`:
 enter rooms with the code hidden, #19; `#pref-private-ip` "Keep my IP always private":
 every connection is relayed through TURN, #30 — read by `Net` when the peer is created,
-so it takes effect on the next room), **Feedback**. Stored in
+so it takes effect on the next room), **Developer** (`#pref-developer`: the info panel,
+#31) and **Feedback**. Stored in
 `localStorage["chainreact.prefs"]` (`Prefs.get()` → `{ volume, soundSet, sounds: {…},
-hideCode, privateIp }`, `Prefs.set(patch)` merges, clamps, persists, refills the form and calls
-`onChange`). The modal is roomier than the settings one (`.prefs-rows` gap 14 px, 16 px
-and 540 px wide on desktop, #25).
+hideCode, privateIp, developer }`, `Prefs.set(patch)` merges, clamps, persists, refills the
+form, re-renders the menu rows and calls `onChange`). The modal is roomier than the
+settings one (`.prefs-rows` gap 14 px, 16 px and 760 px wide on desktop for the two panes,
+#25, #32).
 Never sent to the room, never part of `Settings.read()`. Layout rules: on phones
 (`max-width: 899px`) `#screen-menu`/`#screen-lobby` get `padding-top: 56px` and
 `#board-wrap` `padding-top: 52px` so cards and the board start below the two corner
@@ -942,7 +963,14 @@ max 14 on screen). **Speed follows the rate** (#17): `Reactions.durationFor(rece
 this one: 0 → `SLOW_MS` 4000 (a lone reaction can be seen), 1 → `MEDIUM_MS` 2800, ≥ 2 →
 `FAST_MS` 1900 (spam stays quick); no randomness beyond the wobble. Spam is allowed on
 purpose (~8/s; the receiver accepts one per 100 ms and only values from its own button
-set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
+set). **Who sent it (#33):** every float carries `--react-color`, the sender's seat colour
+(received: what `Room`/`BotPersona` pass to `receive(e, color)`, own: the `color()` handler
+`Reactions.init` gets — app.js gives `Match.playerColor` of my seat, white while
+spectating, the player to move when everyone shares one device; a missing or throwing
+handler falls back to white). `game.css` turns it into a light
+`drop-shadow(0 0 6px var(--react-color))` next to the usual dark shadow (chips get a
+matching `box-shadow`), and a friend's reaction still gets the small dot in their colour.
+`#net-banner` sits at 58px on phones so it stays clear of the toggle.
 
 ## Tests (`npm test` = unit + e2e; CI runs both before every deploy and on every PR)
 
@@ -956,11 +984,12 @@ set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px o
   bot seat / `whenIdle` / `record`, Session), `chain.test.mjs` (caps, waves, board-decided
   stop, win, chain rule, replay == play, hooks, HUD), `five.test.mjs`, `clock.test.mjs`
   (call `C.setup(0)` + `w.close()` at the end or the interval keeps the file alive),
-  `net.test.mjs` (codes), `prefs.test.mjs` (defaults, clamping, persistence, form wiring),
+  `net.test.mjs` (codes), `prefs.test.mjs` (defaults, clamping, persistence, form wiring,
+  the sections: `showSection` / `section` / `sectionSummary` and the menu rows, #32),
   `sound.test.mjs` (event → cue mapping with a fake player, perspective, prefs gate, sound
   sets), `chat.test.mjs` (log boxes, limits, HTML safety, offline, chat survives a new
   game), `reactions.test.mjs` (float duration from the recent rate with a mocked clock,
-  own + received, rate limits), `winchance.test.mjs` (frozen while animating, stages,
+  own + received, rate limits, the sender's colour on every float, #33), `winchance.test.mjs` (frozen while animating, stages,
   smoothing), `replay.test.mjs` (#38: the engine's view-only preview — the position after n
   plies, HUD and board classes, locked cells, no Bus events, the live state / record / hash
   untouched, `preview(null)`), `persona.test.mjs`, `changelog.test.mjs`, `calibrate.test.mjs`, `puzzles.test.mjs`,
@@ -979,7 +1008,8 @@ set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px o
   it), `settings`,
   `prefs` (⚙ on every screen, look sync, persistence, sounds: locked until a gesture,
   cues logged in order, mc files fetched, mute; phone: clear of cards/board/😜,
-  landscape), `skins` (computed styles per skin), `mobile` (360×780: title, local lobby,
+  landscape; the section menu: desktop two panes, phone menu → section → Back with no
+  scroll for any section, #32), `skins` (computed styles per skin), `mobile` (360×780: title, local lobby,
   an online-shaped lobby with four seats in every skin — share row on one line with
   `Share link` wider than the two icon buttons, the two groups, seat names never cut off,
   no scroll, screenshots `mobile-lobby-<skin>.png` — game, overlay, replay bar above the HUD), `online` (two browsers through
@@ -1041,9 +1071,9 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `BotPersona` | `attach({bot, seat, game, state, estimate, color, delays?, cooldownMs?})`, `detach()`, `POOLS` |
 | `Skins` | `init({onChange})`, `set(key)`, `names()`, `current` |
 | `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `setMode(mode)`, `setPlayers(n)`, `setMinPlayers(n)`, `setLocked(on)`, `supports(key)`, `MIN_PLAYERS_HINT`, `game`, `players`, `minPlayers`, `locked`, `fields` |
-| `Prefs` | `init({onChange, context})`, `get() → {volume, soundSet, sounds, hideCode, privateIp}`, `set(patch)`, `open/close`, `feedbackUrl()`, `CATEGORIES`, `isOpen` |
+| `Prefs` | `init({onChange, context})`, `get() → {volume, soundSet, sounds, hideCode, privateIp, developer}`, `set(patch)`, `open/close`, `feedbackUrl()`, `showSection(key)`, `sectionSummary(key)`, `CATEGORIES`, `SECTIONS`, `isOpen`, `section` |
 | `Opponent` | `init({onDone})`, `open(game)`, `current(game) → {id, difficulty, def}`, `summary(game)`, `NAME` ("Bot") |
-| `Reactions` | `init({onSend})`, `receive(emoji, color)`, `place()`, `durationFor(recent)` |
+| `Reactions` | `init({onSend, color})`, `receive(emoji, color)`, `place()`, `durationFor(recent)` |
 | `Chat` | `init(...)`, `send`, `receive(msg)`, `enable(on)` (see chat section) |
 | `Sound` | `Bus`-driven; `play(cue)` for tests, unlock on first gesture |
 | `Changelog` | `init()`, `open/close`, `render(doc[, all])`, `refUrl(ref)`, `technical(entry)`, `showTechnical`, `SHOW_DAYS` |

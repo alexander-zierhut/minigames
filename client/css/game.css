@@ -270,11 +270,13 @@ body.online #hut.show-controls .chat-row { display: flex; }
     font-size: 30px; line-height: 1;
     transform: translateX(-50%);
     will-change: transform, opacity;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,.6));
+    /* a light glow in the sender's colour (#33) on top of the usual dark shadow */
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.6)) drop-shadow(0 0 6px var(--react-color, #fff));
 }
 .react-float.chip {
     font-size: 16px; font-weight: 900; letter-spacing: 1px;
     color: #fff; background: #ff5d5d; border-radius: 8px; padding: 3px 8px;
+    box-shadow: 0 0 8px color-mix(in srgb, var(--react-color, #fff) 70%, transparent);
 }
 .react-float.theirs::after {
     content: ""; position: absolute; left: 50%; top: -6px; width: 6px; height: 6px; border-radius: 50%;

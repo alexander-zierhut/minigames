@@ -241,10 +241,9 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
 .settings .inline input[type="checkbox"] { flex: 0 0 auto; }
 .settings .inline small { color: var(--muted); white-space: nowrap; }
 
-/* ---- preferences modal (⚙) ---- */
-.prefs-card { max-width: 460px; gap: 18px; }
+/* ---- preferences modal (⚙): a menu of sections + one panel per section (#32) ---- */
+.prefs-card { max-width: 460px; gap: 16px; }
 .prefs-rows { gap: 14px; }
-.prefs-rows .section-title:not(:first-child) { margin-top: 10px; padding-top: 16px; border-top: 1px solid var(--line); }   /* Look / Sound / Streaming / Feedback stand apart */
 .prefs-rows .row { grid-template-columns: 1fr 1fr; gap: 16px; }   /* the slider and the select line up with the second checkbox column */
 .prefs-rows .hint, .bot-card .hint { text-align: left; }         /* left-to-right forms get left-aligned hints */
 .prefs-rows > .seg { flex: 0 0 auto; }
@@ -252,10 +251,33 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
 .pref-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; font-size: 14px; }
 .pref-toggles label, .pref-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; }
 .pref-toggles input[type="checkbox"], .pref-check input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 auto; }
+/* desktop: two panes side by side, so no section is ever two taps away */
+.prefs-body { display: grid; grid-template-columns: 186px 1fr; gap: 16px; align-items: start; min-height: 0; overflow: auto; }
+.prefs-nav { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.prefs-nav-row { gap: 8px; padding: 9px 12px; }
+.prefs-nav-row .gear-icon { font-size: 16px; }
+.prefs-nav-name { font-weight: 700; white-space: nowrap; }
+.prefs-nav-sum { flex: 1; min-width: 0; color: var(--muted); font-size: 12px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prefs-nav-row.selected { border-color: var(--accent); }
+.prefs-panes { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.prefs-back { align-self: flex-start; }
 @media (min-width: 900px) {
-    .prefs-card { max-width: 540px; padding: 32px 36px; gap: 22px; }
+    .prefs-card { max-width: 760px; padding: 32px 36px; gap: 20px; }
     .prefs-rows { gap: 16px; }
-    .prefs-rows .section-title:not(:first-child) { margin-top: 14px; padding-top: 20px; }
+    .prefs-body { grid-template-columns: 226px 1fr; gap: 22px; }
+    .prefs-back { display: none; }                                /* both panes are visible: nothing to go back to */
+    /* the narrow column puts the summary on its own line under the name; the panel is
+       already open beside it, so the row needs no chevron */
+    .prefs-nav-row { flex-wrap: wrap; padding: 8px 12px; row-gap: 1px; }
+    .prefs-nav-row .chev { display: none; }
+    .prefs-nav-name { flex: 1; }
+    .prefs-nav-sum { flex: 1 0 100%; padding-left: 24px; text-align: left; font-size: 11px; }
+}
+/* phones: one level at a time, so a single section always fits without scrolling */
+@media (max-width: 899px) {
+    .prefs-body { display: block; }
+    .prefs-card.on-section .prefs-nav { display: none; }
+    .prefs-card:not(.on-section) .prefs-panes { display: none; }
 }
 #prefs-modal.muted .pref-toggles { opacity: .5; }
 /* phones: the cards start below the ⚙ button */
