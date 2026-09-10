@@ -101,10 +101,16 @@
 .lobby-chat .log { min-height: 0; max-height: 96px; overflow-y: auto; overscroll-behavior: contain; }
 /* phones: a tighter lobby card so players, chat, picker and buttons fit 360×780 without scrolling */
 @media (max-width: 899px) {
-    .lobby-card { gap: 10px; padding: 18px 16px; }
+    .lobby-card { gap: 8px; padding: 16px 16px; }
     .lobby-head .room-code { font-size: 28px; letter-spacing: 4px; }
     .lobby-actions { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; }
+    .lobby-players { gap: 6px; }
+    .lobby-player { padding: 6px 10px; }
     .lobby-chat .log { max-height: 40px; padding: 3px 8px; font-size: 11px; gap: 1px; }
+    .lobby-card .game-card { padding: 8px 8px 8px; gap: 4px; }
+    .lobby-card .game-preview { width: 56px; height: 56px; }
+    .lobby-card .settings-summary { padding: 8px 12px; }
+    .lobby-card .btn.big { padding: 12px 20px; }
 }
 
 /* ---- game picker ---- */

@@ -1,14 +1,13 @@
-/* PeerJS transport for one room with two friends.
-   Both share a room code. Whoever claims the room's peer id first is the host, the
-   other connects to that id as guest — so "create room" and "type the same code" are
-   the same path. One reliable DataConnection carries JSON messages; a ping watchdog
-   detects silent drops and the guest redials. If the host stays gone the guest claims
-   the room id itself (roles can swap; player seats are the app's business, not the
-   transport's). The app layer re-syncs the game after every (re)connect.
-
-   Growing to 4 players: the host would keep a list of connections (attach() per guest,
-   send() broadcasts, incoming guest messages are relayed to the others). The API
-   (open/send/leave/retryNow + handlers) is already shaped so app.js needs no change. */
+/* PeerJS transport for one room with up to four friends (and spectators).
+   Everybody shares a room code. Whoever claims the room's peer id first is the host,
+   the others connect to that id as guests — so "create room" and "type the same code"
+   are the same path. The host keeps one reliable DataConnection per guest: send()
+   broadcasts, sendTo()/sendExcept() address one guest, and the app relays what a guest
+   says to the others. A ping watchdog per connection detects silent drops; a guest
+   redials. If the host stays gone a guest claims the room id itself (roles can swap;
+   player seats are the app's business, not the transport's — the app tags every
+   connection with a seat via setSeat so a refreshed guest replaces its stale
+   connection). The app layer re-syncs the game after every (re)connect. */
 
 "use strict";
 
@@ -64,11 +63,14 @@ const Net = (() => {
     const BROKER_ERRORS = ["network", "server-error", "socket-error", "socket-closed", "disconnected"];
 
     let peer = null;
-    let conn = null;
+    let conn = null;            // guest: the connection to the host
+    let conns = [];             // host: one entry per guest { c, id, seat, meta, lastPong }
+    let nextId = 1;
     let code = null;
     let role = null;            // "host" | "guest"
-    let handlers = {};          // onStatus(status, detail), onRole(role), onOpen(role), onClose(reason), onMessage(msg),
-                                // preferHost (bool), metadata() -> object sent with each dial (my seat)
+    let handlers = {};          // onStatus(status, detail), onRole(role), onOpen(role, id), onClose(reason, id),
+                                // onMessage(msg, id), preferHost (bool), metadata() -> object sent with each dial
+                                // (my seat), admit(meta, peers) -> may a newcomer (no known seat) join? (host)
     let status = "idle";        // idle | connecting | waiting | connected | reconnecting | signaling | error
     let wantConnection = false;
     let openGen = 0;            // increments per open(); async peer creation checks it
@@ -78,7 +80,7 @@ const Net = (() => {
     let hostMissing = 0;        // consecutive dials that found no host at the broker
     let roomFull = false;       // the host turned us away; keep the message while retrying quietly
     let channelFailures = 0;    // dials whose data channel never opened (NAT trouble, not an absent host)
-    let lastPong = 0;
+    let lastPong = 0;           // guest: last pong from the host
     const timers = { ping: null, retry: null, signaling: null };
 
     function randomCode(len = 5) {
@@ -92,7 +94,9 @@ const Net = (() => {
         return (s || "").toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/O/g, "0").replace(/[IL]/g, "1").slice(0, 5);
     }
 
-    const isOpen = () => !!(conn && conn.open);
+    const openConns = () => conns.filter((x) => x.c.open);
+    const isOpen = () => (role === "host" ? openConns().length > 0 : !!(conn && conn.open));
+    const isSilent = (x) => Date.now() - x.lastPong > PING_EVERY * 2;    // stopped answering pings
 
     function setStatus(s, detail) {
         status = s;
@@ -131,6 +135,8 @@ const Net = (() => {
         if (old) { try { old.destroy(); } catch (e) {} }
     }
 
+    const waitingText = () => (everConnected ? "Waiting for your friend to come back…" : "Waiting for your friend…");
+
     function claimHost() {
         role = "host";
         setStatus("connecting", "Opening room…");
@@ -138,7 +144,7 @@ const Net = (() => {
         bindPeer(peer, claimHost);
         peer.on("open", () => {
             if (isOpen()) setStatus("connected", "Connected");
-            else setStatus("waiting", everConnected ? "Waiting for your friend to come back…" : "Waiting for your friend…");
+            else setStatus("waiting", waitingText());
             if (handlers.onRole) handlers.onRole("host");
         });
         peer.on("connection", (c) => {
@@ -185,6 +191,7 @@ const Net = (() => {
         });
     }
 
+    /* ---------- guest: dial the host ---------- */
     function dial() {
         if (!wantConnection || !peer || peer.destroyed || isOpen()) return;
         dialAttempts++;
@@ -198,7 +205,7 @@ const Net = (() => {
         // under load the first message can be delivered before our own "open" event, and the
         // host's pings count as a welcome too. Attach once the channel is open and welcomed.
         let opened = false, welcomed = false, settled = false;
-        const settle = () => { if (opened && welcomed && !settled) { settled = true; c.removeListener("data", first); attach(c); } };
+        const settle = () => { if (opened && welcomed && !settled) { settled = true; c.removeListener("data", first); attachGuest(c); } };
         const first = (msg) => {
             if (settled || !msg || typeof msg !== "object") return;
             if (msg.t === "welcome" || msg.t === "ping") { welcomed = true; settle(); }
@@ -212,28 +219,7 @@ const Net = (() => {
         });
     }
 
-    // a guest connected. With a friend already connected, a newcomer is turned away — unless
-    // it is that friend coming back on a fresh connection (same seat: page refresh) before
-    // the old one was noticed as dead; then the stale connection is dropped.
-    function accept(c) {
-        if (isOpen()) {
-            const seat = c.metadata && c.metadata.seat;
-            const same = seat >= 0 && conn.metadata && conn.metadata.seat === seat;
-            const silent = Date.now() - lastPong > PING_EVERY * 2;     // the old connection stopped answering
-            if (!same && !silent) {
-                try { c.send({ t: "full" }); } catch (e) {}
-                setTimeout(() => { try { c.close(); } catch (e) {} }, 300);
-                return;
-            }
-            const stale = conn;
-            conn = null;
-            try { stale.close(); } catch (e) {}
-        }
-        try { c.send({ t: "welcome" }); } catch (e) {}      // the guest attaches only after this
-        attach(c);
-    }
-
-    function attach(c) {
+    function attachGuest(c) {
         conn = c;
         everConnected = true;
         dialAttempts = 0;
@@ -247,7 +233,7 @@ const Net = (() => {
             if (msg.t === "ping") { send({ t: "pong" }); return; }
             if (msg.t === "pong") { lastPong = Date.now(); return; }
             if (msg.t === "welcome") return;
-            if (handlers.onMessage) handlers.onMessage(msg);
+            if (handlers.onMessage) handlers.onMessage(msg, "host");
         });
         c.on("close", () => { if (conn === c) onLost("closed"); });      // a replaced connection must not count
         c.on("error", () => { if (conn === c) onLost("error"); });
@@ -258,18 +244,19 @@ const Net = (() => {
             if (Date.now() - lastPong > PING_TIMEOUT) onLost("timeout");
         }, PING_EVERY);
         setStatus("connected", "Connected");
-        if (handlers.onOpen) handlers.onOpen(role);
+        if (handlers.onOpen) handlers.onOpen(role, "host");
     }
 
-    // the host already has a friend. Not final: the "friend" may be our own stale connection
-    // that the host hasn't noticed as dead yet, so keep trying quietly behind the message.
+    // the host already has everyone it can take. Not final: the "friend" may be our own
+    // stale connection that the host hasn't noticed as dead yet, so keep trying quietly.
     function onFull() {
         if (!wantConnection) return;
         roomFull = true;
-        setStatus("error", "This room is full — two players are already in it.");
+        setStatus("error", "This room is full — every seat is taken.");
         after("retry", 5000, dial);
     }
 
+    // the guest lost the host
     function onLost(reason) {
         if (!wantConnection) return;
         if (conn) { try { conn.close(); } catch (e) {} }
@@ -279,8 +266,76 @@ const Net = (() => {
         setStatus("reconnecting", reason === "timeout"
             ? "No answer from your friend (tab in background or offline?). Reconnecting…"
             : "Connection to your friend was lost. Reconnecting…");
-        if (handlers.onClose) handlers.onClose(reason);
-        if (role === "guest") after("retry", 800, dial);   // the host just waits for the guest to dial again
+        if (handlers.onClose) handlers.onClose(reason, "host");
+        after("retry", 800, dial);
+    }
+
+    /* ---------- host: one connection per guest ---------- */
+    // A guest connected. A guest that comes back on a fresh connection with the seat it
+    // held (page refresh) replaces its stale connection. A newcomer is asked of the app
+    // (admit) — when every seat is taken it is turned away, unless an existing connection
+    // has stopped answering pings (> 6 s): that stale one is dropped in its favour.
+    function accept(c) {
+        const meta = c.metadata || {};
+        const seat = Number.isInteger(meta.seat) && meta.seat >= 0 ? meta.seat : -1;
+        const same = seat >= 0 ? conns.find((x) => x.seat === seat) : null;
+        if (same) dropConn(same, "replaced");
+        else if (handlers.admit && !handlers.admit(meta, peers())) {
+            const silent = conns.find(isSilent);
+            if (!silent) {
+                try { c.send({ t: "full" }); } catch (e) {}
+                setTimeout(() => { try { c.close(); } catch (e) {} }, 300);
+                return;
+            }
+            dropConn(silent, "replaced");
+        }
+        try { c.send({ t: "welcome" }); } catch (e) {}      // the guest attaches only after this
+        attachHost(c, seat, meta);
+    }
+
+    function attachHost(c, seat, meta) {
+        const entry = { c, id: "c" + nextId++, seat, meta, lastPong: Date.now() };
+        conns.push(entry);
+        everConnected = true;
+        clearTimer("retry");
+        c.on("data", (msg) => {
+            if (!msg || typeof msg !== "object" || !conns.includes(entry)) return;
+            if (msg.t === "ping") { try { c.send({ t: "pong" }); } catch (e) {} return; }
+            if (msg.t === "pong") { entry.lastPong = Date.now(); return; }
+            if (msg.t === "welcome") return;
+            if (handlers.onMessage) handlers.onMessage(msg, entry.id);
+        });
+        c.on("close", () => { if (conns.includes(entry)) onGuestLost(entry, "closed"); });   // a replaced connection must not count
+        c.on("error", () => { if (conns.includes(entry)) onGuestLost(entry, "error"); });
+        if (!timers.ping) {
+            timers.ping = setInterval(() => {
+                for (const x of conns.slice()) {
+                    if (!x.c.open) continue;
+                    try { x.c.send({ t: "ping" }); } catch (e) {}
+                    if (Date.now() - x.lastPong > PING_TIMEOUT) onGuestLost(x, "timeout");
+                }
+            }, PING_EVERY);
+        }
+        setStatus("connected", "Connected");
+        if (handlers.onOpen) handlers.onOpen(role, entry.id);
+    }
+
+    function dropConn(entry, reason) {
+        conns = conns.filter((x) => x !== entry);
+        try { entry.c.close(); } catch (e) {}
+        if (reason !== "replaced" && handlers.onClose) handlers.onClose(reason, entry.id);
+    }
+
+    // a guest's connection dropped; the others keep playing, the host waits for it to redial
+    function onGuestLost(entry, reason) {
+        if (!wantConnection) return;
+        dropConn(entry, reason);
+        if (openConns().length === 0) {
+            clearTimer("ping");
+            setStatus("reconnecting", reason === "timeout"
+                ? "No answer from your friend (tab in background or offline?). Reconnecting…"
+                : "Connection to your friend was lost. Reconnecting…");
+        } else setStatus("connected", "Connected");
     }
 
     function handleError(err) {
@@ -313,10 +368,34 @@ const Net = (() => {
         setStatus("error", ERROR_TEXT[type] || (err && err.message) || String(err));
     }
 
-    // true when the message went out; false without an open connection
+    /* ---------- sending ---------- */
+    // guest: to the host; host: to every guest. true when it went out to at least one side
     function send(obj) {
+        if (role === "host") {
+            let sent = false;
+            for (const x of openConns()) { try { x.c.send(obj); sent = true; } catch (e) {} }
+            return sent;
+        }
         if (!isOpen()) return false;
         try { conn.send(obj); return true; } catch (e) { return false; }
+    }
+    // host only: one guest / everyone but one guest (relay)
+    function sendTo(id, obj) {
+        const x = conns.find((e) => e.id === id && e.c.open);
+        if (!x) return false;
+        try { x.c.send(obj); return true; } catch (e) { return false; }
+    }
+    function sendExcept(id, obj) {
+        let sent = false;
+        for (const x of openConns()) { if (x.id === id) continue; try { x.c.send(obj); sent = true; } catch (e) {} }
+        return sent;
+    }
+    // host: the guests as the app sees them
+    const peers = () => conns.map((x) => ({ id: x.id, seat: x.seat, meta: x.meta, open: !!x.c.open, silent: isSilent(x) }));
+    // host: remember which seat a connection holds (assigned by the app's handshake)
+    function setSeat(id, seat) {
+        const x = conns.find((e) => e.id === id);
+        if (x) x.seat = seat;
     }
 
     function leave() {
@@ -325,6 +404,8 @@ const Net = (() => {
         for (const name of Object.keys(timers)) clearTimer(name);
         if (conn) { try { conn.close(); } catch (e) {} }
         conn = null;
+        for (const x of conns) { try { x.c.close(); } catch (e) {} }
+        conns = [];
         roomFull = false;
         dropPeer();
         role = null;
@@ -340,10 +421,11 @@ const Net = (() => {
     }
 
     return {
-        open, send, leave, retryNow, randomCode, normalizeCode,
+        open, send, sendTo, sendExcept, leave, retryNow, randomCode, normalizeCode, setSeat,
         get code() { return code; },
         get role() { return role; },
         get status() { return status; },
         get connected() { return isOpen(); },
+        get peers() { return peers(); },
     };
 })();
