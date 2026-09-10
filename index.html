@@ -71,17 +71,19 @@
                     <button class="btn big" id="btn-local">Local multiplayer</button>
                     <button class="btn big" id="btn-bot">Against a bot</button>
                 </div>
-                <!-- the academy (#41): rules, a guided tutorial and training positions per game -->
-                <div class="btn-row">
-                    <button class="btn big" id="btn-learn">📚 Learn to play</button>
-                </div>
             </div>
         </div>
         <div class="menu-foot">
-            <!-- shown only when the browser offers to install the page as an app (Android Chrome) -->
-            <button class="btn ghost install-btn" id="btn-install" hidden>📲 Add to home screen</button>
-            <button class="btn ghost install-btn" id="btn-replays">🎬 Replays</button>
-            <button class="btn ghost install-btn" id="btn-changelog">📜 Changelog</button>
+            <!-- the academy (#41) and the saved games (#42): two equal buttons in one row -->
+            <div class="btn-row">
+                <button class="btn" id="btn-learn">Learn to play</button>
+                <button class="btn" id="btn-replays">Replays</button>
+            </div>
+            <div class="foot-quiet">
+                <!-- shown only when the browser offers to install the page as an app (Android Chrome) -->
+                <button class="btn ghost install-btn" id="btn-install" hidden>📲 Add to home screen</button>
+                <button class="btn ghost install-btn" id="btn-changelog">Changelog</button>
+            </div>
         </div>
     </div>
 </section>

@@ -179,9 +179,10 @@ to try things").
   under them the muted hint `#menu-online-hint` ("One room for up to 4 players, plus
   spectators." — the seat count itself is picked in the lobby, #28),
   section *Offline* with `Local multiplayer` (`#btn-local`) and `Against a bot`
-  (`#btn-bot`) in one row and `📚 Learn to play` (`#btn-learn`, #41) in a second row under
-  them, the foot with `#btn-install` (see Install), `#btn-replays` (🎬, the replays
-  screen, #42) and `#btn-changelog`, and — **above the card** (#43), as its own banner
+  (`#btn-bot`) in one row, the foot (#43) with one row of two equal buttons —
+  `Learn to play` (`#btn-learn`, #41) and `Replays` (`#btn-replays`, #42) — over the quiet
+  pills `#btn-install` (see Install) and `Changelog` (`#btn-changelog`), none of the three
+  with an icon any more, and — **above the card** (#43), as its own banner
   inside `#screen-menu`, which is therefore the one screen laid out as a column —
   `#update-notice` (see "Version updates"). No Look
   control here (owner: only in the preferences, #9). Never scrolls on a phone. The ⚙

@@ -68,7 +68,11 @@
 }
 .hint { margin: 0; font-size: 12px; color: var(--muted); text-align: center; }
 
-.menu-foot { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+/* the foot (#43): Learn and Replays as two equal buttons in one row, the quiet pills
+   (install, changelog) centred under them */
+.menu-foot { display: flex; flex-direction: column; gap: 8px; }
+.menu-foot .btn-row .btn { flex: 1; font-size: 14px; padding: 11px 8px; white-space: nowrap; min-width: 0; }
+.foot-quiet { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .install-btn { font-size: 13px; padding: 10px 14px; }
 
 /* a new version is deployed (#40): a banner above the title card (#43), title screen only.
