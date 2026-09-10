@@ -100,8 +100,9 @@ to try things").
 
 - **Title** (`#screen-menu`): title "ALZlper's Minigames", section *Online* with
   `Create room` + `Join room` (`#join-panel` with the code field appears on Join room),
-  section *Offline* with `Play on this device` and `Play against a bot`, and the global
-  **Look** control. Never scrolls on a phone. The ⚙ preferences button (see
+  section *Offline* with `Local multiplayer` (`#btn-local`) and `Against a bot`
+  (`#btn-bot`). No Look control here any more (owner: only in the preferences, #9). Never
+  scrolls on a phone. The ⚙ preferences button (see
   Preferences) floats top-left on every screen.
 - **Lobby** (`#screen-lobby`), same screen for local and online (`app.mode`): room code +
   Share link / Spectate link / Copy code (online only), one `.lobby-player` card per seat from `#tpl-lobby-player`
@@ -166,8 +167,8 @@ already sits at 58px on phones. The MC skin restyles `.corner-btn` like `#react-
 
 ## Skins (`client/skins.js`, per device)
 
-`.skin-seg` control on the title screen, in the lobby and in the preferences modal
-(`Skins.init` wires every instance), stored in `localStorage["chainreact.skin"]`, never
+One `.skin-seg` control, in the preferences modal only (`Skins.init` wires every
+instance it finds, so more could be added), stored in `localStorage["chainreact.skin"]`, never
 sent to the friend, never in the settings modal. The DOM is identical for every skin; a
 body class switches the CSS and `Skins.names()` gives the player names.
 - **Classic** (default, owner's favourite — don't touch its look): dark navy UI, cyan vs

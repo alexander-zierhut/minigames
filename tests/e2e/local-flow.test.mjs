@@ -16,7 +16,7 @@ test("title screen: sections, join panel toggle, look control", async () => {
     assert.equal(await B.screen(), "screen-menu");
     assert.equal(await B.ev("document.getElementById('toast').hidden"), false);
     await B.click("#btn-join-open");
-    assert.equal(await B.ev("document.querySelectorAll('.skin-seg button').length"), 9, "skin control on title + lobby + preferences");
+    assert.equal(await B.ev("document.querySelectorAll('.skin-seg button').length"), 3, "the Look control lives in the preferences only");
 });
 
 test("local lobby: game picker, settings summary, start", async () => {
