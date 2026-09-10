@@ -64,8 +64,11 @@
                 </div>
             </div>
         </div>
-        <!-- shown only when the browser offers to install the page as an app (Android Chrome) -->
-        <button class="btn ghost install-btn" id="btn-install" hidden>📲 Add to home screen</button>
+        <div class="menu-foot">
+            <!-- shown only when the browser offers to install the page as an app (Android Chrome) -->
+            <button class="btn ghost install-btn" id="btn-install" hidden>📲 Add to home screen</button>
+            <button class="btn ghost install-btn" id="btn-changelog">📜 Changelog</button>
+        </div>
     </div>
 </section>
 
@@ -342,6 +345,15 @@
     </div>
 </div>
 
+<!-- ===================== CHANGELOG (changelog.json, loaded on demand) ===================== -->
+<div id="changelog-modal" class="modal" hidden>
+    <div class="menu-card changelog-card">
+        <h1 class="title small">Changelog</h1>
+        <div class="changelog-list" id="changelog-list"></div>
+        <button class="btn primary" id="btn-changelog-done">Done</button>
+    </div>
+</div>
+
 <!-- ===================== GAME OVER ===================== -->
 <div id="overlay" hidden>
     <div class="overlay-card">
@@ -404,6 +416,7 @@
 <script src="client/prefs.js"></script>
 <script src="client/settings.js"></script>
 <script src="client/opponent.js"></script>
+<script src="client/changelog.js"></script>
 <script src="client/bot-persona.js"></script>
 <script src="client/reactions.js"></script>
 <script src="client/chat.js"></script>

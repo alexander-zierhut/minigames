@@ -816,6 +816,7 @@
         onSelectGame: () => { if (app.mode === "bot" && app.phase === "lobby") renderLobby(); },
     });
     Opponent.init({ onDone: () => renderLobby() });
+    Changelog.init();
     Reactions.init({ onSend: (e) => { if (online()) netSend({ t: "react", e }); } });
     Chat.init({
         online,

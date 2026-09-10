@@ -37,6 +37,7 @@ test("build writes hashed assets and a rewritten index.html", () => {
         assert.equal(manifest.display, "standalone");
         for (const icon of manifest.icons) assert.ok(existsSync(join(dist, icon.src)), `manifest icon ${icon.src} in dist`);
         assert.ok(manifest.icons.some((i) => i.purpose === "maskable"), "a maskable icon for Android");
+        assert.ok(existsSync(join(dist, "changelog.json")), "changelog.json ships with the page");
         // bundle contains every client script and parses
         const bundle = readFileSync(join(dist, "assets", js), "utf8");
         for (const g of ["ChainGame", "FiveGame", "Clock", "Net", "Peer"]) assert.ok(bundle.includes(g), `bundle contains ${g}`);

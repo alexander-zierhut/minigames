@@ -71,6 +71,18 @@ kept. `client/sounds/*.ogg` — Minecraft sounds from the owner's own installati
 `Sound.FILES` references. `README.md` is the short public readme; `CLAUDE.md` just imports this file.
 `server/` (a 2022 PHP stub) was deleted; don't bring it back.
 
+## Changelog (`changelog.json`, always kept up to date)
+
+**Rule: every commit with a user-visible change adds an entry to `changelog.json` (root),
+in the same commit.** Newest day first: `{ days: [{ date: "YYYY-MM-DD", entries: [{ type:
+feature | improvement | fix | internal, text, refs: ["#12", "PR #1", "commit abc1234"] }] }] }`.
+Write the text for players (what changed for them, one sentence), and link the issue / PR
+/ commit in `refs` — `client/changelog.js` turns them into new-tab GitHub links and renders
+the file into `#changelog-modal` from the title screen's 📜 button (fetched on demand,
+first 7 days open, older days behind "Show older", so any length works). Internal-only
+changes get `type: internal` or no entry. `tests/unit/changelog.test.mjs` validates the
+file (dates descending, known types, resolvable refs).
+
 ## Install as an app (Android)
 
 `manifest.json` (name, `standalone`, navy theme/background, icons 192/512 "any" + a

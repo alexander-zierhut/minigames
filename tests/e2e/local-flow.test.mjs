@@ -104,3 +104,13 @@ test("install button: hidden until the browser offers to install, then prompts",
     assert.equal(await B.ev("document.querySelector('link[rel=manifest]').getAttribute('href')"), "manifest.json");
 });
 
+test("changelog: the title screen's button loads changelog.json and links issues in a new tab", async () => {
+    await B.click("#btn-changelog");
+    await B.waitFor("document.querySelectorAll('#changelog-list .cl-day').length > 0", { what: "changelog loaded" });
+    assert.equal(await B.ev("document.getElementById('changelog-modal').hidden"), false);
+    assert.match(await B.ev("document.querySelector('#changelog-list .cl-day h2').textContent"), /^\d{4}-\d{2}-\d{2}$/, "newest day first");
+    assert.ok(await B.ev("[...document.querySelectorAll('#changelog-list a.cl-ref')].every(a => a.target === '_blank' && a.href.startsWith('https://github.com/alexander-zierhut/minigames/'))"));
+    await B.click("#btn-changelog-done");
+    assert.equal(await B.ev("document.getElementById('changelog-modal').hidden"), true);
+});
+

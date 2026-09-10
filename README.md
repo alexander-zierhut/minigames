@@ -29,6 +29,7 @@ Blocks looks pixel block, explosion and level-up sounds). Emoji reactions for
 trash talk are in the top-right corner; a room chat lives under the game log (phones:
 behind the ☰ button).
 
+The title screen has a Changelog (from `changelog.json`, kept current with every change).
 On Android the title screen offers "Add to home screen" so it runs like an installed app
 (web app manifest; no service worker, no offline mode).
 
