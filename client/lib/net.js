@@ -271,14 +271,17 @@ const Net = (() => {
     }
 
     /* ---------- host: one connection per guest ---------- */
-    // A guest connected. A guest that comes back on a fresh connection with the seat it
-    // held (page refresh) replaces its stale connection. A newcomer is asked of the app
-    // (admit) — when every seat is taken it is turned away, unless an existing connection
-    // has stopped answering pings (> 6 s): that stale one is dropped in its favour.
+    // A guest connected. The same peer dialling again (its first dial stalled and it gave
+    // up after 8 s, see dial) or a guest that comes back on a fresh connection with the
+    // seat it held (page refresh) replaces its stale connection — newest wins, so one
+    // person is never two connections (a spectator counted twice on a slow CI box). A
+    // newcomer is asked of the app (admit) — when every seat is taken it is turned away,
+    // unless an existing connection has stopped answering pings (> 6 s): that stale one
+    // is dropped in its favour.
     function accept(c) {
         const meta = c.metadata || {};
         const seat = Number.isInteger(meta.seat) && meta.seat >= 0 ? meta.seat : -1;
-        const same = seat >= 0 ? conns.find((x) => x.seat === seat) : null;
+        const same = conns.find((x) => x.c.peer === c.peer) || (seat >= 0 ? conns.find((x) => x.seat === seat) : null);
         if (same) dropConn(same, "replaced");
         else if (handlers.admit && !handlers.admit(meta, peers())) {
             const silent = conns.find(isSilent);
@@ -427,5 +430,6 @@ const Net = (() => {
         get status() { return status; },
         get connected() { return isOpen(); },
         get peers() { return peers(); },
+        get peer() { return peer; },                  // test hook (online-edge: a duplicate dial from the same peer)
     };
 })();

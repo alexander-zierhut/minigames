@@ -30,6 +30,14 @@ test("a third person finds every seat taken and becomes a spectator; the two pla
     assert.equal(await A.ev("Net.connected"), true, "host still connected to the first guest");
     assert.equal(await B.ev("Net.connected"), true);
     assert.equal(await A.text("lp-1-status"), "connected");
+    // the same peer dialling again (a stalled first dial, retried after 8 s) must replace its
+    // old connection, never count twice — the host once showed "2 spectators watching" on CI
+    const before = await A.ev("Net.peers.find(p => p.seat < 0).id");
+    await C.ev("Net.peer.connect('chainreact-v1-' + Net.code, { reliable: true, metadata: { seat: -1, spectate: false } }); true");
+    await A.waitFor(`Net.peers.filter(p => p.seat < 0).length === 1 && Net.peers.find(p => p.seat < 0).id !== ${JSON.stringify(before)}`, { timeout: 20000, what: "the duplicate replaced the old connection (never a third entry)" });
+    await C.waitFor("Net.connected && document.getElementById('btn-start').textContent === 'Spectating'", { timeout: 40000, what: "spectator reattached after the replacement" });
+    await sleep(500);
+    assert.equal(await A.text("lobby-spectators"), "1 spectator watching");
     await C.click("#btn-lobby-back");
     await A.waitFor("document.getElementById('lobby-spectators').textContent === ''", { timeout: 20000, what: "spectator left" });
     await C.close(); C = null;

@@ -481,6 +481,10 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   `admit(meta)` decides (`admitGuest`: a free seat exists, or the seat it names is free,
   or it wants to spectate); refused newcomers get `full` — unless some connection has
   stopped answering pings (> 6 s): that stale one is dropped in the newcomer's favour.
+  **The same peer id dialling again always replaces its old connection** (newest wins): a
+  guest whose first dial stalled retries after 8 s, and without this the host counted one
+  spectator twice on the slow CI runner (a seat-less dial is not deduped by seat).
+  `Net.peer` is exposed for that e2e check only.
   `full` is not final on the guest: it shows "This room is full…" (status `error`) and
   quietly redials every 5 s, because the "friend" may be its own stale connection the
   host hasn't noticed as dead yet (a slow CI machine hit exactly that). Connection
@@ -892,7 +896,8 @@ set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px o
   rejoin, host leave → guest takes over → host returns as guest, hide the room code:
   bullets + bare URL + copy still works + refresh rejoins hidden + the preference;
   `SKIP_ONLINE=1` skips),
-  `online-edge` (third player → spectator, players stay connected; both refresh in the lobby; guest closes the
+  `online-edge` (third player → spectator, players stay connected, a duplicate dial from the
+  same peer replaces the old connection; both refresh in the lobby; guest closes the
   tab mid-game without goodbye and returns by link; rematch asked while the friend was
   away; host's tab dies, guest goes back to the room, host returns → both in the lobby;
   a corrupted guest board is rebuilt from the host; a board that keeps differing sends

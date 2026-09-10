@@ -5,6 +5,11 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "fix",
+          "text": "Online: a player or spectator whose first connection attempt stalled and who reconnected no longer counts twice in the room.",
+          "technical": true
+        },
+        {
           "type": "improvement",
           "text": "Bot levels are fully deterministic: each level searches a fixed number of positions per move, the same on every device, instead of a time limit."
         },
