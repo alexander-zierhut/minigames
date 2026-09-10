@@ -57,6 +57,16 @@ test("reactions relay to the other side, rate limited", { skip: !ONLINE }, async
     await A.click('#react-bar button[data-e="🔥"]');
     await B.waitFor("document.getElementById('react-layer').children.length >= 1", { what: "guest sees reaction" });
     assert.equal(await B.ev("document.querySelector('#react-layer .react-float').classList.contains('theirs')"), true);
+    // the float glows in the sender's colour, so you can see who sent it (#33)
+    assert.equal(await B.ev("document.querySelector('#react-layer .react-float').style.getPropertyValue('--react-color')"), "var(--c0)", "the host's seat colour");
+    const filter = await B.ev("getComputedStyle(document.querySelector('#react-layer .react-float')).filter");
+    assert.match(filter, /drop-shadow\(.*\).*drop-shadow\(/, `dark shadow plus the coloured glow (${filter})`);
+    // my own reaction glows in my own seat's colour
+    await B.click("#react-toggle");
+    await B.click('#react-bar button[data-e="👏"]');
+    await B.waitFor("[...document.querySelectorAll('#react-layer .react-float')].some(f => !f.classList.contains('theirs'))", { what: "own reaction" });
+    assert.equal(await B.ev("[...document.querySelectorAll('#react-layer .react-float')].find(f => !f.classList.contains('theirs')).style.getPropertyValue('--react-color')"), "var(--c1)", "the guest's own seat colour");
+    await B.click("#react-toggle");
 });
 
 test("chat lines relay both ways in the sender's colour, text only, into the game log", { skip: !ONLINE }, async () => {

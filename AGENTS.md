@@ -917,7 +917,14 @@ max 14 on screen). **Speed follows the rate** (#17): `Reactions.durationFor(rece
 this one: 0 → `SLOW_MS` 4000 (a lone reaction can be seen), 1 → `MEDIUM_MS` 2800, ≥ 2 →
 `FAST_MS` 1900 (spam stays quick); no randomness beyond the wobble. Spam is allowed on
 purpose (~8/s; the receiver accepts one per 100 ms and only values from its own button
-set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
+set). **Who sent it (#33):** every float carries `--react-color`, the sender's seat colour
+(received: what `Room`/`BotPersona` pass to `receive(e, color)`, own: the `color()` handler
+`Reactions.init` gets — app.js gives `Match.playerColor` of my seat, white while
+spectating, the player to move when everyone shares one device; a missing or throwing
+handler falls back to white). `game.css` turns it into a light
+`drop-shadow(0 0 6px var(--react-color))` next to the usual dark shadow (chips get a
+matching `box-shadow`), and a friend's reaction still gets the small dot in their colour.
+`#net-banner` sits at 58px on phones so it stays clear of the toggle.
 
 ## Tests (`npm test` = unit + e2e; CI runs both before every deploy and on every PR)
 
@@ -936,7 +943,7 @@ set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px o
   `sound.test.mjs` (event → cue mapping with a fake player, perspective, prefs gate, sound
   sets), `chat.test.mjs` (log boxes, limits, HTML safety, offline, chat survives a new
   game), `reactions.test.mjs` (float duration from the recent rate with a mocked clock,
-  own + received, rate limits), `winchance.test.mjs` (frozen while animating, stages,
+  own + received, rate limits, the sender's colour on every float, #33), `winchance.test.mjs` (frozen while animating, stages,
   smoothing), `persona.test.mjs`, `changelog.test.mjs`, `calibrate.test.mjs`, `puzzles.test.mjs`,
   `party.test.mjs` (3–4 players: `out`/`remaining`/pass in the pure rules, engine
   `eliminate` + `replay(history, outs)` == live play, two-player flag fall, settings
@@ -1012,7 +1019,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `setMode(mode)`, `game`, `fields` |
 | `Prefs` | `init({onChange, context})`, `get() → {volume, soundSet, sounds, hideCode, privateIp, developer}`, `set(patch)`, `open/close`, `feedbackUrl()`, `showSection(key)`, `sectionSummary(key)`, `CATEGORIES`, `SECTIONS`, `isOpen`, `section` |
 | `Opponent` | `init({onDone})`, `open(game)`, `current(game) → {id, difficulty, def}`, `summary(game)`, `NAME` ("Bot") |
-| `Reactions` | `init({onSend})`, `receive(emoji, color)`, `place()`, `durationFor(recent)` |
+| `Reactions` | `init({onSend, color})`, `receive(emoji, color)`, `place()`, `durationFor(recent)` |
 | `Chat` | `init(...)`, `send`, `receive(msg)`, `enable(on)` (see chat section) |
 | `Sound` | `Bus`-driven; `play(cue)` for tests, unlock on first gesture |
 | `Changelog` | `init()`, `open/close`, `render(doc[, all])`, `refUrl(ref)`, `technical(entry)`, `showTechnical`, `SHOW_DAYS` |

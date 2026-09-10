@@ -5,14 +5,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { loadDom } from "./dom.mjs";
 
-function setup() {
+function setup(handlers = {}) {
     const w = loadDom(); const d = w.document;
     const R = w.eval("Reactions"), Bus = w.eval("Bus");
     const animations = [], sent = [], events = [];
     w.Element.prototype.animate = function (frames, options) { animations.push({ el: this, options }); return { finished: Promise.resolve(), onfinish: null, cancel() {} }; };
     let now = 0;
     w.Date.now = () => now;
-    R.init({ onSend: (e) => sent.push(e) });
+    R.init({ onSend: (e) => sent.push(e), ...handlers });
     Bus.on("reaction", (e) => events.push(e));
     const click = (e) => d.querySelector(`#react-bar .react-list button[data-e="${e}"]`).click();
     return { w, d, R, animations, sent, events, click, at: (t) => { now = t; } };
@@ -57,6 +57,31 @@ test("a lone reaction floats slowly, a burst falls fast, own and received count 
     assert.equal(events.length, 6);
     assert.equal(events[0].theirs, true); assert.equal(events[1].theirs, false); assert.equal(events[1].emoji, "🔥");
     w.close();
+});
+
+test("every reaction carries the sender's colour, so the glow says who sent it (#33)", () => {
+    const { w, R, animations, click, at } = setup({ color: () => "var(--c0)" });
+    at(1000); click("🔥");
+    assert.equal(animations[0].el.style.getPropertyValue("--react-color"), "var(--c0)", "my own reaction: my seat's colour");
+    assert.equal(animations[0].el.style.getPropertyValue("--their-color"), "", "the dot stays for received ones only");
+    at(1200); R.receive("👏", "var(--c1)");
+    assert.equal(animations[1].el.style.getPropertyValue("--react-color"), "var(--c1)", "received: the sender's colour");
+    assert.equal(animations[1].el.style.getPropertyValue("--their-color"), "var(--c1)");
+    at(1400); click("GG");
+    assert.ok(animations[2].el.classList.contains("chip"));
+    assert.equal(animations[2].el.style.getPropertyValue("--react-color"), "var(--c0)", "chips glow too");
+    at(1600); R.receive("😂");                        // a friend without a known colour
+    assert.equal(animations[3].el.style.getPropertyValue("--react-color"), "#ffffff");
+    w.close();
+    // no colour handler and a throwing one both fall back to white, never break the reaction
+    const a = setup();
+    a.at(1000); a.click("🔥");
+    assert.equal(a.animations[0].el.style.getPropertyValue("--react-color"), "#ffffff");
+    a.w.close();
+    const b = setup({ color: () => { throw new Error("no match yet"); } });
+    b.at(1000); b.click("🔥");
+    assert.equal(b.animations[0].el.style.getPropertyValue("--react-color"), "#ffffff");
+    b.w.close();
 });
 
 test("rate limits still apply: one own reaction per 120 ms, one received per 100 ms, unknown values ignored", () => {

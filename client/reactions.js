@@ -4,7 +4,10 @@
    phones — never over the board, never off-screen. Spam is allowed on purpose.
    Speed (#17): a single, occasional reaction floats slowly (~4 s) so it can be seen;
    the faster people react, the faster the emojis fall (durationFor: 0 shown in the
-   last 3 s → slow, 1 → medium, ≥ 2 → fast ~1.9 s, own and received alike). */
+   last 3 s → slow, 1 → medium, ≥ 2 → fast ~1.9 s, own and received alike).
+   Colour (#33): every floating reaction carries `--react-color`, the sender's seat
+   colour (received: the colour Room/BotPersona passes in, own: the `color()` handler),
+   which game.css turns into a light glow so you can see at a glance who sent it. */
 
 "use strict";
 
@@ -16,6 +19,7 @@ const Reactions = (() => {
     let shown = [];                                   // when the recent reactions (own + received) appeared
     let allowed = new Set();
     let onSend = () => {};
+    let myColor = () => "#ffffff";                    // my seat's colour, for the glow on my own reactions (#33)
 
     // how long a reaction floats, from how many were shown in the last RATE_WINDOW ms
     // before it (pure; no randomness so both sides of a room behave alike)
@@ -30,6 +34,7 @@ const Reactions = (() => {
 
     function init(handlers) {
         onSend = handlers.onSend || onSend;
+        myColor = handlers.color || myColor;
         const buttons = [...document.querySelectorAll("#react-bar .react-list button")];
         allowed = new Set(buttons.map((b) => b.dataset.e));
         buttons.forEach((b) => b.addEventListener("click", () => send(b.dataset.e)));
@@ -52,6 +57,14 @@ const Reactions = (() => {
         show(e, true, color);
     }
 
+    // the sender's colour: the friend's seat for a received one, my own seat otherwise (#33)
+    function colorOf(theirs, color) {
+        if (theirs) return color || "#ffffff";
+        let mine;
+        try { mine = myColor(); } catch (err) { mine = null; }
+        return mine || "#ffffff";
+    }
+
     // drop a small element that pops in, tumbles down the layer and fades out
     function show(e, theirs, color) {
         const layer = $("react-layer");
@@ -63,6 +76,7 @@ const Reactions = (() => {
         const isChip = e.length <= 3 && /^[A-Z]+$/.test(e);
         el.className = "react-float" + (isChip ? " chip" : "") + (theirs ? " theirs" : "");
         el.textContent = e;
+        el.style.setProperty("--react-color", colorOf(theirs, color));   // the glow that says who sent it (#33)
         if (theirs && color) el.style.setProperty("--their-color", color);
         layer.appendChild(el);
         const drift = -(14 + Math.random() * 12);           // start a bit right, end a bit left
