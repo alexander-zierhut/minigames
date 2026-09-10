@@ -190,13 +190,13 @@ const Match = (() => {
         BotPersona.detach();
         st.bot = null;
         if (st.mode !== "bot") return;
-        const choice = Opponent.current(cfg.game);
+        const choice = Opponent.current(cfg.game, cfg);
         if (!choice) { st.seats[1].kind = "local"; return; }        // no bot for this game: play both sides
         // seed: fresh per game so the bot varies; tests pin it via sessionStorage["chainreact.botseed"]
         const seed = ((Number(Util.load(sessionStorage, "chainreact.botseed")) || Date.now()) + st.gameNo) >>> 0;
         st.bot = Bots.create(choice.id, { me: 1, difficulty: choice.difficulty, seed, players });
         st.botInfo = { id: st.bot.def.id, difficulty: st.bot.difficulty, budget: st.bot.tools.budget.nodes };
-        const est = Bots.estimator(cfg.game);
+        const est = Bots.estimator(cfg.game, cfg);
         BotPersona.attach({ bot: st.bot, seat: 1, game: cfg.game, state: () => Game.state, estimate: (s) => est.at(s, 300), color: playerColor(1) });
     }
 

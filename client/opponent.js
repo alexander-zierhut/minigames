@@ -20,9 +20,10 @@ const Opponent = (() => {
     const middle = (def) => def.difficulties[Math.floor((def.difficulties.length - 1) / 2)].id;
     const level = (def, id) => def.difficulties.find((d) => d.id === id) || def.difficulties[0];
 
-    // the bot + difficulty for a game: the remembered level if that bot still has it, else the middle one
-    function current(g) {
-        const def = Bots.botFor(g);
+    // the bot + difficulty for a game (and its rule variants, cfg): the remembered level if that bot
+    // still has it, else the middle one
+    function current(g, cfg) {
+        const def = Bots.botFor(g, cfg);
         if (!def) return null;
         const saved = choices[g];
         const d = saved && saved.id === def.id && def.difficulties.some((x) => x.id === saved.difficulty) ? saved.difficulty : middle(def);
@@ -30,8 +31,8 @@ const Opponent = (() => {
     }
 
     // the lobby's Opponent row: "Bot · Normal · 100 % vs Random · 100 % puzzles"
-    function summary(g) {
-        const c = current(g);
+    function summary(g, cfg) {
+        const c = current(g, cfg);
         if (!c) return "No bot plays this game yet";
         const parts = [NAME];
         if (c.def.difficulties.length > 1) parts.push(level(c.def, c.difficulty).label);
@@ -48,8 +49,9 @@ const Opponent = (() => {
     }
     const thousands = (n) => String(n).replace(/\B(?=(\d{3})+$)/g, "\u202f");   // 2 000, 100 000
 
+    let cfg = null;                                         // the settings the modal was opened with (rule variants)
     function render() {
-        const def = current(game).def;
+        const def = current(game, cfg).def;
         $("bot-name").textContent = NAME;
         $("bot-desc").textContent = def.description || "";
         $("bot-badges").innerHTML = badges(def.id);
@@ -68,8 +70,9 @@ const Opponent = (() => {
         $("bot-difficulty-hint").textContent = lv.nodes ? `${lv.label}: searches up to ${thousands(lv.nodes)} positions per move.` : "";
     }
 
-    function open(g) {
-        const c = current(g);
+    function open(g, config) {
+        cfg = config || null;
+        const c = current(g, cfg);
         if (!c) return;                                     // no bot for this game: the lobby's Start is disabled anyway
         game = g;
         difficulty = c.difficulty;
@@ -78,7 +81,7 @@ const Opponent = (() => {
     }
     function close(save) {
         if (save && game) {
-            choices[game] = { id: current(game).id, difficulty };
+            choices[game] = { id: current(game, cfg).id, difficulty };
             Util.save(localStorage, KEY, choices);
         }
         $("bot-modal").hidden = true;

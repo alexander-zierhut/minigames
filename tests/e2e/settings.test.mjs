@@ -24,7 +24,27 @@ test("board size clamps per game; five's minimum follows the win length", async 
     assert.equal(await B.text("size-hint"), "(8–25)");
     assert.equal(await B.set("set-winlen", 99), "25");
     await B.set("set-winlen", 5); await B.set("set-size", 11);
+    // the Yavalath rule: one less than the win length loses; shown in the summary
+    assert.equal(await B.ev("document.getElementById('row-yavalath').hidden"), false);
+    await B.check("set-yavalath", true);
     await B.click("#btn-settings-done");
+    assert.match(await B.text("settings-summary"), /5 in a row · no timer · 4 in a row loses$/);
+    await B.click("#btn-settings"); await B.check("set-yavalath", false); await B.click("#btn-settings-done");
+    assert.doesNotMatch(await B.text("settings-summary"), /loses/);
+});
+
+test("Yavalath rule in a local game: three in a row loses, the other player wins", async () => {
+    await B.selectGame("five"); await B.click("#btn-settings");
+    await B.set("set-size", 6); await B.set("set-winlen", 4); await B.check("set-yavalath", true); await B.click("#btn-settings-done");
+    await B.click("#btn-start");
+    const start = (await B.state()).current;
+    for (const i of [0, 6, 1, 7, 2]) await B.move(i);          // the starter makes three: it loses
+    const st = await B.state();
+    assert.equal(st.over, true); assert.equal(st.winner, 1 - start);
+    assert.match(await B.text("overlay-sub"), /3 in a row loses/);
+    assert.equal(await B.ev("document.querySelectorAll('.stone.win').length"), 3, "the losing line is highlighted");
+    await B.click("#overlay-menu");
+    await B.click("#btn-settings"); await B.check("set-yavalath", false); await B.set("set-winlen", 5); await B.set("set-size", 11); await B.click("#btn-settings-done");
 });
 
 test("timer custom row and chain rule toggle", async () => {

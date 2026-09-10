@@ -928,5 +928,6 @@ Bots.register({
         return { move: (state) => s.move(state), searcher: s };     // searcher: test hook (info of the last search)
     },
     evaluate: (state, tools) => SenseiFive.estimateRaw(state, tools),
+    supports: (config) => !config.yavalath,      // the Yavalath rule (one less in a row loses) is not in its search: the Random baseline plays that
     internals: SenseiFive,          // test hooks: Board, Searcher, Evaluator, evaluate, estimateRaw, LEVELS, WS, EVAL, EST
 });

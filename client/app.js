@@ -47,7 +47,7 @@
         eye.title = Room.codeHidden ? "Show the room code" : "Hide the room code";
         eye.setAttribute("aria-label", eye.title);
         $("btn-opponent").hidden = !bot;
-        if (bot) $("opponent-summary").textContent = Opponent.summary(Settings.game);
+        if (bot) $("opponent-summary").textContent = Opponent.summary(Settings.game, Settings.read());
         Settings.setLocked(online && Match.spectator);              // spectators only watch (#29)
         $("lobby-share").hidden = !online;
         $("lobby-players").hidden = !online;
@@ -69,7 +69,7 @@
         $("lobby-spectators").textContent = watching > 0 ? `${watching} spectator${watching > 1 ? "s" : ""} watching` : "";
         const start = $("btn-start");
         if (!online) {
-            start.disabled = bot && !Opponent.current(Settings.game);
+            start.disabled = bot && !Opponent.current(Settings.game, Settings.read());
             start.textContent = "Start game";
             $("lobby-status").textContent = "";
         } else if (Match.spectator) {
@@ -203,7 +203,7 @@
     $("join-code").addEventListener("input", () => { $("join-code").value = Net.normalizeCode($("join-code").value); });
     $("btn-local").addEventListener("click", () => openLocalLobby(false));
     $("btn-bot").addEventListener("click", () => openLocalLobby(true));
-    $("btn-opponent").addEventListener("click", () => Opponent.open(Settings.game));
+    $("btn-opponent").addEventListener("click", () => Opponent.open(Settings.game, Settings.read()));
 
     // lobby
     async function shareLink(link, text) {
@@ -274,7 +274,8 @@
     });
     Sound.init({ seats: () => Match.seats.map((s) => s.kind) });
     Settings.init({
-        onChange: (cfg) => { if (Room.online) Room.settingsChanged(cfg); },
+        // a rule variant can change which bot plays (Yavalath: the baseline), so the Opponent row follows
+        onChange: (cfg) => { if (Room.online) Room.settingsChanged(cfg); else if (Match.mode === "bot" && phase === "lobby") renderLobby(); },
         // picking a game keeps the default opponent (best bot, middle level, #12); the Opponent row opens the picker
         onSelectGame: () => { if (Match.mode === "bot" && phase === "lobby") renderLobby(); },
     });

@@ -66,7 +66,7 @@ test("HUD: player stat rows and the game box come from the view's model (chain h
 test("settings rows are generated from the game definitions and read into the config", () => {
     const w = loadDom(); const d = w.document; const S = w.eval("Settings");
     S.init({});
-    assert.equal(JSON.stringify(S.fields), JSON.stringify(["speed", "chainRule", "chainLen", "winLen"]), "every field of every game, in registration order");
+    assert.equal(JSON.stringify(S.fields), JSON.stringify(["speed", "chainRule", "chainLen", "winLen", "yavalath"]), "every field of every game, in registration order");
     for (const id of ["row-speed", "row-chainrule", "row-winlen", "set-speed", "set-chainrule", "set-chainlen", "set-winlen"]) assert.ok(d.getElementById(id), id);
     assert.equal(d.getElementById("row-chainrule").dataset.setting, "chainRule");
     assert.equal(d.getElementById("set-speed").tagName, "SELECT");

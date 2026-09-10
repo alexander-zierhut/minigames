@@ -207,7 +207,7 @@ to try things").
   Online, every step sends `review {ply}` so the whole room looks at the same move.
 - `Match.mode` ∈ `local | bot | online`. Bot mode is the offline lobby with an extra
   *Opponent* row (`#btn-opponent` → `#bot-modal`). **One bot per game (#21)**, called
-  "Bot" wherever a player sees it (`Opponent.NAME`; `Bots.botFor(game)` picks it): the
+  "Bot" wherever a player sees it (`Opponent.NAME`; `Bots.botFor(game, cfg)` picks it): the
   modal is one step (description, scores, difficulty, Cancel / Play). Picking a game does
   **not** open it (#12): the default is the middle difficulty; the row shows the choice.
   You are seat 0, the bot seat 1.
@@ -465,7 +465,15 @@ deterministic, so online clients and `replay` agree; the puzzle solver mirrors i
 `Board.dead()`). With 3–4 players the turn
 rotates (`Rules.pass`) and the first line wins; when everyone else is `out` the last
 player wins ("Everyone else is out."). HUD: stones placed, best row
-as the bar. MC skins: quartz tiles on obsidian, diamond/gold blocks as stones; hover
+as the bar. **Yavalath rule** (`config.yavalath`, setting "Yavalath rule", summary "N in a
+row loses"): a stone whose longest line is exactly `winLen - 1` loses for its owner unless
+it also made `winLen` (the losing line is shown as `winLine`); with two players the other
+one wins ("3 in a row loses!"), with three or four the loser is `state.dead[p]` (the rules'
+own alive list for `Rules.pass` / `Rules.remaining`, exposed as `FiveRules.alive(state)`;
+eliminations inside the rules, not `outs`) and the last one standing wins. The HUD shows
+"Out · 3 in a row" on a dead seat. Sensei declares `supports: (cfg) => !cfg.yavalath`, so
+`Bots.botFor("five", cfg)` hands the Random baseline out for that rule and the win chance
+uses the rules' `estimate` heuristic (owner: the bot need not play this mode). MC skins: quartz tiles on obsidian, diamond/gold blocks as stones; hover
 keeps the texture (no background transition on textured tiles — a flicker bug once).
 
 ## Board / HUD layout rules
@@ -474,7 +482,7 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   subtracts 10px so the outline is never clipped on a full-width phone board.
 - **Win chance** (`client/winchance.js`, an observer — no engine or game code involved):
   every player card has a `.win-bar` ("62 % win"). On `game:new` WinChance picks
-  `Bots.estimator(game)` when the game has two players → `{ bot, stages, at(state, nodes) }`:
+  `Bots.estimator(game, config)` when the game has two players → `{ bot, stages, at(state, nodes) }`:
   the strongest registered bot that offers `evaluate(state, tools)` (a RAW score from
   player 0's view, ±Infinity when decided, deterministic for a node budget, may be async)
   mapped through the bot's **calibration** (`Bots.calibration(id, { scale, shift, brier,
@@ -807,9 +815,13 @@ every bot folder into a bare VM — script list parsed from `index.html`).
 - **Registry**: `Bots.register({ id, name, game, version, description, difficulties:
   [{ id, label }, …], create(tools), baseline? })` (validated: slug id, ≥ 1 difficulty,
   create fn, boolean `baseline`). `Bots.get/list/forGame(game)`, `Bots.benchmarkOf(id)`.
-  **One bot per game (#21):** `Bots.botFor(game)` = the best-rated bot without `baseline`
-  (Creeper, Sensei), or — while a game has no real bot yet — its Random baseline, so
-  "Against a bot" always works. The Random bots are `baseline: true`: the benchmark and
+  **One bot per game (#21):** `Bots.botFor(game, config)` = the best-rated bot without
+  `baseline` that `supports(config)` (an optional predicate on the config for rule variants
+  a bot does not know, e.g. Sensei and the Yavalath rule; `Bots.supports(id, config)`),
+  or — while a game has no real bot for those rules — its Random baseline, so
+  "Against a bot" always works. `Bots.estimator(game, config)` filters the same way
+  (`WinChance` passes `game:new`'s config, `Match.setupBot` / `Opponent.current(game, cfg)`
+  / `Opponent.open(game, cfg)` the lobby's settings). The Random bots are `baseline: true`: the benchmark and
   calibration opponent and the illegal-move fallback, never offered to players and not
   benchmarked themselves (no `benchmark.js`). Players see every bot as "Bot"; the ids and
   `name`s stay for the code, the benchmark output and the docs. Rules modules register themselves
@@ -1089,8 +1101,8 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Games` / engine | `register(def)`, `get/has/keys`, `positionAt(record, ply)`; engine `state, config, previewPly, newGame, play, replay, preview, finish, eliminate, abandon, render, isLegal, hash, record` |
 | `Hud` | `build(players, title)`, `render(state, hooks, model)`, `overlay(name, winner, sub)` |
 | `WinChance` | Bus-driven; `display`, `estimator`, `REFINE_MS`, `SMOOTH`, `DECIDED` |
-| `Bots` | `register, get, list, forGame, botFor(game), create(id, {me, difficulty, seed, players, budget}), tools(game, opts), playout, rng, validate, benchmark/benchmarkOf, calibration/calibrationOf, estimator(game) → {bot, stages, at(state, nodes), quick}, toProbability(raw, cal), ESTIMATE_STAGES` |
-| bot definition | `id, name, game, version, description, difficulties [{id, label, nodes}], create(tools) → {move(state)}, evaluate?(state, tools) → raw, baseline?` |
+| `Bots` | `register, get, list, forGame, botFor(game, config), supports(id, config), create(id, {me, difficulty, seed, players, budget}), tools(game, opts), playout, rng, validate, benchmark/benchmarkOf, calibration/calibrationOf, estimator(game, config) → {bot, stages, at(state, nodes), quick}, toProbability(raw, cal), ESTIMATE_STAGES` |
+| bot definition | `id, name, game, version, description, difficulties [{id, label, nodes}], create(tools) → {move(state)}, evaluate?(state, tools) → raw, supports?(config) → bool, baseline?` |
 | `BotPersona` | `attach({bot, seat, game, state, estimate, color, delays?, cooldownMs?})`, `detach()`, `POOLS` |
 | `Skins` | `init({onChange})`, `set(key)`, `names()`, `current` |
 | `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `setMode(mode)`, `setPlayers(n)`, `setMinPlayers(n)`, `setLocked(on)`, `supports(key)`, `MIN_PLAYERS_HINT`, `game`, `players`, `minPlayers`, `locked`, `fields` |
