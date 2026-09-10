@@ -17,9 +17,11 @@
 }
 #screen-learn-game .menu-card { gap: 14px; }
 .lobby-row-note { margin-left: auto; font-size: 11px; color: var(--muted); }
-/* the two long lists scroll inside the card, so Back stays in reach without scrolling it */
-#learn-rules { max-height: 28vh; overflow-y: auto; }
-#learn-scenarios { max-height: 30vh; overflow-y: auto; }
+/* The details page is the one screen that may scroll (#43): the rule bullets and the
+   scenario rows stay whole (no box inside a box that scrolls), the page carries them.
+   `margin: auto` centres the card while it fits and never pushes its top out of reach. */
+#screen-learn-game { align-items: flex-start; }
+#screen-learn-game .menu-card { max-height: none; overflow: visible; margin: auto; }
 
 /* rules bullets and the tutorial steps in the lobby modal */
 .learn-rules, .learn-steps {
@@ -57,6 +59,16 @@
 }
 .learn-head { display: flex; align-items: baseline; gap: 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); }
 .learn-head .learn-step { margin-left: auto; letter-spacing: 1px; text-transform: none; white-space: nowrap; }
+/* Hide / Show for a scenario's explanation (#43) */
+.learn-toggle {
+    flex: 0 0 auto; padding: 2px 8px; font-size: 11px; font-weight: 700; letter-spacing: 0;
+    text-transform: none; color: var(--text); background: var(--panel2);
+    border: 2px solid var(--line); border-radius: 8px; cursor: pointer;
+}
+.learn-toggle:hover { border-color: #46528a; }
+/* folded: the explanation goes, the one hint line stays (it says how the move was) */
+#learn-panel.folded .learn-text { display: none; }
+.skin-mc .learn-toggle { border-radius: 0; border-color: #000; background: #4a4a4a; }
 .learn-text { font-size: 12px; line-height: 1.35; }
 .learn-hint { font-size: 11px; font-weight: 700; color: var(--muted); min-height: 14px; }
 .learn-hint.bad, .learn-hint.wrong { color: #ff9b3d; }
@@ -83,8 +95,6 @@ body.learn-tutorial #hut .win-bar { display: none; }
 @media (max-width: 899px) {
     #screen-learn, #screen-learn-game { padding-top: 56px; }
     #screen-learn-game .menu-card { gap: 10px; padding: 20px 18px; }
-    #learn-rules { max-height: 24vh; }
-    #learn-scenarios { max-height: 26vh; }
 }
 
 @media (min-width: 900px) and (min-aspect-ratio: 1/1) {

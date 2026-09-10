@@ -113,8 +113,12 @@ input[type="range"] { accent-color: var(--accent); width: 100%; margin: 0; }
 .corner-btn:hover { background: #2b3556; }
 .corner-btn > span { pointer-events: none; }    /* taps and hit-tests land on the button itself */
 .corner-btn .corner-icon { font-size: 20px; }
-.corner-short { display: none; }               /* phones: "⚙ Settings", desktop: "⚙ Settings & Feedback" (#25) */
-@media (max-width: 899px) { .corner-long { display: none; } .corner-short { display: inline; } }
+/* the full label everywhere (#43); phones get it a touch smaller so the pill and the
+   reaction toggle never meet on a 360px screen */
+@media (max-width: 899px) {
+    .corner-btn { height: 38px; padding: 0 11px 0 8px; font-size: 12px; gap: 5px; }
+    .corner-btn .corner-icon { font-size: 17px; }
+}
 .corner-btn:active { transform: scale(.94); }
 
 /* ---- player cube (HUD, lobby) ---- */

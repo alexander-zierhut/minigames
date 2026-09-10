@@ -5,6 +5,11 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "improvement",
+          "text": "A round of layout polish: the settings button keeps its full name on phones, the emoji list opens under its button instead of across the top, the update notice sits above the title card, Learn and Replays are two buttons in the title foot, the replays filter shows the games with their tiles, a game's Learn page scrolls as a whole, and a scenario's explanation can be folded away while a tutorial keeps the board still.",
+          "technical": true
+        },
+        {
           "type": "feature",
           "text": "Replays can be analysed: the bot walks through the game, shows the win chance of every move as a line graph, tells you at each step whether the move was the best one and how much it gave away, and gives every player a score out of 100.",
           "refs": [

@@ -197,10 +197,12 @@ to try things").
   under them the muted hint `#menu-online-hint` ("One room for up to 4 players, plus
   spectators." — the seat count itself is picked in the lobby, #28),
   section *Offline* with `Local multiplayer` (`#btn-local`) and `Against a bot`
-  (`#btn-bot`) in one row and `📚 Learn to play` (`#btn-learn`, #41) in a second row under
-  them, the foot with `#btn-install` (see Install), `#btn-replays` (🎬, the replays
-  screen, #42) and `#btn-changelog`, and under
-  it `#update-notice` (see "Version updates"). No Look
+  (`#btn-bot`) in one row, the foot (#43) with one row of two equal buttons —
+  `Learn to play` (`#btn-learn`, #41) and `Replays` (`#btn-replays`, #42) — over the quiet
+  pills `#btn-install` (see Install) and `Changelog` (`#btn-changelog`), none of the three
+  with an icon any more, and — **above the card** (#43), as its own banner
+  inside `#screen-menu`, which is therefore the one screen laid out as a column —
+  `#update-notice` (see "Version updates"). No Look
   control here (owner: only in the preferences, #9). Never scrolls on a phone. The ⚙
   preferences button floats top-left on every screen.
 - **Version updates** (`client/lib/update.js`, #40): while the title screen shows, `Update`
@@ -209,7 +211,7 @@ to try things").
   `<meta name="version">` (`Update.isNewer(running, latest)`: two different non-empty
   stamps, never "dev", so the unbundled dev page and the tests never poll). A different
   stamp sets `Update.available` and shows `#update-notice` ("A new version is ready." plus
-  `#btn-update-reload`). **Only on the title screen**: `app.js`'s `show()` calls
+  `#btn-update-reload`), the banner above the title card (#43). **Only on the title screen**: `app.js`'s `show()` calls
   `Update.screenChanged()`, which hides the notice in the lobby and in a game and shows it
   again on the way back, so a result that arrives elsewhere simply waits. After
   `Update.AUTO_MS` (20 s) with the notice up and no click or key press the page reloads
@@ -277,8 +279,12 @@ to try things").
   `review {ply}` (or `play: false`) pauses and jumps.
 - **Analysis panel** (`#replay-panel`, #43): see "Replay analysis" below.
 - **Replays** (`#screen-replays`, #42): the title screen's 🎬 button opens the list of the
-  games this device played (`Replays.store`, newest first). A `.seg` filter (`#replay-filter`:
-  All + one button per registered game, built by app.js), one `.replay-item` per game from
+  games this device played (`Replays.store`, newest first). A **dropdown** filter
+  (`#replay-filter`, built by app.js, #43: `.dropdown` = a `.dd-button` showing the picked
+  game's small preview tile and its title, and a `.dd-menu` of `.dd-option[data-filter]`
+  rows, "All games" first and then one per registered game, each with its tile; a click
+  next to it or Escape closes it. `.dropdown` lives in `menu.css` and only this screen uses
+  it, because a plain `<select>` cannot show the tiles), one `.replay-item` per game from
   `#tpl-replay` (title "Five Wins · 5 × 5", the sub line "date · names · result · moves"
   from `Replays.summary`) with **Watch** / ⬇ (save as a file) / 🗑 (delete) per row,
   `#btn-replay-upload` (opens the hidden `#replay-file` input: parse → migrate → validate →
@@ -376,9 +382,9 @@ restores form values on reload).
 
 ## Preferences (`client/prefs.js`, per device — the ⚙ button)
 
-`#prefs-btn` (class `corner-btn`, a pill fixed top-left on every screen: "⚙ Settings &
-Feedback" on desktop, "⚙ Settings" on phones via `.corner-long` / `.corner-short`, #25)
-opens `#prefs-modal`.
+`#prefs-btn` (class `corner-btn`, a pill fixed top-left on every screen, "⚙ Settings &
+Feedback" **everywhere** — the short phone label of #25 is gone (#43), phones only get a
+slightly smaller pill so it and the 😜 toggle never meet at 360 px) opens `#prefs-modal`.
 
 **Two levels (#32)**, because the list had grown too long: a **menu** (`#prefs-nav`) with
 one row per section (`#prefs-nav-<key>`, styled like the lobby's `.settings-summary`: icon,
@@ -1240,12 +1246,21 @@ howto: {
   ones. Their `best` has to be right — the test only checks that it is legal.
 - **Screens**: `#screen-learn` (one `.game-card` per game that teaches something, with
   "k / n scenarios") → `#screen-learn-game` (title, tagline, the rule bullets, "Start
-  tutorial", the scenario rows with ✓, Back). Both lists scroll inside the card so Back
-  stays reachable on a 360×780 phone. Progress lives in
+  tutorial", the scenario rows with ✓, Back). The details page is **the one screen that
+  scrolls** (#43): the two lists are shown whole (no box inside a box that scrolls) and the
+  page carries them, its card centred with `margin: auto` so its top never leaves the
+  screen; `show()` in app.js puts every screen back at its top when it opens. Progress lives in
   `localStorage["chainreact.learn"]` = `{ tutorials: { chain: true }, solved: { five: [ids] } }`,
   per device, never sent anywhere.
 - **A lesson runs on the normal game screen** with `#learn-panel` as the first block of the
-  HUD (kind, "Step 2 / 6", the text, a hint line, Next / Retry / Back to Learn). There is
+  HUD (kind, "Step 2 / 6", the text, a hint line, Next / Retry / Back to Learn). Two rules
+  keep it out of the way (#43): a **scenario** carries a small `Hide` / `Show` button
+  (`#learn-hide` → `Learn.fold(on)` / `Learn.folded`, class `folded` on the panel, kept in
+  `sessionStorage["chainreact.learnpanel"]` for the visit) that folds the explanation away
+  so the whole board shows, the one hint line staying; and a **tutorial** measures the
+  longest of its step texts (`sizeText`, on the real element, re-measured per step and on a
+  resize) and gives `#learn-text` that `min-height`, so a longer step never changes the
+  panel's height and moves the board. There is
   **no new `Match.mode`**: a tutorial is a plain `local` table (every seat is this device,
   which is also why premoves never appear) and a scenario a plain `bot` table; `Learn.active`
   is the flag the rest of the app checks. `body.learn` hides the HUD's Rematch / Back to
@@ -1490,9 +1505,13 @@ route respectively.
 `#react-bar` top-right, starts collapsed behind the 😜 toggle; emojis 😂 🔥 💀 🤡 😱 👏 👍
 😎 🫡 😄 🥰 😲 😔 👋 🚨 🤖 + "L"/"EZ"/"GG" chips (the bar's own box never catches taps —
 `pointer-events: none` except the list and the toggle — and the toggle sits on the top
-edge next to ⚙, #7/#13; the expanded list stops 124px short of the left edge). `Reactions.place()` (called after every `fitBoard`) puts `#react-layer` **right
+edge next to ⚙, #7/#13). **The bar is a column (#43)**: the toggle on top (CSS `order: -1`,
+it comes second in the DOM) and the list right under it, right-aligned and 206px wide, so
+it wraps at five emojis per row and never reaches left across the ⚙ button; collapsed it
+is invisible and takes no taps. `Reactions.place()` (called after every `fitBoard`) puts `#react-layer` **right
 next to the board** when there is ≥ 66px of space (desktop), else in the free strip
-above the full-width board (or below it if that's bigger) — never over the board, never
+above the full-width board (at its left edge, where the open list is not) or below it if
+that strip is bigger — never over the board, never
 off-screen. Emojis drift right → left while falling the layer's height (wobble, fade,
 max 14 on screen). **Speed follows the rate** (#17): `Reactions.durationFor(recent)` with
 `recent` = reactions shown (own + received alike) in the last `RATE_WINDOW` 3 s before
@@ -1714,7 +1733,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Sound` | `Bus`-driven; `play(cue)` for tests, unlock on first gesture |
 | `Changelog` | `init()`, `open/close`, `render(doc[, all])`, `refUrl(ref)`, `technical(entry)`, `showTechnical`, `SHOW_DAYS` |
 | `Preload` | `textures()` |
-| `Learn` | `init({show, exit})`, `open()`, `openGame(key)`, `startTutorial(key)`, `startScenario(key, id)`, `restart()`, `exit()`, `howto(key) → {rules, tutorial, scenarios}`, `scenarios(game, list)` (the generated files register here), `games()`, `configFor(key, cfg)`, `names(base)`, `beforeMove(i)` / `cellClass(i)` / `onLocalMove(i)` (Match handlers), `openHowto(key)` / `closeHowto()`, `isSolved(game, id)`, `tutorialDone(game)`; getters `active` (`null` \| `{kind, game, …}`), `page`; `STEP_MS`, `MISS` |
+| `Learn` | `init({show, exit})`, `open()`, `openGame(key)`, `startTutorial(key)`, `startScenario(key, id)`, `restart()`, `exit()`, `howto(key) → {rules, tutorial, scenarios}`, `scenarios(game, list)` (the generated files register here), `games()`, `configFor(key, cfg)`, `names(base)`, `beforeMove(i)` / `cellClass(i)` / `onLocalMove(i)` (Match handlers), `openHowto(key)` / `closeHowto()`, `isSolved(game, id)`, `tutorialDone(game)`, `fold(on)` (#43); getters `active` (`null` \| `{kind, game, …}`), `page`, `folded`; `STEP_MS`, `MISS` |
 | game definition | `howto: { rules: [], tutorial: [{text, config?, moves?, expect?, highlight?}], scenarios: [{id, title, text, config, history, toMove, best, tags?}] }` (#41; `Games.register` defaults it to empty) |
 | `Session` | `save(data)`, `load()`, `clear()` (shape incl. `codeHidden`, `watch`, `spec`) |
 | `Replays` | `FORMAT`, `VERSION`, `MIGRATIONS`, `migrate(doc)`, `validate(doc) → {ok, error}`, `parse(text) → {ok, doc, error}`, `fromRecord(record, names, mode, opts)`, `idFor`, `fileName`, `when(iso)`, `summary(doc, id)`, `store.{save, list({game}), get, remove, clear, persistent, analysis.{get, put, remove, clear}}` (async, IndexedDB with a memory fallback), `playback({ply, total, seek, ms, setTimer, clearTimer}) → {start, stop, toggle, playing}`, `STEP_MS` |

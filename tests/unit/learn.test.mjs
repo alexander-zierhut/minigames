@@ -211,6 +211,31 @@ test("a scenario loads the position, judges the first move and Retry restores it
     Learn.exit();
 });
 
+test("a scenario's explanation folds away and stays folded for the visit (#43)", () => {
+    const hide = w.document.getElementById("learn-hide");
+    const panel = w.document.getElementById("learn-panel");
+    const sc = Learn.howto("five").scenarios[1];
+    Learn.startScenario("five", sc.id);
+    assert.equal(hide.hidden, false, "a scenario offers the toggle");
+    assert.equal(hide.textContent, "Hide");
+    assert.equal(panel.classList.contains("folded"), false);
+
+    hide.click();
+    assert.equal(Learn.folded, true);
+    assert.equal(panel.classList.contains("folded"), true, "the explanation is folded away");
+    assert.equal(hide.textContent, "Show");
+    assert.equal(JSON.parse(w.sessionStorage.getItem("chainreact.learnpanel")), true, "remembered for the visit");
+
+    // the next scenario opens folded as well, a tutorial never folds
+    Learn.startScenario("five", Learn.howto("five").scenarios[2].id);
+    assert.equal(panel.classList.contains("folded"), true, "the next scenario stays folded");
+    Learn.startTutorial("five");
+    assert.equal(hide.hidden, true, "a tutorial has nothing to fold away");
+    assert.equal(panel.classList.contains("folded"), false, "and always shows its step");
+    Learn.exit();
+    Learn.fold(false);
+});
+
 test("the details page and the lobby's How to play modal render from the same data", () => {
     Learn.openGame("chain");
     const ho = Learn.howto("chain");

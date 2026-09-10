@@ -52,10 +52,16 @@
 </div>
 
 <!-- ===================== PREFERENCES (⚙ top-left on every screen; this device only) ===================== -->
-<button id="prefs-btn" class="corner-btn" aria-label="Settings &amp; Feedback" title="Settings &amp; Feedback"><span class="corner-icon">⚙</span><span class="corner-text corner-long">Settings &amp; Feedback</span><span class="corner-text corner-short">Settings</span></button>
+<button id="prefs-btn" class="corner-btn" aria-label="Settings &amp; Feedback" title="Settings &amp; Feedback"><span class="corner-icon">⚙</span><span class="corner-text">Settings &amp; Feedback</span></button>
 
 <!-- ===================== TITLE / MENU ===================== -->
 <section id="screen-menu" class="screen">
+    <!-- a newer version was deployed while this page was open (#40); a banner above the
+         card, title screen only (#43) -->
+    <div class="update-notice" id="update-notice" hidden>
+        <span>A new version is ready.</span>
+        <button class="btn small primary" id="btn-update-reload">Reload</button>
+    </div>
     <div class="menu-card">
         <h1 class="title">ALZlper's Minigames</h1>
         <p class="tagline">Chain React, Five Wins and Käsekästchen for two to four friends. Create a room once, then play, rematch and switch games together.</p>
@@ -83,22 +89,19 @@
                     <button class="btn big" id="btn-local">Local multiplayer</button>
                     <button class="btn big" id="btn-bot">Against a bot</button>
                 </div>
-                <!-- the academy (#41): rules, a guided tutorial and training positions per game -->
-                <div class="btn-row">
-                    <button class="btn big" id="btn-learn">📚 Learn to play</button>
-                </div>
             </div>
         </div>
         <div class="menu-foot">
-            <!-- shown only when the browser offers to install the page as an app (Android Chrome) -->
-            <button class="btn ghost install-btn" id="btn-install" hidden>📲 Add to home screen</button>
-            <button class="btn ghost install-btn" id="btn-replays">🎬 Replays</button>
-            <button class="btn ghost install-btn" id="btn-changelog">📜 Changelog</button>
-        </div>
-        <!-- a newer version was deployed while this page was open (#40); title screen only -->
-        <div class="update-notice" id="update-notice" hidden>
-            <span>A new version is ready.</span>
-            <button class="btn small primary" id="btn-update-reload">Reload</button>
+            <!-- the academy (#41) and the saved games (#42): two equal buttons in one row -->
+            <div class="btn-row">
+                <button class="btn" id="btn-learn">Learn to play</button>
+                <button class="btn" id="btn-replays">Replays</button>
+            </div>
+            <div class="foot-quiet">
+                <!-- shown only when the browser offers to install the page as an app (Android Chrome) -->
+                <button class="btn ghost install-btn" id="btn-install" hidden>📲 Add to home screen</button>
+                <button class="btn ghost install-btn" id="btn-changelog">Changelog</button>
+            </div>
         </div>
     </div>
 </section>
@@ -189,8 +192,9 @@
     <div class="menu-card replays-card">
         <h1 class="title small">Replays</h1>
         <p class="tagline small">Every game you play is saved on this device. Watch it again, save it as a file or open a file somebody sent you.</p>
-        <!-- All + one button per registered game, built by app.js -->
-        <div class="seg replay-filter" id="replay-filter"></div>
+        <!-- the game filter (#43): a dropdown showing the game's preview tile, built by app.js
+             ("All games" first, then one row per registered game) -->
+        <div class="dropdown replay-filter" id="replay-filter"></div>
         <p class="hint" id="replays-hint" hidden></p>
         <!-- one .replay-item per saved game, from #tpl-replay -->
         <div class="replay-list" id="replay-list"></div>
@@ -246,6 +250,8 @@
                 <div class="learn-head">
                     <span class="learn-kind" id="learn-kind"></span>
                     <span class="learn-step" id="learn-step"></span>
+                    <!-- scenarios only (#43): fold the explanation away to see the whole board -->
+                    <button class="learn-toggle" id="learn-hide" hidden>Hide</button>
                 </div>
                 <div class="learn-text" id="learn-text"></div>
                 <div class="learn-hint" id="learn-hint"></div>
