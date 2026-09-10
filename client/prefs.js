@@ -17,6 +17,8 @@ const Prefs = (() => {
     };
     let prefs = merge(Util.load(localStorage, KEY));
     let onChange = () => {};
+    let context = () => ({});                         // app.js: where the user is right now (for feedback)
+    const REPO_ISSUES = "https://github.com/alexander-zierhut/minigames/issues/new";
 
     function merge(saved) {
         const p = { ...DEFAULTS, ...(saved || {}), sounds: { ...DEFAULTS.sounds, ...((saved && saved.sounds) || {}) } };
@@ -55,9 +57,30 @@ const Prefs = (() => {
     function open() { fill(); $("prefs-modal").hidden = false; }
     function close() { $("prefs-modal").hidden = true; }
 
+    // a GitHub "new issue" link with the situation prefilled (no room code, no chat text)
+    function feedbackUrl() {
+        const ctx = context() || {};
+        const meta = document.querySelector('meta[name="version"]');
+        const lines = [
+            "**What happened / what would you like?**", "", "", "",
+            "---", "_Filled in automatically:_", "",
+            ...Object.entries({
+                Screen: ctx.screen, Mode: ctx.mode, Game: ctx.game, Settings: ctx.settings, Players: ctx.players,
+                Seat: ctx.seat, Spectator: ctx.spectator, Bot: ctx.bot, Connection: ctx.net,
+                Look: ctx.look, Sound: ctx.sound, Viewport: `${window.innerWidth}×${window.innerHeight}`,
+                Version: meta ? meta.content : "dev", Browser: navigator.userAgent,
+            }).filter(([, v]) => v !== undefined && v !== null && v !== "").map(([k, v]) => `- ${k}: ${v}`),
+            ...(ctx.log && ctx.log.length ? ["", "Last log lines:", "```", ...ctx.log, "```"] : []),
+        ];
+        const title = `Feedback from the ${ctx.screen || "app"} screen`;
+        return `${REPO_ISSUES}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(lines.join("\n"))}`;
+    }
+
     function init(handlers) {
         onChange = (handlers && handlers.onChange) || onChange;
+        context = (handlers && handlers.context) || context;
         $("prefs-btn").addEventListener("click", open);
+        $("pref-feedback").addEventListener("click", () => window.open(feedbackUrl(), "_blank", "noopener"));
         $("btn-prefs-done").addEventListener("click", close);
         $("prefs-modal").addEventListener("click", (e) => { if (e.target === $("prefs-modal")) close(); });
         $("pref-volume").addEventListener("input", readForm);
@@ -66,5 +89,5 @@ const Prefs = (() => {
         fill();
     }
 
-    return { init, get, set, open, close, CATEGORIES, get isOpen() { return !$("prefs-modal").hidden; } };
+    return { init, get, set, open, close, feedbackUrl, CATEGORIES, get isOpen() { return !$("prefs-modal").hidden; } };
 })();

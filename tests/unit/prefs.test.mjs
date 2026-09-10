@@ -57,3 +57,20 @@ test("init fills the form, form changes flow into the prefs and onChange", () =>
     assert.equal(P.isOpen, false);
     w.close();
 });
+
+test("feedback link: a GitHub new-issue URL with the situation prefilled, no room code", () => {
+    const w = loadDom();
+    const P = w.eval("Prefs");
+    P.init({ context: () => ({ screen: "game", mode: "online", game: "five", settings: "9 × 9 · 5 in a row · no timer", players: 2, seat: 1, net: "connected as guest", look: "classic", sound: "auto 30 %", log: ["Cyan wins! 5 in a row!"] }) });
+    const url = P.feedbackUrl();
+    assert.ok(url.startsWith("https://github.com/alexander-zierhut/minigames/issues/new?title="));
+    const body = decodeURIComponent(url.split("&body=")[1]);
+    for (const part of ["- Screen: game", "- Mode: online", "- Game: five", "- Seat: 1", "- Connection: connected as guest", "- Version: dev", "Cyan wins!"]) assert.ok(body.includes(part), part);
+    assert.ok(!/room|code/i.test(body.split("Last log")[0].replace("Version", "")), "no room code");
+    let opened = null;
+    w.window.open = (u) => { opened = u; return null; };
+    w.document.getElementById("pref-feedback").click();
+    assert.ok(opened && opened.includes("issues/new"));
+    w.close();
+});
+

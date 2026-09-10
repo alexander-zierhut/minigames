@@ -779,7 +779,18 @@
     /* ================= boot ================= */
     Preload.textures();
     Skins.init({ onChange: () => { Game.render(); renderLobby(); } });
-    Prefs.init({});
+    Prefs.init({
+        // what the feedback link reports about the current situation (never the room code or chat)
+        context: () => ({
+            screen: app.phase, mode: app.mode, game: app.phase === "game" && app.config ? app.config.game : Settings.game,
+            settings: Settings.summary(), players: app.config ? app.config.players : Settings.read().players,
+            seat: online() ? app.me : undefined, spectator: online() ? app.spectator : undefined,
+            bot: app.bot ? `${app.bot.def.id} (${app.bot.difficulty})` : undefined,
+            net: online() ? `${Net.status} as ${Net.role}` : "offline",
+            look: Skins.current, sound: `${Prefs.get().soundSet} ${Prefs.get().volume} %`,
+            log: [...document.querySelectorAll("#log > div:not(.chat)")].slice(0, 5).map((d) => d.textContent),
+        }),
+    });
     Sound.init({ seats: () => app.seats.map((s) => s.kind) });
     Settings.init({
         onChange: (cfg) => { if (online()) { netSend({ t: "lobby", s: cfg }); reseat(); } },

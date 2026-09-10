@@ -73,7 +73,10 @@ if (!process.env.SKIP_MINIFY) {
 const jsName = hashedName("app.js", bundle);
 writeFileSync(join(DIST, ASSETS, jsName), bundle);
 
-/* ---- index.html: one css link, one script tag ---- */
+/* ---- index.html: one css link, one script tag, the version stamp ---- */
+let version = new Date().toISOString().slice(0, 10);
+try { version = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: ROOT, stdio: "pipe" }).toString().trim() + " " + version; } catch (e) { /* not a git checkout */ }
+html = html.replace('<meta name="version" content="dev">', `<meta name="version" content="${version}">`);
 html = html.replace(linkTags[0][0], `<link rel="stylesheet" href="${ASSETS}/${cssName}">\n`);
 for (const m of linkTags.slice(1)) html = html.replace(m[0], "");
 html = html.replace(scriptTags[0][0], `<script src="${ASSETS}/${jsName}"></script>\n`);

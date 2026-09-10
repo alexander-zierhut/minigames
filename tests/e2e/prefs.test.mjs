@@ -117,3 +117,32 @@ test("phone: the button stays clear of the cards, the board and the reaction tog
     assert.ok(s.x && s.y && s.screen, `no scroll in landscape ${JSON.stringify(s)}`);
     assert.deepEqual(M.errors, []);
 });
+
+test("feedback button opens a prefilled GitHub issue for the current screen", async () => {
+    await B.ev("window.__opened = null; window.open = (u) => { window.__opened = u; return null; }; true");
+    await B.click("#prefs-btn");
+    await B.click("#pref-feedback");
+    const url = await B.ev("window.__opened");
+    assert.ok(url && url.startsWith("https://github.com/alexander-zierhut/minigames/issues/new?title="));
+    assert.ok(decodeURIComponent(url).includes("Screen: "), "context prefilled");
+    await B.click("#btn-prefs-done");
+});
+
+test("phone in a game: the ⚙ button is actually tappable and lines up with the reaction toggle (#7, #13)", async () => {
+    const M = await launchBrowser({ width: 360, height: 780, mobile: true });
+    try {
+        await M.goto(server.url);
+        await M.click("#btn-local"); await M.selectGame("chain");
+        await M.click("#btn-settings"); await M.set("set-size", 4); await M.set("set-speed", 350); await M.click("#btn-settings-done");
+        await M.click("#btn-start");
+        const r = JSON.parse(await M.ev("JSON.stringify({ g: document.getElementById('prefs-btn').getBoundingClientRect(), t: document.getElementById('react-toggle').getBoundingClientRect() })"));
+        assert.ok(Math.abs(r.g.top - r.t.top) <= 1, `⚙ and 😜 share the top edge (${r.g.top} vs ${r.t.top})`);
+        const hit = await M.ev(`document.elementFromPoint(${(r.g.left + r.g.right) / 2}, ${(r.g.top + r.g.bottom) / 2})?.id`);
+        assert.equal(hit, "prefs-btn", "nothing covers the ⚙ button");
+        await M.click("#prefs-btn");
+        assert.equal(await M.ev("document.getElementById('prefs-modal').hidden"), false, "the preferences open during a game");
+        await M.click("#btn-prefs-done");
+        assert.equal(await M.ev("getComputedStyle(document.getElementById('screen-game')).userSelect"), "none", "no text selection in the game");
+    } finally { await M.close(); }
+});
+
