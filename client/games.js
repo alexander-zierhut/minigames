@@ -8,7 +8,7 @@
 
      state (getter)   newGame(config, hooks)   play(i) -> Promise<bool>   replay(history, outs)
      finish(winner, why)   eliminate(p, why)   abandon()   render()   isLegal(i, player)
-     hash()   record()
+     hash()   record()   preview(ply)   previewPly (getter)
 
    Bus events the engine emits (payloads in AGENTS.md "Events"): game:new, game:move,
    game:turn, game:finish and game:position (the settled position changed — observers
@@ -42,6 +42,7 @@ const Engine = (() => {
         let config = null;
         let hooks = {};
         let cells = [];             // one element per cell, same order as state.cells
+        let shown = null;           // a replayed position shown instead of the live one (#38); null = live
         const board = () => Util.$("board");
 
         // what the view gets to drive an animation
@@ -62,6 +63,7 @@ const Engine = (() => {
         function newGame(cfg, h) {
             hooks = h || hooks;
             config = cfg;
+            shown = null;
             state = Rules.create(cfg, rules);
             document.documentElement.style.setProperty("--n", state.n);
             document.body.className = document.body.className.replace(/\bgame-\S+/g, "").trim();
@@ -69,7 +71,7 @@ const Engine = (() => {
             const el = board();
             el.className = def.key;
             el.innerHTML = "";
-            cells = view.build(el, state, cfg, (i) => { if (hooks.onCellClick) hooks.onCellClick(i); });
+            cells = view.build(el, state, cfg, (i) => { if (!shown && hooks.onCellClick) hooks.onCellClick(i); });
             Hud.build(state.players, def.title);
             Log.clear();
             Util.$("overlay").hidden = true;
@@ -173,6 +175,19 @@ const Engine = (() => {
             if (!state.over && state.history.length) state.over = true;
         }
 
+        /* Look at the game move by move (#38, the replay bar): show the position after `ply`
+           moves instead of the live one. View only — the live state, the record, the hash,
+           the session and the Bus never learn about it, so a preview can never leak into
+           play or into what the friends receive. `ply` null (or the full history) = live. */
+        function preview(ply) {
+            const total = state.history.length;
+            shown = (ply === null || ply === undefined || ply >= total) ? null : Rules.replay(record(), Math.max(0, ply));
+            render();
+            return previewPly();
+        }
+        const previewPly = () => (shown ? shown.history.length : null);
+        const position = () => shown || state;
+
         function render() {
             if (!hooks.names || cells.length === 0 || cells.length !== state.cells.length) return;
             for (let i = 0; i < cells.length; i++) renderCell(i);
@@ -181,24 +196,29 @@ const Engine = (() => {
 
         // shared cell classes (owner, last move, may I play here); the view adds its own
         function renderCell(i) {
+            const s = position();
             const el = cells[i];
-            const owner = rules.ownerOf(state, i);
+            const owner = rules.ownerOf(s, i);
             el.classList.remove("p0", "p1", "p2", "p3", "taken", "can-place", "locked", "last");
             if (owner >= 0) el.classList.add("p" + owner, "taken");
-            if (state.history[state.history.length - 1] === i) el.classList.add("last");
-            if (!state.over && !state.busy) {
-                const mine = !hooks.mayPlay || hooks.mayPlay(state.current);
-                if (mine && rules.isLegal(state, i, state.current)) el.classList.add("can-place");
+            if (s.history[s.history.length - 1] === i) el.classList.add("last");
+            if (shown) el.classList.add("locked");                  // a preview is never playable
+            else if (!s.over && !s.busy) {
+                const mine = !hooks.mayPlay || hooks.mayPlay(s.current);
+                if (mine && rules.isLegal(s, i, s.current)) el.classList.add("can-place");
                 else el.classList.add("locked");
             }
-            view.renderCell(el, state, i);
+            view.renderCell(el, s, i);
         }
-        const renderHud = () => Hud.render(state, hooks, view.hud(state));
+        // in a preview the turn hint is neutral: "your move" would be a lie about a past position
+        const previewHooks = () => ({ names: hooks.names, turnHint: () => "to move" });
+        const renderHud = () => Hud.render(position(), shown ? previewHooks() : hooks, view.hud(position()));
 
         return {
             get state() { return state; },
             get config() { return config; },
-            newGame, play, replay, finish, eliminate, abandon, render, hash, record,
+            get previewPly() { return previewPly(); },
+            newGame, play, replay, finish, eliminate, abandon, render, hash, record, preview,
             isLegal: (i, player) => rules.isLegal(state, i, player),
         };
     }

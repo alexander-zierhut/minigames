@@ -173,9 +173,18 @@ to try things").
   `.unsupported` + `disabled`, #28), settings summary button → `#settings-modal`, `Start
   game`, `Leave room`/`Back`. No chat in the lobby (#15) — chat lives in the game HUD only.
 - **Game** (`#screen-game`): board + HUD ("hut"). Result overlay: `Rematch`, `Look at
-  board` (hides it; `#result-fab` brings it back), `Change game` (→ lobby). The HUD has
+  board` (hides it and opens the replay bar), `Change game` (→ lobby). The HUD has
   `Rematch` and `Back to room` too. `renderRematch()` in app.js is the only writer of the
   Rematch buttons' texts (Spectating / Rematch / Waiting… / Accept rematch).
+- **Replay bar** (`#replay-bar`, #38): after "Look at board" a fixed one-row bar holds
+  `|◀ ◀ "Move 12 / 30" (#replay-pos) ▶ ▶|` and the `#result-fab` "Show result" button
+  (which lives inside the bar, so hiding the bar hides both). Every step calls
+  `showReplay(ply, announce)` in app.js → `engine.preview(ply)`; the last ply turns the
+  preview off (live position). `←`/`→` step, `Home`/`End` jump to the ends (ignored while
+  an input has focus). `hideReplay()` (new game, rematch, back to room, leave, "Show
+  result") drops the preview. Desktop: bottom centre; phones: above the HUD, `fitBoard`
+  publishes `--hut-h` = the strip the HUD takes so the bar never covers its controls.
+  Online, every step sends `review {ply}` so the whole room looks at the same move.
 - `Match.mode` ∈ `local | bot | online`. Bot mode is the offline lobby with an extra
   *Opponent* row (`#btn-opponent` → `#bot-modal`). **One bot per game (#21)**, called
   "Bot" wherever a player sees it (`Opponent.NAME`; `Bots.botFor(game)` picks it): the
@@ -313,8 +322,10 @@ holds the active engine (`Match.engine`) and, like everything else, only uses:
 | `abandon()` | Marks a running game over without a result (Back to room). |
 | `hash()` | 32-bit fingerprint of cells/current/over/winner/movesBy/out; equal on clients that are in sync (used by `move`/`sync`). |
 | `record()` | The game as data: `{ game, config, history, outs, over, winner, why }` — see "Game records". |
-| `render()` | No-op until a board exists. Renders every cell (shared classes `p<k>`, `taken`, `last`, `can-place`/`locked`, then `view.renderCell`) and the HUD from `view.hud(state)`. |
+| `render()` | No-op until a board exists. Renders the shown position (the preview if there is one, else the live state): every cell (shared classes `p<k>`, `taken`, `last`, `can-place`/`locked`, then `view.renderCell`) and the HUD from `view.hud(...)`. |
 | `isLegal(i, player)` | Pure check via the rules. |
+| `preview(ply)` | **View only** (#38, the replay bar): show the position after `ply` moves (`Rules.replay(record(), ply)`) instead of the live one and re-render; `null` (or a `ply` at / past the end) goes back to the live position. Returns the new `previewPly`. It never touches the live state, the record, `hash()`, the session or the Bus, and while it is on every cell is `locked` and clicks are dropped, so a preview can never leak into play or into what the friends receive. |
+| `previewPly` (getter) | How many moves the shown position has, `null` when the live position is shown. |
 
 Hooks (built once in `Match`, the engine never sees the app): `names` (getter → names for
 the current skin, bot seats show the bot's name), `mayPlay(p)` (may this device move for p
@@ -351,8 +362,10 @@ winner, why` once finished; `Match.record()` adds `gameNo` and `clocks`). `confi
 `n`, `players`, `startPlayer` and the game's own keys. `Rules.replay(record, ply)` (=
 `Games.positionAt`) rebuilds the position after any number of moves without the DOM;
 `engine.newGame(config, hooks)` + `engine.replay(history.slice(0, ply), outs)` shows it on
-the board. The session (`Session`) and the `sync` message are that record, so a future
-"look at past games" feature only needs to keep records and step `ply` — no engine change.
+the board. The session (`Session`) and the `sync` message are that record. The replay bar
+(#38) is exactly that: `engine.preview(ply)` renders `Rules.replay(record(), ply)` as a
+**view-only** position next to the untouched live game, so "look at past games" later only
+needs to keep records and step `ply` — still no engine change.
 Rule: **anything that changes the position must be a history entry or an `outs` entry**
 (never a side channel), and `Rules.step` must stay the single way a move is resolved.
 
@@ -501,7 +514,7 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   and retried.
 - **Relay**: `onMessage` on the host stamps every guest message with `from` = the
   connection's seat and forwards the types in `RELAY` (`move, chat, react, tolobby,
-  rematch, timeout, lobby`) to the other guests (`Net.sendExcept`) before handling
+  rematch, timeout, lobby, review`) to the other guests (`Net.sendExcept`) before handling
   them itself; messages the host originates carry `from: Match.me` (`netSend`). So every
   message everywhere says which seat sent it (−1 = a spectator). `sync` is pairwise
   (host ↔ one guest: `sendSyncTo` on hello, broadcast `sendSync` after a rematch or when
@@ -549,7 +562,10 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   relayed), `timeout {p, g}` (only the owner of the flagged clock decides — clocks drift;
   relayed; deferred through `Match.flagged` → `whenIdle` while animating; → `engine.eliminate`), `rematch
   {g}` (every seat must press: Room's `votes`; relayed; the overlay button shows
-  "Waiting for opponent…" / "Waiting for others… (k/N)" / "Accept rematch"), `react
+  "Waiting for opponent…" / "Waiting for others… (k/N)" / "Accept rematch"), `review
+  {ply, g}` (#38: I am looking at the position after `ply` moves of the finished game;
+  relayed; receivers in the same finished game show the same ply and open the replay bar,
+  spectators included), `react
   {e}` (relayed; dot in the sender's colour), `chat {text}` (relayed, see Chat), `leave`
   (sent 250 ms before closing; the app treats that seat as gone at once — Start is
   disabled before the connection actually drops; the host tells the others via
@@ -610,12 +626,13 @@ seat frees up or *Players* grows). Spectators get everything the host sends (`st
 cell `locked` (`makeSeats` → all seats `remote`, `mayPlay` false), "spectating" as the
 turn hint, "Spectating" in the HUD net box, on the lobby's Start button and on both
 Rematch buttons (disabled; a rematch request never shows them the overlay prompt), can
-chat ("Spectator: …", class `chat x`) and react (white dot). `#lobby-spectators` shows
+chat ("Spectator: …", class `chat x`) and react (white dot), and step through a finished
+game with the replay bar for themselves (their `review` never reaches anyone else). `#lobby-spectators` shows
 "N spectator(s) watching" from `roster.spectators`. The session stores `spectator`, so a
 refresh keeps spectating; `metadata {spectate}` goes with every dial. The sound module
 hears a neutral `over` for them. A spectator that wins a host takeover stays seatless.
 **Spectators only watch (#29):** the host refuses `Room.PLAYERS_ONLY` messages (`move,
-timeout, rematch, tolobby, lobby, start-request`) from a seatless connection before
+timeout, rematch, tolobby, lobby, start-request, review`) from a seatless connection before
 relaying (`Room.accepts(msg, seat)`; a refused `lobby` gets the host's settings back so the
 sender's view is corrected), `Settings.setLocked(true)` (from `renderLobby`) disables the
 picker, the players control and every settings input (`body.settings-locked`,
@@ -916,7 +933,9 @@ set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px o
   sets), `chat.test.mjs` (log boxes, limits, HTML safety, offline, chat survives a new
   game), `reactions.test.mjs` (float duration from the recent rate with a mocked clock,
   own + received, rate limits), `winchance.test.mjs` (frozen while animating, stages,
-  smoothing), `persona.test.mjs`, `changelog.test.mjs`, `calibrate.test.mjs`, `puzzles.test.mjs`,
+  smoothing), `replay.test.mjs` (#38: the engine's view-only preview — the position after n
+  plies, HUD and board classes, locked cells, no Bus events, the live state / record / hash
+  untouched, `preview(null)`), `persona.test.mjs`, `changelog.test.mjs`, `calibrate.test.mjs`, `puzzles.test.mjs`,
   `party.test.mjs` (3–4 players: `out`/`remaining`/pass in the pure rules, engine
   `eliminate` + `replay(history, outs)` == live play, two-player flag fall, settings
   players row / bot mode),
@@ -927,15 +946,18 @@ set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px o
   Chrome from `$CHROME` or `google-chrome`). Helpers: `goto` (waits for scripts + the
   preloader), `ev`, `click/set/check/text`, `move(i)`/`idle()`, `state()`, `randomGame()`,
   `noScroll()`, `emulate(w,h)`, `screenshot(name)` (to `tests/e2e/shots/`, git-ignored;
-  uploaded as artifact on CI failure), `waitFor`. Specs: `local-flow`, `settings`,
+  uploaded as artifact on CI failure), `waitFor`. Specs: `local-flow` (incl. the replay bar: step first / prev / next / last, the label, the
+  last-move marker, a click in a preview plays nothing, "Show result" and a rematch close
+  it), `settings`,
   `prefs` (⚙ on every screen, look sync, persistence, sounds: locked until a gesture,
   cues logged in order, mc files fetched, mute; phone: clear of cards/board/😜,
   landscape), `skins` (computed styles per skin), `mobile` (360×780: title, local lobby,
   an online-shaped lobby with four seats in every skin — share row on one line, no
-  scroll, screenshots `mobile-lobby-<skin>.png` — game, overlay), `online` (two browsers through
+  scroll, screenshots `mobile-lobby-<skin>.png` — game, overlay, replay bar above the HUD), `online` (two browsers through
   the real PeerJS broker: join by link, settings mirror, guest start, move sync,
   reactions, chat both ways (colour, text only, HUD input), guest refresh, tolobby,
-  switch game, rematch, host refresh, guest leave +
+  switch game, rematch, host refresh, replay of a finished game stepped from both sides,
+  guest leave +
   rejoin, host leave → guest takes over → host returns as guest, hide the room code:
   bullets + bare URL + copy still works + refresh rejoins hidden + the preference;
   `SKIP_ONLINE=1` skips),
@@ -980,7 +1002,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Install` | `init()`, `offered` |
 | `Rules` | `base(config)`, `pass(state, alive)`, `remaining`, `index`, `inside`, `register(key, rules)`, `of(key)`, **`create(config[, rules])`, `step(rules, state, i) → result|null`, `eliminate(state, p, why)`, `apply(rules, state, history, outs) → applied`, `replay(record, ply) → state`** (`rules` = module or key) |
 | rules module | `create, ownerOf, isLegal, legalMoves, place, settle, conclude, estimate` (+ game helpers) — pure |
-| `Games` / engine | `register(def)`, `get/has/keys`, `positionAt(record, ply)`; engine `state, config, newGame, play, replay, finish, eliminate, abandon, render, isLegal, hash, record` |
+| `Games` / engine | `register(def)`, `get/has/keys`, `positionAt(record, ply)`; engine `state, config, previewPly, newGame, play, replay, preview, finish, eliminate, abandon, render, isLegal, hash, record` |
 | `Hud` | `build(players, title)`, `render(state, hooks, model)`, `overlay(name, winner, sub)` |
 | `WinChance` | Bus-driven; `display`, `estimator`, `REFINE_MS`, `SMOOTH`, `DECIDED` |
 | `Bots` | `register, get, list, forGame, botFor(game), create(id, {me, difficulty, seed, players, budget}), tools(game, opts), playout, rng, validate, benchmark/benchmarkOf, calibration/calibrationOf, estimator(game) → {bot, stages, at(state, nodes), quick}, toProbability(raw, cal), ESTIMATE_STAGES` |
@@ -997,7 +1019,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Preload` | `textures()` |
 | `Session` | `save(data)`, `load()`, `clear()` (shape incl. `codeHidden`) |
 | `Match` | `init(handlers)`, `start(cfg, gameNo)`, `stop()`, `reset(mode, me, spectator)`, `setSeat(me, spectator)`, `record()`, `flagged(p)`, `whenIdle(fn, key)`, `syncClock()`, `startPlayerFor`, `playerColor`, `isLocal/isBot`; getters `engine, state, names, running, mode, me, spectator, seats, config, gameNo, bot`; `THINK_MS` |
-| `Room` | `init(handlers)`, `enter(code, preferHost, seat, spectate, hidden)`, `leave()`, `roomLink`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `settingsChanged(cfg)`, `say(text)`, `react(e)`, `tolobby()`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/allHere/live/who/two/playersNow/turnHint`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden` |
+| `Room` | `init(handlers)`, `enter(code, preferHost, seat, spectate, hidden)`, `leave()`, `roomLink`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `settingsChanged(cfg)`, `say(text)`, `react(e)`, `tolobby()`, `review(ply)`, `accepts`, `PLAYERS_ONLY`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/allHere/live/who/two/playersNow/turnHint`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden` |
 
 Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM), `puzzles/runner.mjs`
 (`loadPuzzles`, `positionOf`, `evaluateBot`), `benchmark.mjs`, `calibrate.mjs`
@@ -1005,8 +1027,8 @@ Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM), `puzzles
 `generate.mjs`, `puzzles/verify.mjs`, `screenshots.mjs`.
 
 Protocol messages (host relays everything to the other guests): `hello, state, welcome/full
-(transport), lobby, start, start-request, tolobby, sync, move, timeout, rematch, react,
-chat, roster, leave, ping/pong` — fields in "Online play".
+(transport), lobby, start, start-request, tolobby, sync, move, timeout, rematch, review,
+react, chat, roster, leave, ping/pong` — fields in "Online play".
 
 ## Lessons learned (keep these in mind before "improving" things)
 

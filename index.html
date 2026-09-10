@@ -350,7 +350,15 @@
         </div>
     </div>
 </div>
-<button id="result-fab" class="btn primary" hidden>Show result</button>
+<!-- after a game: step through it move by move (#38); the "Show result" button rides along -->
+<div id="replay-bar" hidden>
+    <button class="btn small" id="replay-first" title="First move" aria-label="First move">|◀</button>
+    <button class="btn small" id="replay-prev" title="Previous move" aria-label="Previous move">◀</button>
+    <span id="replay-pos">Move 0 / 0</span>
+    <button class="btn small" id="replay-next" title="Next move" aria-label="Next move">▶</button>
+    <button class="btn small" id="replay-last" title="Last move" aria-label="Last move">▶|</button>
+    <button id="result-fab" class="btn primary small" hidden>Show result</button>
+</div>
 
 <div id="toast" hidden></div>
 <!-- developer info (#31): filled by dev.js while the preference is on -->

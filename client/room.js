@@ -5,7 +5,7 @@
    to the lobby through its handlers:
 
    Room.init({ phase(), show(name), startGame(config, gameNo), backToLobby(announce),
-               renderLobby(), onVotes() })
+               renderLobby(), onVotes(), onReview(ply) })
 
    Protocol summary (details in AGENTS.md "Online play"): guest → hello {seat, spectate, rev,
    phase, config, g, rematch}; host → state {you, settings, …} to that guest (+ sync in a
@@ -17,9 +17,9 @@
 
 const Room = (() => {
     const { $, toast } = Util;
-    const RELAY = new Set(["move", "chat", "react", "tolobby", "rematch", "timeout", "lobby"]);
+    const RELAY = new Set(["move", "chat", "react", "tolobby", "rematch", "timeout", "lobby", "review"]);
     // what only a seated player may do (#29): the host drops these from spectators before relaying
-    const PLAYERS_ONLY = new Set(["move", "timeout", "rematch", "tolobby", "lobby", "start-request"]);
+    const PLAYERS_ONLY = new Set(["move", "timeout", "rematch", "tolobby", "lobby", "start-request", "review"]);
     // does the host accept this message from a connection with that seat (-1 = spectator)?
     const accepts = (msg, seat) => !(PLAYERS_ONLY.has(msg.t) && !(seat >= 0));
     const STATUS_TEXT = { connected: "Connected", waiting: "Waiting for friend", reconnecting: "Reconnecting…", connecting: "Connecting…", signaling: "Room server reconnecting…", error: "Connection error" };
@@ -34,7 +34,7 @@ const Room = (() => {
         syncSentAt: -1,         // history length of my last sync message (-1 = none since my last move)
         rebuiltAt: null,        // "gameNo:length" of my last rebuild from the host (second time = give up)
     };
-    let h = { phase: () => "menu", show: () => {}, startGame: () => {}, backToLobby: () => {}, renderLobby: () => {}, onVotes: () => {} };
+    let h = { phase: () => "menu", show: () => {}, startGame: () => {}, backToLobby: () => {}, renderLobby: () => {}, onVotes: () => {}, onReview: () => {} };
 
     const online = () => Match.mode === "online";
     const isHost = () => Net.role === "host";     // transport role: the host is the room's source of truth
@@ -364,6 +364,11 @@ const Room = (() => {
             if (!votedMyself()) toast(two() ? "Opponent wants a rematch" : `${names()[msg.from]} wants a rematch`);
             h.onVotes();
         },
+        // somebody is stepping through the finished game (#38): everyone looks at the same move
+        review(msg) {
+            if (!inThisGame(msg) || !Match.state.over) return;
+            h.onReview(msg.ply | 0);
+        },
         react(msg) {
             Reactions.receive(msg.e, Match.playerColor(Number.isInteger(msg.from) ? msg.from : otherPlayer(Match.me)));
         },
@@ -543,6 +548,8 @@ const Room = (() => {
         settingsChanged: (cfg) => { if (Match.spectator) return; netSend({ t: "lobby", s: cfg }); reseat(); },
         say: (text) => netSend({ t: "chat", text }),
         tolobby: () => { if (!Match.spectator) netSend({ t: "tolobby" }); },
+        // spectators step through a finished game on their own (the host would refuse it anyway)
+        review: (ply) => { if (!Match.spectator) netSend({ t: "review", ply, g: Match.gameNo }); },
         accepts, PLAYERS_ONLY,
         react: (e) => netSend({ t: "react", e }),
         get rev() { return r.rev; }, set rev(v) { r.rev = v; },

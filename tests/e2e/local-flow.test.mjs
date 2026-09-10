@@ -48,13 +48,45 @@ test("chain react: play to the end, overlay, look at board, rematch alternates s
     await B.click("#overlay-look");
     assert.equal(await B.ev("document.getElementById('overlay').hidden"), true);
     assert.equal(await B.ev("document.getElementById('result-fab').hidden"), false);
+
+    // replay bar (#38): step through the finished game, the board follows
+    const moves = (await B.state()).history.length;
+    assert.equal(await B.ev("document.getElementById('replay-bar').hidden"), false);
+    assert.equal(await B.text("replay-pos"), `Move ${moves} / ${moves}`, "starts at the final position");
+    assert.equal(await B.ev("ChainGame.previewPly"), null, "the final position is the live one");
+    assert.equal(await B.ev("document.getElementById('replay-next').disabled"), true, "nothing after the last move");
+    await B.click("#replay-first");
+    assert.equal(await B.text("replay-pos"), `Move 0 / ${moves}`);
+    assert.equal(await B.ev("ChainGame.previewPly"), 0);
+    assert.equal(await B.ev("document.querySelectorAll('#board > .cell.taken').length"), 0, "empty board again");
+    assert.equal(await B.ev("document.querySelectorAll('#board > .cell.can-place').length"), 0, "a preview is never playable");
+    assert.equal(await B.ev("document.getElementById('replay-prev').disabled"), true, "nothing before the first move");
+    await B.click("#replay-next");
+    assert.equal(await B.text("replay-pos"), `Move 1 / ${moves}`);
+    assert.equal(await B.ev("document.querySelectorAll('#board > .cell.taken').length"), 1, "the first move only");
+    const first = await B.ev("ChainGame.state.history[0]");
+    assert.equal(await B.ev("[...document.querySelectorAll('#board > .cell')].findIndex(c => c.classList.contains('last'))"), first, "the last-move marker follows");
+    assert.equal(await B.ev("getComputedStyle(document.querySelector('.cell.last .last-marker')).display"), "block", "and shows again, the game is not over there");
+    await B.click("#replay-prev");
+    assert.equal(await B.ev("ChainGame.previewPly"), 0);
+    await B.click("#replay-last");
+    assert.equal(await B.ev("ChainGame.previewPly"), null, "back to the live position");
+    assert.ok(await B.ev("document.getElementById('board').classList.contains('over')"));
+    assert.equal(await B.text("replay-pos"), `Move ${moves} / ${moves}`);
+    // clicking a cell in a preview must not play anything
+    await B.click("#replay-first");
+    await B.cell(0);
+    assert.equal((await B.state()).history.length, moves, "the finished game is untouched");
     await B.click("#result-fab");
     assert.equal(await B.ev("document.getElementById('overlay').hidden"), false);
+    assert.equal(await B.ev("document.getElementById('replay-bar').hidden"), true, "the result overlay closes the replay bar");
+    assert.equal(await B.ev("ChainGame.previewPly"), null);
     await B.click("#overlay-again");
     const st = await B.state();
     assert.equal(st.history.length, 0);
     assert.equal(st.current, 1, "second local game: the other player starts");
     assert.equal(await B.ev("document.getElementById('overlay').hidden"), true);
+    assert.equal(await B.ev("document.getElementById('replay-bar').hidden"), true, "a rematch hides the replay bar");
 });
 
 test("back to room, switch to five wins with 6 in a row, scripted win with jumping line", async () => {
