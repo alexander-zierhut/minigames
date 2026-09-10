@@ -114,7 +114,7 @@ test("replay bar (#38): one row above the HUD, clear of its controls, no scroll"
     const bar = await rect("#replay-bar");
     assert.ok(bar.left >= 0 && bar.right <= 360, `inside the viewport (${bar.left}..${bar.right})`);
     const kids = JSON.parse(await M.ev("JSON.stringify([...document.getElementById('replay-bar').children].map(e => { const r = e.getBoundingClientRect(); return Math.round(r.top + r.height / 2); }))"));
-    assert.equal(kids.length, 6, "four steps, the label and Show result");
+    assert.equal(kids.length, 7, "four steps, Play, the label and Show result");
     assert.ok(kids.every((t) => Math.abs(t - kids[0]) <= 1), `all in one row (${kids})`);
     assert.ok(bar.bottom <= (await rect("#hut")).top + 1, "sits above the HUD");
     await M.click("#gear");                        // the HUD controls come out: the bar moves up with it

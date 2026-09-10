@@ -36,7 +36,7 @@ export const SIZES = {
     "bot.test.mjs": 15,
     "skins.test.mjs": 13,
     "online-party.test.mjs": 11,
-    "replays.test.mjs": 9,
+    "replays.test.mjs": 30,        // #43 added the analysis and a room against the bot
     "mobile.test.mjs": 7,
 };
 

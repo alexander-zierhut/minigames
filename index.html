@@ -344,6 +344,8 @@
                         <button data-skin="mcboard">Blocks board</button>
                         <button data-skin="mc">Blocks</button>
                     </div>
+                    <label class="pref-check"><input type="checkbox" id="pref-win-graph" checked autocomplete="off"> Win chance graph in replays</label>
+                    <p class="hint">The line graph over the moves in the analysis panel. Two players only, because the win chance needs two sides.</p>
                 </div>
                 <div class="prefs-section prefs-rows" data-section="sound" hidden>
                     <div class="section-title">Sound</div>
@@ -442,14 +444,35 @@
         </div>
     </div>
 </div>
-<!-- after a game: step through it move by move (#38); the "Show result" button rides along -->
-<div id="replay-bar" hidden>
-    <button class="btn small" id="replay-first" title="First move" aria-label="First move">|◀</button>
-    <button class="btn small" id="replay-prev" title="Previous move" aria-label="Previous move">◀</button>
-    <span id="replay-pos">Move 0 / 0</span>
-    <button class="btn small" id="replay-next" title="Next move" aria-label="Next move">▶</button>
-    <button class="btn small" id="replay-last" title="Last move" aria-label="Last move">▶|</button>
-    <button id="result-fab" class="btn primary small" hidden>Show result</button>
+<!-- after a game: step through it move by move (#38), with the analysis panel above it (#43);
+     the "Show result" button rides along in the bar -->
+<div id="replay-dock">
+    <div id="replay-panel" hidden>
+        <div class="an-head">
+            <button class="btn small" id="btn-analyse">Analyse</button>
+            <div id="analysis-progress" hidden>
+                <div class="an-progress-track"><div id="analysis-bar"></div></div>
+                <span id="analysis-progress-text"></span>
+            </div>
+            <span class="an-verdict" id="an-verdict"></span>
+            <span id="an-chance"></span>
+            <button class="btn small" id="btn-play-from-here" hidden>Play from here</button>
+            <button class="btn small an-toggle" id="an-toggle" title="Show more" aria-label="Show more">▾</button>
+        </div>
+        <div class="an-body">
+            <div id="an-graph" hidden></div>
+            <div id="an-scores"></div>
+        </div>
+    </div>
+    <div id="replay-bar" hidden>
+        <button class="btn small" id="replay-first" title="First move" aria-label="First move">|◀</button>
+        <button class="btn small" id="replay-prev" title="Previous move" aria-label="Previous move">◀</button>
+        <span id="replay-pos">Move 0 / 0</span>
+        <button class="btn small" id="replay-next" title="Next move" aria-label="Next move">▶</button>
+        <button class="btn small" id="replay-last" title="Last move" aria-label="Last move">▶|</button>
+        <button class="btn small" id="replay-play" title="Play through the game" aria-label="Play through the game">▶▶</button>
+        <button id="result-fab" class="btn primary small" hidden>Show result</button>
+    </div>
 </div>
 
 <div id="toast" hidden></div>
@@ -494,6 +517,7 @@
 <script src="client/lib/sound.js"></script>
 <script src="client/lib/install.js"></script>
 <script src="client/lib/replays.js"></script>
+<script src="client/lib/analysis.js"></script>
 <script src="client/lib/update.js"></script>
 <script src="client/games/rules.js"></script>
 <script src="client/games.js"></script>
