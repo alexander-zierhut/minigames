@@ -11,6 +11,11 @@ before(async () => {
     B = await launchBrowser({ width: 390, height: 844, mobile: true });
     await A.goto(server.url);
     await A.selectSkin("classic");
+    // fixed names (#35) so every text that carries one is deterministic; they are kept in
+    // localStorage, so the guest's later navigation into the room still uses "Bo"
+    await A.ev("Prefs.set({ name: 'Alex' })");
+    await B.goto(server.url);
+    await B.ev("Prefs.set({ name: 'Bo' })");
 });
 after(async () => { await A?.close(); await B?.close(); await server?.close(); });
 
@@ -25,6 +30,32 @@ test("create room, join by link, lobby shows both players", { skip: !ONLINE }, a
     assert.equal(await A.ev("Net.role"), "host"); assert.equal(await B.ev("Net.role"), "guest");
     assert.equal(await A.text("lp-1-status"), "connected");
     assert.match(await B.text("btn-start"), /asks the host/);
+    // each side shows its own name and the other's on the seat cards (#35)
+    const cardName = (X, k) => X.ev(`document.querySelector('#lp-${k} .lp-name').textContent`);
+    await A.waitFor("document.querySelector('#lp-1 .lp-name').textContent === 'Bo'", { what: "host sees the guest's name" });
+    assert.equal(await cardName(A, 0), "Alex");
+    await B.waitFor("document.querySelector('#lp-0 .lp-name').textContent === 'Alex'", { what: "guest sees the host's name" });
+    assert.equal(await cardName(B, 1), "Bo");
+    assert.equal(await A.ev("document.querySelector('#lp-0 .lp-you').textContent"), "(you)");
+});
+
+test("a new name in the preferences reaches the others (#35)", { skip: !ONLINE }, async () => {
+    // the guest renames itself through the form field in the Profile section
+    await B.click("#prefs-btn");
+    await B.click("#prefs-nav-profile");
+    await B.set("pref-name", "  Robin the very long name  ");
+    assert.equal(await B.ev("Prefs.get().name"), "Robin the very l", "trimmed and cut to 16 characters");
+    await B.click("#btn-prefs-done");
+    await A.waitFor("document.querySelector('#lp-1 .lp-name').textContent === 'Robin the very l'", { what: "host sees the new name" });
+    assert.equal(await B.ev("document.querySelector('#lp-1 .lp-name').textContent"), "Robin the very l", "and so does the guest itself");
+    // the host renames itself: everybody follows through the roster
+    await A.ev("Prefs.set({ name: 'Kim' })");
+    await B.waitFor("document.querySelector('#lp-0 .lp-name').textContent === 'Kim'", { what: "guest sees the host's new name" });
+    // back to the names the rest of this file expects
+    await A.ev("Prefs.set({ name: 'Alex' })");
+    await B.ev("Prefs.set({ name: 'Bo' })");
+    await A.waitFor("document.querySelector('#lp-1 .lp-name').textContent === 'Bo'", { what: "names restored on the host" });
+    await B.waitFor("document.querySelector('#lp-0 .lp-name').textContent === 'Alex'", { what: "names restored on the guest" });
 });
 
 test("lobby settings mirror both ways", { skip: !ONLINE }, async () => {
@@ -43,6 +74,8 @@ test("guest presses start, host starts, both in the same game; moves sync; wrong
     assert.equal((await A.state()).n, 7); assert.equal((await B.state()).n, 7);
     assert.equal((await A.state()).current, 0, "host starts game 1");
     assert.equal(await A.text("clock-0"), "3:00");
+    assert.equal(await A.text("p0-name"), "Alex"); assert.equal(await A.text("p1-name"), "Bo", "the HUD cards carry the names (#35)");
+    assert.equal(await B.text("p0-name"), "Alex"); assert.equal(await B.text("p1-name"), "Bo");
     await B.cell(24); await sleep(300);
     assert.equal((await B.state()).history.length, 0, "guest cannot move on the host's turn");
     await A.move(24);
@@ -73,13 +106,13 @@ test("chat lines relay both ways in the sender's colour, text only, into the gam
     await A.set("chat-input", "hi <b>there</b>");
     await A.click("#chat-send");
     assert.equal(await A.ev("document.getElementById('chat-input').value"), "", "input cleared after sending");
-    assert.equal(await A.ev("document.querySelector('#log .chat').textContent"), "Cyan: hi <b>there</b>", "my own line at once");
-    await B.waitFor("document.querySelector('#log .chat') && document.querySelector('#log .chat').textContent === 'Cyan: hi <b>there</b>'", { what: "guest sees the host's line" });
+    assert.equal(await A.ev("document.querySelector('#log .chat').textContent"), "Alex: hi <b>there</b>", "my own line at once");
+    await B.waitFor("document.querySelector('#log .chat') && document.querySelector('#log .chat').textContent === 'Alex: hi <b>there</b>'", { what: "guest sees the host's line" });
     assert.equal(await B.ev("document.querySelector('#log .chat').className"), "chat p0");
     assert.equal(await B.ev("document.querySelectorAll('#log .chat b').length"), 1, "only the name is bold");
     assert.equal(await B.ev("document.getElementById('lobby-chat')"), null, "the lobby has no chat any more (#15)");
     await B.ev("document.getElementById('chat-input').value = 'yo'; document.getElementById('chat-input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); true");
-    await A.waitFor("[...document.querySelectorAll('#log .chat')].some(l => l.textContent === 'Amber: yo' && l.classList.contains('p1'))", { what: "host sees the guest's line in amber" });
+    await A.waitFor("[...document.querySelectorAll('#log .chat')].some(l => l.textContent === 'Bo: yo' && l.classList.contains('p1'))", { what: "host sees the guest's line in the second seat's colour" });
     assert.equal(await B.ev("Sound.log.filter(l => l.name === 'chat').length"), 1, "the guest heard the host's line, not its own");
 });
 

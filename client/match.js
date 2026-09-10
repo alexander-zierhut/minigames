@@ -4,7 +4,7 @@
 
    Match.init(handlers):
      live()                may the game run right now (online: everyone here)   default true
-     names()               the seat names for the current skin                  default Skins.names()
+     names()               the name of whoever sits in each seat (#35)          default Player 1…4
      turnHint(p)           the turn box hint for a non-bot seat                  default "to move"
      onLocalMove(i)        a local seat is about to play cell i (online: tell the room)
      onChanged(kind)       the game record changed: "move" (placed, before its animation) or
@@ -42,7 +42,7 @@ const Match = (() => {
     let deferred = [];                                 // { key, fn } to run once the engine is idle
     let running = false;                               // a game is on the screen (start … stop)
     let h = {
-        live: () => true, names: () => Skins.names(), turnHint: () => "to move",
+        live: () => true, names: () => ["Player 1", "Player 2", "Player 3", "Player 4"], turnHint: () => "to move",
         onLocalMove: () => {}, onChanged: () => {}, onIdle: () => {}, onFlag: () => {}, onFinish: () => {},
     };
 
@@ -64,7 +64,7 @@ const Match = (() => {
     };
     // premoves make sense only when somebody else moves in between (bot or online seat)
     const premovable = () => running && !st.spectator && st.mode !== "local" && mySeat() >= 0;
-    // seat names for the HUD: the skin's colour names; a bot seat is simply "Bot" (#21)
+    // seat names for the HUD: what the people at the table are called; a bot seat is simply "Bot" (#21)
     const names = () => h.names().map((n, p) => (isBot(p) && st.bot ? Opponent.NAME : n));
 
     /* ---------- engine hooks ---------- */

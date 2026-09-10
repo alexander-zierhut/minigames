@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { startServer, launchBrowser } from "./harness.mjs";
 
 let server, B;
-before(async () => { server = await startServer(); B = await launchBrowser(); await B.goto(server.url); });
+before(async () => { server = await startServer(); B = await launchBrowser(); await B.goto(server.url); await B.ev("Prefs.set({ name: 'Alex' })"); });
 after(async () => { await B?.close(); await server?.close(); });
 
 async function startChain() {
@@ -12,10 +12,10 @@ async function startChain() {
     await B.click("#btn-start");
 }
 
-test("classic: dots, names Cyan/Amber, turn outline, static last marker", async () => {
+test("classic: dots, turn outline, static last marker", async () => {
     await B.selectSkin("classic");
     await startChain();
-    assert.equal(await B.text("p0-name"), "Cyan");
+    assert.equal(await B.text("p0-name"), "Alex", "the name is mine, not the look's (#35)");
     assert.ok(await B.ev("document.getElementById('board').classList.contains('turn-p0')"));
     assert.equal(await B.ev("getComputedStyle(document.getElementById('board')).outlineColor"), "rgb(53, 213, 229)");
     await B.move(5);
@@ -25,9 +25,11 @@ test("classic: dots, names Cyan/Amber, turn outline, static last marker", async 
     assert.equal(await B.ev("getComputedStyle(document.querySelector('.tile.lamp'), '::after').backgroundImage"), "none", "no textures in classic");
 });
 
-test("MC board: textures on the board, classic UI, names Diamond/Gold", async () => {
+test("Blocks board: textures on the board, classic UI, the names do not change with the look", async () => {
+    const before = [await B.text("p0-name"), await B.text("p1-name")];
     await B.selectSkin("mcboard");
-    assert.equal(await B.text("p0-name"), "Diamond");
+    assert.deepEqual([await B.text("p0-name"), await B.text("p1-name")], before, "switching the look leaves the names alone (#35)");
+    assert.equal(await B.text("p0-name"), "Alex");
     assert.match(await B.ev("getComputedStyle(document.querySelector('.tile.glass')).backgroundImage"), /textures\/glass_white/);
     assert.match(await B.ev("getComputedStyle(document.querySelector('.cell.p0 .center')).backgroundImage"), /diamond_block/);
     assert.equal(await B.ev("getComputedStyle(document.querySelector('.btn')).borderRadius"), "10px", "UI stays classic");

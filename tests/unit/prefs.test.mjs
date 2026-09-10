@@ -88,12 +88,15 @@ test("feedback link: a GitHub new-issue URL with the situation prefilled, no roo
 test("sections (#32): the menu rows summarise their state, showSection opens one, Back returns", () => {
     const w = loadDom(); const P = w.eval("Prefs"); const d = w.document;
     P.init({});
-    assert.equal(JSON.stringify(P.SECTIONS), JSON.stringify(["look", "sound", "streaming", "developer", "feedback"]));
+    assert.equal(JSON.stringify(P.SECTIONS), JSON.stringify(["profile", "look", "sound", "streaming", "developer", "feedback"]));
     for (const key of P.SECTIONS) {
         assert.ok(d.getElementById("prefs-nav-" + key), "nav row for " + key);
         assert.ok(d.querySelector(`#prefs-panes .prefs-section[data-section="${key}"]`), "panel for " + key);
     }
     // the summaries describe the current state and land in the rows
+    P.set({ name: "Robin" });
+    assert.equal(P.sectionSummary("profile"), "Robin", "the profile row shows the name (#35)");
+    assert.equal(d.getElementById("prefs-sum-profile").textContent, "Robin");
     assert.equal(P.sectionSummary("look"), "Classic");
     assert.equal(P.sectionSummary("sound"), "30 % · Follow the look");
     assert.equal(P.sectionSummary("streaming"), "off");
@@ -130,6 +133,68 @@ test("sections (#32): the menu rows summarise their state, showSection opens one
     assert.equal(d.querySelectorAll("#prefs-panes .prefs-section:not([hidden])").length, 0);
     P.showSection("nonsense");
     assert.equal(P.section, null, "an unknown section is the menu");
+    w.close();
+});
+
+test("name (#35): a default from the list on the first visit, kept from then on", () => {
+    const w = loadDom(); const P = w.eval("Prefs");
+    const name = P.get().name;
+    assert.ok(P.DEFAULT_NAMES.includes(name), "the first visit draws one of the default names: " + name);
+    assert.equal(JSON.parse(w.localStorage.getItem("chainreact.prefs")).name, name, "persisted at once, so it never changes by itself");
+    assert.equal(P.get().defaultName, name, "the drawn name is also the fallback of an empty one");
+    assert.equal(P.DEFAULT_NAMES.length, new Set(P.DEFAULT_NAMES).size, "no duplicates in the pool");
+    for (const n of P.DEFAULT_NAMES) assert.ok(n === P.cleanName(n) && n.length <= P.NAME_MAX, n);
+    P.set({ volume: 40 });
+    assert.equal(P.get().name, name, "an unrelated change never redraws the name");
+    w.close();
+});
+
+test("name (#35): cleaned and cut to 16, an empty one falls back to the drawn default", () => {
+    const w = loadDom(); const P = w.eval("Prefs");
+    assert.equal(P.NAME_MAX, 16);
+    assert.equal(P.cleanName("  Ali   ce \n"), "Ali ce", "trimmed, runs of whitespace collapsed");
+    assert.equal(P.cleanName("abcdefghijklmnopqrstuvwxyz").length, 16, "cut to the maximum");
+    assert.equal(P.cleanName(null), "");
+    const drawn = P.get().defaultName;
+    P.set({ name: "  Bo  " });
+    assert.equal(P.get().name, "Bo");
+    P.set({ name: "0123456789abcdefghij" });
+    assert.equal(P.get().name, "0123456789abcdef");
+    P.set({ name: "   " });
+    assert.equal(P.get().name, drawn, "an empty name falls back to the name that was drawn");
+    assert.equal(JSON.parse(w.localStorage.getItem("chainreact.prefs")).name, drawn, "persisted");
+    w.close();
+});
+
+test("name (#35): the seats on one device are me plus the first default names that are not mine", () => {
+    const w = loadDom(); const P = w.eval("Prefs");
+    P.set({ name: "Robin" });
+    const rest = P.DEFAULT_NAMES.filter((n) => n !== "Robin");
+    assert.equal(JSON.stringify(P.seatNames(4)), JSON.stringify(["Robin", rest[0], rest[1], rest[2]]));
+    assert.equal(JSON.stringify(P.seatNames(2)), JSON.stringify(["Robin", rest[0]]));
+    assert.equal(JSON.stringify(P.seatNames(4)), JSON.stringify(P.seatNames(4)), "deterministic");
+    // taking one of the default names for myself never puts it on two seats
+    P.set({ name: P.DEFAULT_NAMES[1] });
+    const seats = P.seatNames(4);
+    assert.equal(seats[0], P.DEFAULT_NAMES[1]);
+    assert.equal(new Set(seats).size, 4, "four different names");
+    w.close();
+});
+
+test("name (#35): the form field fills from the prefs and writes back on change", () => {
+    const w = loadDom(); const P = w.eval("Prefs"); const d = w.document;
+    P.set({ name: "Robin" });
+    const changes = [];
+    P.init({ onChange: (p) => changes.push(p.name) });
+    const input = d.getElementById("pref-name");
+    assert.equal(input.value, "Robin");
+    assert.equal(input.getAttribute("maxlength"), "16");
+    assert.equal(input.getAttribute("autocomplete"), "off");
+    input.value = "  Sam  ";
+    input.dispatchEvent(new w.Event("change"));
+    assert.equal(P.get().name, "Sam");
+    assert.equal(input.value, "Sam", "the field shows the cleaned name");
+    assert.equal(changes.at(-1), "Sam");
     w.close();
 });
 

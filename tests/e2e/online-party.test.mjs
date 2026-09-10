@@ -20,6 +20,10 @@ before(async () => {
     C = await launchBrowser();
     await A.goto(server.url);
     await A.selectSkin("classic");
+    // fixed names (#35), kept in localStorage across the guests' navigation into the room
+    await A.ev("Prefs.set({ name: 'Alex' })");
+    await B.goto(server.url); await B.ev("Prefs.set({ name: 'Bo' })");
+    await C.goto(server.url); await C.ev("Prefs.set({ name: 'Cy' })");
 });
 after(async () => { await A?.close(); await B?.close(); await C?.close(); await server?.close(); });
 
@@ -65,12 +69,12 @@ test("the last guest starts; moves by every seat reach everyone; nobody moves ou
     await history(A, 3); await history(B, 3);
     for (const X of [A, B, C]) assert.equal(JSON.stringify((await X.state()).history), "[5,0,15]");
     assert.equal((await A.state()).current, 0, "rotation 0 → 1 → 2 → 0");
-    assert.equal(await B.text("turn-hint"), "waiting for Cyan…");
+    assert.equal(await B.text("turn-hint"), "waiting for Alex…");
 });
 
 test("chat and reactions carry the sender's seat colour to both others", { skip: !ONLINE }, async () => {
-    await C.set("chat-input", "hello from lime"); await C.click("#chat-send");
-    for (const X of [A, B]) await X.waitFor("[...document.querySelectorAll('#log .chat')].some(l => l.textContent === 'Lime: hello from lime' && l.classList.contains('p2'))", { what: "chat line in lime" });
+    await C.set("chat-input", "hello from seat two"); await C.click("#chat-send");
+    for (const X of [A, B]) await X.waitFor("[...document.querySelectorAll('#log .chat')].some(l => l.textContent === 'Cy: hello from seat two' && l.classList.contains('p2'))", { what: "chat line with the sender's name and colour" });
     await B.click("#react-toggle"); await B.click('#react-bar button[data-e="GG"]');
     await C.waitFor("document.querySelector('#react-layer .react-float.theirs')", { what: "guest 2 sees guest 1's reaction" });
     assert.equal(await C.ev("document.querySelector('#react-layer .react-float.theirs').style.getPropertyValue('--their-color')"), "var(--c1)");
@@ -107,7 +111,7 @@ test("rematch needs every seat; then one Back to room brings all three to the lo
     await history(A, 1); await history(C, 1);
     await C.click("#btn-menu");
     await inLobby(A); await inLobby(B); await inLobby(C);
-    assert.equal(await A.ev("document.getElementById('toast').textContent"), "Lime went back to the room");
+    assert.equal(await A.ev("document.getElementById('toast').textContent"), "Cy went back to the room");
     assert.deepEqual(A.errors, []); assert.deepEqual(B.errors, []); assert.deepEqual(C.errors, []);
 });
 

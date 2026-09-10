@@ -10,6 +10,11 @@
     const { $, toast } = Util;
     let phase = "menu";          // "menu" | "lobby" | "game"
 
+    /* Who sits in each seat (#35). Online the room knows it (every device announces its own
+       name); offline the seats are this device's own (Prefs.seatNames: me first, then the
+       first default names that are not mine), and a bot seat is renamed by Match. */
+    const seatNames = () => (Room.online ? Room.names() : Prefs.seatNames());
+
     /* ================= screens & board fitting ================= */
     function show(name) {
         for (const s of ["menu", "lobby", "game"]) $("screen-" + s).hidden = s !== name;
@@ -36,7 +41,7 @@
     function renderLobby() {
         const online = Room.online;
         const bot = Match.mode === "bot";
-        const nm = Skins.names();
+        const nm = seatNames();
         Settings.setMinPlayers(online ? Room.occupiedSeats() : 2);  // no count that takes a seat away (#34)
         const players = Settings.read().players;
         $("lobby-kind").textContent = online ? "Room" : bot ? "Against a bot" : "Local game";
@@ -259,8 +264,16 @@
     Install.init();
     Skins.init({ onChange: () => { Match.engine.render(); renderLobby(); } });
     Dev.init();
+    let shownName = Prefs.get().name;
     Prefs.init({
-        onChange: (p) => Dev.enable(p.developer),
+        onChange: (p) => {
+            Dev.enable(p.developer);
+            if (p.name === shownName) return;         // only a new name needs the room and the boards (#35)
+            shownName = p.name;
+            Room.nameChanged();
+            Match.engine.render();
+            renderLobby();
+        },
         // what the feedback link reports about the current situation (never the room code or chat)
         context: () => ({
             screen: phase, mode: Match.mode, game: phase === "game" && Match.config ? Match.config.game : Settings.game,
@@ -269,6 +282,7 @@
             bot: Match.bot ? `${Match.bot.def.id} (${Match.bot.difficulty})` : undefined,
             net: Room.online ? `${Net.status} as ${Net.role}` : "offline",
             look: Skins.current, sound: `${Prefs.get().soundSet} ${Prefs.get().volume} %`,
+            name: Prefs.get().name,
             log: [...document.querySelectorAll("#log > div:not(.chat)")].slice(0, 5).map((d) => d.textContent),
         }),
     });
@@ -299,6 +313,7 @@
     });
     Match.init({
         live: Room.live,
+        names: seatNames,
         turnHint: (p) => (Room.online ? Room.turnHint(p) : "to move"),
         onLocalMove: (i) => { if (Room.online) Room.sendMove(i); },
         onChanged: Room.onChanged,

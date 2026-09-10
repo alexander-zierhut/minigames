@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { startServer, launchBrowser, sleep } from "./harness.mjs";
 
 let server, B;
-before(async () => { server = await startServer(); B = await launchBrowser(); await B.goto(server.url); });
+before(async () => { server = await startServer(); B = await launchBrowser(); await B.goto(server.url); await B.ev("Prefs.set({ name: 'Alex' })"); });
 after(async () => { await B?.close(); await server?.close(); });
 
 const myTurn = () => B.waitFor("!ChainGame.state.busy && !FiveGame.state.busy && (document.body.classList.contains('game-five') ? FiveGame : ChainGame).state.current === 0 || (document.body.classList.contains('game-five') ? FiveGame : ChainGame).state.over", { timeout: 20000, what: "my turn or game over" });
@@ -44,7 +44,7 @@ test("five wins against the bot (Easy): it moves by itself, the HUD calls it Bot
     await B.click("#btn-settings"); await B.set("set-size", 6); await B.set("set-winlen", 4); await B.click("#btn-settings-done");
     await B.click("#btn-start");
     assert.equal(await B.text("p1-name"), "Bot");
-    assert.equal(await B.text("p0-name"), "Cyan");
+    assert.equal(await B.text("p0-name"), "Alex", "my own name on my seat (#35)");
     await B.waitFor("[...document.querySelectorAll('#react-layer .react-float.theirs')].some(e => e.textContent === '👋')", { timeout: 5000, what: "the bot waves at the start (#14)" });
     // I take free cells top to bottom; the bot answers; the game ends by a line or a full / dead board
     for (let k = 0; k < 60; k++) {

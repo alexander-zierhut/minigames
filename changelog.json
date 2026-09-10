@@ -5,6 +5,13 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "feature",
+          "text": "You have a name now: a short one is picked for you on your first visit, you can change it under Settings and Profile, and everyone in the room sees it instead of the old colour names.",
+          "refs": [
+            "#35"
+          ]
+        },
+        {
           "type": "improvement",
           "text": "Emoji reactions now glow lightly in the colour of the player who sent them, so you can see at a glance who is reacting.",
           "refs": [
