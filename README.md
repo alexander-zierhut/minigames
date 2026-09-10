@@ -8,6 +8,11 @@ you go again, most boxes wins). Live at https://minigames.alzlper.com/.
 Static site, no backend, no framework. Create a room once, share the link, then pick
 games and settings together in the room lobby; rematch or switch games without new links.
 
+**License:** the source is available to read, run locally and contribute to (see
+[LICENSE](LICENSE)); it is a game, not a library, so running a copy of it under another
+domain or name is not allowed without permission. The block textures and sounds are the
+owner's own personal-use assets and are not licensed at all.
+
 ## Play
 
 - **On one device:** two to four people share a screen or phone, or play against the

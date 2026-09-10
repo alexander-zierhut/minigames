@@ -1,0 +1,67 @@
+ALZlper's Minigames Source-Available License
+Version 1.0, 2026-09-11
+
+Copyright (c) 2026 Alexander Zierhut
+
+This is a game, not a programming library. The source is published so that anyone can
+read it, learn from it, report problems and contribute improvements to the one site it
+belongs to, https://minigames.alzlper.com/. It is not published so that copies of the
+game can be run elsewhere.
+
+1. Permissions
+
+   You may:
+
+   a. read, study and download the source;
+   b. run the site locally (for example with `npm run dev`), and run its tests, tools and
+      scripts, for development, testing, evaluation and personal, non-public use;
+   c. fork the repository and modify the source in order to prepare and submit
+      contributions (pull requests, patches, issues) to the original repository;
+   d. quote short excerpts of the source in reviews, articles, talks and teaching, with
+      attribution.
+
+2. Restrictions
+
+   You may not, without the copyright holder's prior written permission:
+
+   a. host, deploy, publish or otherwise make the game or a modified version of it
+      available to others under any other domain, name, app store listing, embedded
+      frame, activity or platform (this includes "mirrors", rebrands, translations and
+      "inspired by" copies that reuse a substantial part of the source);
+   b. distribute the source or builds of it as your own product, or as part of another
+      product, whether free or for a fee;
+   c. sell, rent, sublicense or otherwise commercially exploit the source or the game;
+   d. remove or alter the copyright notice, this license or the attribution.
+
+3. Contributions
+
+   By submitting a contribution to the original repository you agree that it is licensed
+   to the copyright holder under this license and may be published on the site, and you
+   confirm that you have the right to submit it. You keep the copyright to your
+   contribution.
+
+4. Assets
+
+   The block textures and sound files under `client/textures/` and `client/sounds/` are
+   not licensed by this document at all. They come from the copyright holder's own
+   installation of a third-party game and are used for personal, non-commercial purposes
+   only; do not copy or redistribute them.
+
+5. Trademarks and names
+
+   "ALZlper" and "ALZlper's Minigames" are the names of this site and its author. This
+   license gives no right to use them for anything else.
+
+6. No warranty
+
+   The source and the game are provided "as is", without warranty of any kind, express or
+   implied, including but not limited to the warranties of merchantability, fitness for a
+   particular purpose and non-infringement. In no event shall the copyright holder be
+   liable for any claim, damages or other liability arising from the source or the game.
+
+7. Termination
+
+   Any use that breaches section 2 ends your permissions under section 1 automatically.
+
+If you want to do something this license does not allow (run a private instance for an
+event, build on the code for another project, and so on), ask: the answer is often yes.

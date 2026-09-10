@@ -6,6 +6,11 @@
       "entries": [
         {
           "type": "internal",
+          "text": "Link previews: the site has a description, Open Graph and Twitter card tags and a share image; a source-available license was added.",
+          "technical": true
+        },
+        {
+          "type": "internal",
           "text": "The test pipeline runs in parallel jobs now: the unit tests and four balanced shards of browser tests instead of one long serial run, which takes it from up to ten minutes down to about two.",
           "technical": true
         },

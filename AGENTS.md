@@ -122,6 +122,16 @@ technical. Unflagged = a rule or default that changes play, a new way to play (r
 spectators, chat, sounds, bots, home screen), or a fix that changes what happens in a game. No em dashes in texts (#24). `tests/unit/changelog.test.mjs` validates the
 file (dates descending, known types, resolvable refs).
 
+## Link previews and license
+
+`index.html` carries a description meta and Open Graph / Twitter card tags; `og-image.png`
+(1200×630, generated once with Pillow from `icon-512.png` plus the title text, copied by
+the build via `ROOT_EXTRAS`) is the share image. The tags are the one place the site names
+its own address (crawlers need absolute URLs; runtime share links still come from
+`location.href`). Keep them free of em dashes and of the block game's name. `LICENSE` is a
+custom source-available license: read, run locally, contribute, but no copies of the game
+under another domain, name or platform, and the textures / sounds are not licensed at all.
+
 ## Install as an app (Android)
 
 `manifest.json` (name, `standalone`, navy theme/background, icons 192/512 "any" + a
