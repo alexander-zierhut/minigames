@@ -19,6 +19,7 @@
     function show(name) {
         for (const s of ["menu", "lobby", "game"]) $("screen-" + s).hidden = s !== name;
         phase = name;
+        Update.screenChanged();                      // the "new version" notice lives on the title screen only (#40)
         if (name === "game") requestAnimationFrame(() => { fitBoard(); requestAnimationFrame(fitBoard); });
         if (name === "lobby") renderLobby();
     }
@@ -262,6 +263,7 @@
     /* ================= boot ================= */
     Preload.textures();
     Install.init();
+    Update.init({ onTitle: () => phase === "menu" });   // poll version.json on the title screen (#40)
     Skins.init({ onChange: () => { Match.engine.render(); renderLobby(); } });
     Dev.init();
     let shownName = Prefs.get().name;

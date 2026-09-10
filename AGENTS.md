@@ -40,6 +40,7 @@ Scripts, in order (each defines the global named in brackets):
 | `client/lib/preload.js` | `Preload` | first-visit texture preload with `#loader` bar |
 | `client/lib/sound.js` | `Sound` | Bus events → sound cues; synthesized Classic set, Blocks files (see Sounds) |
 | `client/lib/install.js` | `Install` | "Add to home screen" button (beforeinstallprompt) |
+| `client/lib/update.js` | `Update` | polls `version.json` on the title screen, the "new version" notice and the idle reload (#40) |
 | `client/games/rules.js` | `Rules` | base state, turn passing, the **pure game loop** (`create/step/eliminate/apply/replay`) shared by the engine, bots and scripts |
 | `client/games.js` | `Games`, `Engine`, `Hud` | registry, the engine shell every game shares, the generic HUD renderer |
 | `client/games/chain-rules.js` | `ChainRules` | Chain React rules, pure (no DOM) |
@@ -132,12 +133,16 @@ No service worker (nothing is cached; the deploy's hashed assets handle freshnes
   `assets/main.<hash>.css` (all stylesheets concatenated, `../textures/x.png` rewritten
   to hashed names) + `assets/textures/<name>.<hash>.png` + `assets/sounds/<name>.<hash>.ogg`
   (every `client/sounds/<file>` string in the JS bundle is rewritten to the hashed path —
-  that is how `Sound.FILES` finds them) + the icon files. Hashes are content hashes →
-  cache busting by filename. Env: `DIST_DIR`, `SKIP_MINIFY=1`.
+  that is how `Sound.FILES` finds them) + the icon files + **`version.json`** (#40:
+  `{ version, commit, builtAt }`, `version` = the very stamp that goes into
+  `<meta name="version">`, `commit` = the full sha; `dev` unbundled). Hashes are content
+  hashes → cache busting by filename. Env: `DIST_DIR`, `SKIP_MINIFY=1`.
 - `.github/workflows/ci.yml`: job `test` (npm ci → unit → e2e) on push to `main`, PRs
   and manual; job `deploy` (`needs: test`, pushes to `main` only): build, `aws s3 sync`
   assets with `Cache-Control: public, max-age=31536000, immutable`, root files with
-  1-day cache, `index.html` with `no-cache`, then `--delete` sync of stale files.
+  1-day cache, `index.html` **and `version.json`** with `no-cache` (both uploaded one by
+  one), then `--delete` sync of stale files that excludes `version.json` so its
+  no-cache header cannot be overwritten.
   Bucket `minigames.alzlper.com`, region `nl-ams`, endpoint `https://s3.nl-ams.scw.cloud`.
   Credentials: repo secrets `SCW_ACCESS_KEY` / `SCW_SECRET_KEY` = non-expiring API key of
   IAM application `minigames-website` (id `300c3839-68e5-4fc9-9a66-9321af7ffe1e`, policy
@@ -158,9 +163,22 @@ to try things").
   under them the muted hint `#menu-online-hint` ("One room for up to 4 players, plus
   spectators." — the seat count itself is picked in the lobby, #28),
   section *Offline* with `Local multiplayer` (`#btn-local`) and `Against a bot`
-  (`#btn-bot`), the foot with `#btn-install` (see Install) and `#btn-changelog`. No Look
+  (`#btn-bot`), the foot with `#btn-install` (see Install) and `#btn-changelog`, and under
+  it `#update-notice` (see "Version updates"). No Look
   control here (owner: only in the preferences, #9). Never scrolls on a phone. The ⚙
   preferences button floats top-left on every screen.
+- **Version updates** (`client/lib/update.js`, #40): while the title screen shows, `Update`
+  fetches `version.json` (`cache: "no-store"`, 4 s cap) on load, whenever the tab becomes
+  visible and every `Update.EVERY_MS` (3 min), and compares it with the running
+  `<meta name="version">` (`Update.isNewer(running, latest)`: two different non-empty
+  stamps, never "dev", so the unbundled dev page and the tests never poll). A different
+  stamp sets `Update.available` and shows `#update-notice` ("A new version is ready." plus
+  `#btn-update-reload`). **Only on the title screen**: `app.js`'s `show()` calls
+  `Update.screenChanged()`, which hides the notice in the lobby and in a game and shows it
+  again on the way back, so a result that arrives elsewhere simply waits. After
+  `Update.AUTO_MS` (20 s) with the notice up and no click or key press the page reloads
+  itself once (`Update.reload`, replaceable in tests); every failure (offline, 404,
+  timeout, garbage) is silent.
 - **Lobby** (`#screen-lobby`), same screen for local and online (`Match.mode`), in **three
   calm blocks** separated by a hairline (`.lobby-group`, one `border-top`), then one primary
   action:
@@ -1069,7 +1087,12 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   `party.test.mjs` (3–4 players: `out`/`remaining`/pass in the pure rules, engine
   `eliminate` + `replay(history, outs)` == live play, two-player flag fall, settings
   players row / bot mode, the min-players floor and `Room.keepsSeats` of #34),
-  `build.test.mjs` (`SKIP_MINIFY=1 DIST_DIR=<tmp>`; hashed names, icons, deterministic).
+  `update.test.mjs` (#40: `isNewer`, a fake fetch, the notice on the title screen only, the
+  flag surviving until it shows, the idle reload happening once with an injected `reload`,
+  silence on every failure; each test calls `Update.stop()` + `w.close()` or the poll
+  interval keeps the file alive),
+  `build.test.mjs` (`SKIP_MINIFY=1 DIST_DIR=<tmp>`; hashed names, icons, deterministic,
+  `version.json` matching the meta stamp).
   Cross-realm arrays: compare via `JSON.stringify`, not `deepStrictEqual`.
 - **E2E** (`npm run test:e2e`, `tests/e2e/*.test.mjs`): `harness.mjs` starts a static
   server (port 0) and headless Chrome via CDP (no Playwright; Node 22 `WebSocket`/`fetch`;
@@ -1114,7 +1137,11 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   players control cannot drop below the people in the room and the host refuses a forged
   `lobby` that tries it, #34),
   `bot` (offline vs bot: the one-step modal with scores and difficulty, "Bot" in the HUD, bot moves by itself, rematch, a premove clicked while the bot thinks), `dist` (built bundle: hashed assets only,
-  preloader, playable, hashed sound files fetched after the audio unlock). Files run 2 at a time; each launches its own Chrome. `B.blank()`
+  preloader, playable, hashed sound files fetched after the audio unlock),
+  `update` (#40: the dev page never asks for version.json, a newer version from a `data:`
+  URL shows the notice on the title screen and hides it in the lobby, an idle title screen
+  reloads once with `Update.reload` counted instead, and the notice still fits 360×780).
+  Files run 2 at a time; each launches its own Chrome. `B.blank()`
   navigates to about:blank (a closed tab); outline colours transition for .25s → wait
   before reading computed styles. Any new join/rejoin behaviour gets a scenario in
   `online-edge` — the owner wants joining to feel rock solid.
@@ -1138,6 +1165,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Clock` | `setup(seconds, onFlag, players)`, `setActive`, `pause`, `resume`, `stop`, `snapshot`, `restore`, `isEnabled` |
 | `Net` | `open(code, handlers, preferredRole)`, `send`, `sendTo/sendExcept` (host), `setSeat(id, seat)`, `setMeta(id, patch)` (host), `leave`, `retryNow`, `randomCode`, `normalizeCode`; getters `code, role, status, connected, peers`; handlers `onStatus, onRole, onOpen, onClose, onMessage, preferHost, metadata(), admit` |
 | `Install` | `init()`, `offered` |
+| `Update` | `init({url, current, onTitle, reload})`, `check()`, `isNewer(running, latest)`, `screenChanged()`, `stop()`; getters `available, latest, current`; writable `AUTO_MS`, `reload`; `EVERY_MS`, `TIMEOUT_MS` |
 | `Rules` | `base(config)`, `pass(state, alive)`, `remaining`, `index`, `inside`, `register(key, rules)`, `of(key)`, **`create(config[, rules])`, `step(rules, state, i) → result|null`, `eliminate(state, p, why)`, `apply(rules, state, history, outs) → applied`, `replay(record, ply) → state`** (`rules` = module or key) |
 | rules module | `create, ownerOf, isLegal, legalMoves, place, settle, conclude, estimate` (+ game helpers) — pure |
 | `Games` / engine | `register(def)`, `get/has/keys`, `positionAt(record, ply)`; engine `state, config, previewPly, newGame, play, replay, preview, finish, eliminate, abandon, render, isLegal, hash, record` |

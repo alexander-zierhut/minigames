@@ -38,6 +38,14 @@ test("build writes hashed assets and a rewritten index.html", () => {
         for (const icon of manifest.icons) assert.ok(existsSync(join(dist, icon.src)), `manifest icon ${icon.src} in dist`);
         assert.ok(manifest.icons.some((i) => i.purpose === "maskable"), "a maskable icon for Android");
         assert.ok(existsSync(join(dist, "changelog.json")), "changelog.json ships with the page");
+        // version.json carries the same stamp as the meta tag (#40: an open page polls it)
+        const version = JSON.parse(readFileSync(join(dist, "version.json"), "utf8"));
+        const stamp = html.match(/<meta name="version" content="([^"]*)">/);
+        assert.ok(stamp, "index.html carries a version stamp");
+        assert.equal(version.version, stamp[1], "version.json matches the meta stamp");
+        assert.notEqual(version.version, "dev", "the build stamps a real version");
+        assert.match(version.builtAt, /^\d{4}-\d{2}-\d{2}T/, "an ISO build time");
+        assert.ok(typeof version.commit === "string", "the commit is a string");
         // bundle contains every client script and parses
         const bundle = readFileSync(join(dist, "assets", js), "utf8");
         for (const g of ["ChainGame", "FiveGame", "Clock", "Net", "Peer"]) assert.ok(bundle.includes(g), `bundle contains ${g}`);

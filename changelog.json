@@ -5,6 +5,14 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "improvement",
+          "text": "The title screen notices when a newer version of the page is online and offers a Reload button. If nothing happens for a while it reloads by itself, and a lobby or a running game is never interrupted.",
+          "technical": true,
+          "refs": [
+            "#40"
+          ]
+        },
+        {
           "type": "feature",
           "text": "Five Wins: a new Yavalath rule in the settings. One stone short of the winning row loses (four wins, three loses with the classic values); with three or four players the loser is out and the rest play on. The bot does not know the rule yet, so a random opponent stands in."
         },

@@ -78,22 +78,31 @@ jobs:
         run: |
           aws s3 sync dist "s3://$BUCKET" \
             --endpoint-url "$S3_ENDPOINT" \
-            --exclude "assets/*" --exclude "index.html" \
+            --exclude "assets/*" --exclude "index.html" --exclude "version.json" \
             --cache-control "public, max-age=86400"
 
-      # 3. then the entry point, which must always be fetched fresh
+      # 3. then the two files that must always be fetched fresh: the entry point and the
+      #    version stamp an open page polls to notice a new build (#40)
       - name: Upload index.html
         run: |
           aws s3 cp dist/index.html "s3://$BUCKET/index.html" \
             --endpoint-url "$S3_ENDPOINT" \
             --content-type "text/html; charset=utf-8" \
             --cache-control "no-cache, max-age=0, must-revalidate"
+      - name: Upload version.json
+        run: |
+          aws s3 cp dist/version.json "s3://$BUCKET/version.json" \
+            --endpoint-url "$S3_ENDPOINT" \
+            --content-type "application/json" \
+            --cache-control "no-cache, max-age=0, must-revalidate"
 
-      # 4. finally drop anything no longer in dist (old hashed assets, removed files)
+      # 4. finally drop anything no longer in dist (old hashed assets, removed files);
+      #    version.json stays out so the sync cannot overwrite it with a cached copy
       - name: Remove stale files
         run: |
           aws s3 sync dist "s3://$BUCKET" \
             --endpoint-url "$S3_ENDPOINT" \
+            --exclude "version.json" \
             --delete --size-only
 
       - name: Summary
