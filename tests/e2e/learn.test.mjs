@@ -111,7 +111,21 @@ test("a scenario: the position is loaded, a wrong move offers Retry, the right o
     assert.match(await B.text("learn-hint"), /^Not this one\./);
     assert.equal(await B.ev("Learn.isSolved('five', Learn.active.scenario.id)"), false);
 
+    // the explanation folds away so the whole board can be seen, and stays folded (#43)
+    assert.equal(await B.ev("document.getElementById('learn-hide').hidden"), false, "a scenario can be folded away");
+    assert.equal(await B.text("learn-hide"), "Hide");
+    await B.click("#learn-hide");
+    assert.equal(await B.ev("getComputedStyle(document.getElementById('learn-text')).display"), "none", "the explanation is gone");
+    assert.equal(await B.ev("getComputedStyle(document.getElementById('learn-hint')).display") !== "none", true, "the one hint line stays");
+    assert.equal(await B.text("learn-hide"), "Show");
+    await B.click("#learn-hide");
+    assert.equal(await B.ev("getComputedStyle(document.getElementById('learn-text')).display") !== "none", true, "Show brings it back");
+    await B.click("#learn-hide");                       // fold it again: the choice is remembered
+
     await B.click("#learn-retry");
+    assert.equal(await B.ev("Learn.folded"), true, "still folded after Retry");
+    assert.equal(await B.text("learn-hide"), "Show");
+    await B.click("#learn-hide");
     assert.equal(await B.ev("FiveGame.state.history.length"), sc.history.length, "Retry sets the position up again");
     assert.equal(await B.ev("Learn.active.judged"), false);
     assert.equal(await B.text("learn-hint"), "Your move: find the best one.");
@@ -182,6 +196,25 @@ test("phone 360×780: the Learn list and a lesson never scroll, the details page
     s = await B.noScroll();
     assert.deepEqual(s, { x: true, y: true, screen: true }, "the tutorial");
     assert.ok(await B.ev("document.getElementById('learn-panel').getBoundingClientRect().bottom <= innerHeight"), "the panel is on screen");
+    assert.equal(await B.ev("document.getElementById('learn-hide').hidden"), true, "a tutorial has nothing to fold away");
+
+    // a longer step text must not push the board around (#43): the same rect on every step
+    const boardRect = () => B.ev("JSON.stringify((r => ({ left: Math.round(r.left), top: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }))(document.getElementById('board').getBoundingClientRect()))");
+    const first = await boardRect();
+    await B.screenshot("mobile-learn-step1.png");
+    for (let k = 0; k < 2; k++) {
+        const at = await B.ev("Learn.active.i");
+        const expect = await B.ev("(Learn.active.steps[Learn.active.i].expect || [])[0] ?? -1");
+        if (expect >= 0) {
+            await cell(expect);
+            await B.waitFor(`Learn.active.i !== ${at}`, { timeout: 60000, what: "the next step" });
+        } else {
+            await B.click("#learn-next");
+        }
+        await B.idle();
+        assert.equal(await boardRect(), first, `the board did not move at step ${await B.ev("Learn.active.i + 1")}`);
+        await B.screenshot(`mobile-learn-step${k + 2}.png`);
+    }
     await B.click("#learn-back");
     await B.emulate(1400, 900);
     assert.deepEqual(B.errors, [], "no page exceptions");

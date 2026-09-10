@@ -1026,7 +1026,14 @@ howto: {
   `localStorage["chainreact.learn"]` = `{ tutorials: { chain: true }, solved: { five: [ids] } }`,
   per device, never sent anywhere.
 - **A lesson runs on the normal game screen** with `#learn-panel` as the first block of the
-  HUD (kind, "Step 2 / 6", the text, a hint line, Next / Retry / Back to Learn). There is
+  HUD (kind, "Step 2 / 6", the text, a hint line, Next / Retry / Back to Learn). Two rules
+  keep it out of the way (#43): a **scenario** carries a small `Hide` / `Show` button
+  (`#learn-hide` → `Learn.fold(on)` / `Learn.folded`, class `folded` on the panel, kept in
+  `sessionStorage["chainreact.learnpanel"]` for the visit) that folds the explanation away
+  so the whole board shows, the one hint line staying; and a **tutorial** measures the
+  longest of its step texts (`sizeText`, on the real element, re-measured per step and on a
+  resize) and gives `#learn-text` that `min-height`, so a longer step never changes the
+  panel's height and moves the board. There is
   **no new `Match.mode`**: a tutorial is a plain `local` table (every seat is this device,
   which is also why premoves never appear) and a scenario a plain `bot` table; `Learn.active`
   is the flag the rest of the app checks. `body.learn` hides the HUD's Rematch / Back to
@@ -1457,7 +1464,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Sound` | `Bus`-driven; `play(cue)` for tests, unlock on first gesture |
 | `Changelog` | `init()`, `open/close`, `render(doc[, all])`, `refUrl(ref)`, `technical(entry)`, `showTechnical`, `SHOW_DAYS` |
 | `Preload` | `textures()` |
-| `Learn` | `init({show, exit})`, `open()`, `openGame(key)`, `startTutorial(key)`, `startScenario(key, id)`, `restart()`, `exit()`, `howto(key) → {rules, tutorial, scenarios}`, `scenarios(game, list)` (the generated files register here), `games()`, `configFor(key, cfg)`, `names(base)`, `beforeMove(i)` / `cellClass(i)` / `onLocalMove(i)` (Match handlers), `openHowto(key)` / `closeHowto()`, `isSolved(game, id)`, `tutorialDone(game)`; getters `active` (`null` \| `{kind, game, …}`), `page`; `STEP_MS`, `MISS` |
+| `Learn` | `init({show, exit})`, `open()`, `openGame(key)`, `startTutorial(key)`, `startScenario(key, id)`, `restart()`, `exit()`, `howto(key) → {rules, tutorial, scenarios}`, `scenarios(game, list)` (the generated files register here), `games()`, `configFor(key, cfg)`, `names(base)`, `beforeMove(i)` / `cellClass(i)` / `onLocalMove(i)` (Match handlers), `openHowto(key)` / `closeHowto()`, `isSolved(game, id)`, `tutorialDone(game)`, `fold(on)` (#43); getters `active` (`null` \| `{kind, game, …}`), `page`, `folded`; `STEP_MS`, `MISS` |
 | game definition | `howto: { rules: [], tutorial: [{text, config?, moves?, expect?, highlight?}], scenarios: [{id, title, text, config, history, toMove, best, tags?}] }` (#41; `Games.register` defaults it to empty) |
 | `Session` | `save(data)`, `load()`, `clear()` (shape incl. `codeHidden`, `watch`, `spec`) |
 | `Replays` | `FORMAT`, `VERSION`, `MIGRATIONS`, `migrate(doc)`, `validate(doc) → {ok, error}`, `parse(text) → {ok, doc, error}`, `fromRecord(record, names, mode, opts)`, `idFor`, `fileName`, `when(iso)`, `summary(doc, id)`, `store.{save, list({game}), get, remove, clear, persistent}` (async, IndexedDB with a memory fallback) |
