@@ -180,12 +180,15 @@ to try things").
      "ready"; an absent seat gets `.absent` = a dashed, muted placeholder card; the card
      wraps its status onto a second line rather than cutting a long name off), then the
      quiet seat controls `#seat-actions` (`#btn-watch` "Watch instead" for a seated player,
-     `#btn-take-seat` "Take a seat" for a spectator, disabled without a free seat, #39) and
+     `#btn-take-seat` "Take a seat" for a spectator, disabled without a free seat, #39;
+     `#btn-room-bot` "Against a bot instead" while a two-seat room waits for the friend and
+     `#btn-room-bot-off` "Wait for a friend instead" once a bot is set, #36) and
      the notes `#lobby-status` / `#lobby-spectators` ("N spectator(s) watching").
   3. **Group "Game"** (`#group-game`): the picker (one `.game-card[data-game]` per
      registered game, built by `Settings.init`; each card says "2 to 4 players" and a game
      that doesn't take the chosen count is grayed out, `.unsupported` + `disabled`, #28),
-     its tagline (`#menu-tagline`), the *Opponent* row in bot mode (`#btn-opponent`) and
+     its tagline (`#menu-tagline`), the *Opponent* row (`#btn-opponent`, in bot mode and
+     while a room has a bot, #36) and
      the settings summary button (`#btn-settings` → `#settings-modal`).
   Then `.lobby-foot`: `Start game` (`#btn-start`, the one big primary button, its text also
   says why it is disabled) and a quiet text button `Leave room` / `Back` (`#btn-lobby-back`,
@@ -210,7 +213,7 @@ to try things").
   "Bot" wherever a player sees it (`Opponent.NAME`; `Bots.botFor(game)` picks it): the
   modal is one step (description, scores, difficulty, Cancel / Play). Picking a game does
   **not** open it (#12): the default is the middle difficulty; the row shows the choice.
-  You are seat 0, the bot seat 1.
+  You are seat 0, the bot seat 1. **A room can play a bot too (#36)**, see "The room's bot".
 - `phase` (app.js) ∈ `menu | lobby | game` — Room reads it through its `phase()` handler.
   `Match.gameNo` increments per started game (local too); `Match.startPlayerFor(g,
   players) = (g - 1) % players` → seat 0 starts game 1, then the next seat, round-robin.
@@ -258,8 +261,12 @@ restores form values on reload).
   ms) and `chainRule`/`chainLen` (win on N explosions, off by default, N default 15;
   owner dislikes the rule but wanted it available).
 - `Settings.read()` returns the **config** a game starts with: `{ game, players, n,
-  timer, timerSel, timerCustom, …every game field of every game }` (all fields travel so
-  a mirrored settings message is complete for any game the room may pick). Engines get it
+  timer, timerSel, timerCustom, bot, …every game field of every game }` (all fields travel so
+  a mirrored settings message is complete for any game the room may pick). `bot` (#36) is
+  `null` or `{ id, difficulty, seat: 1 }`: `Settings.setBot(choice[, announce])` /
+  `Settings.bot`, cleared by `setMode` for anything but `online` and by `Room.leave`, so it
+  belongs to one room and never leaks into offline play. It is deliberately **not** part of
+  the summary text: the lobby's *Opponent* row shows it. Engines get it
   as `config` (plus `startPlayer`) and read only what they need.
 - Summary text: `n × n` · (`N players` when more than two) · `describeRules(cfg)` parts ·
   timer · `describeOptions(cfg)` parts (e.g. "7 × 7 · 5 in a row · 3 min timer",
@@ -551,6 +558,23 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   number of seats is `config.players` (`playersNow()`: the running game's, else the
   settings'); when the *Players* setting changes the host **reseats** (`reseat`): seats ≥
   `players` are taken away (`state {you: -1}`), people without a seat get a free one.
+- **The room's bot (#36)**: instead of waiting for the friend, a two-seat room can put a
+  bot on the empty seat. It is **room state in the config** (`config.bot = { id, difficulty,
+  seat: 1 }`, see Settings), so it travels in `lobby {s}` / `start {config}` / `state` and
+  everybody sees "Bot / ready" on that seat card, the *Opponent* row to change the level and
+  an enabled Start. `#btn-room-bot` opens the usual bot modal (Play sets it), `#btn-room-bot-off`
+  clears it. The **transport host runs the seat** (`Match.makeSeats` asks `hostsBot()` =
+  `Room.isHost`; for everybody else it is a `remote` seat called "Bot"): `botTurn` relays its
+  move through `onLocalMove` like a click, its persona's reactions go out through
+  `onBotReact` as `react {from: 1}`, and `Room.onRole` → `Match.refreshSeats()` hands the
+  seat to whoever hosts after a takeover or a refresh (a fresh seed then, which is fine).
+  Presence treats the bot seat as present while its host is (`presentSeats`), `allHere()`
+  therefore works with nobody else in the room, `rematchComplete()` counts the bot as having
+  voted, and `takenSeats` protects its seat. **A person always beats the bot to a seat**: it
+  steps aside (`dropBot`, a toast, a `lobby` message) when a friend joins the lobby with no
+  free seat left, and when everyone is back in the lobby with somebody waiting for a seat
+  (`Room.enteredLobby()`, called by app.js's `backToLobby`); during a running game the
+  newcomer simply watches. Spectate-link viewers never displace it.
 - **Swapping seat and spectator role (#39)**, in the lobby only (never under a running
   game): `Room.watchInstead()` / `Room.takeSeat()` send `seat {want}` (`-1` = watch, a seat
   number, or `Room`'s `ANY_SEAT`); the host decides in `applySeatWish` (its own switch takes
@@ -812,7 +836,9 @@ it), `remote` (a friend) or `bot`. The engine hooks live in Match: `mayPlay(p)` 
 doesn't feel instant) it asks the bot instance for a move on a **clone** of the state,
 re-checks that the same game is still on that turn (`running`, `gameNo`, busy, over), falls
 back to a random legal move if the bot throws or answers illegally, then `engine.play(i)`
-like a click. `Match.names` shows "Bot" (`Opponent.NAME`) on its seat. Player count is
+like a click. `Match.names` shows "Bot" (`Opponent.NAME`) on its seat — online on every device, not only
+on the one running it (#36; `Match.refreshSeats()` rebuilds the seats and the instance when
+hosting changes, `hostsBot()` says whether this device runs the room's bot). Player count is
 `config.players` (2–4 from the settings; 2 against a bot): rules, `Rules.pass`, `Clock`,
 HUD and lobby cards are written for N, the CSS has colours and textures for 4 seats, the
 host relays. "Play on this device" with 3–4 people = all seats `local`; a flag fall
@@ -913,7 +939,9 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   `Opponent.current(game)` / `summary(game)` ("Bot · Normal · 100 % vs Random · 100 %
   puzzles") / `Opponent.NAME`.
 - **Persona** (`client/bot-persona.js`): `BotPersona.attach({ bot, seat, game, state,
-  estimate, color })` in `Match.start` (bot mode), `detach()` in `Match.stop` / `reset`. Listens
+  estimate, color, post })` wherever `Match` runs a bot seat (offline or the room's bot),
+  `detach()` in `Match.stop` / `reset`; `post` decides how a reaction is shown (default
+  `Reactions.receive`; in a room `Match` also relays it, #36). Listens
   to `game:new` (👋), `game:turn`/`game:move` (judges the human's move once it settled:
   praise when the bot's chance drops ≥ 15 points and the move was among the best, a
   surprised/teasing face when the move was among the worst 25 % and helped the bot ≥ 10
@@ -1040,7 +1068,8 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   script except `app.js` into jsdom (script list parsed from index.html; `Element.animate`
   polyfilled) for `framework.test.mjs` (`Rules.step/apply/replay` == engine play, the
   generic HUD from the model, settings rows generated from the definitions, Match seats /
-  bot seat / `whenIdle` / `record`, Session), `chain.test.mjs` (caps, waves, board-decided
+  bot seat / `whenIdle` / `record`, the room's bot in the config and its seat kinds per
+  device, #36, Session), `chain.test.mjs` (caps, waves, board-decided
   stop, win, chain rule, replay == play, hooks, HUD), `five.test.mjs`, `clock.test.mjs`
   (call `C.setup(0)` + `w.close()` at the end or the interval keeps the file alive),
   `net.test.mjs` (codes, the spectator peer id and that no room code can produce it, #29), `prefs.test.mjs` (defaults, clamping, persistence, form wiring,
@@ -1105,7 +1134,12 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   refresh restores seat + board, rematch by every seat, one Back to room moves all, the
   players control cannot drop below the people in the room and the host refuses a forged
   `lobby` that tries it, #34),
-  `bot` (offline vs bot: the one-step modal with scores and difficulty, "Bot" in the HUD, bot moves by itself, rematch, a premove clicked while the bot thinks), `dist` (built bundle: hashed assets only,
+  `bot` (offline vs bot: the one-step modal with scores and difficulty, "Bot" in the HUD, bot moves by itself, rematch, a premove clicked while the bot thinks),
+  `online-bot` (**three browsers**, #36: alone in a two-seat room "Against a bot instead"
+  puts a bot on the empty seat, it plays and a spectate-link viewer sees its moves and its
+  reactions, a friend joining mid-game watches and gets the seat back in the lobby when the
+  bot steps aside, the bot returns when the friend leaves and keeps playing across a refresh
+  of the host), `dist` (built bundle: hashed assets only,
   preloader, playable, hashed sound files fetched after the audio unlock). Files run 2 at a time; each launches its own Chrome. `B.blank()`
   navigates to about:blank (a closed tab); outline colours transition for .25s → wait
   before reading computed styles. Any new join/rejoin behaviour gets a scenario in
@@ -1137,19 +1171,19 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `WinChance` | Bus-driven; `display`, `estimator`, `REFINE_MS`, `SMOOTH`, `DECIDED` |
 | `Bots` | `register, get, list, forGame, botFor(game), create(id, {me, difficulty, seed, players, budget}), tools(game, opts), playout, rng, validate, benchmark/benchmarkOf, calibration/calibrationOf, estimator(game) → {bot, stages, at(state, nodes), quick}, toProbability(raw, cal), ESTIMATE_STAGES` |
 | bot definition | `id, name, game, version, description, difficulties [{id, label, nodes}], create(tools) → {move(state)}, evaluate?(state, tools) → raw, baseline?` |
-| `BotPersona` | `attach({bot, seat, game, state, estimate, color, delays?, cooldownMs?})`, `detach()`, `POOLS` |
+| `BotPersona` | `attach({bot, seat, game, state, estimate, color, post?, delays?, cooldownMs?})`, `detach()`, `POOLS` |
 | `Skins` | `init({onChange})`, `set(key)`, `names()`, `current` |
-| `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `setMode(mode)`, `setPlayers(n)`, `setMinPlayers(n)`, `setLocked(on)`, `supports(key)`, `MIN_PLAYERS_HINT`, `game`, `players`, `minPlayers`, `locked`, `fields` |
+| `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `setMode(mode)`, `setPlayers(n)`, `setMinPlayers(n)`, `setBot(choice, announce?)`, `setLocked(on)`, `supports(key)`, `MIN_PLAYERS_HINT`, `BOT_SEAT`, `game`, `players`, `minPlayers`, `bot`, `locked`, `fields` |
 | `Prefs` | `init({onChange, context})`, `get() → {volume, soundSet, sounds, hideCode, privateIp, developer}`, `set(patch)`, `open/close`, `feedbackUrl()`, `showSection(key)`, `sectionSummary(key)`, `CATEGORIES`, `SECTIONS`, `isOpen`, `section` |
-| `Opponent` | `init({onDone})`, `open(game)`, `current(game) → {id, difficulty, def}`, `summary(game)`, `NAME` ("Bot") |
+| `Opponent` | `init({onDone(game, played)})`, `open(game, choice?)`, `current(game) → {id, difficulty, def}`, `summary(game, choice?)`, `NAME` ("Bot") |
 | `Reactions` | `init({onSend, color})`, `receive(emoji, color)`, `place()`, `durationFor(recent)` |
 | `Chat` | `init(...)`, `send`, `receive(msg)`, `enable(on)` (see chat section) |
 | `Sound` | `Bus`-driven; `play(cue)` for tests, unlock on first gesture |
 | `Changelog` | `init()`, `open/close`, `render(doc[, all])`, `refUrl(ref)`, `technical(entry)`, `showTechnical`, `SHOW_DAYS` |
 | `Preload` | `textures()` |
 | `Session` | `save(data)`, `load()`, `clear()` (shape incl. `codeHidden`, `watch`, `spec`) |
-| `Match` | `init(handlers)`, `start(cfg, gameNo)`, `stop()`, `reset(mode, me, spectator)`, `setSeat(me, spectator)`, `record()`, `flagged(p)`, `whenIdle(fn, key)`, `syncClock()`, `startPlayerFor`, `playerColor`, `isLocal/isBot`; getters `engine, state, names, running, mode, me, spectator, seats, config, gameNo, bot, botInfo, premove`; `THINK_MS` |
-| `Room` | `init(handlers)`, `enter(code, { preferHost, seat, spectate, watch, spec, hidden })`, `leave()`, `roomLink(code?)`, `spectateLink()`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `seatFree()`, `watchInstead()`, `takeSeat(seat?)`, `settingsChanged(cfg)`, `say(text)`, `react(e)`, `tolobby()`, `review(ply)`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/occupiedSeats/allHere/live/who/two/playersNow/turnHint`, `accepts(msg, seat)`, `keepsSeats(msg, occupied)`, `PLAYERS_ONLY`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden`, `watching`, `spec` |
+| `Match` | `init(handlers)`, `start(cfg, gameNo)`, `stop()`, `reset(mode, me, spectator)`, `setSeat(me, spectator)`, `refreshSeats()`, `record()`, `flagged(p)`, `whenIdle(fn, key)`, `syncClock()`, `startPlayerFor`, `playerColor`, `isLocal/isBot`; getters `engine, state, names, running, mode, me, spectator, seats, config, gameNo, bot, botInfo, premove`; `THINK_MS` |
+| `Room` | `init(handlers)`, `enter(code, { preferHost, seat, spectate, watch, spec, hidden })`, `leave()`, `roomLink(code?)`, `spectateLink()`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `seatFree()`, `watchInstead()`, `takeSeat(seat?)`, `enteredLobby()`, `botSeat()`, `settingsChanged(cfg)`, `say(text)`, `react(e, seat?)`, `tolobby()`, `review(ply)`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/occupiedSeats/allHere/live/who/two/playersNow/turnHint`, `accepts(msg, seat)`, `keepsSeats(msg, occupied)`, `PLAYERS_ONLY`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden`, `watching`, `spec` |
 
 Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM), `puzzles/runner.mjs`
 (`loadPuzzles`, `positionOf`, `evaluateBot`), `benchmark.mjs`, `calibrate.mjs`

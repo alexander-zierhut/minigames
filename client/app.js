@@ -50,8 +50,9 @@
         eye.textContent = Room.codeHidden ? "🙈" : "👁";
         eye.title = Room.codeHidden ? "Show the room code" : "Hide the room code";
         eye.setAttribute("aria-label", eye.title);
-        $("btn-opponent").hidden = !bot;
-        if (bot) $("opponent-summary").textContent = Opponent.summary(Settings.game);
+        const roomBot = online ? Settings.bot : null;               // the room plays a bot (#36)
+        $("btn-opponent").hidden = !bot && !roomBot;
+        if (bot || roomBot) $("opponent-summary").textContent = Opponent.summary(Settings.game, roomBot);
         Settings.setLocked(online && Match.spectator);              // spectators only watch (#29)
         $("lobby-share").hidden = !online;
         $("btn-share").hidden = watcher;
@@ -64,12 +65,14 @@
             for (let k = 0; k < players; k++) box.appendChild(Util.fromTemplate("tpl-lobby-player", k));
         }
         const present = Room.presentSeats();
+        const botSeat = online ? Room.botSeat() : -1;
         for (let k = 0; k < players; k++) {
             const mine = Match.me === k;
-            $(`lp-${k}`).querySelector(".lp-name").textContent = nm[k];
+            const isBot = k === botSeat;
+            $(`lp-${k}`).querySelector(".lp-name").textContent = isBot ? Opponent.NAME : nm[k];
             $(`lp-${k}`).querySelector(".lp-you").textContent = online && mine ? "(you)" : "";
             $(`lp-${k}`).classList.toggle("absent", online && !present[k]);
-            $(`lp-${k}-status`).textContent = !online ? "" : mine ? "ready" : (present[k] ? "connected" : "not here yet");
+            $(`lp-${k}-status`).textContent = !online ? "" : mine ? "ready" : isBot ? "ready" : (present[k] ? "connected" : "not here yet");
         }
         // swap between playing and watching (#39): a spectate-link viewer never sits down
         const canSwap = online && !watcher;
@@ -78,6 +81,10 @@
         $("btn-take-seat").hidden = !(canSwap && Match.me < 0);
         $("btn-take-seat").disabled = !free;
         $("btn-take-seat").title = free ? "" : "Every seat is taken right now.";
+        // a two-seat room waiting for a friend may play a bot instead (#36)
+        const mayAskBot = canSwap && Match.me >= 0 && players === 2 && Opponent.current(Settings.game);
+        $("btn-room-bot").hidden = !(mayAskBot && !roomBot && !Room.allHere());
+        $("btn-room-bot-off").hidden = !(mayAskBot && roomBot);
         const watching = online ? Room.spectators : 0;
         $("lobby-spectators").textContent = watching > 0 ? `${watching} spectator${watching > 1 ? "s" : ""} watching` : "";
         const start = $("btn-start");
@@ -196,6 +203,7 @@
         hideReplay();
         $("net-banner").hidden = true;
         show("lobby");
+        Room.enteredLobby();                             // somebody waiting for a seat gets the bot's (#36)
         Room.save();
     }
 
@@ -216,7 +224,7 @@
     $("join-code").addEventListener("input", () => { $("join-code").value = Net.normalizeCode($("join-code").value); });
     $("btn-local").addEventListener("click", () => openLocalLobby(false));
     $("btn-bot").addEventListener("click", () => openLocalLobby(true));
-    $("btn-opponent").addEventListener("click", () => Opponent.open(Settings.game));
+    $("btn-opponent").addEventListener("click", () => Opponent.open(Settings.game, Room.online ? Settings.bot : null));
 
     // lobby
     async function shareLink(link, text) {
@@ -236,6 +244,8 @@
     $("btn-hide-code").addEventListener("click", () => Room.hideCode(!Room.codeHidden));
     $("btn-watch").addEventListener("click", () => Room.watchInstead());
     $("btn-take-seat").addEventListener("click", () => Room.takeSeat());
+    $("btn-room-bot").addEventListener("click", () => Opponent.open(Settings.game));
+    $("btn-room-bot-off").addEventListener("click", () => { Settings.setBot(null); renderLobby(); });
     $("btn-lobby-back").addEventListener("click", leaveRoom);
     $("btn-start").addEventListener("click", startFromLobby);
 
@@ -294,7 +304,9 @@
         // picking a game keeps the default opponent (best bot, middle level, #12); the Opponent row opens the picker
         onSelectGame: () => { if (Match.mode === "bot" && phase === "lobby") renderLobby(); },
     });
-    Opponent.init({ onDone: () => renderLobby() });
+    // Play in the bot modal: offline it only remembers my choice, in a room it sets the
+    // room's bot, so everybody sees it on the empty seat (#36)
+    Opponent.init({ onDone: (game, played) => { if (played && Room.online) Settings.setBot(Opponent.current(game)); renderLobby(); } });
     Changelog.init();
     Reactions.init({
         onSend: (e) => { if (Room.online) Room.react(e); },
@@ -316,6 +328,8 @@
     Match.init({
         live: Room.live,
         turnHint: (p) => (Room.online ? Room.turnHint(p) : "to move"),
+        hostsBot: () => Room.isHost,                 // the room's bot seat runs on the transport host (#36)
+        onBotReact: (seat, e) => { if (Room.online) Room.react(e, seat); },
         onLocalMove: (i) => { if (Room.online) Room.sendMove(i); },
         onChanged: Room.onChanged,
         onIdle: Room.onIdle,

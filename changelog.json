@@ -6,6 +6,13 @@
       "entries": [
         {
           "type": "feature",
+          "text": "Waiting alone in a room? \"Against a bot instead\" puts a bot on the empty seat, so you can play right away, share the spectate link for others to watch, and let a friend take the seat over when they arrive.",
+          "refs": [
+            "#36"
+          ]
+        },
+        {
+          "type": "feature",
           "text": "In the room you can swap between playing and watching: a player steps back with \"Watch instead\" and a spectator sits down with \"Take a seat\", so three people can take turns at two seats.",
           "refs": [
             "#39"

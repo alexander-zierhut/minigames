@@ -29,9 +29,10 @@ const Opponent = (() => {
         return { id: def.id, difficulty: d, def };
     }
 
-    // the lobby's Opponent row: "Bot · Normal · 100 % vs Random · 100 % puzzles"
-    function summary(g) {
-        const c = current(g);
+    // the lobby's Opponent row: "Bot · Normal · 100 % vs Random · 100 % puzzles".
+    // `choice` describes a bot somebody else picked (the room's bot, #36); without it my own.
+    function summary(g, choice) {
+        const c = choice && choice.id && Bots.get(choice.id) ? { ...choice, def: Bots.get(choice.id) } : current(g);
         if (!c) return "No bot plays this game yet";
         const parts = [NAME];
         if (c.def.difficulties.length > 1) parts.push(level(c.def, c.difficulty).label);
@@ -68,11 +69,12 @@ const Opponent = (() => {
         $("bot-difficulty-hint").textContent = lv.nodes ? `${lv.label}: searches up to ${thousands(lv.nodes)} positions per move.` : "";
     }
 
-    function open(g) {
+    // `choice` = the level to start from (the room's bot, #36); without it my own
+    function open(g, choice) {
         const c = current(g);
         if (!c) return;                                     // no bot for this game: the lobby's Start is disabled anyway
         game = g;
-        difficulty = c.difficulty;
+        difficulty = choice && c.def.difficulties.some((d) => d.id === choice.difficulty) ? choice.difficulty : c.difficulty;
         render();
         $("bot-modal").hidden = false;
     }
@@ -82,7 +84,7 @@ const Opponent = (() => {
             Util.save(localStorage, KEY, choices);
         }
         $("bot-modal").hidden = true;
-        onDone(game);
+        onDone(game, !!save);                                // `save` = Play was pressed (the room's bot follows, #36)
     }
 
     function init(handlers) {
