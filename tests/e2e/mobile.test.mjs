@@ -18,6 +18,12 @@ test("title screen and join panel fit a 360x780 phone", async () => {
     const right = await M.ev("document.getElementById('btn-join').getBoundingClientRect().right");
     assert.ok(right <= 360, `join button inside the viewport (${right})`);
     await M.click("#btn-join-open");
+    // the foot (#43): Learn and Replays side by side, same size, one line, no icons
+    const foot = JSON.parse(await M.ev("JSON.stringify(['btn-learn', 'btn-replays'].map(id => { const e = document.getElementById(id); const r = e.getBoundingClientRect(); return { text: e.textContent, top: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }; }))"));
+    assert.equal(foot[0].top, foot[1].top, "Learn and Replays share a row");
+    assert.equal(foot[0].w, foot[1].w, "same width");
+    assert.equal(foot[0].h, foot[1].h, "same height");
+    assert.deepEqual([foot[0].text, foot[1].text, await M.text("btn-changelog")], ["Learn to play", "Replays", "Changelog"], "no icons in the foot");
 });
 
 test("lobby (local) and settings modal fit", async () => {
@@ -78,6 +84,10 @@ test("game: compact HUD, board outline visible, reactions inside the viewport, n
     assert.ok(await M.ev("document.getElementById('react-bar').classList.contains('collapsed')"), "reaction bar starts collapsed");
     await M.waitFor("document.getElementById('react-layer').style.top !== ''", { what: "reaction layer placed" });
     await M.click("#react-toggle");
+    // the list opens as a block under the 😜 toggle, never across the top towards the ⚙ (#43)
+    const bar = JSON.parse(await M.ev("JSON.stringify({ t: document.getElementById('react-toggle').getBoundingClientRect(), l: document.querySelector('#react-bar .react-list').getBoundingClientRect(), g: document.getElementById('prefs-btn').getBoundingClientRect() })"));
+    assert.ok(bar.l.top >= bar.t.bottom, `the emoji list sits under the toggle (${bar.l.top} >= ${bar.t.bottom})`);
+    assert.ok(bar.l.top >= bar.g.bottom, "the emoji list clears the ⚙ button");
     await M.click('#react-bar button[data-e="🔥"]');
     const layer = JSON.parse(await M.ev("JSON.stringify(document.getElementById('react-layer').getBoundingClientRect())"));
     assert.ok(layer.right <= 360 && layer.left >= 0, `reaction layer inside the viewport (${layer.left}..${layer.right})`);

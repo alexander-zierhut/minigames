@@ -240,8 +240,10 @@ const Match = (() => {
         // the room's bot is named by the config (#36), mine by the opponent I picked. A rule
         // variant can change which bot can play at all (#35's Yavalath), so a room bot that
         // does not know the rules steps aside for one that does, exactly like offline.
-        let choice = online() ? cfg.bot : Opponent.current(cfg.game, cfg);
-        if (online() && choice && !(Bots.get(choice.id) && Bots.supports(choice.id, cfg))) choice = Opponent.current(cfg.game, cfg);
+        // offline a config may name a bot too (#44: a Learn scenario plays out against the
+        // level its tier asks for); without one it is the opponent the player picked
+        let choice = cfg.bot || (online() ? null : Opponent.current(cfg.game, cfg));
+        if (choice && !(Bots.get(choice.id) && Bots.supports(choice.id, cfg))) choice = Opponent.current(cfg.game, cfg);
         if (!choice || !Bots.get(choice.id)) { if (!online()) st.seats[seat].kind = "local"; return; }   // no bot for this game: play both sides
         // seed: fresh per game so the bot varies; tests pin it via sessionStorage["chainreact.botseed"]
         const seed = ((Number(Util.load(sessionStorage, "chainreact.botseed")) || Date.now()) + st.gameNo) >>> 0;

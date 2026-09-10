@@ -69,7 +69,7 @@ Scripts, in order (each defines the global named in brackets):
 | `client/session.js` | `Session` | the room session in sessionStorage (survives a refresh) |
 | `client/match.js` | `Match` | **the table**: mode, my seat, seats per player, the active engine, the clock, the bot seat, deferred work while a move animates |
 | `client/learn.js` | `Learn` | the Learn section (#41): the two Learn screens, the guided tutorial, the scenarios, the progress, the lobby's "How to play" modal |
-| `client/learn/<game>-scenarios.js` | (registers) | **generated** training positions (`scripts/learn/pick-scenarios.mjs`, from the proven puzzle sets) |
+| `client/learn/<game>-scenarios.js` | (registers) | **generated** scenario ladder (`scripts/learn/pick-scenarios.mjs`, from the proven puzzle sets and seeded self-play) |
 | `client/room.js` | `Room` | **the online room**: protocol handlers, presence, seat assignment, sync/desync, rematch votes, net box + banner, session save |
 | `client/app.js` | (none) | screens, the lobby, the flow (start / rematch / back / leave), wiring, boot |
 
@@ -197,10 +197,12 @@ to try things").
   under them the muted hint `#menu-online-hint` ("One room for up to 4 players, plus
   spectators." — the seat count itself is picked in the lobby, #28),
   section *Offline* with `Local multiplayer` (`#btn-local`) and `Against a bot`
-  (`#btn-bot`) in one row and `📚 Learn to play` (`#btn-learn`, #41) in a second row under
-  them, the foot with `#btn-install` (see Install), `#btn-replays` (🎬, the replays
-  screen, #42) and `#btn-changelog`, and under
-  it `#update-notice` (see "Version updates"). No Look
+  (`#btn-bot`) in one row, the foot (#43) with one row of two equal buttons —
+  `Learn to play` (`#btn-learn`, #41) and `Replays` (`#btn-replays`, #42) — over the quiet
+  pills `#btn-install` (see Install) and `Changelog` (`#btn-changelog`), none of the three
+  with an icon any more, and — **above the card** (#43), as its own banner
+  inside `#screen-menu`, which is therefore the one screen laid out as a column —
+  `#update-notice` (see "Version updates"). No Look
   control here (owner: only in the preferences, #9). Never scrolls on a phone. The ⚙
   preferences button floats top-left on every screen.
 - **Version updates** (`client/lib/update.js`, #40): while the title screen shows, `Update`
@@ -209,7 +211,7 @@ to try things").
   `<meta name="version">` (`Update.isNewer(running, latest)`: two different non-empty
   stamps, never "dev", so the unbundled dev page and the tests never poll). A different
   stamp sets `Update.available` and shows `#update-notice` ("A new version is ready." plus
-  `#btn-update-reload`). **Only on the title screen**: `app.js`'s `show()` calls
+  `#btn-update-reload`), the banner above the title card (#43). **Only on the title screen**: `app.js`'s `show()` calls
   `Update.screenChanged()`, which hides the notice in the lobby and in a game and shows it
   again on the way back, so a result that arrives elsewhere simply waits. After
   `Update.AUTO_MS` (20 s) with the notice up and no click or key press the page reloads
@@ -277,8 +279,12 @@ to try things").
   `review {ply}` (or `play: false`) pauses and jumps.
 - **Analysis panel** (`#replay-panel`, #43): see "Replay analysis" below.
 - **Replays** (`#screen-replays`, #42): the title screen's 🎬 button opens the list of the
-  games this device played (`Replays.store`, newest first). A `.seg` filter (`#replay-filter`:
-  All + one button per registered game, built by app.js), one `.replay-item` per game from
+  games this device played (`Replays.store`, newest first). A **dropdown** filter
+  (`#replay-filter`, built by app.js, #43: `.dropdown` = a `.dd-button` showing the picked
+  game's small preview tile and its title, and a `.dd-menu` of `.dd-option[data-filter]`
+  rows, "All games" first and then one per registered game, each with its tile; a click
+  next to it or Escape closes it. `.dropdown` lives in `menu.css` and only this screen uses
+  it, because a plain `<select>` cannot show the tiles), one `.replay-item` per game from
   `#tpl-replay` (title "Five Wins · 5 × 5", the sub line "date · names · result · moves"
   from `Replays.summary`) with **Watch** / ⬇ (save as a file) / 🗑 (delete) per row,
   `#btn-replay-upload` (opens the hidden `#replay-file` input: parse → migrate → validate →
@@ -376,9 +382,9 @@ restores form values on reload).
 
 ## Preferences (`client/prefs.js`, per device — the ⚙ button)
 
-`#prefs-btn` (class `corner-btn`, a pill fixed top-left on every screen: "⚙ Settings &
-Feedback" on desktop, "⚙ Settings" on phones via `.corner-long` / `.corner-short`, #25)
-opens `#prefs-modal`.
+`#prefs-btn` (class `corner-btn`, a pill fixed top-left on every screen, "⚙ Settings &
+Feedback" **everywhere** — the short phone label of #25 is gone (#43), phones only get a
+slightly smaller pill so it and the 😜 toggle never meet at 360 px) opens `#prefs-modal`.
 
 **Two levels (#32)**, because the list had grown too long: a **menu** (`#prefs-nav`) with
 one row per section (`#prefs-nav-<key>`, styled like the lobby's `.settings-summary`: icon,
@@ -1206,7 +1212,8 @@ game adds data and no code here.
 howto: {
   rules:     ["one short sentence per rule", …],                   // details page + the lobby modal
   tutorial:  [{ text, config?, moves?, expect?, highlight? }, …],  // a guided lesson on a real board
-  scenarios: [{ id, title, text, config, history, toMove: 0, best: [cells], tags? }, …],
+  scenarios: [{ id, title, text, config, history, toMove: 0, best: [cells], tags?,
+                tier, kind, difficulty, level, goal? }, …],        // the ladder, #44
 }
 ```
 
@@ -1225,34 +1232,93 @@ howto: {
   game is remembered as finished.
 - **Scenario**: a real game against the game's bot from `history` (`Match.reset("bot")` +
   `Match.start` + `engine.replay`), so `toMove` must be 0 (you are always seat 0, the bot
-  seat 1). The **first** move is judged against `best` (all optimal moves): in it → "Right!"
-  and the scenario counts as solved, otherwise "Not this one." plus **Retry**, which sets
-  the position up again. The game simply plays on either way.
+  seat 1). Since #44 every scenario carries `tier` (`basics | tactics | mastery`), `kind`,
+  `difficulty` (1..10) and `level` (the bot difficulty id it is played out against —
+  `Learn.scenarioConfig` puts it into `config.bot`, the same door the room's bot uses, so
+  `Match` needs no idea of Learn; an unknown level or a game without a bot falls back to the
+  Opponent choice). `Learn.howto` fills every missing field in (`tier: "basics"`,
+  `kind: "best-move"`, `difficulty: 3`) and sorts the list tier by tier, so a hand-written
+  scenario stays valid.
+  - `best-move` / `trap` / `turnaround`: the **first** move is judged against `best` (all
+    optimal moves): in it → "Right!" and the scenario counts as solved, otherwise "Not this
+    one." plus **Retry**, which sets the position up again. The game plays on either way,
+    and winning it afterwards adds a "You won it." to the panel (a bonus, never required).
+  - `play-from-here` (`goal: "win"`): no move is judged at all. The panel says "You must win
+    this one. A draw is not enough." and the Bus's `game:finish` decides: `winner === 0`
+    solves it, anything else (the bot wins, or a draw) says "The bot held this one."
+  A solved scenario offers the next rung: `Learn.canAdvance()` / `again()` / `againText()`
+  drive both the panel's Next button ("Next scenario") and the overlay's primary button,
+  which app.js's `renderRematch` fills from `Learn.againText()` ("Retry" / "Next scenario" /
+  "Start over").
+- **Tiers and the lock**: `Learn.TIERS` (basics, tactics, mastery), `tierProgress(game,
+  tier)` → `{ solved, total }`, `tierLocked(game, tier)` = the tier before it is less than
+  `Learn.UNLOCK` (60 %) solved. A locked tier only shows a hint ("Solve most of Basics
+  first. You can still try these.") — every row still starts when it is tapped, by the
+  owner's rule that the lock is a nudge, not a wall.
 - **Where the scenarios come from**: `tests/puzzles/<game>/puzzles.json` is proven but
-  never deployed, so `scripts/learn/pick-scenarios.mjs` (`npm run learn:scenarios`) picks
-  8 of them per game (only `toMove === 0`, a config that does not start somebody else
-  (`startPlayer`: a Learn table is always game 1, so seat 0 starts) and a value that is not
-  already lost, one per
-  instructive tag in a fixed order, biggest board first, tag titles like "Win in one move")
-  and writes `client/learn/<game>-scenarios.js`, a classic script calling
-  `Learn.scenarios(game, [...])`. It is deterministic (a re-run never diffs), the generated
-  files are committed and listed in `index.html`, and the unit test re-runs the pick and
-  compares. Hand-written scenarios (with a `text` explaining the idea) may sit in the
-  definition's `howto.scenarios`; they are simply concatenated in front of the generated
-  ones. Their `best` has to be right — the test only checks that it is legal.
+  never deployed, so `scripts/learn/pick-scenarios.mjs` (`npm run learn:scenarios`) builds
+  the ladder in **two stages** and writes `client/learn/<game>-scenarios.js`, a classic
+  script calling `Learn.scenarios(game, [...])`:
+  1. **Facts** (needs the bots, a few seconds per game): for every usable puzzle (`toMove
+     === 0`, a config that does not start somebody else (`startPlayer`: a Learn table is
+     always game 1, so seat 0 starts) and a value that is not already lost) it stores the proof `depth`, `legal` / `bestCount`, whether
+     the game's own **greedy** move is optimal (one ply, the best `rules.estimate` after the
+     move, so it needs no game-specific code at all — for chain that is the move taking the
+     most cells, for five the one extending your longest row, for boxes the one grabbing the
+     boxes), whether the **Easy** and the **Normal** bot answer with an optimal move,
+     the searched win chance (`Bots.estimator` at 12 000 nodes) and the static `look`
+     (`rules.estimate`). Plus 3 **play-from-here** positions from seeded self-play at the
+     Hard level (a seeded random 6-ply opening makes each seed a different game; the first
+     position in the 40–70 % window where **the state says seat 0 is to move** — never the
+     ply's parity, Käsekästchen lets a seat move twice — and your chance is 45–70 %).
+     Written to `scripts/learn/facts/<game>.json` (never deployed) and committed.
+  2. **Select** (pure, and that is what the unit test re-runs): `difficultyOf(f)` =
+     1 + proof depth (`(depth-1)/2`, capped at 4; a proof without a ply count reads as 6)
+     + how thin the good moves are (share ≤ 5 % → 2, ≤ 15 % → 1.5, ≤ 35 % → 1) + 1 if the
+     greedy move is wrong + 1.5 if Easy misses it + 1 if Normal misses it + 1 if you look
+     behind, rounded and clamped to 1..10; a play-from-here row is scored by its tier
+     (basics 4 / tactics 7 / mastery 9, +1 when the position is nearly even). `kindOf(f)` =
+     `turnaround` (a proven win where either view is ≤ 35 %), else `trap` (the greedy move
+     or the Easy bot's move is not optimal), else `best-move`. `select` sorts the
+     candidates by difficulty, cuts them into three bands the size of the tier quotas
+     (6 / 8 / 8 rows, one of them the tier's play-from-here position), takes each band kind
+     by kind so a tier is never eight of the same thing, sorts each tier from easy to hard
+     again and writes the titles ("Win in one
+     move", "Spot the trap", "Behind, but winning", "Play it out", numbered inside the tier)
+     and texts.
+  All four games have their ladder (22 rows each: 6 / 8 / 8).
+  It is deterministic (a re-run never diffs; `--facts-only` and `--keep-facts` split the two
+  stages), the generated files are committed and listed in `index.html`, and the unit test
+  re-runs `select` on the committed facts and compares. Hand-written scenarios (with a
+  `text` explaining the idea) may sit in the definition's `howto.scenarios`; they are simply
+  concatenated in front of the generated ones and land in Basics. Their `best` has to be
+  right — the test only checks that it is legal.
 - **Screens**: `#screen-learn` (one `.game-card` per game that teaches something, with
   "k / n scenarios") → `#screen-learn-game` (title, tagline, the rule bullets, "Start
-  tutorial", the scenario rows with ✓, Back). Both lists scroll inside the card so Back
-  stays reachable on a 360×780 phone. Progress lives in
+  tutorial", then the scenario rows **grouped by tier**: a `.learn-tier` header with the
+  tier name, its "3 / 8" and the lock hint, and one row per scenario with the kind's icon
+  (✓ once solved), the title, the kind's label and the difficulty as five dots
+  (`Learn.dots`), Back). The details page is **the one screen that
+  scrolls** (#43): the two lists are shown whole (no box inside a box that scrolls) and the
+  page carries them, its card centred with `margin: auto` so its top never leaves the
+  screen; `show()` in app.js puts every screen back at its top when it opens. Progress lives in
   `localStorage["chainreact.learn"]` = `{ tutorials: { chain: true }, solved: { five: [ids] } }`,
   per device, never sent anywhere.
 - **A lesson runs on the normal game screen** with `#learn-panel` as the first block of the
-  HUD (kind, "Step 2 / 6", the text, a hint line, Next / Retry / Back to Learn). There is
+  HUD (kind, "Step 2 / 6", the text, a hint line, Next / Retry / Back to Learn). Two rules
+  keep it out of the way (#43): a **scenario** carries a small `Hide` / `Show` button
+  (`#learn-hide` → `Learn.fold(on)` / `Learn.folded`, class `folded` on the panel, kept in
+  `sessionStorage["chainreact.learnpanel"]` for the visit) that folds the explanation away
+  so the whole board shows, the one hint line staying; and a **tutorial** measures the
+  longest of its step texts (`sizeText`, on the real element, re-measured per step and on a
+  resize) and gives `#learn-text` that `min-height`, so a longer step never changes the
+  panel's height and moves the board. There is
   **no new `Match.mode`**: a tutorial is a plain `local` table (every seat is this device,
   which is also why premoves never appear) and a scenario a plain `bot` table; `Learn.active`
   is the flag the rest of the app checks. `body.learn` hides the HUD's Rematch / Back to
   room row, `body.learn-tutorial` also hides the win bars (noise next to the steps). A
-  tutorial keeps the result overlay hidden; a scenario shows it with the lesson's buttons.
+  tutorial keeps the result overlay hidden; a scenario shows it with the lesson's buttons
+  (Retry or "Next scenario", and "Back to Learn").
 - **How Learn reaches the board**: two `Match.init` handlers, wired in app.js, keep the
   table generic — `beforeMove(i, p)` (false consumes the click: that is the tutorial's gate)
   and `cellClass(i)` (the `hint` class, the same door the premove marker uses). Advancing
@@ -1492,9 +1558,13 @@ route respectively.
 `#react-bar` top-right, starts collapsed behind the 😜 toggle; emojis 😂 🔥 💀 🤡 😱 👏 👍
 😎 🫡 😄 🥰 😲 😔 👋 🚨 🤖 + "L"/"EZ"/"GG" chips (the bar's own box never catches taps —
 `pointer-events: none` except the list and the toggle — and the toggle sits on the top
-edge next to ⚙, #7/#13; the expanded list stops 124px short of the left edge). `Reactions.place()` (called after every `fitBoard`) puts `#react-layer` **right
+edge next to ⚙, #7/#13). **The bar is a column (#43)**: the toggle on top (CSS `order: -1`,
+it comes second in the DOM) and the list right under it, right-aligned and 206px wide, so
+it wraps at five emojis per row and never reaches left across the ⚙ button; collapsed it
+is invisible and takes no taps. `Reactions.place()` (called after every `fitBoard`) puts `#react-layer` **right
 next to the board** when there is ≥ 66px of space (desktop), else in the free strip
-above the full-width board (or below it if that's bigger) — never over the board, never
+above the full-width board (at its left edge, where the open list is not) or below it if
+that strip is bigger — never over the board, never
 off-screen. Emojis drift right → left while falling the layer's height (wobble, fade,
 max 14 on screen). **Speed follows the rate** (#17): `Reactions.durationFor(recent)` with
 `recent` = reactions shown (own + received alike) in the last `RATE_WINDOW` 3 s before
@@ -1552,11 +1622,14 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   getting best moves but no win chance, an illegal bot answer left out; the analysis cache
   and its invalidation by bot / version / budget; `Replays.playback` with fake timers), `premove.test.mjs` (#37: set / switch / take back, fires when the turn comes,
   an illegal one is dropped, never on one device or as a spectator, cleared on a new game,
-  on stop and at the end), `learn.test.mjs` (#41: the `howto` contract for every registered
+  on stop and at the end), `learn.test.mjs` (#41, #44: the `howto` contract for every registered
   game — rule bullets, tutorial steps that replay with legal expected clicks, scenarios that
   replay to `toMove` with legal `best`; the generated ones equal the puzzle's proven `best`
-  and the committed files equal a fresh `pick()`; the tutorial and scenario runners in
-  jsdom incl. the wrong click, Retry and the localStorage progress),
+  and the committed files equal a fresh `select()` on the committed facts; the ladder
+  (known tiers and kinds, difficulty 1..10, easy first inside a tier, a bot for every
+  `level`), `difficultyOf` / `kindOf` on hand-made facts; the tutorial and scenario runners in
+  jsdom incl. the wrong click, Retry, a play-from-here scenario judged by `game:finish`,
+  "Next scenario", the lock rule and the localStorage progress),
   `persona.test.mjs`, `changelog.test.mjs`, `calibrate.test.mjs`, `puzzles.test.mjs`,
   `party.test.mjs` (3–4 players: `out`/`remaining`/pass in the pure rules, engine
   `eliminate` + `replay(history, outs)` == live play, two-player flag fall, settings
@@ -1633,11 +1706,14 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   the overlay texts, the replay bar stepping, rematch, three on one device, 360 × 780 without
   scrolling, and the bot drawing lines and closing boxes on its own),
   `bot` (offline vs bot: the one-step modal with scores and difficulty, "Bot" in the HUD, bot moves by itself, rematch, a premove clicked while the bot thinks, both games in the replays list),
-  `learn` (#41: Learn from the title, the game list, a details page, the tutorial with its
+  `learn` (#41, #44: Learn from the title, the game list, a details page with its tier
+  headers, progress and lock hint, the tutorial with its
   highlighted cell / wrong click / right click / Next to the end — for Chain React and for
   Käsekästchen, whose lesson also proves that a closed box leaves you on turn, a scenario with a wrong
   move, Retry and the ✓ that survives a reload, an Isolation tutorial step where the first
-  click only picks the tile and the second one completes the expected move, the lobby's How
+  click only picks the tile and the second one completes the expected move, a trap scenario
+  where the greedy move is refused and the proven one solves it, a play-from-here scenario
+  whose goal is explained and whose overlay offers Retry resp. "Next scenario", the lobby's How
   to play modal closing when
   a game starts, and 360×780 with no scroll on every new screen),
   `online-bot` (**three browsers**, #36: alone in a two-seat room "Against a bot instead"
@@ -1681,7 +1757,8 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
 
 `docs/` (`docs/bots.md` = bot system reference and the list of current bots — keep it in
 step with the code), `scripts/` (headless loader, puzzle runner, benchmark, puzzle solvers/generators,
-`ci/shards.mjs` = the e2e shard split, `learn/pick-scenarios.mjs`,
+`ci/shards.mjs` = the e2e shard split, `learn/pick-scenarios.mjs` + its committed
+`learn/facts/<game>.json`,
 verify, screenshot tour), `tests/` (incl. `tests/replays/`, the replay format samples). The deploy uploads `dist/`
 only; `build.mjs` bundles nothing outside `index.html`'s tags and `client/textures`.
 
@@ -1716,8 +1793,8 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Sound` | `Bus`-driven; `play(cue)` for tests, unlock on first gesture |
 | `Changelog` | `init()`, `open/close`, `render(doc[, all])`, `refUrl(ref)`, `technical(entry)`, `showTechnical`, `SHOW_DAYS` |
 | `Preload` | `textures()` |
-| `Learn` | `init({show, exit})`, `open()`, `openGame(key)`, `startTutorial(key)`, `startScenario(key, id)`, `restart()`, `exit()`, `howto(key) → {rules, tutorial, scenarios}`, `scenarios(game, list)` (the generated files register here), `games()`, `configFor(key, cfg)`, `names(base)`, `beforeMove(i)` / `cellClass(i)` / `onLocalMove(i)` (Match handlers), `openHowto(key)` / `closeHowto()`, `isSolved(game, id)`, `tutorialDone(game)`; getters `active` (`null` \| `{kind, game, …}`), `page`; `STEP_MS`, `MISS` |
-| game definition | `howto: { rules: [], tutorial: [{text, config?, moves?, expect?, highlight?}], scenarios: [{id, title, text, config, history, toMove, best, tags?}] }` (#41; `Games.register` defaults it to empty) |
+| `Learn` | `init({show, exit})`, `open()`, `openGame(key)`, `startTutorial(key)`, `startScenario(key, id)`, `restart()`, `exit()`, `howto(key) → {rules, tutorial, scenarios}`, `scenarios(game, list)` (the generated files register here), `games()`, `configFor(key, cfg)`, `names(base)`, `beforeMove(i)` / `cellClass(i)` / `onLocalMove(i)` (Match handlers), `openHowto(key)` / `closeHowto()`, `isSolved(game, id)`, `tutorialDone(game)`, `fold(on)` (#43), `tierProgress(game, tier)`, `tierLocked(game, tier)`, `nextScenario(game, id)`, `canAdvance()`, `again()`, `againText()`, `dots(difficulty)`; getters `active` (`null` \| `{kind, game, …}`), `page`, `folded`; `STEP_MS`, `MISS`, `TIERS`, `KINDS`, `UNLOCK` |
+| game definition | `howto: { rules: [], tutorial: [{text, config?, moves?, expect?, highlight?}], scenarios: [{id, title, text, config, history, toMove, best, tags?, tier, kind, difficulty, level, goal?}] }` (#41, #44; `Games.register` defaults it to empty) |
 | `Session` | `save(data)`, `load()`, `clear()` (shape incl. `codeHidden`, `watch`, `spec`) |
 | `Replays` | `FORMAT`, `VERSION`, `MIGRATIONS`, `migrate(doc)`, `validate(doc) → {ok, error}`, `parse(text) → {ok, doc, error}`, `fromRecord(record, names, mode, opts)`, `idFor`, `fileName`, `when(iso)`, `summary(doc, id)`, `store.{save, list({game}), get, remove, clear, persistent, analysis.{get, put, remove, clear}}` (async, IndexedDB with a memory fallback), `playback({ply, total, seek, ms, setTimer, clearTimer}) → {start, stop, toggle, playing}`, `STEP_MS` |
 | `Analysis` | `init({onSeek, onPlayFrom})`, `open(doc, {canPlayFrom})`, `at(ply) → cell to mark`, `close()`, `run()`, `analyse(doc, {estimator, bot, nodes, onProgress, cancelled, breathe, maxMs}) → result`, `scores(moves, players)`, `verdict(move)`, `positionsOf(record)`, `stampFor(doc)`, `load(id, stamp)`, `store(id, result)`, `NODES/BOT_NODES/TOLERANCE/MISTAKE/BLUNDER/MAX_PLIES`; getters `result`, `busy`, `progress`, `shown` |
@@ -1725,8 +1802,9 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Room` | `init(handlers)`, `enter(code, { preferHost, seat, spectate, watch, spec, hidden })`, `leave()`, `roomLink(code?)`, `spectateLink()`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg, prefix?)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `seatFree()`, `watchInstead()`, `takeSeat(seat?)`, `enteredLobby()`, `botSeat()`, `settingsChanged(cfg)`, `say(text)`, `react(e, seat?)`, `tolobby()`, `review(ply, play?)`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/occupiedSeats/allHere/live/who/two/playersNow/turnHint`, `names()`, `nameChanged()`, `accepts(msg, seat)`, `keepsSeats(msg, occupied)`, `PLAYERS_ONLY`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden`, `watching`, `spec` |
 
 Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM), `puzzles/runner.mjs`
-(`loadPuzzles`, `positionOf`, `evaluateBot`), `learn/pick-scenarios.mjs` (`pick(data)`,
-`writeAll()`), `benchmark.mjs`, `calibrate.mjs`
+(`loadPuzzles`, `positionOf`, `evaluateBot`), `learn/pick-scenarios.mjs`
+(`collectFacts(H, game)`, `loadFacts(game)`, `select(facts)`, `difficultyOf`, `kindOf`,
+`greedyMove`, `TIERS`, `KINDS`, `writeAll({factsOnly, keepFacts})`), `benchmark.mjs`, `calibrate.mjs`
 (`collect`, `fitLogistic`, `metrics`, `calibrate`), `puzzles/<game>/solver.mjs` +
 `generate.mjs` (boxes: `solveExhaustive` / `solveBrute` / `canonical`, and its README has the
 guarantee), `puzzles/verify.mjs` (generic tactical re-proof plus a per-game branch, boxes'
@@ -1836,6 +1914,22 @@ and `roster` are the ones that never get relayed (host to all, or guest to host 
   forward what a finished agent learned to the ones still running, and expect to merge
   and re-verify yourself. A worktree created from the wrong base wastes a whole run —
   check `git log -1` in it first.
+- **Agents, the 2026-09-10/11 batch (12 issues, 2 new games, 8 agents in flight).** What
+  scaled: one opus agent per issue in its own worktree, a shared preamble file with the
+  owner's rules and the base commit, and **the agent merges `main` into its own branch**
+  when main moved (it knows both sides of every conflict; the main session then only
+  fast-forwards, runs the full suite, pushes, and closes the issue once CI deployed it).
+  Order merges so that branches touching the same files land one after the other (both
+  new games rewrote the e2e harness helpers and the replay validator: the second one
+  merged after the first). Agent worktrees start from a stub commit, so `git merge main`
+  is always the first step; a live agent's worktree is locked (`git worktree remove
+  --force --force`). Two agents independently reported "pre-existing" e2e failures that
+  were real bugs in a sibling's regexes — a test that waits on a regex written inside a JS
+  string loses its escapes (`"\d"`); double them. The one flake seen in this batch:
+  `replays` "a replay can be saved as a file" (download name null) on a loaded machine.
+- **Win chance for a new game** is never right the first time (chain: parity flip; five:
+  static threat penalty; isolation: root maximised for the wrong seat; boxes: see below).
+  Budget a measurement pass (swing, mover bias, Brier via self-play) into every new game.
 - **Mobile layout bugs are usually stacking/overlap**, not events: an invisible flex
   container (the collapsed reaction list) swallowed taps on the ⚙ button.
 
@@ -2036,11 +2130,18 @@ to move there, `toMove` of a scenario is always 0 (you are seat 0, the bot seat 
 dashes (#24). Missing settings are filled from the `settings` defaults, and `players: 2` /
 `timer: 0` are forced, so a lesson config only names what matters.
 
-Once the game has a puzzle set (step 6.4), add it to the generator instead of writing
-scenarios by hand: `npm run learn:scenarios` picks 8 proven positions per game with a
-puzzle set and writes `client/learn/<key>-scenarios.js`. Add its `<script>` tag to
-`index.html` next to the other scenario files and commit the generated file; the unit test
-re-runs the pick and fails if the committed file is stale.
+Once the game has a puzzle set (step 6.4) **and** a bot, the whole ladder is generated:
+`npm run learn:scenarios` builds ~22 scenarios per game in three tiers (Basics / Tactics /
+Mastery), computes a difficulty per position, marks traps and turnarounds and adds one
+"play from here" game per tier from seeded self-play, then writes
+`scripts/learn/facts/<key>.json` (the measurements, committed, never deployed) and
+`client/learn/<key>-scenarios.js`. Nothing in it is game specific: the greedy move comes
+from the game's own `rules.estimate`, the levels from `Bots.botFor(<key>).difficulties`, the
+self-play board from the biggest config in the puzzle set. Add the scenario file's
+`<script>` tag to `index.html` next to the other ones and commit both files; the unit test
+re-runs the pure selection stage and fails if the committed file is stale.
+Hand-written scenarios still work and simply land in Basics (`tier`, `kind`, `difficulty`
+are filled in), which is what a game without a puzzle set gets.
 
 ## 8. Checklist before calling it done
 

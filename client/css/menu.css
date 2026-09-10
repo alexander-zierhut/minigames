@@ -68,20 +68,33 @@
 }
 .hint { margin: 0; font-size: 12px; color: var(--muted); text-align: center; }
 
-.menu-foot { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+/* the foot (#43): Learn and Replays as two equal buttons in one row, the quiet pills
+   (install, changelog) centred under them */
+.menu-foot { display: flex; flex-direction: column; gap: 8px; }
+.menu-foot .btn-row .btn { flex: 1; font-size: 14px; padding: 11px 8px; white-space: nowrap; min-width: 0; }
+.foot-quiet { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .install-btn { font-size: 13px; padding: 10px 14px; }
 
-/* a new version is deployed (#40): one quiet line above the foot, title screen only */
+/* a new version is deployed (#40): a banner above the title card (#43), title screen only.
+   The title screen is the one screen that stacks two blocks, so it is a column. */
+#screen-menu { flex-direction: column; gap: 12px; }
+#screen-menu .menu-card { min-height: 0; }
 .update-notice {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
     flex-wrap: wrap;
-    margin-top: -8px;
-    font-size: 12px;
-    color: var(--muted);
+    flex: 0 0 auto;
+    padding: 8px 14px;
+    background: var(--bg2);
+    border: 2px solid var(--accent);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.5);
+    font-size: 13px;
+    color: var(--text);
 }
+.skin-mc .update-notice { border-radius: 0; background: rgba(0,0,0,.7); border-color: #000; }
 
 /* ---- changelog ---- */
 .changelog-card { max-width: 560px; gap: 12px; }
@@ -334,7 +347,35 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
 .replays-card { max-width: 560px; gap: 12px; }
 /* desktop: wide enough that date, players and result stay on one line */
 @media (min-width: 900px) { #screen-replays .menu-card { max-width: 680px; padding: 24px 28px; } }
-.replay-filter { flex-wrap: wrap; }
+/* the game filter (#43): a small dropdown that can show a game's preview tile, which a
+   plain <select> cannot. Only the replays screen uses it. */
+.dropdown { position: relative; }
+.dd-button, .dd-option {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 8px 12px; text-align: left; font-size: 13px; font-weight: 700;
+    background: var(--bg2); color: var(--text);
+    border: 2px solid var(--line); border-radius: 10px; cursor: pointer;
+}
+.dd-button:hover, .dd-option:hover { border-color: #46528a; }
+.dd-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-chev { flex: 0 0 auto; color: var(--muted); font-size: 11px; }
+.dropdown.open .dd-chev { transform: rotate(180deg); }
+.dd-menu {
+    display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 12;
+    flex-direction: column; gap: 4px; padding: 4px;
+    max-height: 46vh; overflow-y: auto;
+    background: var(--panel); border: 2px solid var(--line); border-radius: 12px;
+    box-shadow: 0 16px 40px rgba(0,0,0,.55);
+}
+.dropdown.open .dd-menu { display: flex; }
+/* the card clips its content (it may scroll), so it lets the open menu out */
+.menu-card:has(.dropdown.open) { overflow: visible; }
+.dd-option.selected { border-color: var(--accent); }
+.replay-filter { align-self: flex-start; width: 100%; max-width: 280px; }
+.game-preview.tiny { width: 26px; height: 26px; gap: 1px; padding: 2px; border-radius: 6px; flex: 0 0 auto; }
+.game-preview.tiny i { border-radius: 2px; }
+.skin-mc :is(.dd-button, .dd-option, .dd-menu) { border-radius: 0; border-color: #000; background: rgba(0,0,0,.62); }
+.skin-mc .dd-menu { background: #2b2b2b; }
 .replay-list { display: flex; flex-direction: column; gap: 8px; max-height: min(46vh, 420px); overflow-y: auto; padding-right: 2px; }
 .replay-list:empty { display: none; }
 .replay-item {
