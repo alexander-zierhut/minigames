@@ -3,7 +3,7 @@
    from one, and deleted again. */
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { startServer, launchBrowser, ROOT } from "./harness.mjs";
+import { startServer, launchBrowser, ROOT, ONLINE } from "./harness.mjs";
 
 let server, B;
 const FIVE_WIN = [0, 5, 1, 6, 2, 7, 3];          // seat 0 makes four in a row on a 5×5 board
@@ -70,6 +70,56 @@ test("watching a replay: the bar starts at move 0 and steps to the end", async (
     assert.equal(await B.ev("Match.mode"), "local");
 });
 
+test("the analysis judges every move, scores both seats and marks the bot's move (#43)", async () => {
+    await B.click("#replay-list .replay-item button[data-act='watch']");
+    // the list reads the document out of IndexedDB before it opens the viewer
+    await B.waitFor("Match.mode === 'replay'", { what: "the replay viewer" });
+    assert.equal(await B.ev("document.getElementById('replay-panel').hidden"), false, "the panel comes up with the replay bar");
+    assert.equal(await B.ev("document.getElementById('btn-play-from-here').hidden"), false, "a two-player replay can be played on");
+    // it starts by itself and reports its progress, then shows the result
+    await B.waitFor("Analysis.result || Analysis.busy", { what: "the analysis starts by itself" });
+    await B.waitFor("Analysis.result", { timeout: 90000, what: "the analysis finishes" });
+    assert.equal(await B.ev("document.getElementById('analysis-progress').hidden"), true, "the progress bar goes away when it is done");
+    const res = JSON.parse(await B.ev("JSON.stringify(Analysis.result)"));
+    assert.equal(res.chances.length, 8, "a win chance for the empty board and after every move");
+    assert.equal(res.moves.length, 7);
+    assert.ok(res.bot && res.bot.id, "the game's own bot did the judging");
+    assert.equal(res.scores.length, 2);
+    for (const s of res.scores) assert.ok(s.score >= 0 && s.score <= 100, `score in range: ${s.score}`);
+
+    // the panel talks about the move that led to the shown position
+    const seat0 = await B.text("p0-name");
+    await B.click("#replay-next");
+    assert.match(await B.text("an-verdict"), new RegExp(`^Move 1 · ${seat0} · `));
+    assert.match(await B.text("an-chance"), new RegExp(`${seat0} \\d+ % → \\d+ %`));
+    assert.match(await B.text("an-scores"), new RegExp(seat0));
+    assert.match(await B.text("an-scores"), /best/);
+    assert.equal(await B.ev("document.querySelectorAll('#an-graph svg polyline').length"), 2, "one win-chance line per player");
+
+    // a move the bot would not have played is marked on the board
+    const bad = res.moves.find((m) => m.perfect === false && m.best !== null);
+    assert.ok(bad, "the bot disagrees with at least one move of this game");
+    await B.ev(`document.getElementById('replay-first').click(); true`);
+    for (let k = 0; k <= bad.ply; k++) await B.click("#replay-next");
+    assert.equal(await B.ev("Match.marked"), bad.best, "the bot's move is marked");
+    assert.equal(await B.ev("document.querySelectorAll('#board > .best-move').length"), 1);
+    assert.match(await B.text("an-verdict"), /Best was|Blunder|Mistake/);
+
+    // the graph jumps to a move, Play walks to the end and stops there
+    await B.ev("(() => { const g = document.getElementById('an-graph'); const r = g.getBoundingClientRect(); g.dispatchEvent(new MouseEvent('click', { clientX: r.left + r.width / 2, bubbles: true })); return true; })()");
+    assert.match(await B.text("replay-pos"), /^Move [34] \/ 7$/, "the middle of the graph is the middle of the game");
+    await B.click("#replay-play");
+    assert.equal(await B.text("replay-play"), "❚❚", "…and the button offers Pause while it runs");
+    await B.waitFor("FiveGame.previewPly === null", { timeout: 20000, what: "Play walks to the last move" });
+    await B.waitFor("document.getElementById('replay-play').textContent === '▶▶'", { what: "it stops at the end" });
+
+    await B.screenshot("replay-analysis.png");
+    await B.click("#btn-menu");
+    assert.equal(await B.ev("document.getElementById('replay-panel').hidden"), true, "the panel goes with the bar");
+    assert.equal(await B.screen(), "screen-replays");
+    assert.deepEqual(B.errors, [], "no exceptions while analysing");
+});
+
 test("a replay can be saved as a file, and the file is a valid replay", async () => {
     // catch the download instead of letting Chrome write it to disk
     await B.ev("window.__dl = null; HTMLAnchorElement.prototype.click = function () { window.__dl = { name: this.download, href: this.href }; };");
@@ -101,7 +151,9 @@ test("a replay file is opened, watched and filtered by game", async () => {
         await B.click(`#replay-filter .dd-option[data-filter='${key}']`);
         assert.equal(await B.ev("document.getElementById('replay-filter').classList.contains('open')"), false, "picking closes it");
     };
-    assert.equal(await B.ev("document.querySelectorAll('#replay-filter .dd-option').length"), 3, "All games plus one row per game");
+    assert.equal(await B.ev("document.querySelectorAll('#replay-filter .dd-option').length"), await B.ev("Games.keys().length + 1"), "All games plus one row per game");
+    assert.deepEqual(JSON.parse(await B.ev("JSON.stringify([...document.querySelectorAll('#replay-filter .dd-option')].map(o => o.dataset.filter))")),
+        JSON.parse(await B.ev("JSON.stringify(['all', ...Games.keys()])")), "All games first, then every registered game");
     assert.equal(await B.ev("document.querySelector('#replay-filter .dd-button .dd-label').textContent"), "All games");
     assert.ok(await B.ev("[...document.querySelectorAll('#replay-filter .dd-option')].every(o => o.querySelector('.game-preview.tiny i'))"), "every row shows a preview tile");
     await pick("chain");
@@ -143,6 +195,39 @@ test("deleting a replay removes it from the list", async () => {
     assert.match(await B.text("replays-hint"), /No replays yet/);
 });
 
+test("an Isolation replay is analysed too: the graph, and the marker on the tile a move steps onto (#43)", async () => {
+    await B.upload("#replay-file", ROOT + "tests/replays/v1-isolation.json");
+    await B.waitFor("Match.mode === 'replay'", { what: "the isolation replay opens" });
+    assert.equal(await B.text("sign-title"), "ISOLATION");
+    assert.equal(await B.text("replay-pos"), "Move 0 / 9");
+    await B.waitFor("Analysis.result", { timeout: 120000, what: "the analysis finishes" });
+    const res = JSON.parse(await B.ev("JSON.stringify(Analysis.result)"));
+    assert.equal(res.chances.length, 10, "a win chance for the start and after every move");
+    assert.equal(res.bot.id, "warden-isolation", "the game's own bot judged it");
+    assert.equal(await B.ev("document.querySelectorAll('#an-graph svg polyline').length"), 2, "one win-chance line per player");
+    /* A move the bot would have played differently: its answer is an encoded move
+       (`to * cells + removed`), and the marker has to land on the tile that move steps
+       onto, never on the move id, which is far off the board. */
+    const bad = res.moves.find((m) => m.perfect === false && m.best !== null);
+    assert.ok(bad, "the bot disagrees with at least one move of this game");
+    await B.click("#replay-first");
+    for (let k = 0; k <= bad.ply; k++) await B.click("#replay-next");
+    const cells = await B.ev("IsolationGame.state.cells.length");
+    const want = await B.ev(`IsolationRules.cellOf(IsolationGame.state, ${bad.best})`);
+    assert.ok(want >= 0 && want < cells, "the marked tile is on the board");
+    assert.equal(await B.ev("Match.marked"), want, "the bot's step is marked on its destination tile");
+    assert.equal(await B.ev("document.querySelectorAll('#board > .slab.best-move').length"), 1);
+    assert.match(await B.text("an-verdict"), /Best was|Blunder|Mistake/);
+    await B.screenshot("replay-analysis-isolation.png");
+    await B.click("#btn-menu");
+    // leave the list the way this test found it
+    await B.ev("Replays.store.clear()");
+    await B.click("#btn-replays-back");
+    await B.click("#btn-replays");
+    await B.waitFor("document.querySelectorAll('#replay-list .replay-item').length === 0", { what: "an empty list again" });
+    assert.deepEqual(B.errors, [], "no exceptions while analysing Isolation");
+});
+
 test("phone 360×780: a full list scrolls inside the card, the screen does not", async () => {
     await B.emulate(360, 780);
     // a handful of games, saved the way the app saves them
@@ -164,4 +249,71 @@ test("phone 360×780: a full list scrolls inside the card, the screen does not",
     assert.ok(await B.ev("document.getElementById('btn-replays-back').getBoundingClientRect().bottom <= innerHeight"), "Back stays reachable");
     await B.screenshot("mobile-replays.png");
     assert.deepEqual(B.errors, [], "no exceptions on the replays screen");
+});
+
+test("phone 360×780: the analysis panel fits above the bar, collapsed until it is opened (#43)", async () => {
+    await B.click("#replay-list .replay-item button[data-act='watch']");
+    await B.waitFor("Match.mode === 'replay'", { what: "the replay viewer" });
+    assert.equal(await B.ev("document.getElementById('replay-panel').classList.contains('collapsed')"), true, "phones start with the head row only");
+    await B.waitFor("Analysis.result", { timeout: 90000, what: "the analysis finishes" });
+    await B.click("#replay-next");
+    assert.match(await B.text("an-verdict"), /Move 1 · /);
+    let fit = await B.noScroll();
+    assert.equal(fit.y, true, "the game screen never scrolls the page");
+    assert.equal(fit.x, true);
+    const boxes = JSON.parse(await B.ev(`JSON.stringify({
+        panel: document.getElementById('replay-panel').getBoundingClientRect().toJSON(),
+        bar: document.getElementById('replay-bar').getBoundingClientRect().toJSON(),
+        hut: document.getElementById('hut').getBoundingClientRect().toJSON() })`));
+    assert.ok(boxes.panel.bottom <= boxes.bar.top + 1, "the panel sits above the bar");
+    assert.ok(boxes.bar.bottom <= boxes.hut.top + 1, "…and the bar above the HUD");
+    assert.ok(boxes.panel.top >= 0 && boxes.panel.right <= 360, "the whole panel is on the screen");
+    await B.screenshot("mobile-replay-analysis.png");
+
+    // the graph and the scores come on demand
+    await B.click("#an-toggle");
+    assert.equal(await B.ev("document.getElementById('an-graph').hidden"), false);
+    assert.ok(await B.ev("document.getElementById('an-scores').children.length >= 2"), "one row per seat");
+    fit = await B.noScroll();
+    assert.equal(fit.y, true, "the open panel does not scroll the page either");
+    assert.ok(await B.ev("document.getElementById('replay-panel').getBoundingClientRect().top >= 0"), "and still fits");
+    await B.screenshot("mobile-replay-analysis-open.png");
+    assert.deepEqual(B.errors, [], "no exceptions on a phone");
+    await B.click("#btn-menu");
+});
+
+test("Play from here: the replay continues in a room against the bot, viewers can watch (#43)", { skip: !ONLINE }, async () => {
+    await B.emulate(1000, 800);
+    await B.click("#replay-list .replay-item button[data-act='watch']");
+    await B.waitFor("Match.mode === 'replay'", { what: "the replay viewer" });
+    for (let k = 0; k < 3; k++) await B.click("#replay-next");
+    assert.equal(await B.text("replay-pos"), "Move 3 / 7");
+
+    await B.click("#btn-play-from-here");
+    await B.waitFor("Net.role === 'host' && Match.mode === 'online'", { timeout: 40000, what: "the room is up" });
+    assert.equal(await B.screen(), "screen-game");
+    assert.equal(await B.ev("Match.me"), 1, "the human takes the seat that is to move");
+    assert.equal(await B.ev("Settings.bot.seat"), 0, "…and the bot sits on the other one");
+    assert.equal(await B.ev("JSON.stringify(Match.seats.map(s => s.kind))"), JSON.stringify(["bot", "local"]));
+    assert.equal(await B.ev("JSON.stringify(FiveGame.state.history)"), "[0,5,1]", "the game starts from the shown position");
+    assert.equal((await B.state()).current, 1, "and it is my move");
+    assert.equal(await B.text("p0-name"), "Bot");
+
+    await B.move(10);
+    await B.waitFor("FiveGame.state.history.length === 5 && !FiveGame.state.busy", { timeout: 40000, what: "the bot answers" });
+    assert.equal((await B.state()).current, 1, "back to me");
+
+    // the spectate link still works: a viewer sees the same position
+    const link = await B.ev("Room.spectateLink()");
+    assert.match(link, /watch=[A-Z0-9]{4,5}/);
+    const V = await launchBrowser();
+    try {
+        await V.goto(link);
+        await V.waitFor("Net.connected", { timeout: 60000, what: "the viewer connected" });
+        await V.waitFor("FiveGame.state.history.length >= 5", { timeout: 60000, what: "the viewer sees the position" });
+        assert.equal(await V.ev("Match.spectator"), true);
+        assert.equal(await V.ev("JSON.stringify(FiveGame.state.history.slice(0, 3))"), "[0,5,1]", "the moves from the replay are there too");
+        assert.deepEqual(V.errors, []);
+    } finally { await V.close(); }
+    assert.deepEqual(B.errors, []);
 });

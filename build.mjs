@@ -13,7 +13,7 @@ import { join, basename, extname } from "node:path";
 const ROOT = new URL(".", import.meta.url).pathname;
 const DIST = process.env.DIST_DIR || join(ROOT, "dist");
 const ASSETS = "assets";
-const ROOT_EXTRAS = ["favicon.ico", "favicon-16x16.png", "favicon-32x32.png", "apple-touch-icon.png", "icon-192.png", "icon-512.png", "icon-512-maskable.png", "manifest.json", "changelog.json", "robots.txt"];
+const ROOT_EXTRAS = ["favicon.ico", "favicon-16x16.png", "favicon-32x32.png", "apple-touch-icon.png", "icon-192.png", "icon-512.png", "icon-512-maskable.png", "og-image.png", "manifest.json", "changelog.json", "robots.txt"];
 const hash = (buf) => createHash("sha256").update(buf).digest("hex").slice(0, 10);
 const hashedName = (file, buf) => `${basename(file, extname(file))}.${hash(buf)}${extname(file)}`;
 const read = (rel) => readFileSync(join(ROOT, rel), "utf8");

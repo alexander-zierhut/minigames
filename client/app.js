@@ -38,14 +38,18 @@
     // (the wrapper's padding keeps it clear of the corner buttons on phones)
     function fitBoard() {
         const wrap = $("board-wrap");
+        // first the strips the board has to keep clear, because the wrapper's padding follows
+        // them: phones put the replay bar (#38) above the HUD, and the analysis panel (#43)
+        // above the bar. Reading the wrapper afterwards sees the new padding.
+        const hut = $("hut").getBoundingClientRect();
+        if (hut.height > 0) document.documentElement.style.setProperty("--hut-h", Math.round(window.innerHeight - hut.top) + "px");
+        const dock = $("replay-dock").getBoundingClientRect();
+        document.documentElement.style.setProperty("--dock-h", (dock.height ? Math.round(dock.height) + 8 : 0) + "px");
         const cs = getComputedStyle(wrap);
         const h = wrap.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0);
         const w = wrap.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
         const size = Math.floor(Math.min(w, h)) - 10;
         if (size > 0) document.documentElement.style.setProperty("--board", size + "px");
-        // phones: the replay bar (#38) sits above the HUD, so it needs the strip the HUD takes
-        const hut = $("hut").getBoundingClientRect();
-        if (hut.height > 0) document.documentElement.style.setProperty("--hut-h", Math.round(window.innerHeight - hut.top) + "px");
         Reactions.place();                               // layout is synchronous: the board rect is final here
     }
 
@@ -158,22 +162,30 @@
         else { again.textContent = "Rematch"; again.disabled = false; }
     }
 
-    /* ================= replay bar (#38) ================= */
+    /* ================= replay bar (#38) + analysis panel (#43) ================= */
     // After a game everyone can walk through it move by move. The position is a view-only
     // preview in the engine (the live game, the record and the hash never change), and every
-    // step is announced so the whole room looks at the same move.
+    // step is announced so the whole room looks at the same move. showReplay is the single
+    // funnel for every step (buttons, keys, Play, the room, the graph), hideReplay the single
+    // teardown; the analysis panel above the bar follows both.
     const totalPlies = () => Match.state.history.length;
     const currentPly = () => Match.engine.previewPly ?? totalPlies();
+    // Play / Pause (#43): each side steps on its own timer from the move that was announced,
+    // so playing through a game together costs one message, not one per move.
+    const player = Replays.playback({ ply: currentPly, total: totalPlies, seek: (p) => showReplay(p, false, true) });
 
-    function showReplay(ply, announce) {
+    function showReplay(ply, announce, auto) {
+        if (!auto) player.stop();                        // any step by hand pauses
         const total = totalPlies();
         const to = Math.max(0, Math.min(total, ply));
+        const fresh = $("replay-bar").hidden;
         Match.engine.preview(to >= total ? null : to);
         $("overlay").hidden = true;
         $("result-fab").hidden = false;
         $("replay-bar").hidden = false;
+        if (fresh) openAnalysis();
         renderReplay();
-        if (announce && Room.online) Room.review(to);
+        if (announce && Room.online) Room.review(to, player.playing);
     }
     function renderReplay() {
         const total = totalPlies();
@@ -181,12 +193,78 @@
         $("replay-pos").textContent = `Move ${ply} / ${total}`;
         $("replay-first").disabled = $("replay-prev").disabled = ply === 0;
         $("replay-next").disabled = $("replay-last").disabled = ply === total;
+        const play = $("replay-play");
+        play.disabled = total === 0;
+        play.textContent = player.playing ? "❚❚" : "▶▶";
+        play.title = player.playing ? "Pause" : "Play through the game";
+        play.setAttribute("aria-label", play.title);
+        // the analysis marks the bot's move on the board; a game whose moves are not plain
+        // cell ids says which cell that is (`engine.cellOf`)
+        const best = Analysis.at(ply);
+        Match.mark(best >= 0 && Match.engine.cellOf ? Match.engine.cellOf(best) : best);
+    }
+    // Play / Pause pressed here: the room follows on its own timer
+    function togglePlay() {
+        const on = player.toggle();
+        renderReplay();
+        if (Room.online) Room.review(currentPly(), on);
+    }
+    // somebody else stepped or pressed Play: look at the same move, run the same timer
+    function applyReview(ply, play) {
+        player.stop();
+        showReplay(ply, false, true);
+        if (play) player.start();
+        renderReplay();
     }
     // back to the live position: a new game, a rematch, the room, the result overlay
     function hideReplay() {
+        player.stop();
+        Analysis.close();
+        Match.mark(-1);
         Match.engine.preview(null);
         $("replay-bar").hidden = true;
         $("result-fab").hidden = true;
+    }
+    // the game on the board as a replay document: the file when we watch one, else the game
+    // that just ended (the same document the replays list keeps, so the analysis is cached
+    // under the same id)
+    function analysisDoc() {
+        if (replayDoc) return replayDoc;
+        if (!Match.config || !Match.state.history.length) return null;
+        return Replays.fromRecord(Match.record(), Match.names, Match.mode === "replay" ? "local" : Match.mode);
+    }
+    function openAnalysis() {
+        const doc = Learn.active ? null : analysisDoc();   // a lesson is not a game to judge (#41)
+        if (!doc) { Analysis.close(); return; }
+        const two = (doc.config.players || 2) === 2;
+        // "Play from here" opens a fresh room, so it is offered while watching a replay only
+        Analysis.open(doc, { canPlayFrom: Match.mode === "replay" && two && !!Opponent.current(doc.game, doc.config) });
+    }
+
+    /* Play from here (#43): continue a two-player replay against the bot, in an online room
+       so the spectate link still works. The human takes the seat that is to move at the
+       shown position, the bot the other one; the game number is picked so that the seat that
+       started the recorded game starts this one too, and the moves up to here are replayed
+       into it as the start prefix. */
+    function playFromHere(ply) {
+        const doc = replayDoc;
+        if (!doc || (doc.config.players || 2) !== 2) return;
+        const rec = { game: doc.game, config: doc.config, history: doc.history, outs: doc.outs || [] };
+        const at = Math.max(0, Math.min(doc.history.length, ply));
+        const pos = Rules.replay(rec, at);
+        if (pos.over) { toast("That game is already decided."); return; }
+        const choice = Opponent.current(doc.game, doc.config);
+        if (!choice) { toast("No bot plays this game yet."); return; }
+        const seat = pos.current;
+        const prefix = { history: doc.history.slice(0, at), outs: rec.outs.filter((o) => o.at <= at) };
+        replayDoc = null;
+        hideReplay();
+        Room.enter(Net.randomCode(), { preferHost: true, seat, spec: Net.randomCode() });
+        Settings.write({ ...doc.config, bot: null });
+        Settings.setBot({ ...choice, seat: seat === 0 ? 1 : 0 }, false);
+        Match.gameNo = doc.config.startPlayer || 0;       // …so the next game number starts the recorded starter
+        Room.startFromLobby(Settings.read(), prefix);
+        Log.add("Playing on from the replay.", "x");
     }
 
     /* ================= replays (#42) ================= */
@@ -336,13 +414,17 @@
         show("menu");
     }
 
-    // game number `gameNo` with `cfg` at this table (local, bot or online — Room calls this too)
-    function startGame(cfg, gameNo) {
+    // game number `gameNo` with `cfg` at this table (local, bot or online — Room calls this too).
+    // `prefix` = { history, outs } starts the game from a position instead of an empty board
+    // ("Play from here", #43); it travels with the room's `start` message and, for anyone who
+    // joins later, inside the usual `sync`.
+    function startGame(cfg, gameNo, prefix) {
         Learn.closeHowto();                      // "How to play" never stays up over a game (#41)
         replayDoc = null;                        // a game on the board is never a replay (#42)
         hideReplay();
         Room.newGame();
         Match.start(cfg, gameNo);
+        if (prefix && prefix.history && prefix.history.length) Match.engine.replay(prefix.history.slice(), (prefix.outs || []).slice());
         $("result-fab").textContent = "Show result";
         $("result-fab").hidden = true;
         renderRematch();
@@ -444,6 +526,7 @@
     $("replay-prev").addEventListener("click", () => showReplay(currentPly() - 1, true));
     $("replay-next").addEventListener("click", () => showReplay(currentPly() + 1, true));
     $("replay-last").addEventListener("click", () => showReplay(totalPlies(), true));
+    $("replay-play").addEventListener("click", togglePlay);
     // arrow keys step, Home / End jump to the ends (while the replay bar is up and nothing is typed)
     document.addEventListener("keydown", (e) => {
         if ($("replay-bar").hidden || e.altKey || e.ctrlKey || e.metaKey) return;
@@ -496,6 +579,7 @@
 
     window.addEventListener("resize", fitBoard);
     new ResizeObserver(fitBoard).observe($("hut"));
+    new ResizeObserver(fitBoard).observe($("replay-dock"));   // the panel opens: the board makes room (#43)
     window.addEventListener("beforeunload", () => Room.save());
     document.addEventListener("visibilitychange", () => { if (!document.hidden && Room.online) Net.retryNow(); });
     window.addEventListener("online", () => { if (Room.online) Net.retryNow(); });
@@ -570,7 +654,8 @@
         onFlag: (p) => { if (Room.online) Room.onFlag(p); },
         onFinish: () => { saveReplay(true); Room.save(); renderRematch(); },
     });
-    Room.init({ phase: () => phase, show, startGame, backToLobby, renderLobby, onVotes: renderRematch, onReview: (ply) => showReplay(ply, false) });
+    Analysis.init({ onSeek: (ply) => showReplay(ply, true), onPlayFrom: playFromHere });
+    Room.init({ phase: () => phase, show, startGame, backToLobby, renderLobby, onVotes: renderRematch, onReview: applyReview });
     // Learn runs its lessons on the game screen; app.js stays the only screen switcher (#41)
     Learn.init({ show, exit: () => { hideReplay(); $("overlay").hidden = true; show("learn-game"); } });
     Dev.enable(Prefs.get().developer);

@@ -58,7 +58,15 @@ const Replays = (() => {
         if (!Number.isInteger(cfg.n) || cfg.n < 2 || cfg.n > 50) return bad("This replay has a board size that cannot be right.");
         const players = cfg.players || 2;
         if (!Number.isInteger(players) || players < 2 || players > 4) return bad("This replay has a number of players that cannot be right.");
-        if (!Array.isArray(doc.history) || doc.history.some((i) => !Number.isInteger(i) || i < 0 || i >= cfg.n * cfg.n)) return bad("This replay has moves that are not on the board.");
+        // how many cells this game's board has for that config (never n * n: Käsekästchen's
+        // cells are the 2n(n+1) lines between the dots)
+        let cells = 0;
+        try { cells = Rules.create({ ...cfg, game: doc.game, players }, doc.game).cells.length; } catch (e) { /* an impossible board */ }
+        if (!cells) return bad("This replay has a board that cannot be built.");
+        // a move is one integer: a cell id, or a pair of cells a game packed into one — a game
+        // that does that says so with the rules' `cellOf` (Isolation's `to * cells + removed`)
+        const moveMax = Rules.of(doc.game).cellOf ? cells * cells : cells;
+        if (!Array.isArray(doc.history) || doc.history.some((i) => !Number.isInteger(i) || i < 0 || i >= moveMax)) return bad("This replay has moves that are not on the board.");
         if (doc.outs !== undefined && !Array.isArray(doc.outs)) return bad("This replay is damaged.");
         if (!doc.result || typeof doc.result !== "object") return bad("This replay does not say how it ended.");
         if (!Array.isArray(doc.players) || doc.players.length < players || doc.players.some((n) => typeof n !== "string")) return bad("This replay does not say who played.");
@@ -165,21 +173,58 @@ const Replays = (() => {
         };
     }
 
-    /* ---------- the store (IndexedDB, memory when there is none) ---------- */
+    /* ---------- Play / Pause of the replay bar (#43) ----------
+       A pure state machine: it owns no ply and no DOM. The caller says where the board is
+       (`ply`), where the end is (`total`) and how to step (`seek`), so the same machine
+       runs on both sides of a room and can be unit-tested with fake timers. Pressing Play
+       at the last move starts over; reaching the end stops. */
+    const STEP_MS = 900;
+    function playback({ ply, total, seek, ms = STEP_MS, setTimer = setTimeout, clearTimer = clearTimeout }) {
+        let t = null, playing = false;
+        function stop() {
+            if (t !== null) clearTimer(t);
+            t = null;
+            playing = false;
+        }
+        function tick() {
+            t = null;
+            const at = ply();
+            if (!playing || at >= total()) { playing = false; return; }
+            const next = at + 1;
+            if (next >= total()) playing = false; else t = setTimer(tick, ms);
+            seek(next);
+        }
+        function start() {
+            stop();
+            if (total() <= 0) return false;
+            if (ply() >= total()) seek(0);          // Play at the end: from the beginning
+            playing = true;
+            t = setTimer(tick, ms);
+            return true;
+        }
+        return { start, stop, toggle: () => (playing ? (stop(), false) : start()), get playing() { return playing; } };
+    }
+
+    /* ---------- the store (IndexedDB, memory when there is none) ----------
+       Two object stores in one database: `replays` holds the documents, `analysis` (#43)
+       what the analysis computed for one of them, under the same id. The analysis is
+       derived data, so it never enters the replay document (its shape is pinned per
+       version) and it goes away with the replay it belongs to. */
     const store = (() => {
         const DB_NAME = "chainreact";
         const STORE_NAME = "replays";
-        const DB_VERSION = 1;
-        const mem = new Map();
+        const ANALYSIS_STORE = "analysis";
+        const DB_VERSION = 2;                    // 2 added the analysis store (#43)
+        const mem = { [STORE_NAME]: new Map(), [ANALYSIS_STORE]: new Map() };
         let backendP = null;
 
         const memory = {
             persistent: false,
-            put: async (rec) => { mem.set(rec.id, rec); },
-            get: async (id) => mem.get(id) || null,
-            all: async () => [...mem.values()],
-            del: async (id) => { mem.delete(id); },
-            clear: async () => { mem.clear(); },
+            put: async (name, rec) => { mem[name].set(rec.id, rec); },
+            get: async (name, id) => mem[name].get(id) || null,
+            all: async (name) => [...mem[name].values()],
+            del: async (name, id) => { mem[name].delete(id); },
+            clear: async (name) => { mem[name].clear(); },
         };
 
         function openDb() {
@@ -190,10 +235,12 @@ const Replays = (() => {
                 const fail = () => reject(req.error || new Error("IndexedDB refused"));
                 req.onupgradeneeded = () => {
                     const db = req.result;
-                    if (db.objectStoreNames.contains(STORE_NAME)) return;
-                    const os = db.createObjectStore(STORE_NAME, { keyPath: "id" });
-                    os.createIndex("game", "game");
-                    os.createIndex("playedAt", "playedAt");
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        const os = db.createObjectStore(STORE_NAME, { keyPath: "id" });
+                        os.createIndex("game", "game");
+                        os.createIndex("playedAt", "playedAt");
+                    }
+                    if (!db.objectStoreNames.contains(ANALYSIS_STORE)) db.createObjectStore(ANALYSIS_STORE, { keyPath: "id" });
                 };
                 req.onsuccess = () => resolve(req.result);
                 req.onerror = fail;
@@ -203,20 +250,20 @@ const Replays = (() => {
         }
 
         function idbBackend(db) {
-            const run = (write, op) => new Promise((resolve, reject) => {
+            const run = (name, write, op) => new Promise((resolve, reject) => {
                 let req;
-                const t = db.transaction(STORE_NAME, write ? "readwrite" : "readonly");
-                try { req = op(t.objectStore(STORE_NAME)); } catch (e) { reject(e); return; }
+                const t = db.transaction(name, write ? "readwrite" : "readonly");
+                try { req = op(t.objectStore(name)); } catch (e) { reject(e); return; }
                 t.oncomplete = () => resolve(req ? req.result : null);
                 t.onerror = t.onabort = () => reject(t.error || new Error("IndexedDB transaction failed"));
             });
             return {
                 persistent: true,
-                put: (rec) => run(true, (os) => os.put(rec)),
-                get: (id) => run(false, (os) => os.get(id)).then((r) => r || null),
-                all: () => run(false, (os) => os.getAll()).then((r) => r || []),
-                del: (id) => run(true, (os) => os.delete(id)),
-                clear: () => run(true, (os) => os.clear()),
+                put: (name, rec) => run(name, true, (os) => os.put(rec)),
+                get: (name, id) => run(name, false, (os) => os.get(id)).then((r) => r || null),
+                all: (name) => run(name, false, (os) => os.getAll()).then((r) => r || []),
+                del: (name, id) => run(name, true, (os) => os.delete(id)),
+                clear: (name) => run(name, true, (os) => os.clear()),
             };
         }
 
@@ -236,13 +283,13 @@ const Replays = (() => {
         async function save(doc) {
             const id = idFor(doc);
             return safe(async (b) => {
-                const old = await b.get(id);
+                const old = await b.get(STORE_NAME, id);
                 const playedAt = old ? old.playedAt : doc.meta.playedAt;
-                await b.put({ id, game: doc.game, playedAt, doc: { ...doc, meta: { ...doc.meta, playedAt } } });
-                const all = await b.all();
+                await b.put(STORE_NAME, { id, game: doc.game, playedAt, doc: { ...doc, meta: { ...doc.meta, playedAt } } });
+                const all = await b.all(STORE_NAME);
                 if (all.length > MAX_STORED) {
                     const oldest = all.sort((a, x) => (a.playedAt < x.playedAt ? -1 : 1)).slice(0, all.length - MAX_STORED);
-                    for (const r of oldest) await b.del(r.id);
+                    for (const r of oldest) { await b.del(STORE_NAME, r.id); await b.del(ANALYSIS_STORE, r.id); }
                 }
                 return id;
             }, id);
@@ -250,19 +297,31 @@ const Replays = (() => {
 
         // newest first, optionally one game only; light summaries, not the documents
         const list = ({ game } = {}) => safe(async (b) => {
-            const all = await b.all();
+            const all = await b.all(STORE_NAME);
             return all
                 .filter((r) => r && r.doc && (!game || r.game === game))
                 .sort((a, x) => (a.playedAt < x.playedAt ? 1 : a.playedAt > x.playedAt ? -1 : 0))
                 .map((r) => summary(r.doc, r.id));
         }, []);
 
-        const get = (id) => safe(async (b) => { const r = await b.get(id); return r ? r.doc : null; }, null);
-        const remove = (id) => safe(async (b) => { await b.del(id); return true; }, false);
-        const clear = () => safe(async (b) => { await b.clear(); return true; }, false);
+        const get = (id) => safe(async (b) => { const r = await b.get(STORE_NAME, id); return r ? r.doc : null; }, null);
+        // a replay's analysis goes with it
+        const remove = (id) => safe(async (b) => { await b.del(STORE_NAME, id); await b.del(ANALYSIS_STORE, id); return true; }, false);
+        const clear = () => safe(async (b) => { await b.clear(STORE_NAME); await b.clear(ANALYSIS_STORE); return true; }, false);
 
-        return { save, list, get, remove, clear, persistent, DB_NAME, STORE_NAME };
+        /* The analysis of a replay (#43), under the replay's own id. The record is
+           { id, stamp: { bot, version, nodes, botNodes }, at, result }: the stamp says what
+           computed it, so a new bot version or a new budget invalidates it (Analysis does
+           that check) instead of showing numbers from an older bot. */
+        const analysis = {
+            get: (id) => safe(async (b) => b.get(ANALYSIS_STORE, id), null),
+            put: (id, rec) => safe(async (b) => { await b.put(ANALYSIS_STORE, { ...rec, id }); return true; }, false),
+            remove: (id) => safe(async (b) => { await b.del(ANALYSIS_STORE, id); return true; }, false),
+            clear: () => safe(async (b) => { await b.clear(ANALYSIS_STORE); return true; }, false),
+        };
+
+        return { save, list, get, remove, clear, persistent, analysis, DB_NAME, STORE_NAME, ANALYSIS_STORE, DB_VERSION };
     })();
 
-    return { FORMAT, VERSION, MIGRATIONS, migrate, validate, parse, fromRecord, idFor, fileName, when, summary, store };
+    return { FORMAT, VERSION, MIGRATIONS, migrate, validate, parse, fromRecord, idFor, fileName, when, summary, store, playback, STEP_MS };
 })();

@@ -124,7 +124,7 @@ test("replay bar (#38): one row above the HUD, clear of its controls, no scroll"
     const bar = await rect("#replay-bar");
     assert.ok(bar.left >= 0 && bar.right <= 360, `inside the viewport (${bar.left}..${bar.right})`);
     const kids = JSON.parse(await M.ev("JSON.stringify([...document.getElementById('replay-bar').children].map(e => { const r = e.getBoundingClientRect(); return Math.round(r.top + r.height / 2); }))"));
-    assert.equal(kids.length, 6, "four steps, the label and Show result");
+    assert.equal(kids.length, 7, "four steps, Play, the label and Show result");
     assert.ok(kids.every((t) => Math.abs(t - kids[0]) <= 1), `all in one row (${kids})`);
     assert.ok(bar.bottom <= (await rect("#hut")).top + 1, "sits above the HUD");
     await M.click("#gear");                        // the HUD controls come out: the bar moves up with it
@@ -136,5 +136,33 @@ test("replay bar (#38): one row above the HUD, clear of its controls, no scroll"
     await M.screenshot("mobile-replay.png");
     await M.click("#replay-first");
     assert.match(await M.text("replay-pos"), /^Move 0 \/ \d+$/);
+    assert.deepEqual(M.errors, []);
+});
+
+test("isolation: the board and the two-step highlights fit the phone, no scroll", async () => {
+    await M.click("#result-fab");
+    await M.click("#overlay-menu");
+    await M.selectGame("isolation");
+    await M.click("#btn-settings"); await M.set("set-size", 7); await M.click("#btn-settings-done");
+    await assertNoScroll("isolation lobby");
+    await M.click("#btn-start");
+    await assertNoScroll("isolation game");
+    const b = JSON.parse(await M.ev("JSON.stringify(document.getElementById('board').getBoundingClientRect())"));
+    assert.ok(b.left >= 4 && b.right <= 356, `board leaves room for the turn outline (${b.left}..${b.right})`);
+    assert.equal(await M.ev("document.querySelectorAll('#board > .slab').length"), 49);
+    assert.equal(await M.ev("document.querySelectorAll('#board > .slab.taken').length"), 2);
+    assert.equal(await M.ev("getComputedStyle(document.querySelector('#p-0 .win-bar')).display"), "block");
+    assert.match(await M.text("mini-line2"), /free moves/);
+    // the first click of a move highlights the tiles that may be broken, still without scrolling
+    const to = await M.ev("IsolationRules.steps(IsolationGame.state, IsolationGame.state.current)[0]");
+    await M.ev(`document.querySelectorAll('#board > .slab')[${to}].click(); true`);
+    assert.ok(await M.ev(`document.querySelectorAll('#board > .slab')[${to}].classList.contains('pending')`));
+    await assertNoScroll("isolation pending");
+    await M.screenshot("mobile-isolation.png");
+    const far = await M.ev("IsolationGame.state.cells.findIndex((c, i) => c === -1 && i !== IsolationGame.state.pawns[0])");
+    await M.ev(`document.querySelectorAll('#board > .slab')[${far}].click(); true`);
+    await M.idle();
+    assert.equal((await M.state()).history.length, 1);
+    await assertNoScroll("isolation after a move");
     assert.deepEqual(M.errors, []);
 });

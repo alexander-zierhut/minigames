@@ -211,6 +211,28 @@ test("replay after the game (#38): both sides look at the same move", { skip: !O
     await A.click("#replay-last");
     await B.waitFor("ChainGame.previewPly === null", { what: "guest back at the result" });
     assert.equal(await B.ev(`ChainGame.state.over && ChainGame.state.history.length === ${total}`), true, "the finished game itself never changed");
+
+    /* Play / Pause is synced too (#43): one side presses Play and both walk to the end on
+       their own timer; a Pause on either side stops both at the same move. */
+    for (let k = 0; k < 3; k++) await A.click("#replay-prev");            // three moves before the end
+    await B.waitFor(`ChainGame.previewPly === ${total - 3}`, { what: "guest at the same move" });
+    await A.click("#replay-play");
+    assert.equal(await A.text("replay-play"), "❚❚", "the button offers Pause while it plays");
+    await B.waitFor("document.getElementById('replay-play').textContent === '❚❚'", { timeout: 20000, what: "the guest plays along" });
+    await A.waitFor("ChainGame.previewPly === null", { timeout: 20000, what: "the host reached the last move" });
+    await B.waitFor("ChainGame.previewPly === null", { timeout: 20000, what: "the guest reached it too" });
+    assert.equal(await A.text("replay-play"), "▶▶", "reaching the end stops it");
+    assert.equal(await B.text("replay-play"), "▶▶");
+
+    // Play again from the end starts over; Pause on the guest stops both at its move
+    await A.click("#replay-play");
+    await B.waitFor("ChainGame.previewPly !== null && ChainGame.previewPly > 0", { timeout: 20000, what: "the guest started over too" });
+    await B.click("#replay-play");
+    const stopped = await B.ev("ChainGame.previewPly");
+    assert.equal(await B.text("replay-play"), "▶▶", "Pause on the guest");
+    await A.waitFor(`ChainGame.previewPly === ${stopped} && document.getElementById('replay-play').textContent === '▶▶'`, { what: "the host stops at the same move" });
+    await A.click("#replay-last");
+    await B.waitFor("ChainGame.previewPly === null", { what: "both back at the result" });
     // every device keeps its own copy of the game in its replays (#42)
     for (const P of [A, B]) {
         const saved = JSON.parse(await P.ev("Replays.store.list({ game: 'chain' }).then(JSON.stringify)"));

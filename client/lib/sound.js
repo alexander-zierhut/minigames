@@ -60,6 +60,8 @@ const Sound = (() => {
                 if (kinds[p] !== "local" || !kinds.some((k) => k !== "local")) return null;   // only when a friend or bot just moved
                 return { name: "turn" };
             }
+            // Käsekästchen: a closed box gets a second, brighter click right after the line
+            case "boxes:capture": return { name: "place", rate: 1.5, gain: 1.1 };
             case "reaction": return { name: "reaction", rate: d.theirs ? 0.9 : 1.05 };
             case "chat": return d.mine ? null : { name: "chat" };
             default: return null;
@@ -195,7 +197,7 @@ const Sound = (() => {
     function init(handlers) {
         seats = (handlers && handlers.seats) || seats;
         player = (handlers && handlers.player) || webAudioPlayer();
-        for (const ev of ["game:move", "chain:prime", "chain:explode", "game:finish", "game:turn", "reaction", "chat"]) Bus.on(ev, (data) => handle(ev, data));
+        for (const ev of ["game:move", "chain:prime", "chain:explode", "boxes:capture", "game:finish", "game:turn", "reaction", "chat"]) Bus.on(ev, (data) => handle(ev, data));
         if (player.unlock && typeof window !== "undefined") {
             const once = () => { player.unlock(); };
             for (const ev of ["pointerdown", "keydown", "touchstart"]) window.addEventListener(ev, once, { capture: true, passive: true });

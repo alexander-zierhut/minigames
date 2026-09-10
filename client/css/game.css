@@ -19,7 +19,9 @@
     align-items: center;
 }
 /* phones: keep the board below the corner buttons (⚙ left, reactions right) */
-@media (max-width: 899px) { #board-wrap { padding-top: 52px; } }
+/* phones: the corner buttons above, and the replay dock (bar + analysis panel, #38/#43)
+   below, keep their strip; --dock-h is measured by fitBoard and is 0 while the dock is empty */
+@media (max-width: 899px) { #board-wrap { padding-top: 52px; padding-bottom: var(--dock-h, 0px); } }
 #board {
     width: var(--board);
     height: var(--board);
@@ -193,21 +195,72 @@ body.online #hut.show-controls .chat-row { display: flex; }
 .overlay-sub { font-size: 14px; color: var(--muted); white-space: pre-line; }
 .overlay-actions { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .overlay-actions .btn { width: 100%; }
-/* replay bar (#38): step through a finished game; "Show result" rides along in the same row */
+/* replay bar (#38) + analysis panel (#43): step through a finished game, with what the
+   analysis says about the shown move above it; "Show result" rides along in the bar's row */
 /* phones: above the HUD (--hut-h comes from fitBoard), so it never covers its controls */
-#replay-bar {
+#replay-dock {
     position: fixed; left: 50%; bottom: calc(var(--hut-h, 0px) + 8px); transform: translateX(-50%);
-    z-index: 45; box-shadow: 0 10px 30px rgba(0,0,0,.6);
-    animation: fab-in .3s ease-out;
-    display: flex; align-items: center; gap: 4px;
-    padding: 5px 6px;
+    z-index: 45;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
     max-width: calc(100vw - 12px);
+    pointer-events: none;                        /* the empty dock never catches taps */
+}
+#replay-dock > * { pointer-events: auto; }
+#replay-bar, #replay-panel {
+    box-shadow: 0 10px 30px rgba(0,0,0,.6);
+    animation: dock-in .3s ease-out;
+    max-width: 100%;
     background: var(--panel); border: 2px solid var(--line); border-radius: 12px;
 }
-#replay-bar .btn { padding: 6px 8px; white-space: nowrap; }
-#replay-pos { font-size: 11px; color: var(--muted); white-space: nowrap; padding: 0 2px; }
-#result-fab { margin-left: 4px; }
-@keyframes fab-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+/* six small buttons and the label fit a 360 px phone in one row; if a look ever makes them
+   wider the row wraps rather than pushing "Show result" off the screen */
+#replay-bar { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 3px; padding: 5px 5px; }
+#replay-bar .btn { padding: 6px 6px; font-size: 11px; white-space: nowrap; }
+#replay-pos { font-size: 10px; color: var(--muted); white-space: nowrap; padding: 0 1px; }
+#result-fab { margin-left: 2px; }
+@keyframes dock-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* the analysis panel: one head row (start / progress / verdict / actions) and a body with
+   the win-chance graph and the per-seat scores. Phones start collapsed (head only), the ▾
+   button opens the body. */
+#replay-panel { display: flex; flex-direction: column; gap: 6px; padding: 7px 9px; width: 320px; max-width: calc(100vw - 12px); }
+#replay-panel .an-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#replay-panel .btn { padding: 5px 9px; font-size: 11px; white-space: nowrap; }
+#replay-panel .an-toggle { margin-left: auto; padding: 5px 8px; }
+#replay-panel.collapsed .an-body { display: none; }
+#replay-panel.collapsed .an-toggle { transform: rotate(180deg); }
+.an-body { display: flex; flex-direction: column; gap: 6px; }
+.an-verdict { font-size: 11px; font-weight: 700; line-height: 1.3; flex: 1 1 100%; color: var(--muted); }
+.an-perfect { color: #6ee7a8; }
+.an-inaccuracy { color: #ffd166; }
+.an-mistake { color: #ffa62b; }
+.an-blunder { color: #ff6b81; }
+.an-unknown { color: var(--muted); }
+#an-chance { font-size: 11px; color: var(--muted); white-space: nowrap; }
+#analysis-progress { display: flex; align-items: center; gap: 6px; flex: 1 1 auto; min-width: 120px; }
+.an-progress-track { flex: 1 1 auto; height: 6px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+#analysis-bar { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+#analysis-progress-text { font-size: 10px; color: var(--muted); white-space: nowrap; }
+#an-graph { height: 46px; cursor: pointer; background: var(--bg); border-radius: 8px; padding: 1px; }
+#an-graph svg { width: 100%; height: 100%; display: block; }
+#an-graph .an-line { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; }
+#an-graph .an-p0 { stroke: var(--c0); }
+#an-graph .an-p1 { stroke: var(--c1); opacity: .55; }
+#an-graph .an-mid { stroke: var(--line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+#an-graph .an-marker { stroke: #fff; stroke-width: 1.5; vector-effect: non-scaling-stroke; opacity: .8; }
+#an-scores { display: flex; flex-direction: column; gap: 3px; }
+.an-seat { display: flex; align-items: baseline; gap: 6px; font-size: 11px; color: var(--muted); }
+.an-seat .an-score { font-size: 14px; color: var(--pc); min-width: 26px; }
+.an-seat .an-seat-name { color: var(--text); font-weight: 700; }
+.an-seat .an-seat-sub { margin-left: auto; }
+
+/* the cell the bot would have played instead (#43): a solid ring, unmistakably not the
+   dashed premove and not the thin last-move marker */
+#board > .best-move {
+    --best-w: clamp(2px, calc(var(--board) / var(--n) / 12), 4px);
+    outline: var(--best-w) solid #6ee7a8;
+    outline-offset: calc(var(--best-w) * -1);
+}
 
 /* ---- desktop: HUD beside the board, thicker obsidian ---- */
 @media (min-width: 900px) and (min-aspect-ratio: 1/1) {
@@ -234,9 +287,13 @@ body.online #hut.show-controls .chat-row { display: flex; }
     .overlay-card { width: auto; min-width: 420px; max-width: 560px; padding: 28px 36px; }
     .overlay-actions { flex-direction: row; width: auto; }
     .overlay-actions .btn { width: auto; white-space: nowrap; }
-    #replay-bar { bottom: 28px; gap: 6px; padding: 7px 9px; }
+    #replay-dock { bottom: 28px; }
+    #replay-bar { gap: 6px; padding: 7px 9px; }
     #replay-bar .btn { padding: 6px 12px; }
     #replay-pos { font-size: 12px; padding: 0 5px; }
+    #replay-panel { width: 380px; padding: 9px 11px; }
+    #replay-panel .an-toggle { display: none; }      /* desktop shows the whole panel */
+    #replay-panel.collapsed .an-body { display: flex; }
 }
 
 /* ---- emoji reactions: small, short, in the corner, never on the board ---- */
