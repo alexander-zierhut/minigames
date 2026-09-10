@@ -242,6 +242,7 @@
     }
 
     function leaveRoom() {
+        BotPersona.detach();
         if (online()) {
             const sent = netSend({ t: "leave" });
             if (sent) setTimeout(Net.leave, 250); else Net.leave();   // let the goodbye go out first
@@ -346,7 +347,9 @@
             const seed = (Number(Util.load(sessionStorage, "chainreact.botseed")) || Date.now()) + app.gameNo;
             app.bot = choice ? Bots.create(choice.id, { me: 1, difficulty: choice.difficulty, seed: seed >>> 0, players }) : null;
             if (!app.bot) app.seats[1].kind = "local";                     // no bot for this game: play both sides
-        } else app.bot = null;
+            if (app.bot) BotPersona.attach({ bot: app.bot, seat: 1, game: def.key, state: () => Game.state, estimate: Bots.estimator(def.key), color: playerColor(1) });
+            else BotPersona.detach();
+        } else { app.bot = null; BotPersona.detach(); }
         document.body.className = document.body.className.replace(/\bgame-\S+/g, "").trim();
         document.body.classList.add("game-" + def.key);
         $("sign-title").textContent = def.title.toUpperCase();
@@ -409,6 +412,7 @@
 
     // back to the room lobby to pick another game / settings (anyone may do it)
     function backToLobby(announce) {
+        BotPersona.detach();
         if (announce && online()) netSend({ t: "tolobby" });
         app.rev++;
         Clock.stop();

@@ -50,7 +50,8 @@ Scripts, in order (each defines the global named in brackets):
 | `client/skins.js` | `Skins` | look per device: body class, player names |
 | `client/prefs.js` | `Prefs` | per-device preferences (⚙ top-left): look, sound volume / categories |
 | `client/settings.js` | `Settings` | settings form ↔ config, picker cards, persistence, summary |
-| `client/opponent.js` | `Opponent` | bot picker modal (bot, difficulty, score), choice per game |
+| `client/opponent.js` | `Opponent` | bot picker modal: step 1 list of bots with both scores, step 2 one bot + parameters; choice per game |
+| `client/bot-persona.js` | `BotPersona` | a bot seat's sparse emoji reactions (wave, GG, EZ, 🚨, 😲, 😔) |
 | `client/reactions.js` | `Reactions` | emoji reactions bar + floating layer |
 | `client/chat.js` | `Chat` | room chat: input rows (HUD, lobby), limits, lines into the logs, Bus `chat` |
 | `client/app.js` | (none) | flow, room protocol, session restore, wiring, boot |
@@ -115,8 +116,9 @@ to try things").
   board` (hides it; `#result-fab` brings it back), `Change game` (→ lobby). The HUD has
   `Rematch` and `Back to room` too.
 - `app.mode` ∈ `local | bot | online`. Bot mode is the offline lobby with an extra
-  *Opponent* row (`#btn-opponent` → `#bot-modal`); clicking a game card there opens the
-  picker for that game (`Settings.init({ onSelectGame })`). You are seat 0, the bot seat 1.
+  *Opponent* row (`#btn-opponent` → `#bot-modal`). Picking a game does **not** open the
+  picker (#12): the default is the best-rated bot at its middle difficulty; the row shows
+  it and opens the two-step picker (#11). You are seat 0, the bot seat 1.
 - `app.phase` ∈ `menu | lobby | game`; `app.gameNo` increments per started game (local
   too); `startPlayerFor(g, players) = (g - 1) % players` → seat 0 starts game 1, then the
   next seat, round-robin. `Settings.setMode(mode)` is called on every mode change
@@ -153,7 +155,7 @@ restores form values on reload).
 ## Preferences (`client/prefs.js`, per device — the ⚙ button)
 
 `#prefs-btn` (class `corner-btn`, fixed top-left, on every screen) opens `#prefs-modal`:
-the **Look** control (a third `.skin-seg`, kept in sync by `Skins`), the **Sound** rows
+the **Look** control (the only `.skin-seg`, kept in sync by `Skins`), the **Sound** rows
 (master volume slider `#pref-volume`, default 30 %; sound set `#pref-soundset`: follow
 the look / Classic / Minecraft; one checkbox per category `#pref-snd-<cat>`, categories
 in `Prefs.CATEGORIES` = moves, explosions, results, turn, reactions, chat). Stored in
@@ -164,6 +166,12 @@ Never sent to the room, never part of `Settings.read()`. Layout rules: on phones
 `#board-wrap` `padding-top: 52px` so cards and the board start below the two corner
 buttons (⚙ left, 😜 right); `fitBoard` subtracts the wrapper's padding. `#net-banner`
 already sits at 58px on phones. The MC skin restyles `.corner-btn` like `#react-toggle`.
+
+- **Feedback** (#8): `#pref-feedback` in the preferences opens a GitHub "new issue" page
+  (`Prefs.feedbackUrl()`) with the situation prefilled from `Prefs.init({ context })` in
+  app.js: screen, mode, game, settings summary, players, seat, spectator, bot, connection,
+  look, sound, viewport, `<meta name="version">` (build.mjs stamps the git hash + date;
+  "dev" unbundled), browser, last 5 log lines — never the room code or chat text.
 
 ## Skins (`client/skins.js`, per device)
 
@@ -572,10 +580,21 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   tools, and opens an auto-merging PR (branch `bot-benchmark`) with the new files (branch
   protection needs the `test` check, so a direct push isn't possible; auto-merge is
   enabled on the repo and Actions may create PRs). Random ≈ 50 % is the baseline.
-- **UI**: `Opponent` (client/opponent.js) renders `#bot-modal` for the selected game: one
-  `.bot-option` per bot (name, description, score badge or "not rated"), the `#bot-difficulty`
-  segmented control (hidden with a single difficulty), remembers `{ id, difficulty }` per
-  game in `localStorage["chainreact.bots"]`, `Opponent.current(game)` / `summary(game)`.
+- **UI**: `Opponent` (client/opponent.js) renders `#bot-modal` in two steps: `#bot-step-list`
+  (one `.bot-option` per bot, best-rated first: name, description, `.bot-badge`s "vs Random"
+  and "puzzles" or "not rated"; Cancel) and `#bot-step-detail` (icon, name, description,
+  badges, rating meta, a *Parameters* box with the `#bot-difficulty` control — hidden with
+  one level — and its think-time hint, Back, Play). Default per game = highest benchmark
+  score, middle difficulty (`Math.floor((n-1)/2)`); remembered `{ id, difficulty }` per game
+  in `localStorage["chainreact.bots"]`; `Opponent.current(game)` / `summary(game)`.
+- **Persona** (`client/bot-persona.js`): `BotPersona.attach({ bot, seat, game, state,
+  estimate, color })` in `startGame` (bot mode), `detach()` on back-to-room / leave. Listens
+  to `game:new` (👋), `game:turn`/`game:move` (judges the human's move once it settled: 🚨
+  when the bot's chance drops ≥ 15 points and the move was among the best, 😲 when the move
+  was among the worst 25 % and helped the bot ≥ 10 points; "EZ" once when its chance ≥ 90 %,
+  😔 once when ≤ 12 %), `game:finish` ("GG", 😄 / 😔). One reaction per 6 s, ≤ 8 per game,
+  seeded from the bot's seed (`Bots.rng(seed ^ 0xc0ffee)`), 0.5–1.4 s delay, posted via
+  `Reactions.receive` in the bot's colour. Tests pass `delays`/`cooldownMs` overrides.
 
 - **Puzzles = perfect-move test sets** (`tests/puzzles/<game>/puzzles.json`): positions whose
   best move(s) were PROVEN by a solver (`scripts/puzzles/<game>/solver.mjs`, exhaustive
@@ -642,8 +661,10 @@ every bot folder into a bare VM — script list parsed from `index.html`).
 
 ## Emoji reactions (`client/reactions.js`)
 
-`#react-bar` top-right, starts collapsed behind the 😜 toggle; emojis + "L"/"EZ"/"GG"
-chips. `Reactions.place()` (called after every `fitBoard`) puts `#react-layer` **right
+`#react-bar` top-right, starts collapsed behind the 😜 toggle; emojis 😂 🔥 💀 🤡 😱 👏 😎
+🫡 😄 🥰 😲 😔 👋 🚨 🤖 + "L"/"EZ"/"GG" chips (the bar's own box never catches taps —
+`pointer-events: none` except the list and the toggle — and the toggle sits on the top
+edge next to ⚙, #7/#13; the expanded list stops 124px short of the left edge). `Reactions.place()` (called after every `fitBoard`) puts `#react-layer` **right
 next to the board** when there is ≥ 66px of space (desktop), else in the free strip
 above the full-width board (or below it if that's bigger) — never over the board, never
 off-screen. Emojis drift right → left while falling the layer's height (~2 s, wobble,

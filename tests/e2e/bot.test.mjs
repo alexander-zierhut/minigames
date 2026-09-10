@@ -42,6 +42,7 @@ test("five wins against Random: the bot moves by itself, HUD shows its name, gam
     await B.click("#btn-start");
     assert.equal(await B.text("p1-name"), "Random");
     assert.equal(await B.text("p0-name"), "Cyan");
+    await B.waitFor("[...document.querySelectorAll('#react-layer .react-float.theirs')].some(e => e.textContent === '👋')", { timeout: 5000, what: "the bot waves at the start (#14)" });
     // I take the top row cell by cell; the bot answers; 4 in a row wins unless the bot blocks by luck
     for (let k = 0; k < 20; k++) {
         await myTurn();

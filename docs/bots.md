@@ -164,7 +164,18 @@ const r = await H.Bots.playout("chain", { n: 6 }, [a, b], { maxMoves: 600 });
 Each bot folder's README describes its search and evaluation; `benchmark.js` carries the
 scores shown in the picker.
 
-## 9. Adding a bot — checklist
+## 9. Persona: the bot's emojis
+
+`client/bot-persona.js` makes a bot seat feel like a player without touching the bot: it
+watches the Bus and posts sparse reactions in the bot's colour — a wave at the start,
+"GG" at the end, "EZ" once when its win chance passes 90 %, 😔 once below 12 %, 🚨 when
+the human found a move that costs the bot ≥ 15 points and was among the best options,
+😲 when the human played one of the worst options. It uses `tools.legalMoves`/`apply`
+and the estimator, never more than one reaction per 6 s and eight per game, seeded from
+the bot's seed. Nothing to implement per bot; a bot without `estimate` still waves and
+says GG (the rules' fallback estimate drives the rest).
+
+## 10. Adding a bot — checklist
 
 1. `client/bots/<id>/bot.js` with `Bots.register({...})` (copy `random-five`).
 2. `client/bots/<id>/bot.test.mjs` (see §6) and an empty `benchmark.js`.
