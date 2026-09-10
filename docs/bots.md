@@ -15,7 +15,8 @@ client/bots.js                Bots.register · Bots.create · Bots.tools · Bots
         │   client/bots/<id>/bot.test.mjs   the bot's own proof of strength
         │   client/bots/<id>/benchmark.js   generated: Bots.benchmark(id, { score, puzzles, … })
         │
-        ├── client/app.js                   bot seat: hooks.onTurn → botTurn → bot.move(clone) → Game.play(i)
+        ├── client/match.js                 bot seat: hooks.onTurn → botTurn → bot.move(clone) → engine.play(i)
+        ├── client/winchance.js             win-chance bars from Bots.estimator (a Bus observer)
         ├── client/opponent.js              picker UI (bot, difficulty, scores), choice per game
         │
         ├── scripts/headless.mjs              loads util + rules + bots into a bare Node VM (no DOM)

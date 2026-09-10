@@ -1,7 +1,7 @@
 /* Bots: the registry and the toolset a bot plays with.
 
    A bot is pure and headless: it never touches the DOM, so the same code runs in the
-   browser (a seat of kind "bot", see app.js) and in Node (unit tests, benchmark). It
+   browser (a seat of kind "bot", see match.js) and in Node (unit tests, benchmark). It
    only ever sees the pure rules module of its game plus the helpers below.
 
    Bots.register({

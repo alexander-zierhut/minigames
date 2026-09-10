@@ -14,7 +14,7 @@
      onFlag(p)             the local clock of seat p ran out (online: only the owner decides)
      onFinish(winner, why)
 
-   Seats: app.seats[p] = { kind: "local" | "remote" | "bot" }. Bot mode: you are seat 0,
+   Seats: Match.seats[p] = { kind: "local" | "remote" | "bot" }. Bot mode: you are seat 0,
    the bot seat 1 (Opponent.current(game) picks which bot and level). */
 
 "use strict";
