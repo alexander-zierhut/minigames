@@ -13,11 +13,11 @@ client/bots.js                Bots.register · Bots.create · Bots.tools · Bots
         │
         ├── client/bots/<id>/bot.js         one folder per bot: definition + create(tools) → { move(state) }
         │   client/bots/<id>/bot.test.mjs   the bot's own proof of strength
-        │   client/bots/<id>/benchmark.js   generated: Bots.benchmark(id, { score, puzzles, … })
+        │   client/bots/<id>/benchmark.js   generated: Bots.benchmark(id, { score, puzzles, … }) (real bots only)
         │
         ├── client/match.js                 bot seat: hooks.onTurn → botTurn → bot.move(clone) → engine.play(i)
         ├── client/winchance.js             win-chance bars from Bots.estimator (a Bus observer)
-        ├── client/opponent.js              picker UI (bot, difficulty, scores), choice per game
+        ├── client/opponent.js              the bot modal (one bot per game, shown as "Bot": difficulty, scores), choice per game
         │
         ├── scripts/headless.mjs              loads util + rules + bots into a bare Node VM (no DOM)
         ├── scripts/puzzles/runner.mjs               replay a puzzle, grade a bot on a puzzle set
@@ -34,10 +34,11 @@ file runs in the browser (as a seat) and in Node (tests, benchmark, puzzles).
 ```js
 Bots.register({
     id: "blast-chain",                 // folder name: [a-z0-9-], unique
-    name: "Blast",                     // shown in the picker and as the player name in the HUD
+    name: "Blast",                     // for the code, the benchmark output and the docs; players see "Bot" (#21)
     game: "chain",                     // "chain" | "five" — one game per bot
     version: 1,                        // bump when the play changes (kept in benchmark.js)
-    description: "One sentence for the picker card.",
+    description: "One sentence for the bot modal.",
+    // baseline: true,                 // only the Random bots: benchmark opponent + fallback, never offered, not benchmarked
     difficulties: [                    // ≥ 1, shown as a segmented control when > 1
         { id: "easy",     label: "Easy",      thinkMs: 30 },
         { id: "normal",   label: "Normal",    thinkMs: 150 },
@@ -153,9 +154,18 @@ calmer.
   ones without the solvers.
 - **Benchmark** (`npm run benchmark [id]`): 60 (chain) / 100 (five) seeded games against
   Random at the highest difficulty, both colours, 20 000-node budget → win rate in %; plus
-  the puzzle score. Written to `client/bots/<id>/benchmark.js`, shown in the picker as
-  "47 % vs Random · 22 % puzzles". `.github/workflows/benchmark.yml` reruns it when bots,
-  rules or tools change and opens an auto-merging PR with the new files.
+  the puzzle score. Written to `client/bots/<id>/benchmark.js`, shown in the bot modal and
+  the lobby's Opponent row as "47 % vs Random · 22 % puzzles". `.github/workflows/benchmark.yml`
+  reruns it when bots, rules or tools change and opens an auto-merging PR with the new
+  files. Bots flagged `baseline: true` (the Random bots) are the opponents and are not
+  benchmarked themselves.
+
+**One bot per game (#21).** `Bots.botFor(game)` returns the game's real bot (the
+best-rated one without `baseline`; while a game has none, its Random baseline), and every
+player-facing place calls it "Bot" (`Opponent.NAME`, the HUD seat name). A stronger
+engine replaces the folder instead of joining it; variants are difficulties or future
+parameters (deliberate mistakes, styles) of that one bot. The benchmark and puzzle numbers
+stay the yardstick between versions.
 
 ## 7. Headless playouts
 
@@ -171,13 +181,13 @@ const r = await H.Bots.playout("chain", { n: 6 }, [a, b], { maxMoves: 600 });
 
 | id | name | game | difficulties | what it does |
 | --- | --- | --- | --- | --- |
-| `random-chain` | Random | Chain React | Normal | any legal move; the benchmark baseline |
+| `random-chain` | Random | Chain React | Normal | any legal move; `baseline: true` (benchmark opponent, fallback; never offered) |
 | `creeper-chain` | Creeper | Chain React | Easy 30 ms · Normal 150 ms · Hard 600 ms · Very hard 1500 ms | negamax alpha-beta with iterative deepening, Zobrist TT, killers/history, PVS + LMR, quiescence over explosive captures, on an Int8Array engine proven equal to the rules; evaluation = pieces + safe corner/edge bonus − exposure penalty, tuned by self-play. 100 % vs Random, 159/159 puzzles at Very hard (Easy 32 %, Normal 87 %, Hard 95 %). Provides the win chance (evaluate: even-depth iterative deepening with full explosion quiescence, mean of the last completed depths; calibrated scale ≈ 31, swing 2.2 %). See its README. |
-| `random-five` | Random | Five Wins | Normal | any empty cell; the benchmark baseline |
+| `random-five` | Random | Five Wins | Normal | any empty cell; `baseline: true` (benchmark opponent, fallback; never offered) |
 | `sensei-five` | Sensei | Five Wins | Easy 30 ms · Normal 150 ms · Hard 600 ms · Very hard 1500 ms | Int8Array board with incremental line-pattern records (fours, threes, four-makers), alpha-beta negamax with iterative deepening, Zobrist TT, killers/history, exact forced-move handling (own four, enemy fours, open threes), VCF/VCT threat searches with exact mate distance; works for any board size and win length. 100 % vs Random, 154/154 puzzles at Very hard (Easy 69 %, Normal 98 %, Hard 100 %). Provides the win chance (evaluate: depth-2 search with forced fours free, open-three extension, VCF/VCT on long budgets; calibrated scale ≈ 1166, swing 0.9 %). 9×9 with sound defence is drawish; its edge grows on bigger boards. See its README. |
 
 Each bot folder's README describes its search and evaluation; `benchmark.js` carries the
-scores shown in the picker.
+scores shown in the bot modal. Players see Creeper and Sensei as "Bot".
 
 ## 9. Persona: the bot's emojis
 

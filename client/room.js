@@ -23,6 +23,7 @@ const Room = (() => {
         rev: 0,                 // room-state revision: +1 per phase change (start, rematch, back to room)
         roster: { present: [], spectators: 0, left: [] },   // who is here (guests: from the host's roster message)
         left: new Set(),        // seats that said goodbye (their connection may still be closing) — banner wording
+        codeHidden: false,      // the room code is hidden (lobby, HUD net box, address bar) — streaming, #19
         netDetail: "",          // last status detail from Net (banner text)
         votes: new Set(),       // seats that pressed Rematch for the next game (everyone must)
         incoming: [],           // queued friend moves while we animate
@@ -100,19 +101,32 @@ const Room = (() => {
         if (spectate) url.searchParams.set("spectate", "1");
         return url.toString();
     }
+    // the address bar carries ?room=CODE (&spectate=1) while in a room, unless the code is hidden
     function setUrlRoom(code) {
         const url = new URL(location.href);
+        if (r.codeHidden) code = null;
         if (code) url.searchParams.set("room", code); else { url.searchParams.delete("room"); url.searchParams.delete("spectate"); }
         if (code && Match.spectator) url.searchParams.set("spectate", "1");
         history.replaceState(null, "", url.toString());
+    }
+    // what the lobby / HUD show as the code: bullets while hidden
+    const codeText = (code = Net.code) => (r.codeHidden ? "•••••" : (code || "…"));
+    // hide / show the code (a streamer's viewers must not join): lobby, HUD, URL and the session follow
+    function hideCode(on) {
+        r.codeHidden = !!on;
+        setUrlRoom(Net.code);
+        renderNetBox();
+        h.renderLobby();
+        save();
     }
 
     // preferHost: true = I created / hosted this room, false = joining by code or link.
     // seat: my player number if I already have one (creator: 0, refresh: from the session).
     // spectate: watch only (spectate link, or a refresh of a spectator).
-    function enter(code, preferHost, seat = -1, spectate = false) {
+    // hidden: enter with the code hidden (the preference, or the session's state on a refresh).
+    function enter(code, preferHost, seat = -1, spectate = false, hidden = Prefs.get().hideCode) {
         Match.reset("online", seat, spectate);
-        Object.assign(r, { rev: 0, roster: { present: [], spectators: 0, left: [] }, left: new Set(), votes: new Set(), incoming: [], syncSentAt: -1, rebuiltAt: null });
+        Object.assign(r, { rev: 0, roster: { present: [], spectators: 0, left: [] }, left: new Set(), votes: new Set(), incoming: [], syncSentAt: -1, rebuiltAt: null, codeHidden: !!hidden });
         Chat.enable(true);
         Settings.setMode("online");
         h.show("lobby");
@@ -136,7 +150,7 @@ const Room = (() => {
             metadata: () => ({ seat: Match.me, spectate: Match.spectator }),
             admit: admitGuest,
         }, preferHost === false ? "guest" : undefined);
-        $("lobby-code").textContent = finalCode;
+        $("lobby-code").textContent = codeText(finalCode);
         setUrlRoom(finalCode);
         h.renderLobby();
         return finalCode;
@@ -432,7 +446,7 @@ const Room = (() => {
         const key = `${Match.gameNo}:${(msg.history || []).length}`;
         if (r.rebuiltAt === key) {                              // rebuilt once already and still different: give up
             Log.add("Out of sync with your friend.", "x");
-            toast("Game out of sync — back to the room");
+            toast("Game out of sync. Back to the room.");
             h.backToLobby(true);
             return;
         }
@@ -453,7 +467,7 @@ const Room = (() => {
         $("net-dot").className = "net-dot " + Net.status;
         const missing = Net.connected ? missingSeats().length : 0;
         $("net-text").textContent = Match.spectator && Net.connected ? "Spectating" : missing && !two() ? `Waiting for ${missing}…` : (STATUS_TEXT[Net.status] || Net.status);
-        $("net-code").textContent = Net.code ? "Room " + Net.code : "";
+        $("net-code").textContent = Net.code ? "Room " + codeText() : "";
         for (let k = 0; k < 4; k++) { const you = $(`p${k}-you`); if (you) you.hidden = Match.me !== k; }
         Game().render();                              // cell locks depend on the connection
     }
@@ -491,7 +505,7 @@ const Room = (() => {
         const rec = Match.record();
         Session.save({
             code: Net.code, me: Match.me, spectator: Match.spectator, role: Net.role, gameNo: Match.gameNo, rev: r.rev, phase: h.phase(), config: Match.config,
-            history: game ? rec.history : [], outs: game ? rec.outs : [], clocks: rec.clocks,
+            history: game ? rec.history : [], outs: game ? rec.outs : [], clocks: rec.clocks, codeHidden: r.codeHidden,
         });
     }
 
@@ -505,7 +519,7 @@ const Room = (() => {
     function init(handlers) { h = { ...h, ...handlers }; }
 
     return {
-        init, enter, leave, roomLink, newGame, bump, save, render, renderNetBox, updateBanner, turnHint,
+        init, enter, leave, roomLink, hideCode, codeText, newGame, bump, save, render, renderNetBox, updateBanner, turnHint,
         presentSeats, missingSeats, allHere, live, who, two, playersNow,
         startFromLobby, requestRematch, rematchWaitText, sendMove, sendSync, reseat,
         onIdle: processIncoming,
@@ -518,6 +532,6 @@ const Room = (() => {
         get rev() { return r.rev; }, set rev(v) { r.rev = v; },
         get spectators() { return r.roster.spectators; },
         get votes() { return r.votes; }, get votedMyself() { return votedMyself(); },
-        get online() { return online(); }, get isHost() { return isHost(); },
+        get online() { return online(); }, get codeHidden() { return r.codeHidden; }, get isHost() { return isHost(); },
     };
 })();

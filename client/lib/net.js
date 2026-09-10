@@ -252,7 +252,7 @@ const Net = (() => {
     function onFull() {
         if (!wantConnection) return;
         roomFull = true;
-        setStatus("error", "This room is full — every seat is taken.");   // only if the app refuses newcomers (it doesn't: spectators)
+        setStatus("error", "This room is full. Every seat is taken.");   // only if the app refuses newcomers (it doesn't: spectators)
         after("retry", 5000, dial);
     }
 

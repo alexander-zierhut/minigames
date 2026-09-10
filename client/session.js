@@ -1,8 +1,9 @@
 /* The room session: what survives a page refresh (sessionStorage, this tab only).
    Room.save() writes it on every change; app.js reads it at boot and, when the URL still
    names the same room, rebuilds the board from the game record before re-syncing.
-   Shape: { code, me, spectator, role, gameNo, rev, phase, config, history, outs, clocks }
-   — config/history/outs are the game record (see Games.positionAt). */
+   Shape: { code, me, spectator, role, gameNo, rev, phase, config, history, outs, clocks, codeHidden }
+   — config/history/outs are the game record (see Games.positionAt); codeHidden = the code
+   is hidden, so the URL carries no ?room= and the boot restores the room from here alone. */
 
 "use strict";
 

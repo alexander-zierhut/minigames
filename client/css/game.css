@@ -232,7 +232,7 @@ body.online #hut.show-controls .chat-row { display: flex; }
 #react-bar .react-list, #react-toggle { pointer-events: auto; }
 #react-bar .react-list {
     display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end;
-    max-width: min(420px, calc(100vw - 124px));      /* stops short of the ⚙ button on phones */
+    max-width: min(420px, calc(100vw - 150px));      /* stops short of the ⚙ Settings button on phones */
     padding: 4px; background: rgba(0,0,0,.45); border: 2px solid var(--line); border-radius: 12px;
     backdrop-filter: blur(4px);
     transition: opacity .15s, transform .15s;

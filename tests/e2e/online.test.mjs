@@ -156,3 +156,40 @@ test("host leaves; the guest takes over the room; the host returns by link as gu
     await B.waitFor("ChainGame.state.history.length === 1", { what: "new host got the move" });
     assert.deepEqual(A.errors, []); assert.deepEqual(B.errors, []);
 });
+
+test("hide the room code (#19): bullets in the lobby and the HUD, nothing in the URL, share and copy still carry it, a refresh keeps it hidden, the preference hides new rooms", { skip: !ONLINE }, async () => {
+    await A.click("#btn-menu"); await sleep(300);                                        // both back to the lobby
+    await B.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-lobby'", { what: "host in lobby" });
+    assert.equal(await A.text("lobby-code"), code);
+    assert.equal(await A.text("btn-hide-code"), "👁");
+    await A.click("#btn-hide-code");
+    assert.equal(await A.text("lobby-code"), "•••••");
+    assert.equal(await A.text("btn-hide-code"), "🙈");
+    assert.equal(await A.text("net-code"), "Room •••••", "the HUD net box hides it too");
+    assert.equal(await A.ev("location.search"), "", "the code left the address bar");
+    assert.equal(await A.ev("Net.code"), code, "the room itself is unchanged");
+    assert.ok((await A.ev("Room.roomLink(Net.code)")).endsWith(`?room=${code}`), "the share link still carries the code");
+    await A.ev("navigator.clipboard.writeText = (t) => { window.__copied = t; return Promise.resolve(); }; true");
+    await A.click("#btn-copy-code");
+    await A.waitFor(`window.__copied === ${JSON.stringify(code)}`, { what: "copy code copies the real code" });
+    assert.equal(await B.text("lobby-code"), code, "only my own view hides it");
+    // a refresh of the bare page rejoins the room from the session and keeps the code hidden
+    await A.goto(server.url);
+    await A.waitFor("Net.connected", { timeout: 40000, what: "rejoined without ?room= in the URL" });
+    assert.equal(await A.screen(), "screen-lobby");
+    assert.equal(await A.text("lobby-code"), "•••••");
+    assert.equal(await A.ev("location.search"), "");
+    await A.waitFor("document.getElementById('lp-0').textContent.includes('(you)')", { what: "seat 0 restored" });
+    await A.click("#btn-hide-code");                                                  // show again
+    assert.equal(await A.text("lobby-code"), code);
+    assert.equal(await A.ev("location.search"), `?room=${code}`, "the address bar carries the code again");
+    // the preference: new rooms start hidden
+    await A.click("#prefs-btn"); await A.check("pref-hide-code", true); await A.click("#btn-prefs-done");
+    await A.click("#btn-lobby-back");
+    const second = await createRoom(A);
+    assert.notEqual(second, code);
+    assert.equal(await A.text("lobby-code"), "•••••");
+    assert.equal(await A.ev("location.search"), "");
+    await A.click("#prefs-btn"); await A.check("pref-hide-code", false); await A.click("#btn-prefs-done");
+    assert.deepEqual(A.errors, []); assert.deepEqual(B.errors, []);
+});

@@ -37,7 +37,7 @@ test("look chosen in the modal is applied and mirrored by the other look control
     assert.equal(await B.ev("[...document.querySelectorAll('.skin-seg button.selected')].every(b => b.dataset.skin === 'mc')"), true, "every look control agrees");
     assert.equal(await B.ev("getComputedStyle(document.getElementById('prefs-btn')).borderRadius"), "0px", "button follows the Minecraft skin");
     await B.click('#prefs-modal .skin-seg button[data-skin="classic"]');
-    assert.equal(await B.ev("getComputedStyle(document.getElementById('prefs-btn')).borderRadius"), "50%");
+    assert.equal(await B.ev("getComputedStyle(document.getElementById('prefs-btn')).borderRadius"), "20px");
     await B.click("#btn-prefs-done");
 });
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-/* Bot benchmark: every registered bot plays a fixed, seeded series against the Random
-   baseline of its game (both colours, alternating starts). The score is the win rate in
+/* Bot benchmark: every real bot (not the Random baselines, `baseline: true`) plays a fixed,
+   seeded series against the Random baseline of its game (both colours, alternating starts). The score is the win rate in
    percent (a draw counts half). Results are written to client/bots/<id>/benchmark.js so
    they ship with the page and show up in the bot picker. Deterministic: same bots,
    same numbers, so re-running never creates a diff.
@@ -19,7 +19,7 @@ const BUDGET = { ms: Infinity, nodes: 20000 };
 const H = loadHeadless();
 const { Bots } = H;
 const only = process.argv.slice(2);
-const bots = Bots.list().filter((b) => only.length === 0 || only.includes(b.id));
+const bots = Bots.list().filter((b) => !b.baseline && (only.length === 0 || only.includes(b.id)));
 if (bots.length === 0) { console.error("no bots to benchmark"); process.exit(1); }
 let commit = "";
 try { commit = execSync("git rev-parse --short HEAD", { cwd: ROOT, stdio: "pipe" }).toString().trim(); } catch (e) { /* not a git checkout */ }

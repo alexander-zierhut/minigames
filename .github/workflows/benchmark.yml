@@ -48,7 +48,7 @@ jobs:
           commit-message: "Bot benchmark: updated scores"
           title: "Bot benchmark: updated scores"
           body: |
-            Scores from `tools/benchmark.mjs` for the bots changed in ${{ github.sha }}.
+            Scores from `scripts/benchmark.mjs` for the bots changed in ${{ github.sha }}.
             Merging bakes them into the bot picker on the next deploy.
           add-paths: client/bots/**/benchmark.js
       - name: Merge automatically once the tests pass

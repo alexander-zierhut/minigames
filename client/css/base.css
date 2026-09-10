@@ -104,12 +104,17 @@ input[type="range"] { accent-color: var(--accent); width: 100%; margin: 0; }
 .corner-btn {
     position: fixed; left: 10px; top: 10px; z-index: 47;
     touch-action: manipulation;
-    width: 40px; height: 40px; font-size: 20px; line-height: 1; padding: 0;
-    background: var(--panel2); color: var(--text); border: 2px solid var(--line); border-radius: 50%;
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 40px; padding: 0 13px 0 9px; font-size: 13px; font-weight: 700; line-height: 1;
+    background: var(--panel2); color: var(--text); border: 2px solid var(--line); border-radius: 20px;
     cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,.5);
     transition: transform .08s, background .15s;
 }
 .corner-btn:hover { background: #2b3556; }
+.corner-btn > span { pointer-events: none; }    /* taps and hit-tests land on the button itself */
+.corner-btn .corner-icon { font-size: 20px; }
+.corner-short { display: none; }               /* phones: "⚙ Settings", desktop: "⚙ Settings & Feedback" (#25) */
+@media (max-width: 899px) { .corner-long { display: none; } .corner-short { display: inline; } }
 .corner-btn:active { transform: scale(.94); }
 
 /* ---- player cube (HUD, lobby) ---- */

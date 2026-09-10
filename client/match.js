@@ -49,8 +49,8 @@ const Match = (() => {
         kind: online() ? (p === st.me ? "local" : "remote") : (st.mode === "bot" && p > 0 ? "bot" : "local"),
     }));
     const playerColor = (p) => (p >= 0 ? `var(--c${p})` : "#ffffff");
-    // seat names for the HUD: the skin's colour names; a bot seat shows the bot's name
-    const names = () => h.names().map((n, p) => (isBot(p) && st.bot ? st.bot.def.name : n));
+    // seat names for the HUD: the skin's colour names; a bot seat is simply "Bot" (#21)
+    const names = () => h.names().map((n, p) => (isBot(p) && st.bot ? Opponent.NAME : n));
 
     /* ---------- engine hooks ---------- */
     const hooks = {
@@ -119,7 +119,7 @@ const Match = (() => {
             if (!stillOn()) return;
             let i;
             try { i = await bot.move(bot.tools.clone(Game.state)); }
-            catch (e) { console.error(`bot ${bot.def.id} failed`, e); Log.add(`${bot.def.name} crashed — picking a random move.`, "x"); }
+            catch (e) { console.error(`bot ${bot.def.id} failed`, e); Log.add(`${Opponent.NAME} crashed, picking a random move.`, "x"); }
             if (!stillOn()) return;
             if (!Game.isLegal(i, p)) i = bot.tools.pick(bot.tools.legalMoves(Game.state, p));
             if (i !== undefined) Game.play(i);

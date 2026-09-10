@@ -50,11 +50,11 @@ Scripts, in order (each defines the global named in brackets):
 | `client/winchance.js` | `WinChance` | win-chance bars: a Bus observer of `game:new` / `game:position` (no engine or game knows it) |
 | `client/bots/<id>/bot.js` | (registers) | one folder per bot: `bot.js`, generated `benchmark.js`, `bot.test.mjs` |
 | `client/skins.js` | `Skins` | look per device: body class, player names |
-| `client/prefs.js` | `Prefs` | per-device preferences (⚙ top-left): look, sound volume / categories, feedback link |
+| `client/prefs.js` | `Prefs` | per-device preferences ("⚙ Settings & Feedback" top-left): look, sound volume / categories, hide the room code, feedback link |
 | `client/settings.js` | `Settings` | settings form ↔ config; the game rows are **built from the game definitions**; picker cards, persistence, summary |
-| `client/opponent.js` | `Opponent` | bot picker modal: step 1 list of bots with both scores, step 2 one bot + parameters; choice per game |
+| `client/opponent.js` | `Opponent` | the bot modal: one bot per game, called "Bot" (`Opponent.NAME`), its scores and the difficulty; choice per game |
 | `client/bot-persona.js` | `BotPersona` | a bot seat's sparse emoji reactions, drawn from seeded weighted pools |
-| `client/changelog.js` | `Changelog` | the title screen's changelog modal (`changelog.json`) |
+| `client/changelog.js` | `Changelog` | the title screen's changelog modal (`changelog.json`; technical entries behind a toggle) |
 | `client/reactions.js` | `Reactions` | emoji reactions bar + floating layer |
 | `client/chat.js` | `Chat` | room chat: the input row under the HUD log, limits, lines into the log, Bus `chat` |
 | `client/session.js` | `Session` | the room session in sessionStorage (survives a refresh) |
@@ -102,7 +102,12 @@ Write the text for players (what changed for them, one sentence), and link the i
 / commit in `refs` — `client/changelog.js` turns them into new-tab GitHub links and renders
 the file into `#changelog-modal` from the title screen's 📜 button (fetched on demand,
 first 7 days open, older days behind "Show older", so any length works). Internal-only
-changes get `type: internal` or no entry. `tests/unit/changelog.test.mjs` validates the
+changes get `type: internal` or no entry. **Two audiences (#27):** the modal's "Show
+technical changes too" toggle (`#changelog-tech`, off by default, remembered in
+`localStorage["chainreact.changelog"]`) is the only way to see `internal` entries and
+entries flagged `technical: true` (cosmetic, naming, tooling — anything that doesn't
+change how the game plays or give players something to try); days left empty are skipped.
+Flag every such entry, so the default list stays short. No em dashes in texts (#24). `tests/unit/changelog.test.mjs` validates the
 file (dates descending, known types, resolvable refs).
 
 ## Install as an app (Android)
@@ -153,7 +158,8 @@ to try things").
   control here (owner: only in the preferences, #9). Never scrolls on a phone. The ⚙
   preferences button floats top-left on every screen.
 - **Lobby** (`#screen-lobby`), same screen for local and online (`Match.mode`): a centred
-  head with the kind label, the room code and — online only — **one compact row** of
+  head with the kind label, the room code with its hide / show eye button (`#btn-hide-code`,
+  online only, see "Hidden room code") and — online only — **one compact row** of
   `Share link` / `Spectate link` / `Copy code` under it (`#lobby-share`; 11px buttons on
   phones so the three fit 360px in one row, #15), one `.lobby-player` card per seat from
   `#tpl-lobby-player` (online only; as many as the *Players* setting says, "connected" /
@@ -166,9 +172,11 @@ to try things").
   `Rematch` and `Back to room` too. `renderRematch()` in app.js is the only writer of the
   Rematch buttons' texts (Spectating / Rematch / Waiting… / Accept rematch).
 - `Match.mode` ∈ `local | bot | online`. Bot mode is the offline lobby with an extra
-  *Opponent* row (`#btn-opponent` → `#bot-modal`). Picking a game does **not** open the
-  picker (#12): the default is the best-rated bot at its middle difficulty; the row shows
-  it and opens the two-step picker (#11). You are seat 0, the bot seat 1.
+  *Opponent* row (`#btn-opponent` → `#bot-modal`). **One bot per game (#21)**, called
+  "Bot" wherever a player sees it (`Opponent.NAME`; `Bots.botFor(game)` picks it): the
+  modal is one step (description, scores, difficulty, Cancel / Play). Picking a game does
+  **not** open it (#12): the default is the middle difficulty; the row shows the choice.
+  You are seat 0, the bot seat 1.
 - `phase` (app.js) ∈ `menu | lobby | game` — Room reads it through its `phase()` handler.
   `Match.gameNo` increments per started game (local too); `Match.startPlayerFor(g,
   players) = (g - 1) % players` → seat 0 starts game 1, then the next seat, round-robin.
@@ -200,7 +208,9 @@ restores form values on reload).
   row that is enabled only while the checkbox is on (chain's `chainRule` + `chainLen`).
   The row is `<label class="row" id="row-<key>" data-setting="<key>">`, the input
   `#set-<key>`, key lowercased (`set-winlen`, `set-chainrule`, `set-chainlen`). A row is
-  shown when the selected game's list contains its key. Today: five `winLen` (3–25,
+  shown when the selected game's list contains its key. `#game-settings` is
+  `display: contents`, so the generated rows space exactly like the fixed ones and hidden
+  rows take no gap (#26). Today: five `winLen` (3–25,
   default 5, also the board's minimum), chain `speed` (Slow 1100 / Normal 750 / Fast 350
   ms) and `chainRule`/`chainLen` (win on N explosions, off by default, N default 15;
   owner dislikes the rule but wanted it available).
@@ -217,13 +227,18 @@ restores form values on reload).
 
 ## Preferences (`client/prefs.js`, per device — the ⚙ button)
 
-`#prefs-btn` (class `corner-btn`, fixed top-left, on every screen) opens `#prefs-modal`:
-the **Look** control (the only `.skin-seg`, kept in sync by `Skins`), the **Sound** rows
-(master volume slider `#pref-volume`, default 30 %; sound set `#pref-soundset`: follow
-the look / Classic / Minecraft; one checkbox per category `#pref-snd-<cat>`, categories
-in `Prefs.CATEGORIES` = moves, explosions, results, turn, reactions, chat). Stored in
-`localStorage["chainreact.prefs"]` (`Prefs.get()` → `{ volume, soundSet, sounds: {…} }`,
-`Prefs.set(patch)` merges, clamps, persists, refills the form and calls `onChange`).
+`#prefs-btn` (class `corner-btn`, a pill fixed top-left on every screen: "⚙ Settings &
+Feedback" on desktop, "⚙ Settings" on phones via `.corner-long` / `.corner-short`, #25)
+opens `#prefs-modal`: the **Look** control (the only `.skin-seg`, full width, no extra
+label, #22; kept in sync by `Skins`), the **Sound** rows (master volume slider
+`#pref-volume`, default 30 %; sound set `#pref-soundset`: follow the look / Classic /
+Blocks; one checkbox per category `#pref-snd-<cat>`, categories in `Prefs.CATEGORIES` =
+moves, explosions, results, turn, reactions, chat), **Streaming** (`#pref-hide-code`:
+enter rooms with the code hidden, #19), **Feedback**. Stored in
+`localStorage["chainreact.prefs"]` (`Prefs.get()` → `{ volume, soundSet, sounds: {…},
+hideCode }`, `Prefs.set(patch)` merges, clamps, persists, refills the form and calls
+`onChange`). The modal is roomier than the settings one (`.prefs-rows` gap 14 px, 16 px
+and 540 px wide on desktop, #25).
 Never sent to the room, never part of `Settings.read()`. Layout rules: on phones
 (`max-width: 899px`) `#screen-menu`/`#screen-lobby` get `padding-top: 56px` and
 `#board-wrap` `padding-top: 52px` so cards and the board start below the two corner
@@ -498,6 +513,14 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
 - Share link = `<page URL without query>?room=CODE`; `?room=` on load auto-joins;
   `history.replaceState` keeps `?room=` (and `&spectate=1` for a spectator) in the URL
   while in a room. Spectate link = `?room=CODE&spectate=1` (see Spectators).
+- **Hidden room code** (#19, streamers): `Room.hideCode(on)` / `Room.codeHidden` — the
+  lobby code and the HUD net box show `•••••` (`Room.codeText()`), `setUrlRoom` drops
+  `?room=` from the address bar, the session stores `codeHidden`, and the boot rejoins a
+  hidden room from the session alone (no `?room=` needed; a visible room still needs the
+  matching `?room=`). `Net.code`, the share / spectate links and `Copy code` are untouched
+  — hiding is display only, per device, never sent to the room. The lobby's eye button
+  (`#btn-hide-code`, 👁 / 🙈) toggles it; `Prefs.hideCode` makes new rooms start hidden
+  (`Room.enter(code, preferHost, seat, spectate, hidden = Prefs.get().hideCode)`).
 - Messages (JSON over reliable DataConnections; every message carries `from` = the
   sender's seat; game messages carry `g` = gameNo): `hello {seat, spectate, rev, phase,
   config, g, rematch}`, `state {you, settings, rev, phase, config, g, rematch}` (host →
@@ -546,8 +569,9 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   `ERROR_TEXT` maps PeerJS error types to plain sentences. `visibilitychange`/`online` →
   `Net.retryNow()`. The HUD net box shows "Waiting for N…" when seats are empty (3+).
 - Page refresh: `sessionStorage["chainreact.session"]` = code, me (seat), spectator,
-  role, gameNo, rev, phase, config, history, outs, clocks. With a matching `?room=` the
-  board is rebuilt from it (`replay(history, outs)`), then the handshake fills in the rest.
+  role, gameNo, rev, phase, config, history, outs, clocks, codeHidden. With a matching
+  `?room=` (or a hidden code) the board is rebuilt from it (`replay(history, outs)`), then
+  the handshake fills in the rest.
 - Takeover with several guests: every guest that misses the host twice tries to claim
   the id; one wins, the others get `unavailable-id` and dial it. The new host keeps its
   own seat, hands the others theirs back on `hello`, and a spectator that happens to
@@ -642,7 +666,7 @@ it), `remote` (a friend) or `bot`. The engine hooks live in Match: `mayPlay(p)` 
 doesn't feel instant) it asks the bot instance for a move on a **clone** of the state,
 re-checks that the same game is still on that turn (`running`, `gameNo`, busy, over), falls
 back to a random legal move if the bot throws or answers illegally, then `engine.play(i)`
-like a click. `Match.names` shows the bot's name on its seat. Player count is
+like a click. `Match.names` shows "Bot" (`Opponent.NAME`) on its seat. Player count is
 `config.players` (2–4 from the settings; 2 against a bot): rules, `Rules.pass`, `Clock`,
 HUD and lobby cards are written for N, the CSS has colours and textures for 4 seats, the
 host relays. "Play on this device" with 3–4 people = all seats `local`; a flag fall
@@ -662,8 +686,14 @@ code runs in the browser and in Node (`scripts/headless.mjs` loads util, rules, 
 every bot folder into a bare VM — script list parsed from `index.html`).
 
 - **Registry**: `Bots.register({ id, name, game, version, description, difficulties:
-  [{ id, label }, …], create(tools) })` (validated: slug id, ≥ 1 difficulty, create fn).
-  `Bots.get/list/forGame(game)`, `Bots.benchmarkOf(id)`. Rules modules register themselves
+  [{ id, label }, …], create(tools), baseline? })` (validated: slug id, ≥ 1 difficulty,
+  create fn, boolean `baseline`). `Bots.get/list/forGame(game)`, `Bots.benchmarkOf(id)`.
+  **One bot per game (#21):** `Bots.botFor(game)` = the best-rated bot without `baseline`
+  (Creeper, Sensei), or — while a game has no real bot yet — its Random baseline, so
+  "Against a bot" always works. The Random bots are `baseline: true`: the benchmark and
+  calibration opponent and the illegal-move fallback, never offered to players and not
+  benchmarked themselves (no `benchmark.js`). Players see every bot as "Bot"; the ids and
+  `name`s stay for the code, the benchmark output and the docs. Rules modules register themselves
   (`Rules.register("chain", ChainRules)` → `Rules.of(key)`) so bots find them without the
   DOM-bound engine.
 - **Instance**: `Bots.create(id, { me, difficulty, seed, players, budget })` → `{ def,
@@ -695,8 +725,8 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   legal cell, roughly uniform, seed reproduces a whole game). A real bot's tests should
   prove strength facts: beats Random by a margin, blocks an open four, takes a win in one,
   never worse than depth-1 greedy, etc. (VM realm: compare arrays via `JSON.stringify`.)
-- **Benchmark** (`npm run benchmark` = `scripts/benchmark.mjs [id…]`): every bot plays a
-  seeded series against the Random bot of its game (chain 100 games 6×6, five 200 games
+- **Benchmark** (`npm run benchmark` = `scripts/benchmark.mjs [id…]`): every real bot
+  (not the baselines) plays a seeded series against the Random bot of its game (chain 100 games 6×6, five 200 games
   9×9, both colours, highest difficulty) → score = win rate in % (draw = ½) plus
   `games, opponent, avgMoves, version, commit, at` (60 chain / 100 five games, 20 000-node
   budget per move so the series is deterministic), written to
@@ -707,14 +737,16 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   `main` that touch `client/bots/**` (not the benchmark files), `bots.js`, the rules or the
   tools, and opens an auto-merging PR (branch `bot-benchmark`) with the new files (branch
   protection needs the `test` check, so a direct push isn't possible; auto-merge is
-  enabled on the repo and Actions may create PRs). Random ≈ 50 % is the baseline.
-- **UI**: `Opponent` (client/opponent.js) renders `#bot-modal` in two steps: `#bot-step-list`
-  (one `.bot-option` per bot, best-rated first: name, description, `.bot-badge`s "vs Random"
-  and "puzzles" or "not rated"; Cancel) and `#bot-step-detail` (icon, name, description,
-  badges, rating meta, a *Parameters* box with the `#bot-difficulty` control — hidden with
-  one level — and its think-time hint, Back, Play). Default per game = highest benchmark
-  score, middle difficulty (`Math.floor((n-1)/2)`); remembered `{ id, difficulty }` per game
-  in `localStorage["chainreact.bots"]`; `Opponent.current(game)` / `summary(game)`.
+  enabled on the repo and Actions may create PRs). The numbers stay the yardstick for
+  future versions of a bot (a bot near 100 % is compared on puzzles and self-play).
+- **UI**: `Opponent` (client/opponent.js) renders `#bot-modal` in one step (#21): icon,
+  `#bot-name` "Bot", `#bot-desc` (the bot's description), `#bot-badges` ("vs Random" and
+  "puzzles" or "not rated"), `#bot-meta` ("Plays Five Wins. Rated over …"), a *Parameters*
+  box with the `#bot-difficulty` control — hidden with one level — and its think-time hint,
+  Cancel, Play. Default per game = middle difficulty (`Math.floor((n-1)/2)`); remembered
+  `{ id, difficulty }` per game in `localStorage["chainreact.bots"]`;
+  `Opponent.current(game)` / `summary(game)` ("Bot · Normal · 100 % vs Random · 100 %
+  puzzles") / `Opponent.NAME`.
 - **Persona** (`client/bot-persona.js`): `BotPersona.attach({ bot, seat, game, state,
   estimate, color })` in `Match.start` (bot mode), `detach()` in `Match.stop` / `reset`. Listens
   to `game:new` (👋), `game:turn`/`game:move` (judges the human's move once it settled:
@@ -762,8 +794,11 @@ every bot folder into a bare VM — script list parsed from `index.html`).
    searches: check `tools.deadline(...)` or return a Promise that yields via `setTimeout`.
 2. `client/bots/<id>/bot.test.mjs` with the facts that make the bot good (see above).
 3. Two script tags in `index.html` right after the `<!-- bots: <game> -->` anchor line:
-   `bot.js` and `benchmark.js` (create an empty `benchmark.js` until the first run).
+   `bot.js` and `benchmark.js` (create an empty `benchmark.js` until the first run; a
+   `baseline: true` bot has none).
 4. `npm run benchmark <id>` locally (or let the workflow do it) — commit `benchmark.js`.
+   A game has **one** playable bot (#21): a better bot replaces the old folder rather than
+   sitting next to it; variants are difficulties / parameters of that bot.
 5. `npm test`; the conformance suite, the puzzle grading and the e2e bot flow run
    automatically. Add `evaluateBot` thresholds (per tag if useful) to the bot's tests.
 
@@ -845,7 +880,9 @@ set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px o
   the real PeerJS broker: join by link, settings mirror, guest start, move sync,
   reactions, chat both ways (colour, text only, HUD input), guest refresh, tolobby,
   switch game, rematch, host refresh, guest leave +
-  rejoin, host leave → guest takes over → host returns as guest; `SKIP_ONLINE=1` skips),
+  rejoin, host leave → guest takes over → host returns as guest, hide the room code:
+  bullets + bare URL + copy still works + refresh rejoins hidden + the preference;
+  `SKIP_ONLINE=1` skips),
   `online-edge` (third player → spectator, players stay connected; both refresh in the lobby; guest closes the
   tab mid-game without goodbye and returns by link; rematch asked while the friend was
   away; host's tab dies, guest goes back to the room, host returns → both in the lobby;
@@ -859,7 +896,7 @@ set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px o
   `online-party` (**three browsers**: players 3, seats 1 and 2, start waits for
   everyone, moves by every seat relayed to everyone, chat/reaction colours, a guest
   refresh restores seat + board, rematch by every seat, one Back to room moves all),
-  `bot` (offline vs bot: picker with score, bot moves by itself, rematch), `dist` (built bundle: hashed assets only,
+  `bot` (offline vs bot: the one-step modal with scores and difficulty, "Bot" in the HUD, bot moves by itself, rematch), `dist` (built bundle: hashed assets only,
   preloader, playable, hashed sound files fetched after the audio unlock). Files run 2 at a time; each launches its own Chrome. `B.blank()`
   navigates to about:blank (a closed tab); outline colours transition for .25s → wait
   before reading computed styles. Any new join/rejoin behaviour gets a scenario in
@@ -889,21 +926,21 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Games` / engine | `register(def)`, `get/has/keys`, `positionAt(record, ply)`; engine `state, config, newGame, play, replay, finish, eliminate, abandon, render, isLegal, hash, record` |
 | `Hud` | `build(players, title)`, `render(state, hooks, model)`, `overlay(name, winner, sub)` |
 | `WinChance` | Bus-driven; `display`, `estimator`, `REFINE_MS`, `SMOOTH`, `DECIDED` |
-| `Bots` | `register, get, list, forGame, create(id, {me, difficulty, seed, players, budget}), tools(game, opts), playout, rng, validate, benchmark/benchmarkOf, calibration/calibrationOf, estimator(game) → {bot, stages, at(state, nodes), quick}, toProbability(raw, cal), ESTIMATE_STAGES` |
-| bot definition | `id, name, game, version, description, difficulties [{id, label, thinkMs}], create(tools) → {move(state)}, evaluate?(state, tools) → raw` |
+| `Bots` | `register, get, list, forGame, botFor(game), create(id, {me, difficulty, seed, players, budget}), tools(game, opts), playout, rng, validate, benchmark/benchmarkOf, calibration/calibrationOf, estimator(game) → {bot, stages, at(state, nodes), quick}, toProbability(raw, cal), ESTIMATE_STAGES` |
+| bot definition | `id, name, game, version, description, difficulties [{id, label, thinkMs}], create(tools) → {move(state)}, evaluate?(state, tools) → raw, baseline?` |
 | `BotPersona` | `attach({bot, seat, game, state, estimate, color, delays?, cooldownMs?})`, `detach()`, `POOLS` |
 | `Skins` | `init({onChange})`, `set(key)`, `names()`, `current` |
 | `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `setMode(mode)`, `game`, `fields` |
-| `Prefs` | `init({onChange, context})`, `get()`, `set(patch)`, `open/close`, `feedbackUrl()`, `CATEGORIES`, `isOpen` |
-| `Opponent` | `init({onDone})`, `open(game)`, `current(game) → {id, difficulty, def}`, `summary(game)` |
+| `Prefs` | `init({onChange, context})`, `get() → {volume, soundSet, sounds, hideCode}`, `set(patch)`, `open/close`, `feedbackUrl()`, `CATEGORIES`, `isOpen` |
+| `Opponent` | `init({onDone})`, `open(game)`, `current(game) → {id, difficulty, def}`, `summary(game)`, `NAME` ("Bot") |
 | `Reactions` | `init({onSend})`, `receive(emoji, color)`, `place()`, `durationFor(recent)` |
 | `Chat` | `init(...)`, `send`, `receive(msg)`, `enable(on)` (see chat section) |
 | `Sound` | `Bus`-driven; `play(cue)` for tests, unlock on first gesture |
-| `Changelog` | `init()`, `open/close`, `render(doc)`, `refUrl(ref)`, `SHOW_DAYS` |
+| `Changelog` | `init()`, `open/close`, `render(doc[, all])`, `refUrl(ref)`, `technical(entry)`, `showTechnical`, `SHOW_DAYS` |
 | `Preload` | `textures()` |
-| `Session` | `save(data)`, `load()`, `clear()` |
+| `Session` | `save(data)`, `load()`, `clear()` (shape incl. `codeHidden`) |
 | `Match` | `init(handlers)`, `start(cfg, gameNo)`, `stop()`, `reset(mode, me, spectator)`, `setSeat(me, spectator)`, `record()`, `flagged(p)`, `whenIdle(fn, key)`, `syncClock()`, `startPlayerFor`, `playerColor`, `isLocal/isBot`; getters `engine, state, names, running, mode, me, spectator, seats, config, gameNo, bot`; `THINK_MS` |
-| `Room` | `init(handlers)`, `enter(code, preferHost, seat, spectate)`, `leave()`, `roomLink`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `settingsChanged(cfg)`, `say(text)`, `react(e)`, `tolobby()`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/allHere/live/who/two/playersNow/turnHint`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost` |
+| `Room` | `init(handlers)`, `enter(code, preferHost, seat, spectate, hidden)`, `leave()`, `roomLink`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `settingsChanged(cfg)`, `say(text)`, `react(e)`, `tolobby()`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/allHere/live/who/two/playersNow/turnHint`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden` |
 
 Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM), `puzzles/runner.mjs`
 (`loadPuzzles`, `positionOf`, `evaluateBot`), `benchmark.mjs`, `calibrate.mjs`
@@ -977,7 +1014,8 @@ chat, roster, leave, ping/pong` — fields in "Online play".
 - Writes English and German; either is fine in replies.
 - Wants things to look nice; approved: classic skin, HUD contrast, explosion, compact
   mobile HUD, unified dark MC UI, settings modal, room flow. Keep mobile non-scrolling.
-  Layout need not be pixel-perfect, behaviour and texts must not change unasked.
+  Layout need not be pixel-perfect, behaviour and texts must not change unasked. No em
+  dashes in any user-facing text (#24): rewrite the sentence instead.
 - Prefers several small JS files over one big one; no framework.
 - Friends only (up to four in a room, plus spectators) — no matchmaking, no accounts, no
   own server.
@@ -1100,8 +1138,9 @@ only if none fits. Keep `Sound.map` pure (it is unit-tested with a fake player).
    `estimate` heuristic is used. See `docs/bots.md` for the toolset, the contract and the
    evaluator design guide (horizon effects, calibration, quiescence).
 3. Tags after a new `<!-- bots: <key> -->` anchor line in `index.html`, tests in the bot
-   folder, `npm run benchmark <id>` → commit `benchmark.js`. Two bots for one game make
-   the picker meaningful; the best-rated one is the default opponent.
+   folder, `npm run benchmark <id>` → commit `benchmark.js`. One playable bot per game
+   (#21): players just see "Bot"; until it exists `Bots.botFor` offers the Random baseline
+   (`baseline: true`, no benchmark file, never shown by name).
 4. Puzzles (optional but valuable): `scripts/puzzles/<key>/solver.mjs` + `generate.mjs`
    → `tests/puzzles/<key>/puzzles.json` (≥ 100 proven positions); `tests/unit/puzzles.test.mjs`
    picks the set up and grades every bot. Never make a threshold a build requirement.

@@ -165,6 +165,7 @@
 .skin-mc #overlay { background: rgba(0,0,0,.75); }
 .skin-mc #react-bar .react-list, .skin-mc #react-toggle, .skin-mc .corner-btn { border-radius: 0; border-color: #000; background: rgba(0,0,0,.7); }
 .skin-mc .corner-btn:hover { background: #3a3a3a; }
+.skin-mc .code-eye { border-radius: 0; border-color: #000; background: rgba(0,0,0,.62); }
 .skin-mc input[type="range"] { accent-color: #55ff55; }
 .skin-mc .pref-toggles input[type="checkbox"] { accent-color: #55ff55; }
 .skin-mc .loader-title { background: none; color: var(--mc-title); text-shadow: var(--mc-title-shadow); }

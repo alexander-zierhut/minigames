@@ -6,6 +6,7 @@
 Bots.register({
     id: "random-five",
     name: "Random",
+    baseline: true,                 // the benchmark opponent and the illegal-move fallback, never offered to players (#21)
     game: "five",
     version: 1,
     description: "Places a stone on a random empty cell. Beating it is the least you can do.",

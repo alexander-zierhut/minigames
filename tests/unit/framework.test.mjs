@@ -107,7 +107,7 @@ test("Match: seats per mode, a bot seat that moves by itself, deferred work unti
     M.reset("bot");
     M.start({ game: "five", n: 6, winLen: 4, players: 2, timer: 0 }, 1);
     assert.equal(JSON.stringify(M.seats.map((s) => s.kind)), JSON.stringify(["local", "bot"]));
-    assert.notEqual(M.names[1], "Amber", "the bot seat shows the bot's name");
+    assert.equal(M.names[1], "Bot", "the bot seat is simply called Bot (#21)");
     await M.engine.play(0);
     await new Promise((r) => setTimeout(r, M.THINK_MS + 400));
     assert.equal(M.state.history.length, 2, "the bot moved");

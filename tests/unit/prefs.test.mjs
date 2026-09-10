@@ -10,6 +10,7 @@ test("defaults: quiet volume, every sound category on, sound set follows the loo
     assert.equal(p.soundSet, "auto");
     assert.equal(JSON.stringify(P.CATEGORIES), JSON.stringify(["moves", "explosions", "results", "turn", "reactions", "chat"]));
     for (const c of P.CATEGORIES) assert.equal(p.sounds[c], true, c);
+    assert.equal(p.hideCode, false, "rooms show their code unless asked (#19)");
     w.close();
 });
 
@@ -22,9 +23,10 @@ test("set merges, clamps and persists; a reload reads it back; garbage is ignore
     P.set({ volume: -5, soundSet: "nonsense" });
     assert.equal(P.get().volume, 0);
     assert.equal(P.get().soundSet, "auto", "unknown sound set falls back");
-    P.set({ soundSet: "mc" });
+    P.set({ soundSet: "mc", hideCode: "yes" });
+    assert.equal(P.get().hideCode, true, "coerced to a boolean");
     const saved = JSON.parse(w.localStorage.getItem("chainreact.prefs"));
-    assert.equal(saved.volume, 0); assert.equal(saved.soundSet, "mc"); assert.equal(saved.sounds.chat, false);
+    assert.equal(saved.volume, 0); assert.equal(saved.soundSet, "mc"); assert.equal(saved.sounds.chat, false); assert.equal(saved.hideCode, true);
     w.close();
     // corrupt storage never throws (fail-safe Util.load/save)
     const w2 = loadDom(); const P2 = w2.eval("Prefs");
@@ -48,7 +50,10 @@ test("init fills the form, form changes flow into the prefs and onChange", () =>
     d.getElementById("pref-snd-turn").checked = false;
     d.getElementById("pref-snd-turn").dispatchEvent(new w.Event("change"));
     assert.equal(P.get().sounds.turn, false);
-    assert.equal(changes.length, 2);
+    d.getElementById("pref-hide-code").checked = true;
+    d.getElementById("pref-hide-code").dispatchEvent(new w.Event("change"));
+    assert.equal(P.get().hideCode, true);
+    assert.equal(changes.length, 3);
     // open / close
     assert.equal(P.isOpen, false);
     d.getElementById("prefs-btn").click();

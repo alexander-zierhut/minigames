@@ -33,7 +33,7 @@
 </div>
 
 <!-- ===================== PREFERENCES (⚙ top-left on every screen; this device only) ===================== -->
-<button id="prefs-btn" class="corner-btn" aria-label="Preferences" title="Preferences">⚙</button>
+<button id="prefs-btn" class="corner-btn" aria-label="Settings &amp; Feedback" title="Settings &amp; Feedback"><span class="corner-icon">⚙</span><span class="corner-text corner-long">Settings &amp; Feedback</span><span class="corner-text corner-short">Settings</span></button>
 
 <!-- ===================== TITLE / MENU ===================== -->
 <section id="screen-menu" class="screen">
@@ -78,7 +78,11 @@
         <!-- kind, room code, and (online) one compact row of share buttons under it -->
         <div class="lobby-head">
             <div class="label" id="lobby-kind">Room</div>
-            <div class="room-code" id="lobby-code">—</div>
+            <div class="room-code-row">
+                <div class="room-code" id="lobby-code">…</div>
+                <!-- online only: hide the code for streaming (#19); the share / copy buttons keep working -->
+                <button class="code-eye" id="btn-hide-code" hidden title="Hide the room code" aria-label="Hide the room code">👁</button>
+            </div>
             <div class="lobby-actions" id="lobby-share">
                 <button class="btn small primary" id="btn-share">Share link</button>
                 <button class="btn small" id="btn-share-spectate">Spectate link</button>
@@ -246,16 +250,13 @@
 <div id="prefs-modal" class="modal" hidden>
     <div class="menu-card prefs-card">
         <h1 class="title small">Preferences</h1>
-        <p class="tagline small">Only for this device — never shared with the room.</p>
+        <p class="tagline small">Only for this device. Never shared with the room.</p>
         <div class="prefs-rows">
             <div class="section-title">Look</div>
-            <div class="skin-row">
-                <span class="skin-label">Look</span>
-                <div class="seg skin-seg">
-                    <button data-skin="classic" class="selected">Classic</button>
-                    <button data-skin="mcboard">Blocks board</button>
-                    <button data-skin="mc">Blocks</button>
-                </div>
+            <div class="seg skin-seg">
+                <button data-skin="classic" class="selected">Classic</button>
+                <button data-skin="mcboard">Blocks board</button>
+                <button data-skin="mc">Blocks</button>
             </div>
             <div class="section-title">Sound</div>
             <label class="row">
@@ -279,6 +280,9 @@
                 <label><input type="checkbox" id="pref-snd-chat" checked autocomplete="off"> Chat</label>
             </div>
             <button class="btn small" id="pref-test-sound">Play a test sound</button>
+            <div class="section-title">Streaming</div>
+            <label class="pref-check"><input type="checkbox" id="pref-hide-code" autocomplete="off"> Hide the room code when I enter a room</label>
+            <p class="hint">The code stays hidden in the lobby, the game and the address bar until you show it. Share and copy keep working.</p>
             <div class="section-title">Feedback</div>
             <button class="btn small" id="pref-feedback">Report a problem or an idea</button>
             <p class="hint">Opens a new GitHub issue with details about this screen already filled in.</p>
@@ -287,39 +291,29 @@
     </div>
 </div>
 
-<!-- ===================== BOT PICKER (offline, "Play against a bot") ===================== -->
+<!-- ===================== BOT (offline, "Against a bot": the game's one bot, its scores, its parameters) ===================== -->
 <div id="bot-modal" class="modal" hidden>
     <div class="menu-card bot-card">
-        <!-- step 1: the bots that play the selected game (built by opponent.js) -->
-        <div class="bot-step" id="bot-step-list">
-            <h1 class="title small">Choose your opponent</h1>
-            <p class="tagline small" id="bot-modal-game"></p>
-            <div class="bot-list" id="bot-list"></div>
-            <button class="btn ghost" id="btn-bot-cancel">Cancel</button>
+        <div class="bot-detail-head">
+            <span class="bot-detail-icon">🤖</span>
+            <div>
+                <h1 class="title small" id="bot-name">Bot</h1>
+                <p class="tagline small" id="bot-desc"></p>
+            </div>
         </div>
-        <!-- step 2: one bot, its scores and parameters -->
-        <div class="bot-step" id="bot-step-detail" hidden>
-            <div class="bot-detail-head">
-                <span class="bot-detail-icon">🤖</span>
-                <div>
-                    <h1 class="title small" id="bot-detail-name">Bot</h1>
-                    <p class="tagline small" id="bot-detail-desc"></p>
-                </div>
+        <div class="bot-badges" id="bot-badges"></div>
+        <p class="hint" id="bot-meta"></p>
+        <div class="bot-params">
+            <div class="section-title">Parameters</div>
+            <div class="skin-row" id="bot-difficulty-row">
+                <span class="skin-label">Difficulty</span>
+                <div class="seg" id="bot-difficulty"></div>
             </div>
-            <div class="bot-badges" id="bot-detail-badges"></div>
-            <p class="hint" id="bot-detail-meta"></p>
-            <div class="bot-params">
-                <div class="section-title">Parameters</div>
-                <div class="skin-row" id="bot-difficulty-row">
-                    <span class="skin-label">Difficulty</span>
-                    <div class="seg" id="bot-difficulty"></div>
-                </div>
-                <p class="hint" id="bot-difficulty-hint"></p>
-            </div>
-            <div class="btn-row">
-                <button class="btn" id="btn-bot-back">‹ Back</button>
-                <button class="btn primary" id="btn-bot-done">Play against this bot</button>
-            </div>
+            <p class="hint" id="bot-difficulty-hint"></p>
+        </div>
+        <div class="btn-row">
+            <button class="btn ghost" id="btn-bot-cancel">Cancel</button>
+            <button class="btn primary" id="btn-bot-done">Play</button>
         </div>
     </div>
 </div>
@@ -328,6 +322,8 @@
 <div id="changelog-modal" class="modal" hidden>
     <div class="menu-card changelog-card">
         <h1 class="title small">Changelog</h1>
+        <!-- off by default: only what changes the game for players; on: internal and cosmetic work too (#27) -->
+        <label class="pref-check cl-toggle"><input type="checkbox" id="changelog-tech" autocomplete="off"> Show technical changes too</label>
         <div class="changelog-list" id="changelog-list"></div>
         <button class="btn primary" id="btn-changelog-done">Done</button>
     </div>
@@ -383,12 +379,10 @@
 <script src="client/bots.js"></script>
 <script src="client/winchance.js"></script>
 <script src="client/bots/random-chain/bot.js"></script>
-<script src="client/bots/random-chain/benchmark.js"></script>
 <!-- bots: chain (add new Chain React bots below this line) -->
 <script src="client/bots/creeper-chain/bot.js"></script>
 <script src="client/bots/creeper-chain/benchmark.js"></script>
 <script src="client/bots/random-five/bot.js"></script>
-<script src="client/bots/random-five/benchmark.js"></script>
 <!-- bots: five (add new Five Wins bots below this line) -->
 <script src="client/bots/sensei-five/bot.js"></script>
 <script src="client/bots/sensei-five/benchmark.js"></script>

@@ -9,9 +9,9 @@ games and settings together in the room lobby; rematch or switch games without n
 
 ## Play
 
-- **On one device:** two to four people share a screen or phone, or play against a bot
-  (pick the bot and difficulty per game; the number shown is its win rate against the
-  Random bot).
+- **On one device:** two to four people share a screen or phone, or play against the
+  bot (one per game, pick the difficulty; the numbers shown are its win rate against a
+  random player and its puzzle score).
 - **Online:** one player creates a room and shares the link (or the 5-letter code).
   Everybody typing the same code also works; a room seats two, three or four players
   (the *Players* setting). Uses PeerJS: the public PeerJS broker only brokers the

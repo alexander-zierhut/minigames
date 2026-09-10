@@ -36,7 +36,12 @@
         const nm = Skins.names();
         const players = Settings.read().players;
         $("lobby-kind").textContent = online ? "Room" : bot ? "Against a bot" : "Local game";
-        $("lobby-code").textContent = online ? (Net.code || "…") : bot ? "You vs bot" : "Same device";
+        $("lobby-code").textContent = online ? Room.codeText() : bot ? "You vs bot" : "Same device";
+        const eye = $("btn-hide-code");
+        eye.hidden = !online;
+        eye.textContent = Room.codeHidden ? "🙈" : "👁";
+        eye.title = Room.codeHidden ? "Show the room code" : "Hide the room code";
+        eye.setAttribute("aria-label", eye.title);
         $("btn-opponent").hidden = !bot;
         if (bot) $("opponent-summary").textContent = Opponent.summary(Settings.game);
         $("lobby-share").hidden = !online;
@@ -172,6 +177,7 @@
         try { await navigator.clipboard.writeText(Net.code); toast("Code copied"); }
         catch (e) { prompt("Room code:", Net.code); }
     });
+    $("btn-hide-code").addEventListener("click", () => Room.hideCode(!Room.codeHidden));
     $("btn-lobby-back").addEventListener("click", leaveRoom);
     $("btn-start").addEventListener("click", startFromLobby);
 
@@ -238,17 +244,19 @@
     const roomFromUrl = Net.normalizeCode(params.get("room"));
     const spectateFromUrl = params.get("spectate") === "1";
     const session = Session.load();
-    if (roomFromUrl && session && session.code === roomFromUrl) {
-        // page refresh inside a room: rebuild from the session's game record, then re-sync with the friends
+    // a refresh inside a room: the URL names the session's room, or the session hid the code (then the URL carries none)
+    const rejoin = session && session.code && (roomFromUrl ? session.code === roomFromUrl : !!session.codeHidden);
+    if (rejoin) {
+        // rebuild from the session's game record, then re-sync with the friends
         const me = session.me ?? -1;
-        Room.enter(roomFromUrl, session.role ? session.role === "host" : me === 0, me, !!session.spectator);
+        Room.enter(session.code, session.role ? session.role === "host" : me === 0, me, !!session.spectator, !!session.codeHidden);
         Match.gameNo = session.gameNo || 0;
         if (session.phase === "game" && session.config) {
             startGame(session.config, Match.gameNo);
             Match.engine.replay(session.history || [], session.outs || []);
             Clock.restore(session.clocks);
             Clock.pause();
-            Log.add("Rejoining room " + roomFromUrl + "…", "x");
+            Log.add("Rejoining room " + Room.codeText() + "…", "x");
         }
         Room.rev = session.rev || 0;
     } else if (roomFromUrl) {

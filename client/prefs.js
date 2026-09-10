@@ -1,6 +1,7 @@
 /* Preferences: what this device likes, never shared with the room and never part of a
    game's config — the look (delegated to Skins), the sound volume and which sound
-   categories play. The ⚙ button (#prefs-btn) in the top-left corner of every screen
+   categories play, whether a room's code is hidden on entry (streaming, #19). The
+   "⚙ Settings & Feedback" button (#prefs-btn) in the top-left corner of every screen
    opens #prefs-modal. Stored in localStorage["chainreact.prefs"]; app.js and the sound
    module read Prefs.get(). */
 
@@ -14,6 +15,7 @@ const Prefs = (() => {
         volume: 30,                                   // master volume in %, quiet by default
         soundSet: "auto",                             // "auto" (follows the look) | "classic" | "mc"
         sounds: Object.fromEntries(CATEGORIES.map((c) => [c, true])),
+        hideCode: false,                              // enter rooms with the code hidden (lobby, HUD, address bar)
     };
     let prefs = merge(Util.load(localStorage, KEY));
     let onChange = () => {};
@@ -25,6 +27,7 @@ const Prefs = (() => {
         p.volume = Util.clamp(parseInt(p.volume, 10) || 0, 0, 100);
         if (!["auto", "classic", "mc"].includes(p.soundSet)) p.soundSet = "auto";
         for (const c of CATEGORIES) p.sounds[c] = !!p.sounds[c];
+        p.hideCode = !!p.hideCode;
         return p;
     }
 
@@ -45,13 +48,14 @@ const Prefs = (() => {
         $("pref-volume-val").textContent = prefs.volume === 0 ? "off" : `${prefs.volume} %`;
         $("pref-soundset").value = prefs.soundSet;
         for (const c of CATEGORIES) { const el = $("pref-snd-" + c); if (el) el.checked = prefs.sounds[c]; }
+        if ($("pref-hide-code")) $("pref-hide-code").checked = prefs.hideCode;
         $("prefs-modal").classList.toggle("muted", prefs.volume === 0);
     }
     // prefs <- form
     function readForm() {
         const sounds = {};
         for (const c of CATEGORIES) { const el = $("pref-snd-" + c); if (el) sounds[c] = el.checked; }
-        set({ volume: parseInt($("pref-volume").value, 10), soundSet: $("pref-soundset").value, sounds });
+        set({ volume: parseInt($("pref-volume").value, 10), soundSet: $("pref-soundset").value, sounds, hideCode: !!($("pref-hide-code") && $("pref-hide-code").checked) });
     }
 
     function open() { fill(); $("prefs-modal").hidden = false; }
@@ -86,6 +90,7 @@ const Prefs = (() => {
         $("pref-volume").addEventListener("input", readForm);
         $("pref-soundset").addEventListener("change", readForm);
         for (const c of CATEGORIES) { const el = $("pref-snd-" + c); if (el) el.addEventListener("change", readForm); }
+        if ($("pref-hide-code")) $("pref-hide-code").addEventListener("change", readForm);
         fill();
     }
 

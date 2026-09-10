@@ -139,7 +139,7 @@ test("boards keep differing: both go back to the room instead of playing two gam
     if ((await guest.state()).current !== (await seat(guest))) { const n = (await guest.state()).history.length; await host.move(1); await guest.waitFor(`ChainGame.state.history.length === ${n + 1}`, { what: "host move" }); }
     await guest.move(14);
     await inLobby(guest); await inLobby(host);
-    assert.equal(await guest.ev("document.getElementById('toast').textContent"), "Game out of sync — back to the room");
+    assert.equal(await guest.ev("document.getElementById('toast').textContent"), "Game out of sync. Back to the room.");
     await guest.goto(`${server.url}?room=${code}`);        // fresh script state for the next test
     await guest.waitFor("Net.connected", { timeout: 40000, what: "guest back" });
 });

@@ -5,9 +5,54 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "feature",
+          "text": "Changelog: by default only what changes the game for you is listed; a toggle shows the technical entries too.",
+          "refs": [
+            "#27"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "Hide the room code for streaming: the eye button next to the code hides it in the lobby, the game and the address bar (share and copy keep working); the preferences can hide it by default.",
+          "refs": [
+            "#19"
+          ]
+        },
+        {
+          "type": "improvement",
+          "text": "One bot per game, simply called Bot: the opponent dialog is a single step with the difficulty; the Random bots are no longer offered.",
+          "refs": [
+            "#21"
+          ]
+        },
+        {
+          "type": "improvement",
+          "text": "Preferences: the Look control is full width, the rows have more room, the dialog is wider on desktop, and the corner button says Settings & Feedback.",
+          "refs": [
+            "#22",
+            "#25"
+          ]
+        },
+        {
+          "type": "fix",
+          "text": "Settings: the rows are evenly spaced again.",
+          "refs": [
+            "#26"
+          ]
+        },
+        {
+          "type": "improvement",
+          "text": "No more em dashes in the texts.",
+          "refs": [
+            "#24"
+          ],
+          "technical": true
+        },
+        {
           "type": "improvement",
           "text": "Changelog entries are more compact: type and links on one line, the text below.",
-          "refs": []
+          "refs": [],
+          "technical": true
         },
         {
           "type": "internal",
@@ -24,7 +69,8 @@
           "text": "The textured looks are now called \"Blocks board\" and \"Blocks\".",
           "refs": [
             "commit b315e3c"
-          ]
+          ],
+          "technical": true
         },
         {
           "type": "feature",
@@ -61,7 +107,8 @@
           "text": "A lone emoji floats slowly; only spam falls fast.",
           "refs": [
             "#17"
-          ]
+          ],
+          "technical": true
         },
         {
           "type": "improvement",
@@ -98,7 +145,8 @@
           "refs": [
             "#9",
             "#10"
-          ]
+          ],
+          "technical": true
         },
         {
           "type": "fix",
@@ -131,7 +179,7 @@
         },
         {
           "type": "feature",
-          "text": "Sounds: placing, explosions, win/lose, your turn, reactions — synthesized for Classic, block sounds for the Blocks looks; volume and categories in the preferences.",
+          "text": "Sounds: placing, explosions, win/lose, your turn, reactions: synthesized for Classic, block sounds for the Blocks looks; volume and categories in the preferences.",
           "refs": [
             "#5"
           ]
@@ -187,7 +235,7 @@
       "entries": [
         {
           "type": "internal",
-          "text": "Big refactor: pure game rules, shared engine, game registry, event bus, CSS per area — no visible change.",
+          "text": "Big refactor: pure game rules, shared engine, game registry, event bus, CSS per area: no visible change.",
           "refs": [
             "commit 29ae337"
           ]
@@ -205,21 +253,24 @@
           "refs": [
             "PR #1",
             "commit a0c84ad"
-          ]
+          ],
+          "technical": true
         },
         {
           "type": "improvement",
           "text": "Result dialog wider on desktop; the last-move marker hides after the game and no longer pulses in Five Wins.",
           "refs": [
             "commit a05a0d9"
-          ]
+          ],
+          "technical": true
         },
         {
           "type": "improvement",
           "text": "Textures preload on the first visit with a progress bar.",
           "refs": [
             "commit 10a9490"
-          ]
+          ],
+          "technical": true
         },
         {
           "type": "internal",

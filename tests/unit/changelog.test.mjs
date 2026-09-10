@@ -19,6 +19,8 @@ test("changelog.json: days newest first, valid dates, known types, non-empty tex
         for (const e of day.entries) {
             assert.ok(["feature", "improvement", "fix", "internal"].includes(e.type), `${day.date}: type ${e.type}`);
             assert.ok(typeof e.text === "string" && e.text.trim().length > 10, `${day.date}: text`);
+            assert.ok(!e.text.includes("\u2014"), `${day.date}: no em dash (#24): ${e.text}`);
+            assert.ok(e.technical === undefined || typeof e.technical === "boolean", `${day.date}: technical must be a boolean`);
             for (const r of e.refs || []) assert.ok(C.refUrl(r), `${day.date}: ref "${r}" must be #N, PR #N or commit <sha>`);
         }
     }
@@ -45,5 +47,33 @@ test("render: days as sections, links open in a new tab, older days behind 'Show
     assert.ok(links.every((a) => a.target === "_blank" && a.rel === "noopener"));
     C.render({ days: [] });
     assert.equal(list.textContent, "No entries yet.");
+    w.close();
+});
+
+test("technical entries (#27): hidden by default, shown with the toggle, empty days skipped, the toggle is remembered", () => {
+    const w = loadDom(); const C = w.eval("Changelog"); const d = w.document;
+    C.init();
+    assert.equal(C.showTechnical, false, "off by default");
+    assert.equal(C.technical({ type: "internal", text: "x" }), true);
+    assert.equal(C.technical({ type: "fix", text: "x", technical: true }), true);
+    assert.equal(C.technical({ type: "fix", text: "x" }), false);
+    const doc = { days: [
+        { date: "2026-02-02", entries: [{ type: "feature", text: "a feature for players" }, { type: "internal", text: "internal work" }, { type: "improvement", text: "cosmetic tweak", technical: true }] },
+        { date: "2026-02-01", entries: [{ type: "internal", text: "only internal work" }] },
+    ] };
+    const list = d.getElementById("changelog-list");
+    C.render(doc);
+    assert.equal(list.querySelectorAll(".cl-day").length, 1, "a day with only technical entries is skipped");
+    assert.equal(list.querySelectorAll(".cl-entry").length, 1);
+    assert.equal(list.querySelector(".cl-text").textContent, "a feature for players");
+    d.getElementById("changelog-tech").checked = true;
+    d.getElementById("changelog-tech").dispatchEvent(new w.Event("change"));
+    assert.equal(C.showTechnical, true);
+    assert.equal(JSON.parse(w.localStorage.getItem("chainreact.changelog")).technical, true, "remembered per device");
+    C.render(doc);
+    assert.equal(list.querySelectorAll(".cl-day").length, 2);
+    assert.equal(list.querySelectorAll(".cl-entry").length, 4);
+    C.render(doc, false);
+    assert.equal(list.querySelectorAll(".cl-entry").length, 1, "explicit argument wins");
     w.close();
 });

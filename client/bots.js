@@ -65,6 +65,7 @@ const Bots = (() => {
             if (d.thinkMs !== undefined && !(d.thinkMs > 0 && d.thinkMs <= 5000)) fail("thinkMs must be 1..5000 ms (phones!)");
         }
         if (typeof def.create !== "function") fail("create(tools) missing");
+        if (def.baseline !== undefined && typeof def.baseline !== "boolean") fail("baseline must be true or false");
         if (defs[def.id]) fail("registered twice");
     }
     function register(def) {
@@ -76,6 +77,13 @@ const Bots = (() => {
     const get = (id) => defs[id];
     const list = () => order.map((id) => defs[id]);
     const forGame = (game) => list().filter((b) => b.game === game);
+    // the bot a game is played against (#21: one per game, called "Bot" in the UI): the best-rated
+    // real bot; a game that has none yet falls back to its Random baseline so "Against a bot" works
+    function botFor(game) {
+        const real = forGame(game).filter((b) => !b.baseline)
+            .sort((a, b) => ((benchmarkOf(b.id) || {}).score || 0) - ((benchmarkOf(a.id) || {}).score || 0));
+        return real[0] || forGame(game).find((b) => b.baseline) || null;
+    }
     function benchmark(id, result) { results[id] = result; }
     const benchmarkOf = (id) => results[id] || null;
     function calibration(id, c) { calibrations[id] = c; }
@@ -176,5 +184,5 @@ const Bots = (() => {
         return { over: state.over, winner: state.over ? state.winner : null, moves: state.history.length, history: state.history.slice(), state };
     }
 
-    return { register, get, list, forGame, benchmark, benchmarkOf, calibration, calibrationOf, estimator, toProbability, ESTIMATE_STAGES, tools, create, playout, rng, validate };
+    return { register, get, list, forGame, botFor, benchmark, benchmarkOf, calibration, calibrationOf, estimator, toProbability, ESTIMATE_STAGES, tools, create, playout, rng, validate };
 })();

@@ -22,7 +22,7 @@ const Install = (() => {
             $("btn-install").hidden = true;
             try { await p.prompt(); } catch (e) { /* dismissed */ }
         });
-        window.addEventListener("appinstalled", () => { $("btn-install").hidden = true; toast("Installed — find it on your home screen"); });
+        window.addEventListener("appinstalled", () => { $("btn-install").hidden = true; toast("Installed. Find it on your home screen."); });
     }
 
     return { init, get offered() { return !!prompt; } };
