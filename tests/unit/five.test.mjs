@@ -148,3 +148,62 @@ test("win chance: even at the start, grows with a longer row, exact on a draw", 
     G.finish(-1, "The board is full.");
     assert.equal(pct(0), 50); assert.equal(pct(1), 50);
 });
+
+test("Yavalath rule: one less than winLen in a row loses; with two players the other one wins", async () => {
+    const { G, calls } = fresh({ n: 7, winLen: 4, yavalath: true });
+    assert.equal(G.state.yavalath, true); assert.equal(JSON.stringify(G.state.dead), "[false,false]");
+    await playAll(G, [0, 7, 1, 8, 2]);                         // p0 makes three in a row: loses
+    assert.equal(G.state.over, true); assert.equal(G.state.winner, 1);
+    assert.match(calls.finish.why, /3 in a row loses/);
+    assert.equal(JSON.stringify([...G.state.winLine].sort((a, b) => a - b)), "[0,1,2]", "the losing line is marked");
+    // a stone that makes four wins even though it also makes a three somewhere else
+    const g2 = fresh({ n: 7, winLen: 4, yavalath: true });
+    await playAll(g2.G, [0, 21, 1, 22, 3, 28, 2]);             // 0 1 _ 3 then 2 completes four
+    assert.equal(g2.G.state.winner, 0); assert.match(g2.calls.finish.why, /4 in a row/);
+    // two in a row is nothing (winLen 4: only exactly three loses)
+    const g3 = fresh({ n: 7, winLen: 4, yavalath: true });
+    await playAll(g3.G, [0, 21, 1]);
+    assert.equal(g3.G.state.over, false);
+    // without the rule three is harmless
+    const g4 = fresh({ n: 7, winLen: 4 });
+    await playAll(g4.G, [0, 7, 1, 8, 2]);
+    assert.equal(g4.G.state.over, false);
+});
+
+test("Yavalath rule with three players: the one who makes the losing line is out, the rest play on, the last one wins", async () => {
+    const { G, w, calls } = fresh({ n: 7, winLen: 4, yavalath: true, players: 3 });
+    await playAll(G, [0, 14, 21, 1, 15, 22, 2]);               // p0: 0 1 2 = three → out
+    assert.equal(G.state.over, false);
+    assert.equal(JSON.stringify(G.state.dead), "[true,false,false]");
+    assert.equal(G.state.current, 1, "p0 is skipped");
+    assert.equal(w.document.getElementById("p0-stat-1").textContent, "3 in a row", "HUD says why");
+    await playAll(G, [30, 40]);                                 // p1 and p2 play harmless stones; p0 is skipped again
+    assert.equal(G.state.current, 1);
+    await playAll(G, [31, 23]);                                 // p1: 30 31; p2: 21 22 23 = three → out, p1 is the last one
+    assert.equal(G.state.over, true); assert.equal(G.state.winner, 1);
+    assert.equal(JSON.stringify(G.state.dead), "[true,false,true]");
+    assert.match(calls.finish.why, /3 in a row loses/);
+    // replay == play with the rule (deterministic elimination inside the rules)
+    const R = w.eval("Rules").replay(G.record());
+    assert.equal(JSON.stringify(R.dead), JSON.stringify(G.state.dead)); assert.equal(R.winner, 1);
+});
+
+test("Yavalath rule: Sensei does not know it, so the Random baseline plays and the win chance falls back to the heuristic", () => {
+    const w = loadDom(); const B = w.eval("Bots"); const O = w.eval("Opponent"); const S = w.eval("Settings");
+    assert.equal(B.botFor("five").id, "sensei-five");
+    assert.equal(B.botFor("five", { yavalath: false }).id, "sensei-five");
+    assert.equal(B.botFor("five", { yavalath: true }).id, "random-five");
+    assert.equal(B.supports("sensei-five", { yavalath: true }), false); assert.equal(B.supports("random-five", { yavalath: true }), true);
+    assert.equal(B.estimator("five", { yavalath: true }).bot, null, "heuristic estimate");
+    assert.equal(B.estimator("five", {}).bot, "sensei-five");
+    S.init({}); O.init({});
+    assert.equal(O.current("five", { yavalath: true }).id, "random-five");
+    assert.match(O.summary("five", { yavalath: true }), /^Bot$/, "no level, no rating for the baseline");
+    S.selectGame("five");
+    assert.equal(S.read().yavalath, false);
+    w.document.getElementById("set-yavalath").checked = true;
+    w.document.getElementById("set-yavalath").dispatchEvent(new w.Event("change"));
+    assert.equal(S.read().yavalath, true);
+    assert.match(S.summary(), /5 in a row · no timer · 4 in a row loses$/);
+    w.close();
+});

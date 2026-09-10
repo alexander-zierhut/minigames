@@ -27,7 +27,7 @@ const WinChance = (() => {
         if (timer) clearTimeout(timer);
         display = prev = null;
         info = null;
-        estimator = ev.state && ev.state.players === 2 && typeof Bots !== "undefined" ? Bots.estimator(ev.game) : null;
+        estimator = ev.state && ev.state.players === 2 && typeof Bots !== "undefined" ? Bots.estimator(ev.game, ev.config) : null;
         show(null);
     }
 

@@ -496,11 +496,12 @@ const Net = (() => {
         const x = conns.find((e) => e.id === id);
         if (x) x.seat = seat;
     }
-    // host: remember that a connection does not want a seat (it chose to watch, #39), so a
-    // reseat never hands it one back; it travels with the next dial as metadata anyway
-    function setSpectate(id, on) {
+    // host: merge something the app learned about a connection into its meta (e.g. its
+    // name, #35, or that it does not want a seat any more, #39 — the dial's metadata
+    // already carries seat / spectate / name)
+    function setMeta(id, patch) {
         const x = conns.find((e) => e.id === id);
-        if (x) x.meta = { ...(x.meta || {}), spectate: !!on };
+        if (x) x.meta = { ...(x.meta || {}), ...(patch || {}) };
     }
 
     function leave() {
@@ -529,7 +530,7 @@ const Net = (() => {
     }
 
     return {
-        open, send, sendTo, sendExcept, leave, retryNow, randomCode, normalizeCode, setSeat, setSpectate, hostSpectators, peerConfig, isTurn, stats,
+        open, send, sendTo, sendExcept, leave, retryNow, randomCode, normalizeCode, setSeat, setMeta, hostSpectators, peerConfig, isTurn, stats,
         PREFIX, SPEC_PREFIX,
         get iceInfo() { return { ...iceInfo }; },
         get watching() { return watchOnly; },         // this device dialled the spectator peer (#29)

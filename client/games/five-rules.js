@@ -1,7 +1,11 @@
 /* Five Wins rules (pure, no DOM). Gomoku without gravity: place a stone on any empty
    cell; `winLen` or more in a row (4 directions) wins; a full board is a draw, and so is
    a board where no line can be completed any more (#18: no window of winLen cells is
-   free of enemy stones for any player still in the game). */
+   free of enemy stones for any player still in the game).
+   Yavalath rule (`config.yavalath`, owner's request): a line of exactly winLen - 1 loses
+   for the one who made it (unless the same stone also made winLen). With two players
+   the other one wins; with three or four the loser is out (`state.dead`) and the rest
+   play on, the last one standing wins. */
 
 "use strict";
 
@@ -14,6 +18,8 @@ const FiveRules = (() => {
             cells: new Array(n * n).fill(-1),         // owner per cell, -1 = empty
             winLen: Util.clamp(config.winLen || 5, 3, n),
             winLine: [],                               // cells of the winning line
+            yavalath: !!config.yavalath,               // one less than winLen in a row loses
+            dead: new Array(base.players).fill(false), // Yavalath: players who made the losing line (3+ players)
         });
     }
 
@@ -78,18 +84,25 @@ const FiveRules = (() => {
     }
     function settle() { /* nothing follows a placement */ }
 
+    const alive = (state) => state.dead.map((d) => !d);
     function conclude(state, player) {
         const line = lineThrough(state, state.history[state.history.length - 1]);
         if (line.len >= state.winLen) {
             state.winLine = line.cells;
             return { winner: player, why: `${state.winLen} in a row!` };
         }
+        if (state.yavalath && line.len === state.winLen - 1) {      // the losing line: out (3+ players) or lost (2)
+            state.dead[player] = true;
+            state.winLine = line.cells;
+            const rest = Rules.remaining(state, alive(state));
+            if (rest.length <= 1) return { winner: rest.length ? rest[0] : -1, why: `${state.winLen - 1} in a row loses!` };
+        }
         if (state.history.length === state.cells.length) return { winner: -1, why: "The board is full." };
-        const left = Rules.remaining(state);
+        const left = Rules.remaining(state, alive(state));
         if (left.length === 1 && state.players > 1) return { winner: left[0], why: "Everyone else is out." };
         // dead board (#18): nobody still in the game has a window left → draw, however many cells are empty
         if (!left.some((p) => canWin(state, p))) return { winner: -1, why: "No line can be completed any more." };
-        Rules.pass(state);
+        Rules.pass(state, alive(state));
         return null;
     }
 
@@ -102,6 +115,6 @@ const FiveRules = (() => {
         return 1 / (1 + Math.exp(-4 * edge));
     }
 
-    return { create, ownerOf, isLegal, legalMoves, place, settle, conclude, lineThrough, bestRow, canWin, estimate };
+    return { create, ownerOf, isLegal, legalMoves, place, settle, conclude, lineThrough, bestRow, canWin, estimate, alive };
 })();
 Rules.register("five", FiveRules);

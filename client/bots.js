@@ -11,6 +11,7 @@
        difficulties: [{ id: "normal", label: "Normal", nodes: 2000 }],   // at least one; shown in the UI
        create(tools) { return { move(state) { … return cellIndex; } }; },
        evaluate(state, tools) { … return rawScore; },   // optional: player 0's advantage, see "win chance" below
+       supports(config) { return !config.yavalath; },   // optional: a rule variant the bot does not know (default: all)
    })
 
    Win chance: a bot may offer evaluate(state, tools) → a raw score from PLAYER 0's point of
@@ -67,6 +68,7 @@ const Bots = (() => {
         }
         if (typeof def.create !== "function") fail("create(tools) missing");
         if (def.baseline !== undefined && typeof def.baseline !== "boolean") fail("baseline must be true or false");
+        if (def.supports !== undefined && typeof def.supports !== "function") fail("supports must be a function of the config");
         if (defs[def.id]) fail("registered twice");
     }
     function register(def) {
@@ -78,10 +80,13 @@ const Bots = (() => {
     const get = (id) => defs[id];
     const list = () => order.map((id) => defs[id]);
     const forGame = (game) => list().filter((b) => b.game === game);
+    // does this bot play the config's rule variants? (a bot without `supports` plays everything)
+    const supports = (def, config) => !def.supports || !config || !!def.supports(config);
     // the bot a game is played against (#21: one per game, called "Bot" in the UI): the best-rated
-    // real bot; a game that has none yet falls back to its Random baseline so "Against a bot" works
-    function botFor(game) {
-        const real = forGame(game).filter((b) => !b.baseline)
+    // real bot that plays these rules; a game that has none falls back to its Random baseline so
+    // "Against a bot" always works (e.g. Five Wins with the Yavalath rule, which Sensei does not know)
+    function botFor(game, config) {
+        const real = forGame(game).filter((b) => !b.baseline && supports(b, config))
             .sort((a, b) => ((benchmarkOf(b.id) || {}).score || 0) - ((benchmarkOf(a.id) || {}).score || 0));
         return real[0] || forGame(game).find((b) => b.baseline) || null;
     }
@@ -104,9 +109,9 @@ const Bots = (() => {
        Uses the strongest registered bot that offers evaluate() (highest benchmark score first),
        else the rules module's own heuristic. `at` is deterministic for a given node budget, so
        both online clients agree; the HUD runs the stages in the background between moves. */
-    function estimator(game) {
+    function estimator(game, config) {
         const rules = Rules.of(game);
-        const candidates = forGame(game).filter((b) => typeof b.evaluate === "function")
+        const candidates = forGame(game).filter((b) => typeof b.evaluate === "function" && supports(b, config))
             .sort((a, b) => ((benchmarkOf(b.id) || {}).score || 0) - ((benchmarkOf(a.id) || {}).score || 0));
         const def = candidates[0];
         const heuristic = (state) => Math.min(1, Math.max(0, Number(rules && rules.estimate ? rules.estimate(state) : 0.5) || 0));
@@ -191,5 +196,5 @@ const Bots = (() => {
         return { over: state.over, winner: state.over ? state.winner : null, moves: state.history.length, history: state.history.slice(), state };
     }
 
-    return { register, get, list, forGame, botFor, benchmark, benchmarkOf, calibration, calibrationOf, estimator, toProbability, ESTIMATE_STAGES, tools, create, playout, rng, validate };
+    return { register, get, list, forGame, botFor, supports: (id, config) => supports(get(id), config), benchmark, benchmarkOf, calibration, calibrationOf, estimator, toProbability, ESTIMATE_STAGES, tools, create, playout, rng, validate };
 })();

@@ -1,5 +1,6 @@
-/* Preferences: what this device likes, never shared with the room and never part of a
-   game's config — the look (delegated to Skins), the sound volume and which sound
+/* Preferences: what this device likes, never shared with the room (the name is the one
+   exception: it travels with the handshake) and never part of a game's config — the name
+   others see (#35), the look (delegated to Skins), the sound volume and which sound
    categories play, whether a room's code is hidden on entry (streaming, #19), whether
    every connection is relayed so nobody learns this device's IP (#30). The
    "⚙ Settings & Feedback" button (#prefs-btn) in the top-left corner of every screen
@@ -18,7 +19,18 @@ const Prefs = (() => {
     const { $ } = Util;
     const KEY = "chainreact.prefs";
     const CATEGORIES = ["moves", "explosions", "results", "turn", "reactions", "chat"];
+    const NAME_MAX = 16;                              // a name has to fit the seat cards and the HUD
+    // the pool the first visit picks from (#35): short, fun, neutral, no colours (the seats
+    // have colours of their own) — also the deterministic names of the other seats on one device
+    const DEFAULT_NAMES = [
+        "Pixel", "Blaze", "Comet", "Nova", "Echo", "Mochi", "Otto", "Luna", "Bolt", "Ziggy",
+        "Pepper", "Frost", "Milo", "Pico", "Sunny", "Dash", "Kiwi", "Jinx", "Tofu", "Bingo",
+        "Quill", "Wasabi", "Nimbus", "Pluto", "Cosmo", "Fizz", "Gizmo", "Waffle", "Turbo", "Pixie",
+        "Nacho", "Domino", "Sprocket", "Hazel", "Juno", "Rocket", "Panda", "Noodle", "Maple", "Zeppo",
+    ];
     const DEFAULTS = {
+        name: "",                                     // what the others see; empty = the picked default below
+        defaultName: "",                              // the name drawn on the first visit (the fallback of an empty name)
         volume: 30,                                   // master volume in %, quiet by default
         soundSet: "auto",                             // "auto" (follows the look) | "classic" | "mc"
         sounds: Object.fromEntries(CATEGORIES.map((c) => [c, true])),
@@ -27,17 +39,22 @@ const Prefs = (() => {
         developer: false,                             // the developer info panel (#31)
     };
     // the modal's sections, in the order of the nav rows (#prefs-nav-<key>, .prefs-section[data-section=<key>])
-    const SECTIONS = ["look", "sound", "streaming", "developer", "feedback"];
+    const SECTIONS = ["profile", "look", "sound", "streaming", "developer", "feedback"];
     const LOOK_LABELS = { classic: "Classic", mcboard: "Blocks board", mc: "Blocks" };
     const SET_LABELS = { auto: "Follow the look", classic: "Classic", mc: "Blocks" };
     let section = null;                               // the open section (null = the menu, phones only)
-    let prefs = merge(Util.load(localStorage, KEY));
     let onChange = () => {};
     let context = () => ({});                         // app.js: where the user is right now (for feedback)
     const REPO_ISSUES = "https://github.com/alexander-zierhut/minigames/issues/new";
 
+    // a name as it may be shown and sent: no line breaks, no runs of spaces, at most 16 characters
+    const cleanName = (s) => String(s == null ? "" : s).replace(/\s+/g, " ").trim().slice(0, NAME_MAX);
+    const randomName = () => DEFAULT_NAMES[Math.floor(Math.random() * DEFAULT_NAMES.length)];
+
     function merge(saved) {
         const p = { ...DEFAULTS, ...(saved || {}), sounds: { ...DEFAULTS.sounds, ...((saved && saved.sounds) || {}) } };
+        p.defaultName = cleanName(p.defaultName) || randomName();
+        p.name = cleanName(p.name) || p.defaultName;   // clearing the field falls back to the drawn default
         p.volume = Util.clamp(parseInt(p.volume, 10) || 0, 0, 100);
         if (!["auto", "classic", "mc"].includes(p.soundSet)) p.soundSet = "auto";
         for (const c of CATEGORIES) p.sounds[c] = !!p.sounds[c];
@@ -47,7 +64,17 @@ const Prefs = (() => {
         return p;
     }
 
+    const stored = Util.load(localStorage, KEY);
+    let prefs = merge(stored);
+    // first visit: the drawn name is kept from now on, so it never changes again by itself
+    if (!stored || !stored.name) Util.save(localStorage, KEY, prefs);
+
     const get = () => prefs;
+
+    /* The names of the seats when everybody plays on this device (#35): seat 0 is me, the
+       others take the first default names that are not mine. Pure and deterministic, so a
+       local game always shows the same, different names. */
+    const seatNames = (count = 4) => [prefs.name, ...DEFAULT_NAMES.filter((n) => n !== prefs.name)].slice(0, count);
 
     // change one or more preferences: { volume, soundSet, sounds: { chat: false } }
     function set(patch) {
@@ -60,6 +87,7 @@ const Prefs = (() => {
     // form <- prefs
     function fill() {
         if (!$("pref-volume")) return;
+        if ($("pref-name")) $("pref-name").value = prefs.name;
         $("pref-volume").value = String(prefs.volume);
         $("pref-volume-val").textContent = prefs.volume === 0 ? "off" : `${prefs.volume} %`;
         $("pref-soundset").value = prefs.soundSet;
@@ -75,6 +103,7 @@ const Prefs = (() => {
     // one line describing a section's current state, for its menu row (pure)
     function sectionSummary(key) {
         const p = prefs;
+        if (key === "profile") return p.name;
         if (key === "look") return LOOK_LABELS[typeof Skins !== "undefined" ? Skins.current : "classic"] || LOOK_LABELS.classic;
         if (key === "sound") return p.volume === 0 ? "off" : `${p.volume} % · ${SET_LABELS[p.soundSet]}`;
         if (key === "streaming") {
@@ -112,6 +141,7 @@ const Prefs = (() => {
         const sounds = {};
         for (const c of CATEGORIES) { const el = $("pref-snd-" + c); if (el) sounds[c] = el.checked; }
         set({
+            name: $("pref-name") ? $("pref-name").value : prefs.name,
             volume: parseInt($("pref-volume").value, 10), soundSet: $("pref-soundset").value, sounds,
             hideCode: !!($("pref-hide-code") && $("pref-hide-code").checked),
             privateIp: !!($("pref-private-ip") && $("pref-private-ip").checked),
@@ -130,7 +160,7 @@ const Prefs = (() => {
             "**What happened / what would you like?**", "", "", "",
             "---", "_Filled in automatically:_", "",
             ...Object.entries({
-                Screen: ctx.screen, Mode: ctx.mode, Game: ctx.game, Settings: ctx.settings, Players: ctx.players,
+                Screen: ctx.screen, Name: ctx.name, Mode: ctx.mode, Game: ctx.game, Settings: ctx.settings, Players: ctx.players,
                 Seat: ctx.seat, Spectator: ctx.spectator, Bot: ctx.bot, Connection: ctx.net,
                 Look: ctx.look, Sound: ctx.sound, Viewport: `${window.innerWidth}×${window.innerHeight}`,
                 Version: meta ? meta.content : "dev", Browser: navigator.userAgent,
@@ -152,6 +182,7 @@ const Prefs = (() => {
         $("pref-soundset").addEventListener("change", readForm);
         for (const c of CATEGORIES) { const el = $("pref-snd-" + c); if (el) el.addEventListener("change", readForm); }
         for (const id of ["pref-hide-code", "pref-private-ip", "pref-developer"]) if ($(id)) $(id).addEventListener("change", readForm);
+        if ($("pref-name")) $("pref-name").addEventListener("change", readForm);   // on blur / Enter, so typing is never cut mid-word
         for (const key of SECTIONS) { const row = $("prefs-nav-" + key); if (row) row.addEventListener("click", () => showSection(key)); }
         $("btn-prefs-back").addEventListener("click", () => showSection(null));
         $("prefs-panes").addEventListener("click", renderNav);        // the look buttons are Skins', the row summary is ours
@@ -160,7 +191,7 @@ const Prefs = (() => {
     }
 
     return {
-        init, get, set, open, close, feedbackUrl, CATEGORIES, SECTIONS, showSection, sectionSummary,
+        init, get, set, open, close, feedbackUrl, cleanName, seatNames, CATEGORIES, SECTIONS, DEFAULT_NAMES, NAME_MAX, showSection, sectionSummary,
         get isOpen() { return !$("prefs-modal").hidden; }, get section() { return section; },
     };
 })();

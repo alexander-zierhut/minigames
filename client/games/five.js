@@ -35,7 +35,7 @@ const FiveView = (() => {
             drawHint: "no space left",
             line2: `best row ${rows.join(" · ")}`,
             players: rows.map((row, k) => ({
-                stats: [["Stones", state.movesBy[k]], ["Best row", row]],
+                stats: [["Stones", state.movesBy[k]], [state.dead && state.dead[k] ? "Out" : "Best row", state.dead && state.dead[k] ? `${state.winLen - 1} in a row` : row]],
                 bar: row / state.winLen,
                 barText: `${row} / ${state.winLen}`,
                 leading: rows.every((o, j) => j === k || row > o),
@@ -63,8 +63,13 @@ const FiveGame = Games.register({
     preview: "0.110...0",
     size: { min: 5, max: 25, default: 11 },
     minSize: (cfg) => Math.max(5, cfg.winLen),     // the board can't be smaller than the row to win
-    settings: [{ key: "winLen", label: "In a row to win", type: "int", min: 3, max: 25, def: 5, unit: "stones" }],
+    settings: [
+        { key: "winLen", label: "In a row to win", type: "int", min: 3, max: 25, def: 5, unit: "stones" },
+        // Yavalath rule: one stone short of the winning row loses (the classic is 4 wins, 3 loses)
+        { key: "yavalath", label: "Yavalath rule", type: "bool", def: false },
+    ],
     describeRules: (cfg) => [`${cfg.winLen} in a row`],
+    describeOptions: (cfg) => (cfg.yavalath ? [`${cfg.winLen - 1} in a row loses`] : []),
     rules: FiveRules,
     view: FiveView,
 });

@@ -25,7 +25,7 @@ games and settings together in the room lobby; rematch or switch games without n
   watch that game or take the seat over when they arrive.
   A page refresh, leaving and coming back by the same link, even the room creator
   leaving — the room survives as long as one player is in it, and everybody keeps
-  their colour.
+  their seat, their colour and their name.
 
 Online and against the bot you can already click your answer while the other side is
 thinking: the premove is marked on the board and played the moment it is your turn
@@ -35,7 +35,9 @@ The number of players (two, three or four) is picked right in the lobby and can 
 set below the people already sitting in the room; the settings
 (board size, animation speed, chess-style timer, chain-win rule, stones in a row) are
 shared live in the room lobby; anyone can change them. The ⚙ button in
-the top-left corner holds the per-device preferences: the look (Classic, Blocks board,
+the top-left corner holds the per-device preferences: your name (a short one is picked for
+you on the first visit, change it under Profile; up to 16 characters, everyone in the room
+sees it), the look (Classic, Blocks board,
 Blocks) and the sounds (volume, categories; the Classic look uses synthesized cues, the
 Blocks looks pixel block, explosion and level-up sounds). Emoji reactions for
 trash talk are in the top-right corner; a room chat lives under the game log (phones:
@@ -69,7 +71,7 @@ room protocol and how to add a game.
 - `client/bots.js`, `client/bots/<id>/` — bot registry + toolset; one folder per bot with its tests and benchmark score; `client/winchance.js` shows the bars
 - `scripts/` — `headless.mjs` (rules + bots in Node), `benchmark.mjs` (`npm run benchmark`), puzzle solvers, verify, screenshots
 - `client/match.js` (the table: seats, engine, clock, bot seat), `client/room.js` (online protocol, presence, sync), `client/session.js`, `client/app.js` (screens, lobby, flow)
-- `client/skins.js`, `client/prefs.js` (⚙ per-device preferences), `client/settings.js`, `client/opponent.js`, `client/reactions.js`, `client/chat.js`, `client/changelog.js`
+- `client/skins.js` (the look), `client/prefs.js` (⚙ per-device preferences incl. your name), `client/settings.js`, `client/opponent.js`, `client/reactions.js`, `client/chat.js`, `client/changelog.js`
 - `client/lib/sound.js`, `client/sounds/` — sound cues (synthesized Classic set, the Blocks .ogg files)
 - `client/css/` — base tokens, menu/lobby, game screen, the Blocks skins
 - `client/textures/` — 16×16 block textures used by the Blocks skins

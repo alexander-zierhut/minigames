@@ -167,7 +167,14 @@ export async function launchBrowser({ width = 1400, height = 900, mobile = false
             })()`));
         },
         noScroll: () => B.ev(`JSON.stringify({ x: document.documentElement.scrollWidth <= innerWidth, y: document.documentElement.scrollHeight <= innerHeight, screen: (() => { const s = document.querySelector('.screen:not([hidden])'); return s ? s.scrollHeight <= s.clientHeight + 1 : true; })() })`).then(JSON.parse),
-        async close() { try { ws.close(); } catch (e) {} proc.kill("SIGKILL"); await sleep(100); rmSync(profile, { recursive: true, force: true }); },
+        // Chrome may still be writing its profile for a moment after the kill: retry the
+        // cleanup, and never fail a test file over a leftover temp directory (CI hit ENOTEMPTY)
+        async close() {
+            try { ws.close(); } catch (e) {}
+            proc.kill("SIGKILL");
+            await new Promise((r) => { proc.once("exit", r); setTimeout(r, 3000); });
+            try { rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch (e) { /* a stray temp dir is harmless */ }
+        },
     };
     return B;
 }

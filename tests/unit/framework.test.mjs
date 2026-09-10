@@ -66,7 +66,7 @@ test("HUD: player stat rows and the game box come from the view's model (chain h
 test("settings rows are generated from the game definitions and read into the config", () => {
     const w = loadDom(); const d = w.document; const S = w.eval("Settings");
     S.init({});
-    assert.equal(JSON.stringify(S.fields), JSON.stringify(["speed", "chainRule", "chainLen", "winLen"]), "every field of every game, in registration order");
+    assert.equal(JSON.stringify(S.fields), JSON.stringify(["speed", "chainRule", "chainLen", "winLen", "yavalath"]), "every field of every game, in registration order");
     for (const id of ["row-speed", "row-chainrule", "row-winlen", "set-speed", "set-chainrule", "set-chainlen", "set-winlen"]) assert.ok(d.getElementById(id), id);
     assert.equal(d.getElementById("row-chainrule").dataset.setting, "chainRule");
     assert.equal(d.getElementById("set-speed").tagName, "SELECT");
@@ -135,7 +135,7 @@ test("a room's bot (#36): part of the config, run by the transport host, a plain
     // the settings carry it, so it travels with `lobby` / `start` / `state`
     S.setMode("online");
     assert.equal(S.read().bot, null, "a room starts without a bot");
-    const pick = O.current("five");
+    const pick = O.current("five", S.read());
     S.setBot(pick);
     assert.equal(JSON.stringify(S.read().bot), JSON.stringify({ id: pick.id, difficulty: pick.difficulty, seat: 1 }), "always the seat opposite the human");
     assert.equal(S.summary().includes("×"), true, "the summary itself is unchanged");
@@ -175,6 +175,30 @@ test("a room's bot (#36): part of the config, run by the transport host, a plain
     assert.ok(M.bot && Bots.get(M.bot.def.id), "the new host built the instance");
     M.stop(); M.reset("local"); M.init({ hostsBot: () => false });
     S.setMode("local");
+    w.close();
+});
+
+test("names (#35): Match asks the table, a bot seat is Bot, a room seat nobody is in is Player k", () => {
+    const w = loadDom(); const M = w.eval("Match"); const S = w.eval("Settings"); const O = w.eval("Opponent");
+    const P = w.eval("Prefs"); const R = w.eval("Room");
+    S.init({}); O.init({});
+    P.set({ name: "Robin" });
+    // the table takes its names from the handler app.js gives it (offline: this device's seats)
+    M.init({ names: () => P.seatNames() });
+    M.reset("local");
+    M.start({ game: "five", n: 5, winLen: 4, players: 3, timer: 0 }, 1);
+    assert.equal(JSON.stringify(M.names.slice(0, 3)), JSON.stringify(P.seatNames(3)));
+    assert.equal(w.document.getElementById("p0-name").textContent, "Robin", "the HUD card shows my name");
+    assert.equal(w.document.getElementById("p1-name").textContent, P.seatNames(2)[1]);
+    M.reset("bot");
+    M.start({ game: "five", n: 6, winLen: 4, players: 2, timer: 0 }, 1);
+    assert.equal(M.names[0], "Robin"); assert.equal(M.names[1], "Bot", "the bot seat keeps its own name (#21)");
+    // online: my own seat is my preference, a seat we have never seen anybody in is "Player k"
+    M.reset("online", 1);
+    assert.equal(JSON.stringify(R.names()), JSON.stringify(["Player 1", "Robin"]));
+    P.set({ name: "Sam" });
+    assert.equal(JSON.stringify(R.names()), JSON.stringify(["Player 1", "Sam"]), "renaming shows at once on my own seat");
+    M.reset("local");
     w.close();
 });
 

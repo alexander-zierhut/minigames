@@ -164,7 +164,7 @@
             <div class="turn-box" id="turn-box">
                 <div class="turn-block" id="turn-block"></div>
                 <div class="turn-text">
-                    <div class="turn-name" id="turn-name">Cyan</div>
+                    <div class="turn-name" id="turn-name">Player 1</div>
                     <div class="turn-hint" id="turn-hint">to move</div>
                 </div>
                 <div class="turn-mini">
@@ -278,6 +278,10 @@
              row here and one .prefs-section panel below. -->
         <div class="prefs-body">
             <div class="prefs-nav" id="prefs-nav">
+                <button class="settings-summary prefs-nav-row" id="prefs-nav-profile" data-section="profile">
+                    <span class="gear-icon">🙂</span><span class="prefs-nav-name">Profile</span>
+                    <span class="prefs-nav-sum" id="prefs-sum-profile"></span><span class="chev">›</span>
+                </button>
                 <button class="settings-summary prefs-nav-row" id="prefs-nav-look" data-section="look">
                     <span class="gear-icon">🎨</span><span class="prefs-nav-name">Look</span>
                     <span class="prefs-nav-sum" id="prefs-sum-look"></span><span class="chev">›</span>
@@ -301,6 +305,14 @@
             </div>
             <div class="prefs-panes" id="prefs-panes">
                 <button class="btn small prefs-back" id="btn-prefs-back">‹ Back</button>
+                <div class="prefs-section prefs-rows" data-section="profile" hidden>
+                    <div class="section-title">Profile</div>
+                    <label class="row">
+                        <span>Your name</span>
+                        <input type="text" id="pref-name" maxlength="16" autocomplete="off" spellcheck="false">
+                    </label>
+                    <p class="hint">Shown to the others in the room. Leave it empty to go back to the name you were given.</p>
+                </div>
                 <div class="prefs-section prefs-rows" data-section="look" hidden>
                     <div class="section-title">Look</div>
                     <div class="seg skin-seg">
@@ -397,7 +409,7 @@
 <div id="overlay" hidden>
     <div class="overlay-card">
         <div class="overlay-block" id="overlay-block"></div>
-        <div class="overlay-title" id="overlay-title">Amber wins!</div>
+        <div class="overlay-title" id="overlay-title">Player 2 wins!</div>
         <div class="overlay-sub" id="overlay-sub"></div>
         <div class="overlay-actions">
             <button class="btn primary" id="overlay-again">Rematch</button>

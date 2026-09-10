@@ -26,6 +26,17 @@
           ]
         },
         {
+          "type": "feature",
+          "text": "Five Wins: a new Yavalath rule in the settings. One stone short of the winning row loses (four wins, three loses with the classic values); with three or four players the loser is out and the rest play on. The bot does not know the rule yet, so a random opponent stands in."
+        },
+        {
+          "type": "feature",
+          "text": "You have a name now: a short one is picked for you on your first visit, you can change it under Settings and Profile, and everyone in the room sees it instead of the old colour names.",
+          "refs": [
+            "#35"
+          ]
+        },
+        {
           "type": "improvement",
           "text": "Emoji reactions now glow lightly in the colour of the player who sent them, so you can see at a glance who is reacting.",
           "refs": [

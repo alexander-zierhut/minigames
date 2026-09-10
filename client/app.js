@@ -10,6 +10,11 @@
     const { $, toast } = Util;
     let phase = "menu";          // "menu" | "lobby" | "game"
 
+    /* Who sits in each seat (#35). Online the room knows it (every device announces its own
+       name); offline the seats are this device's own (Prefs.seatNames: me first, then the
+       first default names that are not mine), and a bot seat is renamed by Match. */
+    const seatNames = () => (Room.online ? Room.names() : Prefs.seatNames());
+
     /* ================= screens & board fitting ================= */
     function show(name) {
         for (const s of ["menu", "lobby", "game"]) $("screen-" + s).hidden = s !== name;
@@ -36,7 +41,7 @@
     function renderLobby() {
         const online = Room.online;
         const bot = Match.mode === "bot";
-        const nm = Skins.names();
+        const nm = seatNames();
         Settings.setMinPlayers(online ? Room.occupiedSeats() : 2);  // no count that takes a seat away (#34)
         const players = Settings.read().players;
         $("lobby-kind").textContent = online ? "Room" : bot ? "Against a bot" : "Local game";
@@ -52,7 +57,7 @@
         eye.setAttribute("aria-label", eye.title);
         const roomBot = online ? Settings.bot : null;               // the room plays a bot (#36)
         $("btn-opponent").hidden = !bot && !roomBot;
-        if (bot || roomBot) $("opponent-summary").textContent = Opponent.summary(Settings.game, roomBot);
+        if (bot || roomBot) $("opponent-summary").textContent = Opponent.summary(Settings.game, Settings.read(), roomBot);
         Settings.setLocked(online && Match.spectator);              // spectators only watch (#29)
         $("lobby-share").hidden = !online;
         $("btn-share").hidden = watcher;
@@ -65,14 +70,13 @@
             for (let k = 0; k < players; k++) box.appendChild(Util.fromTemplate("tpl-lobby-player", k));
         }
         const present = Room.presentSeats();
-        const botSeat = online ? Room.botSeat() : -1;
+        const botSeat = online ? Room.botSeat() : -1;                // Room.names() already calls it "Bot" (#36)
         for (let k = 0; k < players; k++) {
             const mine = Match.me === k;
-            const isBot = k === botSeat;
-            $(`lp-${k}`).querySelector(".lp-name").textContent = isBot ? Opponent.NAME : nm[k];
+            $(`lp-${k}`).querySelector(".lp-name").textContent = nm[k];
             $(`lp-${k}`).querySelector(".lp-you").textContent = online && mine ? "(you)" : "";
             $(`lp-${k}`).classList.toggle("absent", online && !present[k]);
-            $(`lp-${k}-status`).textContent = !online ? "" : mine ? "ready" : isBot ? "ready" : (present[k] ? "connected" : "not here yet");
+            $(`lp-${k}-status`).textContent = !online ? "" : mine || k === botSeat ? "ready" : (present[k] ? "connected" : "not here yet");
         }
         // swap between playing and watching (#39): a spectate-link viewer never sits down
         const canSwap = online && !watcher;
@@ -82,14 +86,14 @@
         $("btn-take-seat").disabled = !free;
         $("btn-take-seat").title = free ? "" : "Every seat is taken right now.";
         // a two-seat room waiting for a friend may play a bot instead (#36)
-        const mayAskBot = canSwap && Match.me >= 0 && players === 2 && Opponent.current(Settings.game);
+        const mayAskBot = canSwap && Match.me >= 0 && players === 2 && Opponent.current(Settings.game, Settings.read());
         $("btn-room-bot").hidden = !(mayAskBot && !roomBot && !Room.allHere());
         $("btn-room-bot-off").hidden = !(mayAskBot && roomBot);
         const watching = online ? Room.spectators : 0;
         $("lobby-spectators").textContent = watching > 0 ? `${watching} spectator${watching > 1 ? "s" : ""} watching` : "";
         const start = $("btn-start");
         if (!online) {
-            start.disabled = bot && !Opponent.current(Settings.game);
+            start.disabled = bot && !Opponent.current(Settings.game, Settings.read());
             start.textContent = "Start game";
             $("lobby-status").textContent = "";
         } else if (Match.spectator) {
@@ -224,7 +228,7 @@
     $("join-code").addEventListener("input", () => { $("join-code").value = Net.normalizeCode($("join-code").value); });
     $("btn-local").addEventListener("click", () => openLocalLobby(false));
     $("btn-bot").addEventListener("click", () => openLocalLobby(true));
-    $("btn-opponent").addEventListener("click", () => Opponent.open(Settings.game, Room.online ? Settings.bot : null));
+    $("btn-opponent").addEventListener("click", () => Opponent.open(Settings.game, Settings.read(), Room.online ? Settings.bot : null));
 
     // lobby
     async function shareLink(link, text) {
@@ -285,8 +289,16 @@
     Install.init();
     Skins.init({ onChange: () => { Match.engine.render(); renderLobby(); } });
     Dev.init();
+    let shownName = Prefs.get().name;
     Prefs.init({
-        onChange: (p) => Dev.enable(p.developer),
+        onChange: (p) => {
+            Dev.enable(p.developer);
+            if (p.name === shownName) return;         // only a new name needs the room and the boards (#35)
+            shownName = p.name;
+            Room.nameChanged();
+            Match.engine.render();
+            renderLobby();
+        },
         // what the feedback link reports about the current situation (never the room code or chat)
         context: () => ({
             screen: phase, mode: Match.mode, game: phase === "game" && Match.config ? Match.config.game : Settings.game,
@@ -295,18 +307,20 @@
             bot: Match.bot ? `${Match.bot.def.id} (${Match.bot.difficulty})` : undefined,
             net: Room.online ? `${Net.status} as ${Net.role}` : "offline",
             look: Skins.current, sound: `${Prefs.get().soundSet} ${Prefs.get().volume} %`,
+            name: Prefs.get().name,
             log: [...document.querySelectorAll("#log > div:not(.chat)")].slice(0, 5).map((d) => d.textContent),
         }),
     });
     Sound.init({ seats: () => Match.seats.map((s) => s.kind) });
     Settings.init({
-        onChange: (cfg) => { if (Room.online) Room.settingsChanged(cfg); },
+        // a rule variant can change which bot plays (Yavalath: the baseline), so the Opponent row follows
+        onChange: (cfg) => { if (Room.online) Room.settingsChanged(cfg); else if (Match.mode === "bot" && phase === "lobby") renderLobby(); },
         // picking a game keeps the default opponent (best bot, middle level, #12); the Opponent row opens the picker
         onSelectGame: () => { if (Match.mode === "bot" && phase === "lobby") renderLobby(); },
     });
     // Play in the bot modal: offline it only remembers my choice, in a room it sets the
     // room's bot, so everybody sees it on the empty seat (#36)
-    Opponent.init({ onDone: (game, played) => { if (played && Room.online) Settings.setBot(Opponent.current(game)); renderLobby(); } });
+    Opponent.init({ onDone: (game, played) => { if (played && Room.online) Settings.setBot(Opponent.current(game, Settings.read())); renderLobby(); } });
     Changelog.init();
     Reactions.init({
         onSend: (e) => { if (Room.online) Room.react(e); },
@@ -327,6 +341,7 @@
     });
     Match.init({
         live: Room.live,
+        names: seatNames,
         turnHint: (p) => (Room.online ? Room.turnHint(p) : "to move"),
         hostsBot: () => Room.isHost,                 // the room's bot seat runs on the transport host (#36)
         onBotReact: (seat, e) => { if (Room.online) Room.react(e, seat); },

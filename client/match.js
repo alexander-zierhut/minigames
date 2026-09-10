@@ -4,7 +4,7 @@
 
    Match.init(handlers):
      live()                may the game run right now (online: everyone here)   default true
-     names()               the seat names for the current skin                  default Skins.names()
+     names()               the name of whoever sits in each seat (#35)          default Player 1…4
      turnHint(p)           the turn box hint for a non-bot seat                  default "to move"
      onLocalMove(i)        a local seat is about to play cell i (online: tell the room)
      onChanged(kind)       the game record changed: "move" (placed, before its animation) or
@@ -48,7 +48,7 @@ const Match = (() => {
     let deferred = [];                                 // { key, fn } to run once the engine is idle
     let running = false;                               // a game is on the screen (start … stop)
     let h = {
-        live: () => true, names: () => Skins.names(), turnHint: () => "to move", hostsBot: () => false,
+        live: () => true, names: () => ["Player 1", "Player 2", "Player 3", "Player 4"], turnHint: () => "to move", hostsBot: () => false,
         onLocalMove: () => {}, onChanged: () => {}, onIdle: () => {}, onFlag: () => {}, onBotReact: () => {}, onFinish: () => {},
     };
 
@@ -75,8 +75,8 @@ const Match = (() => {
     };
     // premoves make sense only when somebody else moves in between (bot or online seat)
     const premovable = () => running && !st.spectator && st.mode !== "local" && mySeat() >= 0;
-    // seat names for the HUD: the skin's colour names; a bot seat is simply "Bot" (#21) —
-    // in a room for everybody, not only for the device that runs it (#36)
+    // seat names for the HUD: what the people at the table are called; a bot seat is simply
+    // "Bot" (#21) — in a room on every device, not only on the one that runs it (#36)
     const names = () => h.names().map((n, p) => ((isBot(p) && st.bot) || p === roomBotSeat() ? Opponent.NAME : n));
 
     /* ---------- engine hooks ---------- */
@@ -207,13 +207,17 @@ const Match = (() => {
         st.bot = null;
         const seat = st.seats.findIndex((s) => s.kind === "bot");
         if (seat < 0) return;
-        const choice = online() ? cfg.bot : Opponent.current(cfg.game);
+        // the room's bot is named by the config (#36), mine by the opponent I picked. A rule
+        // variant can change which bot can play at all (#35's Yavalath), so a room bot that
+        // does not know the rules steps aside for one that does, exactly like offline.
+        let choice = online() ? cfg.bot : Opponent.current(cfg.game, cfg);
+        if (online() && choice && !(Bots.get(choice.id) && Bots.supports(choice.id, cfg))) choice = Opponent.current(cfg.game, cfg);
         if (!choice || !Bots.get(choice.id)) { if (!online()) st.seats[seat].kind = "local"; return; }   // no bot for this game: play both sides
         // seed: fresh per game so the bot varies; tests pin it via sessionStorage["chainreact.botseed"]
         const seed = ((Number(Util.load(sessionStorage, "chainreact.botseed")) || Date.now()) + st.gameNo) >>> 0;
         st.bot = Bots.create(choice.id, { me: seat, difficulty: choice.difficulty, seed, players });
         st.botInfo = { id: st.bot.def.id, difficulty: st.bot.difficulty, budget: st.bot.tools.budget.nodes };
-        const est = Bots.estimator(cfg.game);
+        const est = Bots.estimator(cfg.game, cfg);
         BotPersona.attach({
             bot: st.bot, seat, game: cfg.game, state: () => Game.state, estimate: (s) => est.at(s, 300), color: playerColor(seat),
             post: (e) => { Reactions.receive(e, playerColor(seat)); h.onBotReact(seat, e); },   // the room sees them too (#36)

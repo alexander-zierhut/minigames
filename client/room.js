@@ -7,11 +7,14 @@
    Room.init({ phase(), show(name), startGame(config, gameNo), backToLobby(announce),
                renderLobby(), onVotes(), onReview(ply) })
 
-   Protocol summary (details in AGENTS.md "Online play"): guest → hello {seat, spectate, rev,
-   phase, config, g, rematch}; host → state {you, settings, …} to that guest (+ sync in a
-   game) and roster to everyone; the host stamps every guest message with `from` = the
-   sender's seat and relays the RELAY types to the other guests. Newest intent wins: every
-   phase change bumps `rev`; on reconnect the higher revision decides the phase. */
+   Protocol summary (details in AGENTS.md "Online play"): guest → hello {seat, spectate, name,
+   rev, phase, config, g, rematch}; host → state {you, settings, names, …} to that guest (+ sync
+   in a game) and roster {present, spectators, left, names} to everyone; the host stamps every
+   guest message with `from` = the sender's seat and relays the RELAY types to the other guests.
+   Names (#35) are not relayed: a guest sends `name {name}` to the host, which keeps it on that
+   connection and sends a fresh roster, so the host stays the single source of who is called
+   what. Newest intent wins: every phase change bumps `rev`; on reconnect the higher revision
+   decides the phase. */
 
 "use strict";
 
@@ -29,7 +32,8 @@ const Room = (() => {
     const STATUS_TEXT = { connected: "Connected", waiting: "Waiting for friend", reconnecting: "Reconnecting…", connecting: "Connecting…", signaling: "Room server reconnecting…", error: "Connection error" };
     const r = {
         rev: 0,                 // room-state revision: +1 per phase change (start, rematch, back to room)
-        roster: { present: [], spectators: 0, left: [] },   // who is here (guests: from the host's roster message)
+        roster: { present: [], spectators: 0, left: [], names: [] },   // who is here (guests: from the host's roster message)
+        lastNames: [],          // per seat the last name we saw there, so an empty seat still says who (#35)
         left: new Set(),        // seats that said goodbye (their connection may still be closing) — banner wording
         spec: null,             // the room's spectator code (players only; never sent to a viewer, #29)
         watch: false,           // I came through the spectate link: watch only, I never learn the room code
@@ -46,7 +50,42 @@ const Room = (() => {
     const online = () => Match.mode === "online";
     const isHost = () => Net.role === "host";     // transport role: the host is the room's source of truth
     const Game = () => Match.engine;
-    const names = () => Skins.names();
+    // my own name (#35): the preference, cleaned; it travels with hello / name / roster / state
+    const myName = () => Prefs.cleanName(Prefs.get().name) || "Player";      // the preference is never empty; this is belt and braces
+    /* Per seat the name of whoever sits there. The host reads it off its connections (the
+       dial's metadata and the `name` message keep Net's per-connection meta up to date), a
+       guest off the host's roster; my own seat always shows my own preference. A seat nobody
+       holds keeps the last name we saw there, so a card that says "not here yet" still names
+       the person; a seat we never saw is "Player k". Names from the room are cleaned exactly
+       like our own before they are shown (they are somebody else's text). */
+    function names() {
+        const n = playersNow();
+        const out = new Array(n).fill("");
+        if (Match.me >= 0 && Match.me < n) out[Match.me] = myName();
+        if (isHost()) {
+            for (const p of Net.peers) if (p.open && p.seat >= 0 && p.seat < n && !out[p.seat]) out[p.seat] = Prefs.cleanName(p.meta && p.meta.name);
+        } else {
+            const known = r.roster.names || [];
+            for (let k = 0; k < n; k++) if (!out[k]) out[k] = Prefs.cleanName(known[k]);
+        }
+        for (let k = 0; k < n; k++) {
+            if (out[k]) r.lastNames[k] = out[k];
+            else out[k] = r.lastNames[k] || `Player ${k + 1}`;
+        }
+        const b = botSeat();                          // the room's bot is simply "Bot" for everybody (#36)
+        if (b >= 0 && b < n) out[b] = Opponent.NAME;
+        return out;
+    }
+    // my name changed in the preferences: the host re-rosters, a guest tells the host
+    let announced = "";
+    function nameChanged() {
+        const nm = myName();
+        if (nm === announced) return false;
+        announced = nm;
+        if (!online()) return false;
+        if (isHost()) rosterChanged(); else netSend({ t: "name", name: nm });
+        return true;
+    }
     const inGame = () => h.phase() === "game";
     // seats of the running game, else of the settings (the lobby)
     const playersNow = () => (inGame() && Match.config ? Match.config.players : Settings.read().players) || 2;
@@ -56,7 +95,7 @@ const Room = (() => {
         const cfg = inGame() && Match.config ? Match.config : Settings.read();
         return cfg && cfg.bot ? cfg.bot.seat : -1;
     };
-    // how a seat is called in messages: with two players the classic "your friend", else the colour name
+    // how a seat is called in messages: with two players the classic "your friend", else the name
     const who = (seat) => (two() ? "Your friend" : names()[seat] || "Someone");
     const otherPlayer = (p, players = 2) => (p + 1) % players;
     // every message I originate carries my seat
@@ -89,7 +128,7 @@ const Room = (() => {
         const n = playersNow();
         let spectators = Match.spectator ? 1 : 0;     // a host without a seat watches too (#39)
         for (const p of Net.peers) if (p.open && (p.seat < 0 || p.seat >= n)) spectators++;
-        return { present: presentSeats(), spectators, left: [...r.left] };
+        return { present: presentSeats(), spectators, left: [...r.left], names: names() };
     }
     function rosterChanged() {
         if (!online()) return;
@@ -164,9 +203,10 @@ const Room = (() => {
         if (goodbye) { clearTimeout(goodbye); goodbye = null; }   // a room left a moment ago: Net.open closes it now, the delayed shutdown must not hit the new room
         Match.reset("online", seat, spectate || watch);
         Object.assign(r, {
-            rev: 0, roster: { present: [], spectators: 0, left: [] }, left: new Set(), votes: new Set(), incoming: [],
-            syncSentAt: -1, rebuiltAt: null, codeHidden: !!hidden && !watch, watch: !!watch, spec: watch ? null : spec, chose: false,
+            rev: 0, roster: { present: [], spectators: 0, left: [], names: [] }, lastNames: [], left: new Set(), votes: new Set(),
+            incoming: [], syncSentAt: -1, rebuiltAt: null, codeHidden: !!hidden && !watch, watch: !!watch, spec: watch ? null : spec, chose: false,
         });
+        announced = myName();
         Chat.enable(true);
         Settings.setMode("online");
         h.show("lobby");
@@ -193,7 +233,7 @@ const Room = (() => {
             onOpen: onPeerOpen,
             onClose: () => { if (isHost()) rosterChanged(); else { Clock.pause(); presenceChanged(); } },
             onMessage,
-            metadata: () => ({ seat: Match.me, spectate: Match.spectator }),
+            metadata: () => ({ seat: Match.me, spectate: Match.spectator, name: myName() }),
             admit: admitGuest,
             relayOnly: () => Prefs.get().privateIp,   // "Keep my IP always private" (#30)
         }, watch ? "spectator" : preferHost === false ? "guest" : undefined);
@@ -252,7 +292,7 @@ const Room = (() => {
     /* ---------- handshake & seats ---------- */
     function onPeerOpen(role) {
         r.syncSentAt = -1;
-        if (role === "guest") { r.left.clear(); netSend({ t: "hello", seat: Match.me, spectate: Match.spectator, ...roomState() }); }
+        if (role === "guest") { r.left.clear(); netSend({ t: "hello", seat: Match.me, spectate: Match.spectator, name: myName(), ...roomState() }); }
         presenceChanged();                            // host: the guest's hello assigns its seat and sends the roster
     }
 
@@ -324,7 +364,7 @@ const Room = (() => {
         const n = playersNow();
         if (want === -1) {
             if (id === null) { r.chose = true; setSeat(-1, true); }
-            else { Net.setSeat(id, -1); Net.setSpectate(id, true); sendState(id, -1); }
+            else { Net.setSeat(id, -1); Net.setMeta(id, { spectate: true }); sendState(id, -1); }
             rosterChanged();
             return;
         }
@@ -333,7 +373,7 @@ const Room = (() => {
         if (s < 0) { if (id !== null) sendState(id, -1); return; }     // nothing free: leave them watching
         r.left.delete(s);
         if (id === null) { r.chose = false; setSeat(s, false); }
-        else { Net.setSeat(id, s); Net.setSpectate(id, false); sendState(id, s); }
+        else { Net.setSeat(id, s); Net.setMeta(id, { spectate: false }); sendState(id, s); }
         rosterChanged();
     }
 
@@ -347,7 +387,7 @@ const Room = (() => {
     // the spectator code is room state the players share; a viewer never receives it (it
     // already has it) and, most of all, no message ever carries the room code itself (#29)
     function sendState(id, guestSeat) {
-        Net.sendTo(id, { t: "state", from: Match.me, you: guestSeat, settings: Settings.read(), ...roomState(), spec: guestSeat >= 0 ? r.spec : undefined });
+        Net.sendTo(id, { t: "state", from: Match.me, you: guestSeat, settings: Settings.read(), names: names(), ...roomState(), spec: guestSeat >= 0 ? r.spec : undefined });
     }
     function syncMessage() {
         const st = Match.state;
@@ -392,6 +432,7 @@ const Room = (() => {
             // a spectate-link viewer only ever watches, whatever its hello says (#29)
             if (!msg.spectate && !watcherConn(conn)) seat = (msg.seat >= 0 && msg.seat < n && !taken.has(msg.seat)) ? msg.seat : freeSeat(taken, n);
             Net.setSeat(id, seat);
+            Net.setMeta(id, { name: Prefs.cleanName(msg.name) });      // the dial's metadata already had it; this keeps it fresh
             if (seat >= 0) r.left.delete(seat);
             if (msg.rev > r.rev) adoptRoomState(msg);         // the guest's phase is newer: follow it before answering
             sendState(id, seat);
@@ -407,6 +448,7 @@ const Room = (() => {
         state(msg) {
             if (isHost()) return;
             const you = msg.you >= 0 ? msg.you : -1;
+            if (msg.names) r.roster.names = msg.names;
             r.left.clear();
             if (msg.spec) r.spec = msg.spec;          // players carry the spectator code, so a takeover keeps the link alive (#29)
             setSeat(you, you < 0);
@@ -436,9 +478,16 @@ const Room = (() => {
             if (!conn || watcherConn(conn)) return;   // a spectate-link viewer only ever watches (#29)
             applySeatWish(id, msg.want === -1 ? -1 : msg.want);
         },
+        // somebody renamed themselves (#35). Only the host acts on it: it keeps the name on
+        // that connection and sends a fresh roster, so everyone (spectators included) agrees.
+        name(msg, id) {
+            if (!isHost()) return;
+            Net.setMeta(id, { name: Prefs.cleanName(msg.name) });
+            rosterChanged();
+        },
         roster(msg) {                                 // the host's view of who is here
             if (isHost()) return;
-            r.roster = { present: msg.present || [], spectators: msg.spectators || 0, left: msg.left || [] };
+            r.roster = { present: msg.present || [], spectators: msg.spectators || 0, left: msg.left || [], names: msg.names || [] };
             presenceChanged();
         },
         lobby(msg) {                                  // somebody changed game / settings
@@ -656,7 +705,7 @@ const Room = (() => {
 
     return {
         init, enter, leave, roomLink, spectateLink, hideCode, codeText, newGame, bump, save, render, renderNetBox, updateBanner, turnHint,
-        presentSeats, missingSeats, occupiedSeats, allHere, live, who, two, playersNow,
+        presentSeats, missingSeats, occupiedSeats, allHere, live, who, two, playersNow, names, nameChanged,
         startFromLobby, requestRematch, rematchWaitText, sendMove, sendSync, reseat, seatFree, enteredLobby, botSeat,
         watchInstead: () => switchSeat(-1), takeSeat: (seat = ANY_SEAT) => switchSeat(seat),
         onIdle: processIncoming,
