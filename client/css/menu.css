@@ -45,7 +45,8 @@
 .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); padding-left: 2px; }
 .btn-row { display: flex; gap: 8px; }
 .btn-row .btn { flex: 1; }
-.btn-row .btn.big { font-size: 15px; padding: 14px 10px; white-space: nowrap; }
+.btn-row .btn.big { font-size: 15px; padding: 14px 8px; white-space: nowrap; min-width: 0; }
+@media (max-width: 420px) { .btn-row .btn.big { font-size: 14px; padding: 14px 4px; } }
 /* desktop: the title card gets more room and air (#10) */
 @media (min-width: 900px) {
     #screen-menu .menu-card { max-width: 560px; padding: 40px 44px; gap: 26px; }
