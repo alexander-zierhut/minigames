@@ -1019,8 +1019,10 @@ howto: {
   ones. Their `best` has to be right — the test only checks that it is legal.
 - **Screens**: `#screen-learn` (one `.game-card` per game that teaches something, with
   "k / n scenarios") → `#screen-learn-game` (title, tagline, the rule bullets, "Start
-  tutorial", the scenario rows with ✓, Back). Both lists scroll inside the card so Back
-  stays reachable on a 360×780 phone. Progress lives in
+  tutorial", the scenario rows with ✓, Back). The details page is **the one screen that
+  scrolls** (#43): the two lists are shown whole (no box inside a box that scrolls) and the
+  page carries them, its card centred with `margin: auto` so its top never leaves the
+  screen; `show()` in app.js puts every screen back at its top when it opens. Progress lives in
   `localStorage["chainreact.learn"]` = `{ tutorials: { chain: true }, solved: { five: [ids] } }`,
   per device, never sent anywhere.
 - **A lesson runs on the normal game screen** with `#learn-panel` as the first block of the

@@ -28,6 +28,7 @@
     /* ================= screens & board fitting ================= */
     function show(name) {
         for (const s of SCREENS) $("screen-" + s).hidden = s !== name;
+        $("screen-" + name).scrollTop = 0;            // a screen that scrolls (Learn, #43) opens at its top
         phase = name;
         Update.screenChanged();                      // the "new version" notice lives on the title screen only (#40)
         if (name === "game") requestAnimationFrame(() => { fitBoard(); requestAnimationFrame(fitBoard); });

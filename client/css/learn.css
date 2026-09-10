@@ -17,9 +17,11 @@
 }
 #screen-learn-game .menu-card { gap: 14px; }
 .lobby-row-note { margin-left: auto; font-size: 11px; color: var(--muted); }
-/* the two long lists scroll inside the card, so Back stays in reach without scrolling it */
-#learn-rules { max-height: 28vh; overflow-y: auto; }
-#learn-scenarios { max-height: 30vh; overflow-y: auto; }
+/* The details page is the one screen that may scroll (#43): the rule bullets and the
+   scenario rows stay whole (no box inside a box that scrolls), the page carries them.
+   `margin: auto` centres the card while it fits and never pushes its top out of reach. */
+#screen-learn-game { align-items: flex-start; }
+#screen-learn-game .menu-card { max-height: none; overflow: visible; margin: auto; }
 
 /* rules bullets and the tutorial steps in the lobby modal */
 .learn-rules, .learn-steps {
@@ -83,8 +85,6 @@ body.learn-tutorial #hut .win-bar { display: none; }
 @media (max-width: 899px) {
     #screen-learn, #screen-learn-game { padding-top: 56px; }
     #screen-learn-game .menu-card { gap: 10px; padding: 20px 18px; }
-    #learn-rules { max-height: 24vh; }
-    #learn-scenarios { max-height: 26vh; }
 }
 
 @media (min-width: 900px) and (min-aspect-ratio: 1/1) {

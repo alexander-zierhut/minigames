@@ -32,7 +32,11 @@ test("a game's details page shows the rules, the tutorial and the scenarios", as
     assert.equal(await B.ev("document.getElementById('btn-learn-tutorial').hidden"), false);
     assert.equal(await B.ev("document.querySelectorAll('#learn-scenarios .learn-scenario').length"), 8);
     assert.equal(await B.text("learn-progress"), "0 / 8 solved");
-    assert.equal((await B.noScroll()).screen, true, "the details page fits");
+    // the details page scrolls as a whole (#43), never sideways and never in inner boxes
+    const fit = await B.noScroll();
+    assert.equal(fit.x, true, "the details page never scrolls sideways");
+    assert.ok(await B.ev("['learn-rules', 'learn-scenarios'].every(id => { const e = document.getElementById(id); return e.scrollHeight <= e.clientHeight + 1; })"),
+        "the rules and the scenarios are shown whole");
 });
 
 test("the tutorial: the highlighted cell, a wrong click hints, the right one advances, Next finishes", async () => {
@@ -151,20 +155,29 @@ test("the lobby's How to play modal opens and closes again when a game starts", 
     await B.click("#btn-lobby-back");
 });
 
-test("phone 360×780: the Learn screens and a lesson never scroll", async () => {
+test("phone 360×780: the Learn list and a lesson never scroll, the details page scrolls as a whole", async () => {
     await B.emulate(360, 780);
     await B.click("#btn-learn");
     let s = await B.noScroll();
     assert.deepEqual(s, { x: true, y: true, screen: true }, "learn list");
-    await B.click("#learn-games .game-card[data-game=five]");
-    s = await B.noScroll();
-    assert.deepEqual(s, { x: true, y: true, screen: true }, "five details");
-    await B.click("#btn-learn-game-back");
-    await B.click("#learn-games .game-card[data-game=chain]");
-    s = await B.noScroll();
-    assert.deepEqual(s, { x: true, y: true, screen: true }, "chain details");
-    assert.ok(await B.ev("document.getElementById('btn-learn-game-back').getBoundingClientRect().bottom <= innerHeight"),
-        "Back is reachable without scrolling the card (the two lists scroll instead)");
+    // the details page is the one screen that scrolls as a whole (#43): the lists inside
+    // it stay whole, the page never scrolls sideways and everything is reachable
+    for (const game of ["five", "chain"]) {
+        if (await B.screen() === "screen-learn-game") await B.click("#btn-learn-game-back");
+        await B.click(`#learn-games .game-card[data-game=${game}]`);
+        s = await B.noScroll();
+        assert.equal(s.x, true, `${game} details: no sideways scrolling`);
+        assert.equal(s.y, true, `${game} details: the page itself does not scroll`);
+        assert.ok(await B.ev("['learn-rules', 'learn-scenarios'].every(id => { const e = document.getElementById(id); return e.scrollHeight <= e.clientHeight + 1; })"),
+            `${game} details: the rules and the scenarios are not boxes that scroll`);
+        assert.ok(await B.ev("document.querySelector('#screen-learn-game .menu-card').getBoundingClientRect().top >= 50"),
+            `${game} details: the card starts below the ⚙ button`);
+        // the bottom is reachable by scrolling the screen
+        await B.ev("(() => { const s = document.getElementById('screen-learn-game'); s.scrollTop = s.scrollHeight; return true; })()");
+        assert.ok(await B.ev("document.getElementById('btn-learn-game-back').getBoundingClientRect().bottom <= innerHeight + 1"),
+            `${game} details: Back is reachable at the bottom of the page`);
+    }
+    await B.screenshot("mobile-learn-game.png");
     await B.click("#btn-learn-tutorial");
     s = await B.noScroll();
     assert.deepEqual(s, { x: true, y: true, screen: true }, "the tutorial");
