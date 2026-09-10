@@ -407,6 +407,28 @@ const Net = (() => {
     }
     // host: the guests as the app sees them
     const peers = () => conns.map((x) => ({ id: x.id, seat: x.seat, meta: x.meta, open: !!x.c.open, silent: isSilent(x) }));
+
+    // the WebRTC route of one DataConnection (dev panel, #31): the selected candidate pair
+    async function routeOf(c) {
+        const pc = c && c.peerConnection;
+        if (!pc || typeof pc.getStats !== "function") return null;
+        const stats = await pc.getStats();
+        let pair = null;
+        stats.forEach((r) => { if (r.type === "candidate-pair" && (r.selected || (r.nominated && r.state === "succeeded"))) pair = r; });
+        if (!pair) return null;
+        const local = stats.get(pair.localCandidateId), remote = stats.get(pair.remoteCandidateId);
+        return {
+            local: local && local.candidateType, remote: remote && remote.candidateType, protocol: (local && local.protocol) || pair.protocol,
+            rttMs: pair.currentRoundTripTime !== undefined ? Math.round(pair.currentRoundTripTime * 1000) : null,
+            sent: pair.bytesSent || 0, recv: pair.bytesReceived || 0,
+        };
+    }
+    // every connection with its route (host: one per guest; guest: the host), for the dev panel
+    async function stats() {
+        const now = Date.now();
+        if (role === "guest") return conn ? [{ id: "host", seat: -1, open: !!conn.open, silent: now - lastPong > PING_EVERY * 2, pongAge: now - lastPong, pair: await routeOf(conn) }] : [];
+        return Promise.all(conns.map(async (x) => ({ id: x.id, seat: x.seat, open: !!x.c.open, silent: isSilent(x), pongAge: now - x.lastPong, pair: await routeOf(x.c) })));
+    }
     // host: remember which seat a connection holds (assigned by the app's handshake)
     function setSeat(id, seat) {
         const x = conns.find((e) => e.id === id);
@@ -436,8 +458,10 @@ const Net = (() => {
     }
 
     return {
-        open, send, sendTo, sendExcept, leave, retryNow, randomCode, normalizeCode, setSeat, peerConfig, isTurn,
+        open, send, sendTo, sendExcept, leave, retryNow, randomCode, normalizeCode, setSeat, peerConfig, isTurn, stats,
         get iceInfo() { return { ...iceInfo }; },
+        // the transport's inner state for the dev panel (#31)
+        get transport() { return { broker: !peer ? "none" : peer.destroyed ? "destroyed" : peer.disconnected ? "disconnected" : peer.open ? "open" : "opening", dialAttempts, channelFailures, everConnected }; },
         get code() { return code; },
         get role() { return role; },
         get status() { return status; },

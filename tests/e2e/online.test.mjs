@@ -215,6 +215,10 @@ test("keep my IP always private (#30): the next room is created with relay-only 
             return out; })()`, { timeout: 20000, what: "selected candidate pair known" });
         assert.equal(local, "relay", "the host's side of the connection is a relay candidate: its IP stays with the TURN server");
         assert.equal(await B.ev("Net.iceInfo.relayOnly"), false, "only my own preference relays my side");
+        // developer info (#31): the route per connection shows in the panel
+        await A.click("#prefs-btn"); await A.check("pref-developer", true); await A.click("#btn-prefs-done");
+        await A.waitFor("/connected as host · broker open\n  ice: relay only \(IP private\) · turn yes/.test(document.getElementById('dev-panel').textContent) && /c\d seat 1 [^:]*: open · pong \d+ ms ago\n    route relay → \w+ \(\w+\) · rtt \d+ ms/.test(document.getElementById('dev-panel').textContent)", { timeout: 10000, what: "route in the dev panel" });
+        await A.click("#prefs-btn"); await A.check("pref-developer", false); await A.click("#btn-prefs-done");
         await B.click("#btn-lobby-back");
     }
     await A.click("#prefs-btn"); await A.check("pref-private-ip", false); await A.click("#btn-prefs-done");

@@ -573,9 +573,11 @@
                     if (state.players !== 2) return tools.pick(tools.legalMoves(state));   // the engine knows two seats
                     const pos = fromState(state), rule = ruleOf(state);
                     const deadline = tools.deadline();
+                    tools.report({ depth: 1, value: null });
                     if (level.depth === 1) return easyMove(pos, rule, tools, level, deadline);
                     search.reset(pos.geo, rule, deadline);
                     const r = level.yields ? await search.runAsync(pos, level.depth, YIELD_EVERY, tools.yield) : search.run(pos, level.depth);
+                    tools.report({ depth: r.depth, value: r.score });
                     return r.move;
                 },
             };

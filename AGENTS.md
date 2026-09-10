@@ -748,7 +748,10 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   random bots are unit-tested), `legalMoves(state, p)`, `isLegal`, `clone`,
   `apply(state, i)` (place + settle + conclude on a copy → the position after the move,
   with `over/winner`), `outcome(state)`, `opponents(p)`, `deadline(ms)` for time-boxed
-  search. Rules modules are also reachable directly (`tools.rules`: chain `tally`,
+  search, `report(info)` / `last` / `lastDeadline` (what the bot tells about its last
+  move — depth, value, a `forced` note — and the deadline that counted its nodes; both
+  bots report, `Match.botInfo` collects it with the move, the time and the budget for the
+  dev panel, #31). Rules modules are also reachable directly (`tools.rules`: chain `tally`,
   `readyCells`…; five `lineThrough`, `bestRow`). Add generic helpers here, game-specific
   analysis in the rules module — never in a bot.
 - **Playout**: `Bots.playout(game, config, seats, { maxMoves })` runs a full headless game
@@ -838,6 +841,22 @@ every bot folder into a bare VM — script list parsed from `index.html`).
    sitting next to it; variants are difficulties / parameters of that bot.
 5. `npm test`; the conformance suite, the puzzle grading and the e2e bot flow run
    automatically. Add `evaluateBot` thresholds (per tag if useful) to the bot's tests.
+
+## Developer info (`client/dev.js`, #31)
+
+"Show developer info" in the preferences (`Prefs.developer`) shows `#dev-panel`, a `<pre>`
+fixed bottom-left (`pointer-events: none`, never in the way), refreshed every second
+(`Dev.EVERY_MS`) from `Dev.snapshot()`: **network** (`Net.status/role`, `Net.transport` =
+broker socket state, dial attempts, channel failures; `Net.iceInfo` = relay-only / TURN in
+the list / server count; `Net.stats()` = every connection with seat, open, silent, pong age
+and its WebRTC route from `getStats()`: local → remote candidate type, protocol, RTT,
+bytes), **performance** (fps and worst frame from a `requestAnimationFrame` counter, JS heap
+where the browser exposes it, board size, cells, the last move's animation time from
+`game:move` → `game:position`), **bot** (`Match.botInfo`: id, difficulty, node budget, last
+move, ms, nodes searched, depth / value / forced note from `tools.report`) and the
+**win-chance** estimator's last stage (`WinChance.info`). `Dev.format(snapshot)` is pure
+(unit-tested); the e2e `bot` and `online` suites check the panel's bot section and a relay
+route respectively.
 
 ## Chat (`client/chat.js`) and the logs (`client/lib/log.js`)
 

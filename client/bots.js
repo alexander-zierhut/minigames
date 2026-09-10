@@ -151,8 +151,14 @@ const Bots = (() => {
                 const end = ms === Infinity ? Infinity : Date.now() + ms;
                 let nodes = 0;
                 const expired = () => nodes >= budget.nodes || Date.now() >= end;
-                return { expired, tick: (n = 1) => { nodes += n; return expired(); }, left: () => Math.max(0, end - Date.now()), nodes: () => nodes };
+                const d = { expired, tick: (n = 1) => { nodes += n; return expired(); }, left: () => Math.max(0, end - Date.now()), nodes: () => nodes };
+                t.lastDeadline = d;                          // the dev panel reads the searched nodes here (#31)
+                return d;
             },
+            // what the bot wants to tell about its last move (depth, value, …): shown in the dev panel (#31)
+            last: null,
+            lastDeadline: null,
+            report(info) { t.last = { ...(t.last || {}), ...info }; },
             // let the page breathe during a long search (call every few thousand nodes on the strong levels)
             yield: () => new Promise((resolve) => setTimeout(resolve, 0)),
         };

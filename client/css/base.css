@@ -133,6 +133,16 @@ input[type="range"] { accent-color: var(--accent); width: 100%; margin: 0; }
     font-size: 14px; z-index: 60; pointer-events: none;
 }
 
+/* ---- developer info panel (#31): never in the way, never takes a tap ---- */
+#dev-panel {
+    position: fixed; left: 8px; bottom: 8px; z-index: 43;
+    margin: 0; padding: 6px 8px; max-width: min(520px, 60vw); max-height: 44vh; overflow: hidden;
+    font: 11px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #d7f0e8;
+    background: rgba(0,0,0,.72); border: 1px solid #3a4a5c; border-radius: 8px;
+    white-space: pre; pointer-events: none; user-select: none;
+}
+@media (max-width: 899px) { #dev-panel { font-size: 9px; max-width: 70vw; max-height: 34vh; } }
+
 /* ---- first-load texture preloader ---- */
 #loader {
     position: fixed; inset: 0; z-index: 100;

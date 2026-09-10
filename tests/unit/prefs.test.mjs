@@ -12,6 +12,7 @@ test("defaults: quiet volume, every sound category on, sound set follows the loo
     for (const c of P.CATEGORIES) assert.equal(p.sounds[c], true, c);
     assert.equal(p.hideCode, false, "rooms show their code unless asked (#19)");
     assert.equal(p.privateIp, false, "direct connections unless asked (#30)");
+    assert.equal(p.developer, false, "no developer panel unless asked (#31)");
     w.close();
 });
 

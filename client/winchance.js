@@ -20,11 +20,13 @@ const WinChance = (() => {
     let timer = null;
     let display = null;         // [p0, p1] shown right now
     let prev = null;            // the previous move's final value (smoothing)
+    let info = null;            // the last stage that landed: { bot, stage, stages, nodes, ms, value } (dev panel, #31)
 
     function reset(ev) {
         token++;
         if (timer) clearTimeout(timer);
         display = prev = null;
+        info = null;
         estimator = ev.state && ev.state.players === 2 && typeof Bots !== "undefined" ? Bots.estimator(ev.game) : null;
         show(null);
     }
@@ -60,6 +62,7 @@ const WinChance = (() => {
         const stages = state.over ? [estimator.stages[0]] : estimator.stages;
         const apply = (k, p) => {
             if (mine !== token || !$("p0-win")) return;                 // superseded, or the page is gone (tests)
+            info = { bot: estimator.bot, stage: k + 1, stages: stages.length, nodes: stages[k], ms: Date.now() - started, value: p };
             const shown = smoothed(state, p);
             show([shown, 1 - shown]);                                   // the two always add to 100
             if (k + 1 < stages.length && !state.over && Date.now() - started < REFINE_MS) timer = setTimeout(() => run(k + 1), 0);
@@ -78,5 +81,5 @@ const WinChance = (() => {
         Bus.on("game:position", refresh);
     }
 
-    return { get display() { return display; }, get estimator() { return estimator; }, REFINE_MS, SMOOTH, DECIDED };
+    return { get display() { return display; }, get estimator() { return estimator; }, get info() { return info; }, REFINE_MS, SMOOTH, DECIDED };
 })();

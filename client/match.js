@@ -29,6 +29,7 @@ const Match = (() => {
         config: null,          // config of the running / last game
         gameNo: 0,             // increments per game in this room (local too)
         bot: null,             // bot mode: the Bots.create instance for the running game
+        botInfo: null,         // the bot's last move for the dev panel (#31): { id, difficulty, budget, move, ms, nodes, depth, value }
     };
     let Game = Games.get(Games.keys()[0]).engine;     // active engine, switched in start()
     let deferred = [];                                 // { key, fn } to run once the engine is idle
@@ -118,10 +119,12 @@ const Match = (() => {
         setTimeout(async () => {
             if (!stillOn()) return;
             let i;
+            const t0 = performance.now();
             try { i = await bot.move(bot.tools.clone(Game.state)); }
             catch (e) { console.error(`bot ${bot.def.id} failed`, e); Log.add(`${Opponent.NAME} crashed, picking a random move.`, "x"); }
             if (!stillOn()) return;
             if (!Game.isLegal(i, p)) i = bot.tools.pick(bot.tools.legalMoves(Game.state, p));
+            st.botInfo = { id: bot.def.id, difficulty: bot.difficulty, budget: bot.tools.budget.nodes, move: i, ms: performance.now() - t0, nodes: bot.tools.lastDeadline ? bot.tools.lastDeadline.nodes() : null, ...(bot.tools.last || {}) };
             if (i !== undefined) Game.play(i);
         }, THINK_MS);
     }
@@ -134,6 +137,7 @@ const Match = (() => {
         // seed: fresh per game so the bot varies; tests pin it via sessionStorage["chainreact.botseed"]
         const seed = ((Number(Util.load(sessionStorage, "chainreact.botseed")) || Date.now()) + st.gameNo) >>> 0;
         st.bot = Bots.create(choice.id, { me: 1, difficulty: choice.difficulty, seed, players });
+        st.botInfo = { id: st.bot.def.id, difficulty: st.bot.difficulty, budget: st.bot.tools.budget.nodes };
         const est = Bots.estimator(cfg.game);
         BotPersona.attach({ bot: st.bot, seat: 1, game: cfg.game, state: () => Game.state, estimate: (s) => est.at(s, 300), color: playerColor(1) });
     }
@@ -166,6 +170,7 @@ const Match = (() => {
         st.config = null;
         st.gameNo = 0;
         st.bot = null;
+        st.botInfo = null;
         st.seats = [];
         deferred = [];
         setSeat(me, spectator);
@@ -187,6 +192,7 @@ const Match = (() => {
         get engine() { return Game; }, get state() { return Game.state; }, get names() { return names(); }, get running() { return running; },
         get mode() { return st.mode; }, get me() { return st.me; }, get spectator() { return st.spectator; },
         get seats() { return st.seats; }, get config() { return st.config; }, get gameNo() { return st.gameNo; }, get bot() { return st.bot; },
+        get botInfo() { return st.botInfo; },
         set gameNo(n) { st.gameNo = n; },
         isLocal, isBot, THINK_MS,
     };

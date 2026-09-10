@@ -18,6 +18,7 @@ const Prefs = (() => {
         sounds: Object.fromEntries(CATEGORIES.map((c) => [c, true])),
         hideCode: false,                              // enter rooms with the code hidden (lobby, HUD, address bar)
         privateIp: false,                             // relay every connection through TURN: nobody in the room sees my IP (#30)
+        developer: false,                             // the developer info panel (#31)
     };
     let prefs = merge(Util.load(localStorage, KEY));
     let onChange = () => {};
@@ -31,6 +32,7 @@ const Prefs = (() => {
         for (const c of CATEGORIES) p.sounds[c] = !!p.sounds[c];
         p.hideCode = !!p.hideCode;
         p.privateIp = !!p.privateIp;
+        p.developer = !!p.developer;
         return p;
     }
 
@@ -53,6 +55,7 @@ const Prefs = (() => {
         for (const c of CATEGORIES) { const el = $("pref-snd-" + c); if (el) el.checked = prefs.sounds[c]; }
         if ($("pref-hide-code")) $("pref-hide-code").checked = prefs.hideCode;
         if ($("pref-private-ip")) $("pref-private-ip").checked = prefs.privateIp;
+        if ($("pref-developer")) $("pref-developer").checked = prefs.developer;
         $("prefs-modal").classList.toggle("muted", prefs.volume === 0);
     }
     // prefs <- form
@@ -63,6 +66,7 @@ const Prefs = (() => {
             volume: parseInt($("pref-volume").value, 10), soundSet: $("pref-soundset").value, sounds,
             hideCode: !!($("pref-hide-code") && $("pref-hide-code").checked),
             privateIp: !!($("pref-private-ip") && $("pref-private-ip").checked),
+            developer: !!($("pref-developer") && $("pref-developer").checked),
         });
     }
 
@@ -98,7 +102,7 @@ const Prefs = (() => {
         $("pref-volume").addEventListener("input", readForm);
         $("pref-soundset").addEventListener("change", readForm);
         for (const c of CATEGORIES) { const el = $("pref-snd-" + c); if (el) el.addEventListener("change", readForm); }
-        for (const id of ["pref-hide-code", "pref-private-ip"]) if ($(id)) $(id).addEventListener("change", readForm);
+        for (const id of ["pref-hide-code", "pref-private-ip", "pref-developer"]) if ($(id)) $(id).addEventListener("change", readForm);
         fill();
     }
 

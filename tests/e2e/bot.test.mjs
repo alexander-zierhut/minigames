@@ -59,6 +59,15 @@ test("five wins against the bot (Easy): it moves by itself, the HUD calls it Bot
     assert.ok(st.movesBy[1] > 0, "the bot made moves");
     assert.equal(st.over, true);
     assert.equal(await B.ev("document.getElementById('overlay').hidden"), false);
+    // developer info (#31): the panel shows what the bot calculated for its last move
+    assert.equal(await B.ev("document.getElementById('dev-panel').hidden"), true, "off by default");
+    await B.click("#prefs-btn"); await B.check("pref-developer", true); await B.click("#btn-prefs-done");
+    await B.waitFor("!document.getElementById('dev-panel').hidden && /BOT\n  sensei-five · easy · budget 2 000 nodes\n  last: cell \d+ · [\d ]+ nodes · depth \d+/.test(document.getElementById('dev-panel').textContent)", { what: "bot section in the dev panel" });
+    assert.match(await B.text("dev-panel"), /NETWORK\n  offline/);
+    assert.match(await B.text("dev-panel"), /\d+ fps/);
+    assert.equal(await B.ev("getComputedStyle(document.getElementById('dev-panel')).pointerEvents"), "none", "never in the way of a tap");
+    await B.click("#prefs-btn"); await B.check("pref-developer", false); await B.click("#btn-prefs-done");
+    assert.equal(await B.ev("document.getElementById('dev-panel').hidden"), true);
 });
 
 test("rematch alternates the starter; the bot opens when it starts; back to menu", async () => {

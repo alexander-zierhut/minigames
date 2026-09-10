@@ -206,7 +206,9 @@
     Preload.textures();
     Install.init();
     Skins.init({ onChange: () => { Match.engine.render(); renderLobby(); } });
+    Dev.init();
     Prefs.init({
+        onChange: (p) => Dev.enable(p.developer),
         // what the feedback link reports about the current situation (never the room code or chat)
         context: () => ({
             screen: phase, mode: Match.mode, game: phase === "game" && Match.config ? Match.config.game : Settings.game,
@@ -243,6 +245,7 @@
         onFinish: () => { Room.save(); renderRematch(); },
     });
     Room.init({ phase: () => phase, show, startGame, backToLobby, renderLobby, onVotes: renderRematch });
+    Dev.enable(Prefs.get().developer);
 
     const params = new URLSearchParams(location.search);
     const roomFromUrl = Net.normalizeCode(params.get("room"));

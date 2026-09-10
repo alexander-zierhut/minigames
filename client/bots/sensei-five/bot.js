@@ -423,6 +423,7 @@ const SenseiFive = (() => {
             this.me = me;
             this.d = tools.deadline(); this.stop = false; this.sinceYield = 0;
             this.info = { depth: 0, nodes: 0, value: 0, root: [] };
+            tools.report({ depth: 0, value: null, forced: "" });
             this.ttFlag.fill(0); this.hist.fill(0); this.killers.fill(-1);
             if (++this.vcfStamp === 65536) { this.vcfStamp = 1; this.vcfGen.fill(0); }
             if (B.empties === B.size) return Math.floor((B.n - 1) / 2) * B.n + Math.floor((B.n - 1) / 2);
@@ -437,6 +438,7 @@ const SenseiFive = (() => {
             if (forced && forced.plies <= 2) return forced.move;
             this.vctNodeEnd = Infinity; this.vctTimeEnd = Infinity; this.vctAbort = false;   // leaf searches run on the main budget
             const best = await this.deepen(me, forced ? forced.plies - 1 : level.depth);
+            tools.report({ depth: this.info.depth, value: this.info.value, forced: forced ? `forced win in ${forced.plies}` : "" });
             if (forced && !(this.info.value >= WIN - forced.plies + 1)) return forced.move;
             return best;
         }
