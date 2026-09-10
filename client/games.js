@@ -43,6 +43,7 @@ const Engine = (() => {
         let hooks = {};
         let cells = [];             // one element per cell, same order as state.cells
         let shown = null;           // a replayed position shown instead of the live one (#38); null = live
+        let extra = [];             // per cell: the class hooks.cellClass added last (premove marker, #37)
         const board = () => Util.$("board");
 
         // what the view gets to drive an animation
@@ -72,6 +73,7 @@ const Engine = (() => {
             el.className = def.key;
             el.innerHTML = "";
             cells = view.build(el, state, cfg, (i) => { if (!shown && hooks.onCellClick) hooks.onCellClick(i); });
+            extra = [];
             Hud.build(state.players, def.title);
             Log.clear();
             Util.$("overlay").hidden = true;
@@ -194,10 +196,12 @@ const Engine = (() => {
             renderHud();
         }
 
-        // shared cell classes (owner, last move, may I play here); the view adds its own
+        // shared cell classes (owner, last move, may I play here, the table's own marker);
+        // the view adds its own on top
         function renderCell(i) {
             const s = position();
             const el = cells[i];
+            if (!el) return;
             const owner = rules.ownerOf(s, i);
             el.classList.remove("p0", "p1", "p2", "p3", "taken", "can-place", "locked", "last");
             if (owner >= 0) el.classList.add("p" + owner, "taken");
@@ -208,6 +212,10 @@ const Engine = (() => {
                 if (mine && rules.isLegal(s, i, s.current)) el.classList.add("can-place");
                 else el.classList.add("locked");
             }
+            // one class the table may add without the game knowing about it (Match: "premove")
+            if (extra[i]) { el.classList.remove(extra[i]); extra[i] = ""; }
+            const add = hooks.cellClass ? hooks.cellClass(i) : "";
+            if (add) { el.classList.add(add); extra[i] = add; }
             view.renderCell(el, s, i);
         }
         // in a preview the turn hint is neutral: "your move" would be a lie about a past position

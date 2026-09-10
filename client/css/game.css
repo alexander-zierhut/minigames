@@ -51,6 +51,14 @@
 .last .last-marker { display: block; }
 #board.over .last-marker { display: none; }
 
+/* premove (#37): the cell this device plays as soon as it is its turn. Dashed outline in
+   my own seat colour (--premove, set by Match), inside the cell so nothing is clipped. */
+#board > .premove {
+    --premove-w: clamp(2px, calc(var(--board) / var(--n) / 12), 4px);
+    outline: var(--premove-w) dashed var(--premove, #fff);
+    outline-offset: calc(var(--premove-w) * -1);
+}
+
 /* ---- HUD ("hut"), mobile first: compact, never scrolls ---- */
 #hut {
     flex: 0 0 auto;

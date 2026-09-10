@@ -93,6 +93,30 @@ test("guest refreshes mid-game and gets the board back; host's next move arrives
     await B.waitFor("FiveGame.state.history.length === 3", { what: "move after reconnect" });
 });
 
+test("premove (#37): the guest clicks while the host is to move, it is played the moment the turn comes; a cell the host takes is dropped", { skip: !ONLINE }, async () => {
+    await B.move(32);                                                    // now the host is to move
+    // one page eval so the click and what it produced are read in the same moment
+    const set = JSON.parse(await B.ev(`(() => {
+        document.querySelectorAll('#board > .stone')[10].click();
+        return JSON.stringify({ pre: Match.premove, cls: document.querySelectorAll('#board > .stone')[10].className, hint: document.getElementById('turn-hint').textContent, moves: FiveGame.state.history.length });
+    })()`));
+    assert.equal(set.pre, 10, "the click on the host's turn is remembered");
+    assert.match(set.cls, /\bpremove\b/, "the cell is marked");
+    assert.match(set.hint, /premove set$/);
+    assert.equal(set.moves, 4, "nothing played yet");
+    await A.move(11);
+    await B.waitFor("FiveGame.state.history.length === 6 && Match.premove === -1", { what: "the guest's premove followed the host's move" });
+    await A.waitFor("FiveGame.state.history.length === 6", { what: "the host received the premove" });
+    assert.equal(JSON.stringify((await A.state()).history.slice(-3)), "[32,11,10]");
+    assert.equal((await B.ev("document.querySelectorAll('#board > .stone')[10].className")).includes("premove"), false, "the marker is gone once it was played");
+    // premove on a cell the host then takes: dropped, nothing is sent
+    assert.equal(await B.ev("(() => { document.querySelectorAll('#board > .stone')[12].click(); return Match.premove; })()"), 12);
+    await A.move(12);
+    await B.waitFor("FiveGame.state.history.length === 7 && Match.premove === -1 && FiveGame.state.current === 1", { what: "illegal premove dropped, guest still to move" });
+    await sleep(300);
+    assert.equal((await A.state()).history.length, 7, "the host got no extra move");
+});
+
 test("back to room from one side moves both; host switches game; guest follows", { skip: !ONLINE }, async () => {
     await B.click("#btn-menu");
     await A.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-lobby'", { what: "host back in lobby" });

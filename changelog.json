@@ -53,6 +53,13 @@
         },
         {
           "type": "feature",
+          "text": "Premove: online and against the bot you can click your answer while the other side is still thinking. It is played the moment it is your turn, and clicking the same cell again takes it back.",
+          "refs": [
+            "#37"
+          ]
+        },
+        {
+          "type": "feature",
           "text": "Streaming: a new preference \"Keep my IP always private\" sends every connection through the relay server, so nobody in the room learns your IP address.",
           "refs": [
             "#30"
