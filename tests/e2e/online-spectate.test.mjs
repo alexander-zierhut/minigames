@@ -48,6 +48,14 @@ test("two players start a game; a third browser joins the running game as a spec
     assert.equal(await A.ev("Net.connected && !document.getElementById('net-banner').hidden === false"), true, "players unaffected");
     await C.cell(10); await sleep(300);
     assert.equal((await C.state()).history.length, 2, "a spectator's click does nothing");
+    // spectators only watch (#29): no Back to room for everyone, and the host drops what a spectator is not allowed to send
+    assert.equal(await C.text("btn-menu"), "Leave room");
+    assert.equal(await C.ev("document.getElementById('overlay-menu').hidden"), true, "no Change game for a spectator");
+    await C.ev("Net.send({ t: 'tolobby', from: -1 }); Net.send({ t: 'move', i: 11, n: 2, g: 1, from: -1 }); true");
+    await sleep(800);
+    assert.equal(await A.screen(), "screen-game", "the host ignored the spectator's tolobby");
+    assert.equal(await B.screen(), "screen-game");
+    assert.equal((await A.state()).history.length, 2, "and its move");
     await A.move(10);
     await history(C, 3); await history(B, 3);
     await B.move(3);
@@ -90,6 +98,15 @@ test("the spectate link keeps someone a spectator even with a free seat; leaving
     await C.waitFor("document.querySelectorAll('.lobby-player').length === 3", { what: "spectator mirrors players 3" });
     await sleep(600);
     assert.equal(await C.text("btn-start"), "Spectating", "asked to spectate: no seat handed out");
+    // #29: the spectator's lobby is read-only, and a forged settings message is refused and corrected
+    assert.ok(await C.ev("[...document.querySelectorAll('.game-card')].every(c => c.disabled) && [...document.querySelectorAll('#set-players button')].every(b => b.disabled)"), "picker and players control disabled for the spectator");
+    assert.equal(await C.ev("Settings.locked"), true);
+    assert.equal(await B.ev("Settings.locked"), false, "players are not locked");
+    await C.ev("Net.send({ t: 'lobby', s: { ...Settings.read(), players: 4, game: 'five' }, from: -1 }); true");
+    await sleep(800);
+    assert.equal(await A.ev("Settings.read().players"), 3, "the host kept its settings");
+    assert.equal(await B.ev("Settings.read().players"), 3, "nothing was relayed to the players");
+    await C.waitFor("Settings.read().players === 3 && document.querySelectorAll('.lobby-player').length === 3", { what: "the spectator was corrected back" });
     assert.equal(await A.text("lp-2-status"), "not here yet");
     assert.match(await A.text("btn-start"), /Waiting for 1 more player/);
     assert.equal(await A.text("lobby-spectators"), "1 spectator watching");

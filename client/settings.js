@@ -26,6 +26,7 @@ const Settings = (() => {
     let onChange = () => {};
     let onSelectGame = () => {}; // a game card was clicked (not a mirrored / restored selection)
     let silent = false;          // true while writing the friend's settings into the form
+    let locked = false;          // a spectator: everything read-only (#29)
 
     const def = () => Games.get(game);
     const supports = (key, n = clamp(players, 2, maxPlayers)) => { const p = Games.get(key).players; return n >= p.min && n <= p.max; };
@@ -173,7 +174,7 @@ const Settings = (() => {
             c.classList.toggle("selected", c.dataset.game === game);
             const ok = supports(c.dataset.game);
             c.classList.toggle("unsupported", !ok);
-            c.disabled = !ok;
+            c.disabled = !ok || locked;
             c.title = ok ? "" : `Not for ${players} players`;
         });
         $("menu-tagline").textContent = d.tagline;
@@ -242,6 +243,17 @@ const Settings = (() => {
         }
     }
 
+    // spectators only watch (#29): the picker, the players control and every settings input are disabled
+    function setLocked(on) {
+        locked = !!on;
+        document.body.classList.toggle("settings-locked", locked);
+        document.querySelectorAll("#set-players button").forEach((b) => { b.disabled = locked; });
+        document.querySelectorAll("#settings-modal input, #settings-modal select").forEach((el) => { el.disabled = locked; });
+        if (!locked) syncDependents();
+        $("settings-locked-hint").hidden = !locked;
+        selectGame(game, false);
+    }
+
     // "bot": you against one bot, so the players row is hidden and read() says 2
     function setMode(mode) {
         maxPlayers = mode === "bot" ? 2 : 4;
@@ -276,5 +288,5 @@ const Settings = (() => {
         selectGame(game, false);
     }
 
-    return { init, read, write, selectGame, setPlayers, summary, setMode, supports, get game() { return game; }, get players() { return players; }, get fields() { return fields.map((f) => f.key); } };
+    return { init, read, write, selectGame, setPlayers, summary, setMode, setLocked, supports, get locked() { return locked; }, get game() { return game; }, get players() { return players; }, get fields() { return fields.map((f) => f.key); } };
 })();

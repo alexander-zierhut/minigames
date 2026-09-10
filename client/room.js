@@ -18,6 +18,10 @@
 const Room = (() => {
     const { $, toast } = Util;
     const RELAY = new Set(["move", "chat", "react", "tolobby", "rematch", "timeout", "lobby"]);
+    // what only a seated player may do (#29): the host drops these from spectators before relaying
+    const PLAYERS_ONLY = new Set(["move", "timeout", "rematch", "tolobby", "lobby", "start-request"]);
+    // does the host accept this message from a connection with that seat (-1 = spectator)?
+    const accepts = (msg, seat) => !(PLAYERS_ONLY.has(msg.t) && !(seat >= 0));
     const STATUS_TEXT = { connected: "Connected", waiting: "Waiting for friend", reconnecting: "Reconnecting…", connecting: "Connecting…", signaling: "Room server reconnecting…", error: "Connection error" };
     const r = {
         rev: 0,                 // room-state revision: +1 per phase change (start, rematch, back to room)
@@ -89,6 +93,7 @@ const Room = (() => {
         Match.setSeat(me, spectator);
         renderNetBox();
         h.renderLobby();
+        h.onVotes();                                  // the Rematch / Back-to-room buttons follow the seat (#29)
         save();
     }
 
@@ -375,10 +380,16 @@ const Room = (() => {
     function onMessage(msg, id) {
         if (isHost() && id !== "host") {
             msg.from = seatOf(id);                    // the host stamps every guest message with its seat…
+            if (!accepts(msg, msg.from)) { onRefused(msg, id); return; }   // …a spectator only watches (#29)…
             if (RELAY.has(msg.t)) Net.sendExcept(id, msg);   // …and passes game messages on to the other guests
         }
         const handler = HANDLERS[msg.t];
         if (handler) handler(msg, id);
+    }
+
+    // host: a spectator tried to change something; put its view straight again
+    function onRefused(msg, id) {
+        if (msg.t === "lobby") Net.sendTo(id, { t: "lobby", s: Settings.read(), from: Match.me });
     }
 
     // Start pressed in the lobby: the host starts, a guest asks the host
@@ -528,9 +539,10 @@ const Room = (() => {
         onIdle: processIncoming,
         onChanged: (kind) => { if (kind === "move") r.syncSentAt = -1; save(); },
         onFlag: (p) => netSend({ t: "timeout", p, g: Match.gameNo }),
-        settingsChanged: (cfg) => { netSend({ t: "lobby", s: cfg }); reseat(); },
+        settingsChanged: (cfg) => { if (Match.spectator) return; netSend({ t: "lobby", s: cfg }); reseat(); },
         say: (text) => netSend({ t: "chat", text }),
-        tolobby: () => netSend({ t: "tolobby" }),
+        tolobby: () => { if (!Match.spectator) netSend({ t: "tolobby" }); },
+        accepts, PLAYERS_ONLY,
         react: (e) => netSend({ t: "react", e }),
         get rev() { return r.rev; }, set rev(v) { r.rev = v; },
         get spectators() { return r.roster.spectators; },

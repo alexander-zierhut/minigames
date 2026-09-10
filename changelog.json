@@ -5,6 +5,13 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "fix",
+          "text": "Spectators only watch: they can no longer change the game or the settings, start, ask for a rematch or send everyone back to the room. Chat and reactions still work.",
+          "refs": [
+            "#29"
+          ]
+        },
+        {
           "type": "improvement",
           "text": "The number of players is picked right in the lobby (2 / 3 / 4) instead of inside the settings; games that don't take that many players are grayed out.",
           "refs": [

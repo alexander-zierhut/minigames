@@ -162,3 +162,26 @@ test("picker (#28): a game declares how many players it takes; others are grayed
     assert.equal(d.getElementById("row-players").hidden, true, "against a bot the control is hidden (always two)");
     w.close();
 });
+
+test("spectators only watch (#29): Settings.setLocked disables the picker, the players control and every settings input; Room.accepts refuses player-only messages from seat -1", () => {
+    const w = loadDom(); const d = w.document; const S = w.eval("Settings"); const R = w.eval("Room");
+    S.init({});
+    S.setLocked(true);
+    assert.equal(S.locked, true);
+    assert.ok(d.body.classList.contains("settings-locked"));
+    assert.ok([...d.querySelectorAll(".game-card")].every((c) => c.disabled), "every card disabled");
+    assert.ok([...d.querySelectorAll("#set-players button")].every((b) => b.disabled));
+    assert.ok([...d.querySelectorAll("#settings-modal input, #settings-modal select")].every((el) => el.disabled));
+    assert.equal(d.getElementById("settings-locked-hint").hidden, false);
+    S.write({ game: "five", players: 3, n: 9, winLen: 6 });                 // the players' settings still mirror in
+    assert.equal(S.read().players, 3); assert.equal(S.read().winLen, 6); assert.equal(S.game, "five");
+    S.setLocked(false);
+    assert.ok([...d.querySelectorAll(".game-card")].every((c) => !c.disabled));
+    assert.ok([...d.querySelectorAll("#set-players button")].every((b) => !b.disabled));
+    assert.equal(d.getElementById("set-size").disabled, false);
+    assert.equal(d.getElementById("set-chainlen").disabled, true, "the dependent number is disabled by its checkbox again, not by the lock");
+    assert.equal(d.getElementById("settings-locked-hint").hidden, true);
+    for (const t of R.PLAYERS_ONLY) { assert.equal(R.accepts({ t }, -1), false, t); assert.equal(R.accepts({ t }, 0), true); }
+    for (const t of ["chat", "react", "hello", "leave", "sync"]) assert.equal(R.accepts({ t }, -1), true, t);
+    w.close();
+});

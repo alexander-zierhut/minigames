@@ -178,6 +178,12 @@
 /* a game that doesn't take the chosen number of players is grayed out (#28) */
 .game-card.unsupported { opacity: .4; cursor: not-allowed; }
 .game-card.unsupported:hover { border-color: var(--line); }
+/* a spectator's lobby (#29): the picker and the players control show the choice but take no clicks */
+body.settings-locked .game-card:not(.selected), body.settings-locked .players-seg { opacity: .6; }
+body.settings-locked .game-card { cursor: default; }
+body.settings-locked .game-card:hover { border-color: var(--line); }
+body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
+#settings-locked-hint { color: #ffcc33; }
 .game-preview {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px;
     width: 66px; height: 66px; padding: 4px;

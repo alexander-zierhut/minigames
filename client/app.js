@@ -44,6 +44,7 @@
         eye.setAttribute("aria-label", eye.title);
         $("btn-opponent").hidden = !bot;
         if (bot) $("opponent-summary").textContent = Opponent.summary(Settings.game);
+        Settings.setLocked(online && Match.spectator);              // spectators only watch (#29)
         $("lobby-share").hidden = !online;
         $("lobby-players").hidden = !online;
         const box = $("lobby-players");
@@ -79,11 +80,14 @@
         $("btn-lobby-back").textContent = online ? "Leave room" : "Back";
     }
 
-    // the Rematch buttons (HUD + overlay) and the "Show result" button follow the rematch state
+    // the Rematch buttons (HUD + overlay) and the "Show result" button follow the rematch state;
+    // a spectator cannot send everyone back to the room (#29): its button leaves the room instead
     function renderRematch() {
         const spec = Match.spectator;
         $("btn-restart").disabled = spec;
         $("btn-restart").textContent = spec ? "Spectating" : "Rematch";
+        $("btn-menu").textContent = spec ? "Leave room" : "Back to room";
+        $("overlay-menu").hidden = spec;
         const again = $("overlay-again");
         if (spec) { again.textContent = "Spectating"; again.disabled = true; }
         else if (Room.online && Room.votedMyself) { again.textContent = Room.rematchWaitText(); again.disabled = true; }
@@ -184,7 +188,7 @@
     // in game
     $("gear").addEventListener("click", () => $("hut").classList.toggle("show-controls"));
     $("btn-restart").addEventListener("click", () => { if (!Match.state.busy) requestRematch(); });
-    $("btn-menu").addEventListener("click", () => backToLobby(true));
+    $("btn-menu").addEventListener("click", () => { if (Match.spectator) leaveRoom(); else backToLobby(true); });
     $("overlay-again").addEventListener("click", requestRematch);
     $("overlay-look").addEventListener("click", () => { $("overlay").hidden = true; $("result-fab").hidden = false; });
     $("result-fab").addEventListener("click", () => { $("result-fab").hidden = true; $("overlay").hidden = false; });

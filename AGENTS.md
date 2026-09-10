@@ -605,6 +605,15 @@ chat ("Spectator: …", class `chat x`) and react (white dot). `#lobby-spectator
 "N spectator(s) watching" from `roster.spectators`. The session stores `spectator`, so a
 refresh keeps spectating; `metadata {spectate}` goes with every dial. The sound module
 hears a neutral `over` for them. A spectator that wins a host takeover stays seatless.
+**Spectators only watch (#29):** the host refuses `Room.PLAYERS_ONLY` messages (`move,
+timeout, rematch, tolobby, lobby, start-request`) from a seatless connection before
+relaying (`Room.accepts(msg, seat)`; a refused `lobby` gets the host's settings back so the
+sender's view is corrected), `Settings.setLocked(true)` (from `renderLobby`) disables the
+picker, the players control and every settings input (`body.settings-locked`,
+`#settings-locked-hint`), and in the game the spectator's HUD button says "Leave room"
+(leaves the room instead of sending everyone `tolobby`) while the overlay's "Change game"
+is hidden (`renderRematch`, re-run on every seat change through `Room.setSeat` →
+`onVotes`). Chat and reactions stay allowed.
 The old "room is full" answer only remains in net.js for an app that refuses newcomers.
 
 ### Gotchas already hit
