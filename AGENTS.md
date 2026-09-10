@@ -181,8 +181,9 @@ to try things").
   section *Offline* with `Local multiplayer` (`#btn-local`) and `Against a bot`
   (`#btn-bot`) in one row and `📚 Learn to play` (`#btn-learn`, #41) in a second row under
   them, the foot with `#btn-install` (see Install), `#btn-replays` (🎬, the replays
-  screen, #42) and `#btn-changelog`, and under
-  it `#update-notice` (see "Version updates"). No Look
+  screen, #42) and `#btn-changelog`, and — **above the card** (#43), as its own banner
+  inside `#screen-menu`, which is therefore the one screen laid out as a column —
+  `#update-notice` (see "Version updates"). No Look
   control here (owner: only in the preferences, #9). Never scrolls on a phone. The ⚙
   preferences button floats top-left on every screen.
 - **Version updates** (`client/lib/update.js`, #40): while the title screen shows, `Update`
@@ -191,7 +192,7 @@ to try things").
   `<meta name="version">` (`Update.isNewer(running, latest)`: two different non-empty
   stamps, never "dev", so the unbundled dev page and the tests never poll). A different
   stamp sets `Update.available` and shows `#update-notice` ("A new version is ready." plus
-  `#btn-update-reload`). **Only on the title screen**: `app.js`'s `show()` calls
+  `#btn-update-reload`), the banner above the title card (#43). **Only on the title screen**: `app.js`'s `show()` calls
   `Update.screenChanged()`, which hides the notice in the lobby and in a game and shows it
   again on the way back, so a result that arrives elsewhere simply waits. After
   `Update.AUTO_MS` (20 s) with the notice up and no click or key press the page reloads

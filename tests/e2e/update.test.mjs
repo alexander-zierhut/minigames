@@ -26,6 +26,10 @@ test("a newer version shows the notice, but only on the title screen", async () 
     await B.waitFor("Update.available", { timeout: 8000, what: "the new version is noticed" });
     assert.equal(await B.ev("Update.latest"), "zzz 2999-01-01");
     assert.equal(await B.ev("document.getElementById('update-notice').hidden"), false, "notice on the title screen");
+    // the notice is a banner above the title card, not a line inside it (#43)
+    assert.equal(await B.ev("document.getElementById('update-notice').parentElement.id"), "screen-menu");
+    const above = JSON.parse(await B.ev("JSON.stringify({ n: document.getElementById('update-notice').getBoundingClientRect(), c: document.querySelector('#screen-menu .menu-card').getBoundingClientRect() })"));
+    assert.ok(above.n.bottom <= above.c.top, `the banner sits above the card (${above.n.bottom} <= ${above.c.top})`);
     // in the lobby it is gone (a game or a lobby is never interrupted)
     await B.click("#btn-local");
     assert.equal(await B.screen(), "screen-lobby");
@@ -53,5 +57,9 @@ test("the title screen with the notice still fits a 360x780 phone", async () => 
     assert.ok(await B.ev("(() => { const c = document.querySelector('#screen-menu .menu-card'); return c.scrollHeight <= c.clientHeight + 1; })()"), "the menu card itself does not scroll");
     const btn = JSON.parse(await B.ev("(() => { const r = document.getElementById('btn-update-reload').getBoundingClientRect(); return JSON.stringify({ left: Math.round(r.left), right: Math.round(r.right), bottom: Math.round(r.bottom) }); })()"));
     assert.ok(btn.left >= 0 && btn.right <= 360 && btn.bottom <= 780, `Reload button inside the viewport ${JSON.stringify(btn)}`);
+    // phone: the banner is clear of the ⚙ corner button and still above the card (#43)
+    const phone = JSON.parse(await B.ev("JSON.stringify({ n: document.getElementById('update-notice').getBoundingClientRect(), c: document.querySelector('#screen-menu .menu-card').getBoundingClientRect(), g: document.getElementById('prefs-btn').getBoundingClientRect() })"));
+    assert.ok(phone.n.top >= phone.g.bottom, `the banner starts below the ⚙ button (${phone.n.top} >= ${phone.g.bottom})`);
+    assert.ok(phone.n.bottom <= phone.c.top, "the banner sits above the card on a phone too");
     await B.screenshot("update-notice-mobile.png");
 });

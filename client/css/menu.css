@@ -71,17 +71,26 @@
 .menu-foot { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .install-btn { font-size: 13px; padding: 10px 14px; }
 
-/* a new version is deployed (#40): one quiet line above the foot, title screen only */
+/* a new version is deployed (#40): a banner above the title card (#43), title screen only.
+   The title screen is the one screen that stacks two blocks, so it is a column. */
+#screen-menu { flex-direction: column; gap: 12px; }
+#screen-menu .menu-card { min-height: 0; }
 .update-notice {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
     flex-wrap: wrap;
-    margin-top: -8px;
-    font-size: 12px;
-    color: var(--muted);
+    flex: 0 0 auto;
+    padding: 8px 14px;
+    background: var(--bg2);
+    border: 2px solid var(--accent);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.5);
+    font-size: 13px;
+    color: var(--text);
 }
+.skin-mc .update-notice { border-radius: 0; background: rgba(0,0,0,.7); border-color: #000; }
 
 /* ---- changelog ---- */
 .changelog-card { max-width: 560px; gap: 12px; }
