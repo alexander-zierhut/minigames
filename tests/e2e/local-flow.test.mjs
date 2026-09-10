@@ -85,3 +85,22 @@ test("change game from the overlay returns to the lobby; leave returns to menu",
     assert.deepEqual(B.errors, [], "no page errors");
     assert.deepEqual(B.failedRequests, [], "no failed requests");
 });
+
+test("install button: hidden until the browser offers to install, then prompts", async () => {
+    // headless Chrome on localhost may offer the install prompt itself; start from "not offered"
+    await B.ev("document.getElementById('btn-install').hidden = true; true");
+    await B.ev(`(() => {
+        window.__prompted = 0;
+        const e = new Event("beforeinstallprompt", { cancelable: true });
+        e.prompt = () => { window.__prompted++; return Promise.resolve(); };
+        window.dispatchEvent(e);
+        return true;
+    })()`);
+    assert.equal(await B.ev("document.getElementById('btn-install').hidden"), false, "offered: button visible");
+    assert.match(await B.text("btn-install"), /Add to home screen/);
+    await B.click("#btn-install");
+    assert.equal(await B.ev("window.__prompted"), 1, "the browser prompt was shown");
+    assert.equal(await B.ev("document.getElementById('btn-install').hidden"), true, "hidden after prompting");
+    assert.equal(await B.ev("document.querySelector('link[rel=manifest]').getAttribute('href')"), "manifest.json");
+});
+

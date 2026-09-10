@@ -68,6 +68,9 @@
 }
 .hint { margin: 0; font-size: 12px; color: var(--muted); text-align: center; }
 
+.install-btn { font-size: 13px; padding: 10px 14px; }
+.skin-mc .install-btn { background: #4a4a4a; }
+
 /* ---- look (skin) control ---- */
 .skin-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
 .skin-row.compact .seg button { padding: 6px 4px; font-size: 11px; }

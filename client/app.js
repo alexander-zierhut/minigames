@@ -776,6 +776,24 @@
     document.addEventListener("visibilitychange", () => { if (!document.hidden && online()) Net.retryNow(); });
     window.addEventListener("online", () => { if (online()) Net.retryNow(); });
 
+    /* ================= install as an app (Android Chrome: beforeinstallprompt) ================= */
+    // the button exists only where installing works: shown when the browser offers the prompt,
+    // hidden again after installing or when already running as an installed app
+    let installPrompt = null;
+    window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault();
+        installPrompt = e;
+        $("btn-install").hidden = window.matchMedia("(display-mode: standalone)").matches;
+    });
+    $("btn-install").addEventListener("click", async () => {
+        if (!installPrompt) return;
+        const prompt = installPrompt;
+        installPrompt = null;
+        $("btn-install").hidden = true;
+        try { await prompt.prompt(); } catch (e) { /* dismissed */ }
+    });
+    window.addEventListener("appinstalled", () => { $("btn-install").hidden = true; toast("Installed — find it on your home screen"); });
+
     /* ================= boot ================= */
     Preload.textures();
     Skins.init({ onChange: () => { Game.render(); renderLobby(); } });

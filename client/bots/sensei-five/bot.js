@@ -20,7 +20,12 @@
    completion cells → loss; one → the block is the only move and costs no depth), enemy
    three-cells restrict the reply to own four-makers / three-cells / real defences, other
    nodes search the K best candidates by a per-cell potential that is updated incrementally.
-   Determinism: no Math.random; tie-breaks are by cell index, Easy's noise uses tools.random. */
+   Determinism: no Math.random; tie-breaks are by cell index, Easy's noise uses tools.random.
+
+   Win chance (Evaluator, evaluate(state, tools) in the registration): a raw score from
+   player 0's view for the HUD — a short forced-move-aware search on every budget, threat
+   searches (VCF / VCT extended by three-makers) on the long ones; see the block at the end.
+   The board also counts the windows still open per player (dead board = draw, #18). */
 
 "use strict";
 
@@ -62,7 +67,8 @@ const SenseiFive = (() => {
             for (let k = 0; k <= L; k++) this.ws[k] = wsOf(k);
             this.buildLines();
             this.rec = new Int32Array(this.lines.length * RECS);
-            this.F = [0, 0]; this.T = [0, 0]; this.S = [0, 0];
+            this.ow = new Int32Array(this.lines.length * 2);    // open windows per line and player (#18: none left for anyone = dead board, a draw)
+            this.F = [0, 0]; this.T = [0, 0]; this.S = [0, 0]; this.OW = [0, 0];
             this.TL = [0, 0];                                  // lines with ≥ 1 three-cell
             this.MK = [0, 0];                                  // lines with ≥ 1 four-maker
             this.potD = new Int32Array(4 * this.size * 2);    // potential per direction, cell, player
@@ -81,7 +87,7 @@ const SenseiFive = (() => {
             for (let i = 0; i < 2 * this.size; i++) { this.zlo[i] = (rng32() * 4294967296) >>> 0; this.zhi[i] = (rng32() * 4294967296) >>> 0; }
             this.hashLo = 0; this.hashHi = 0;
             // undo stack: per make a frame of [cell, player, 10 totals, 4 × (line id + record), potential entries…]
-            this.frame = 2 + 10 + 4 * (1 + RECS) + 1 + 4 * (2 * L - 2) * 5;
+            this.frame = 2 + 12 + 4 * (1 + RECS + 2) + 1 + 4 * (2 * L - 2) * 5;
             this.stack = new Int32Array(this.frame * (PLIES + 8));
             this.frames = new Int32Array(PLIES + 8);           // frame start per made stone
             this.sp = 0; this.depth = 0;
@@ -142,24 +148,26 @@ const SenseiFive = (() => {
                 }
                 rec[at + R_F + p] = F; rec[at + R_T + p] = T; rec[at + R_FM + p] = FM; rec[at + R_TM + p] = TM; rec[at + R_MM + p] = MM;
             }
-            let c0 = 0, c1 = 0, S0 = 0, S1 = 0;
+            let c0 = 0, c1 = 0, S0 = 0, S1 = 0, O0 = 0, O1 = 0;
             const ws = this.ws;
             for (let i = 0; i < L; i++) { const v = cell[cells[i]]; if (v === 0) c0++; else if (v === 1) c1++; }
             for (let s = 0; ; s++) {
-                if (c1 === 0 && c0 > 0) S0 += ws[L - c0];
-                if (c0 === 0 && c1 > 0) S1 += ws[L - c1];
+                if (c1 === 0) { O0++; if (c0 > 0) S0 += ws[L - c0]; }
+                if (c0 === 0) { O1++; if (c1 > 0) S1 += ws[L - c1]; }
                 if (s + L >= m) break;
                 const out = cell[cells[s]], inn = cell[cells[s + L]];
                 if (out === 0) c0--; else if (out === 1) c1--;
                 if (inn === 0) c0++; else if (inn === 1) c1++;
             }
             rec[at + R_S] = S0; rec[at + R_S + 1] = S1;
+            this.ow[id * 2] = O0; this.ow[id * 2 + 1] = O1;
         }
 
         // totals ± one line record
         addRec(at, sign) {
-            const rec = this.rec;
+            const rec = this.rec, id = at / RECS;
             for (let p = 0; p < 2; p++) {
+                this.OW[p] += sign * this.ow[id * 2 + p];
                 this.F[p] += sign * rec[at + R_F + p];
                 this.T[p] += sign * rec[at + R_T + p];
                 this.S[p] += sign * rec[at + R_S + p];
@@ -201,7 +209,7 @@ const SenseiFive = (() => {
                 if (v === -1) this.empties++;
                 else { this.hashLo ^= this.zlo[v * size + c]; this.hashHi ^= this.zhi[v * size + c]; for (const o of this.nbList[c]) this.nb[o]++; }
             }
-            this.F[0] = this.F[1] = this.T[0] = this.T[1] = this.S[0] = this.S[1] = this.TL[0] = this.TL[1] = this.MK[0] = this.MK[1] = 0;
+            this.F[0] = this.F[1] = this.T[0] = this.T[1] = this.S[0] = this.S[1] = this.TL[0] = this.TL[1] = this.MK[0] = this.MK[1] = this.OW[0] = this.OW[1] = 0;
             for (let id = 0; id < this.lines.length; id++) { this.scanLine(id, id * RECS); this.addRec(id * RECS, 1); }
             this.potD.fill(0); this.pot.fill(0);
             for (let d = 0; d < 4; d++) for (let c = 0; c < size; c++) {
@@ -226,16 +234,17 @@ const SenseiFive = (() => {
             this.frames[this.depth++] = sp;
             st[sp++] = c; st[sp++] = p;
             st[sp++] = this.F[0]; st[sp++] = this.F[1]; st[sp++] = this.T[0]; st[sp++] = this.T[1]; st[sp++] = this.S[0]; st[sp++] = this.S[1];
-            st[sp++] = this.TL[0]; st[sp++] = this.TL[1]; st[sp++] = this.MK[0]; st[sp++] = this.MK[1];
+            st[sp++] = this.TL[0]; st[sp++] = this.TL[1]; st[sp++] = this.MK[0]; st[sp++] = this.MK[1]; st[sp++] = this.OW[0]; st[sp++] = this.OW[1];
             this.cell[c] = p; this.empties--;
             this.hashLo ^= this.zlo[p * size + c]; this.hashHi ^= this.zhi[p * size + c];
             for (const o of this.nbList[c]) this.nb[o]++;
             for (let d = 0; d < 4; d++) {
                 const id = this.lineOf[d * size + c];
                 st[sp++] = id;
-                if (id < 0) { sp += RECS; continue; }
+                if (id < 0) { sp += RECS + 2; continue; }
                 const at = id * RECS;
                 for (let k = 0; k < RECS; k++) st[sp++] = this.rec[at + k];
+                st[sp++] = this.ow[id * 2]; st[sp++] = this.ow[id * 2 + 1];
                 this.addRec(at, -1); this.scanLine(id, at); this.addRec(at, 1);
             }
             const countAt = sp++;
@@ -266,12 +275,13 @@ const SenseiFive = (() => {
             this.sp = sp;
             const c = st[sp++], p = st[sp++];
             this.F[0] = st[sp++]; this.F[1] = st[sp++]; this.T[0] = st[sp++]; this.T[1] = st[sp++]; this.S[0] = st[sp++]; this.S[1] = st[sp++];
-            this.TL[0] = st[sp++]; this.TL[1] = st[sp++]; this.MK[0] = st[sp++]; this.MK[1] = st[sp++];
+            this.TL[0] = st[sp++]; this.TL[1] = st[sp++]; this.MK[0] = st[sp++]; this.MK[1] = st[sp++]; this.OW[0] = st[sp++]; this.OW[1] = st[sp++];
             for (let d = 0; d < 4; d++) {
                 const id = st[sp++];
-                if (id < 0) { sp += RECS; continue; }
+                if (id < 0) { sp += RECS + 2; continue; }
                 const at = id * RECS;
                 for (let k = 0; k < RECS; k++) this.rec[at + k] = st[sp++];
+                this.ow[id * 2] = st[sp++]; this.ow[id * 2 + 1] = st[sp++];
             }
             const count = st[sp++];
             for (let e = 0; e < count; e++, sp += 5) {                  // absolute values: order is irrelevant
@@ -313,6 +323,29 @@ const SenseiFive = (() => {
             return count;
         }
 
+        /* Three-makers of p: empty cells whose filling creates a new three-cell for p (an open
+           three, i.e. the threat of an open four). Filtered by potential (such a cell has a
+           window with L-2 own stones after filling, worth ws[2]), verified by make/unmake,
+           ordered by potential so forks come first. Used by the win-chance threat search. */
+        threeMakers(p, out, count, mark, stamp) {
+            const T0 = this.T[p], pot = this.pot, potD = this.potD, need = this.ws[2], size = this.size, start = count;
+            for (let c = 0; c < size; c++) {
+                if (this.cell[c] !== -1 || this.nb[c] === 0 || mark[c] === stamp || pot[c * 2 + p] < need) continue;
+                // some single direction must carry a window with L-3 own stones
+                const i = c * 2 + p;
+                if (potD[i] < need && potD[size * 2 + i] < need && potD[size * 4 + i] < need && potD[size * 6 + i] < need) continue;
+                this.make(c, p);
+                const makes = this.T[p] > T0;
+                this.unmake();
+                if (!makes) continue;
+                mark[c] = stamp;
+                let j = count++;
+                while (j > start && pot[out[j - 1] * 2 + p] < pot[c * 2 + p]) { out[j] = out[j - 1]; j--; }
+                out[j] = c;
+            }
+            return count;
+        }
+
         /* Defences against q's three-cells: empty cells on those lines whose filling by p
            leaves the line without a three-cell (anything less still loses to the open four).
            Tested by a scratch scan (no stack, no totals). */
@@ -323,6 +356,7 @@ const SenseiFive = (() => {
                 if (rec[at + R_T + q] === 0) continue;
                 const cells = this.lines[id];
                 sc.set(rec.subarray(at, at + RECS));
+                const o0 = this.ow[id * 2], o1 = this.ow[id * 2 + 1];
                 for (let i = 0; i < cells.length; i++) {
                     const x = cells[i];
                     if (this.cell[x] !== -1 || mark[x] === stamp) continue;
@@ -333,6 +367,7 @@ const SenseiFive = (() => {
                     if (after === 0) { mark[x] = stamp; out[count++] = x; }
                 }
                 rec.set(sc, at);
+                this.ow[id * 2] = o0; this.ow[id * 2 + 1] = o1;
             }
             return count;
         }
@@ -647,6 +682,8 @@ const SenseiFive = (() => {
                 const stamp = ++this.stamp;
                 count = B.collect(R_MM, p, moves, base, mark, stamp) - base;              // fours first
                 count = B.collect(R_TM, p, moves, base + count, mark, stamp) - base;
+                // then threes (Evaluator only): a three needs a follow-up threat, so never as the last one
+                if (this.threeMakers && threats >= 2) count = B.threeMakers(p, moves, base + count, mark, stamp) - base;
             }
             for (let i = 0; i < count; i++) {
                 const c = moves[base + i];
@@ -701,32 +738,175 @@ const SenseiFive = (() => {
     }
 
     /* ================================================================
-       Win chance for player 0 (HUD): static, deterministic, cheap. Terminal positions are
-       exact; an unstoppable four / two completion cells for the side to move or an
-       unanswerable threat for the other side dominate; otherwise the material difference
-       goes through a logistic curve scaled by the board's window values. */
-    const estBoards = new Map();                                     // "n/L" -> Board, reused per call
-    function estimate(state) {
-        if (state.over) return state.winner === 0 ? 1 : state.winner === 1 ? 0 : 0.5;
-        const key = `${state.n}/${state.winLen}`;
-        if (!estBoards.has(key)) estBoards.set(key, new Board(state.n, state.winLen));
-        const B = estBoards.get(key);
-        B.load(state.cells);
-        const p = state.current, q = 1 - p, buf = new Int16Array(2);
-        let v;                                                       // from p's view
-        const mine = B.completionCells(p, buf);
-        const theirs = B.completionCells(q, buf);
-        if (mine > 0) v = 12;                                        // wins on the spot
-        else if (theirs >= 2) v = -12;                               // cannot block both
-        else if (theirs === 1) v = -1.5 + (B.S[p] - B.S[q]) / 600;   // must block, initiative lost
-        else if (B.T[p] > 0) v = 5 + (B.S[p] - B.S[q]) / 600;        // open four next move
-        else if (B.TL[q] >= 2) v = -4 + (B.S[p] - B.S[q]) / 600;     // two open threes to stop
-        else v = (B.S[p] - B.S[q] + (B.TL[q] === 1 ? -600 : 0) + (B.MK[p] > 0 ? 80 : 0)) / 400;
-        const pv = 1 / (1 + Math.exp(-v));
-        return p === 0 ? pv : 1 - pv;
+       Win chance (HUD): evaluate(state, tools) → a raw score from PLAYER 0's point of view
+       (0 = even, > 0 = player 0 better, ±Infinity = decided). The framework maps it to a
+       probability with a calibration fitted from self-play, so only the units matter: they
+       are the window-sum units of the search evaluation (WS).
+
+       Every budget: terminal positions are exact; then a short, synchronous search from the
+       side to move (EST.depth plies, EST.K candidates) in which forced situations cost no
+       depth — an own completion cell wins, two enemy ones lose, one is blocked, and at a
+       quiet leaf an own three-cell (open four next move, the enemy has no four) wins — with
+       the static evaluation at the leaves plus a tempo for the side to move. Mate scores are
+       reported as ±Infinity (a loss found only among the K best defences is treated as
+       decided too: a practical, not a proven, verdict).
+       Budgets above EST.quickNodes (the background stages) then spend the rest of the node
+       budget on threat searches: VCF and VCT for the side to move (a win = ±Infinity), then
+       VCT for the other side as if it were to move; that only decides the game if none of the
+       side to move's candidate defences (generate(): forcing moves, real defences or the K
+       best cells) breaks it. Everything honours tools.budget.nodes (d.tick() per node, no
+       wall clock) and yields every YIELD_EVERY nodes on the long budgets, so both online
+       clients compute the same number and the page stays responsive. */
+    const EST = { tempo: 24, depth: 2, ext: 4, K: 10, quickNodes: 5000, vcf: 16, vct: 10, shares: [0.1, 0.5, 0.4] };
+    const EST_LEVELS = [
+        { depth: 2, K: EST.K, vcf: 0, vct: 0, leafVcf: 0, leafVct: 0, defend: 0, noise: false, yields: false },
+        { depth: 2, K: EST.K, vcf: 0, vct: 0, leafVcf: 0, leafVct: 0, defend: 0, noise: false, yields: true },
+    ];
+
+    class Evaluator extends Searcher {
+        constructor(n, L) { super(null, EST_LEVELS[0]); this.board(n, L); this.threeMakers = true; }
+
+        // quiet leaf value from p's view (no fours, no open threes on the board): material + tempo
+        static(p) { const B = this.B; return B.S[p] - B.S[1 - p] + EST.tempo; }
+
+        /* synchronous alpha-beta from p's view; forced moves are free, mate scores carry the
+           distance. Returns null when the node budget ran out. */
+        search(p, depth, ply, alpha, beta, ext) {
+            if (this.d.tick()) { this.stop = true; return 0; }
+            const B = this.B, q = 1 - p, buf = this.buf2;
+            if (B.F[p] > 0) return WIN - ply;
+            if (B.empties === 0 || (B.OW[0] === 0 && B.OW[1] === 0)) return 0;   // full or dead board: a draw
+            const forced = B.completionCells(q, buf);
+            if (forced >= 2) return -(WIN - ply - 1);
+            if (ply >= MAXPLY) return this.static(p);
+            if (forced === 0) {
+                if (B.T[p] > 0) return WIN - ply - 2;                      // open four next move
+                if (depth <= 0 && (B.TL[q] === 0 || ext <= 0)) return this.static(p);   // else an enemy three extends: p must answer it
+            }
+            const size = B.size, base = ply * size, moves = this.moves;
+            let count, next;
+            if (forced === 1) { moves[base] = buf[0]; count = 1; next = depth; }
+            else { count = this.generate(p, ply, -1); next = depth - 1; if (depth <= 0) ext--; }
+            if (count === 0) return this.static(p);
+            let best = -Infinity;
+            for (let i = 0; i < count; i++) {
+                B.make(moves[base + i], p);
+                const v = -this.search(q, next, ply + 1, -beta, -alpha, ext);
+                B.unmake();
+                if (this.stop) return 0;
+                if (v > best) best = v;
+                if (v > alpha) { alpha = v; if (alpha >= beta) break; }
+            }
+            return best;
+        }
+
+        // the finite part: forced fours only (always affordable), then the short search with
+        // threat extensions; the last value that finished within the budget counts
+        finite(p) {
+            const quiet = this.search(p, 0, 0, -WIN, WIN, 0);
+            if (this.stop) return quiet;
+            const deep = this.search(p, EST.depth, 0, -WIN, WIN, EST.ext);
+            return this.stop ? quiet : deep;
+        }
+
+        // runs fn under `share` of what is left of the node budget; a phase that ran out only
+        // ends the phase (this.stop is cleared unless the whole budget is gone)
+        async phase(share, fn) {
+            const real = this.d, budget = this.tools.budget;
+            const cap = real.nodes() + Math.floor(share * (budget.nodes - real.nodes()));
+            this.d = { tick: (k) => real.tick(k) || real.nodes() >= cap, nodes: () => real.nodes(), left: () => real.left(), expired: () => real.expired() || real.nodes() >= cap };
+            const r = await fn();
+            this.d = real;
+            this.aborted = this.stop;
+            if (!real.expired()) this.stop = false;
+            return this.aborted ? null : r;
+        }
+
+        // threat searches for both sides; +1 / -1 = decided for p / q, 0 = undecided.
+        // this.verdict tells why (test / tuning hook).
+        async threats(p) {
+            const B = this.B, q = 1 - p, [s1, s2, s3] = EST.shares;
+            this.verdict = "quiet";
+            if (B.MK[p] > 0 && await this.phase(s1, () => this.rootVcf(p, EST.vcf))) { this.verdict = "vcf"; return 1; }
+            if (await this.phase(s2, () => this.rootVct(p, EST.vct, 1))) { this.verdict = "vct"; return 1; }
+            const win = await this.phase(s3, () => this.rootVct(q, EST.vct, 1));
+            if (!win) return 0;
+            // q wins if it were to move: p is lost only if every possible defence still loses.
+            // Facing an open three the reply set of generate() is complete; otherwise every empty
+            // cell sharing a window with a stone can matter (one without any potential cannot),
+            // best first, the first move of q's sequence before all. The loop ends at the first
+            // defence, so every candidate may use all that is left of the budget (the ones that
+            // still lose are cheap; a real defence makes the re-check exhaustive, which mostly
+            // ends in "unknown" — the right answer, only the budget is spent); running out of
+            // budget is "unknown", never a verdict.
+            const moves = this.defenceCandidates(p, win.move);
+            for (let i = 0; i < moves.length; i++) {
+                if (this.stop) { this.verdict = "threat-unknown"; return 0; }
+                B.make(moves[i], p);
+                const still = await this.phase(1, () => this.rootVct(q, EST.vct, 1));
+                B.unmake();
+                if (!still) { this.verdict = this.aborted ? "threat-unknown" : "threat-defused"; return 0; }
+            }
+            this.verdict = "threat-lost";
+            return -1;
+        }
+
+        defenceCandidates(p, first) {
+            const B = this.B, q = 1 - p, pot = B.pot;
+            let list;
+            if (B.TL[q] > 0) list = Array.from(this.moves.subarray(0, this.generate(p, 0, -1)));
+            else {
+                list = [];
+                for (let c = 0; c < B.size; c++) if (B.cell[c] === -1 && (pot[c * 2 + p] > 0 || pot[c * 2 + q] > 0)) list.push(c);
+                list.sort((a, b) => (pot[b * 2 + p] + pot[b * 2 + q]) - (pot[a * 2 + p] + pot[a * 2 + q]) || a - b);
+            }
+            const k = list.indexOf(first);
+            if (k > 0) list.splice(k, 1);
+            if (k !== 0) list.unshift(first);
+            return list;
+        }
+
+        // the entry point; synchronous for quick budgets, a Promise for the background stages
+        run(state, tools) {
+            const B = this.B;
+            B.load(state.cells);
+            this.tools = tools; this.level = EST_LEVELS[tools.budget.nodes > EST.quickNodes ? 1 : 0];
+            this.d = tools.deadline(); this.stop = false; this.sinceYield = 0;
+            this.hist.fill(0); this.killers.fill(-1);
+            if (++this.vcfStamp === 65536) { this.vcfStamp = 1; this.vcfGen.fill(0); }
+            const p = state.current, sign = p === 0 ? 1 : -1;
+            const v = this.finite(p);
+            if (v >= WIN - MAXPLY) return sign * Infinity;
+            if (v <= -(WIN - MAXPLY)) return -sign * Infinity;
+            if (tools.budget.nodes <= EST.quickNodes) return sign * v || 0;
+            this.busy = true;                                        // a background stage: the pool must not hand this one out
+            return this.threats(p).then((r) => (r ? r * sign * Infinity : sign * v || 0)).finally(() => { this.busy = false; });
+        }
     }
 
-    return { Board, Searcher, evaluate, estimate, LEVELS, WS, EVAL };
+    // pool per board shape: a quick call while a background stage is awaiting a yield gets its own instance
+    const evaluators = new Map();                                    // "n/L" -> [Evaluator, …]
+    function acquire(n, L) {
+        const key = `${n}/${L}`;
+        if (!evaluators.has(key)) evaluators.set(key, []);
+        const pool = evaluators.get(key);
+        let e = pool.find((x) => !x.busy);
+        if (!e) { e = new Evaluator(n, L); pool.push(e); }
+        return e;
+    }
+    function estimateRaw(state, tools) {
+        if (state.over) return state.winner === 0 ? Infinity : state.winner === 1 ? -Infinity : 0;
+        const last = state.history[state.history.length - 1];
+        if (last !== undefined) {                                    // a five already on the board
+            const line = tools.rules.lineThrough(state, last);
+            if (line.len >= state.winLen) return state.cells[last] === 0 ? Infinity : -Infinity;
+        }
+        if (state.history.length === 0) return 0;                    // the symmetric start
+        if (!state.cells.includes(-1)) return 0;                     // full board: a draw (a dead board is the search's terminal)
+        return acquire(state.n, state.winLen).run(state, tools);
+    }
+
+    return { Board, Searcher, Evaluator, evaluate, estimateRaw, LEVELS, WS, EVAL, EST };
 })();
 
 Bots.register({
@@ -745,6 +925,6 @@ Bots.register({
         const s = new SenseiFive.Searcher(tools, SenseiFive.LEVELS[tools.difficulty] || SenseiFive.LEVELS.normal);
         return { move: (state) => s.move(state), searcher: s };     // searcher: test hook (info of the last search)
     },
-    estimate: (state) => SenseiFive.estimate(state),
-    internals: SenseiFive,          // test hooks: Board, Searcher, evaluate, estimate, LEVELS, WS, EVAL
+    evaluate: (state, tools) => SenseiFive.estimateRaw(state, tools),
+    internals: SenseiFive,          // test hooks: Board, Searcher, Evaluator, evaluate, estimateRaw, LEVELS, WS, EVAL, EST
 });

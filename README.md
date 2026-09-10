@@ -29,6 +29,9 @@ the Minecraft looks the real block, TNT and level-up sounds). Emoji reactions fo
 trash talk are in the top-right corner; a room chat lives under the game log (phones:
 behind the ☰ button).
 
+On Android the title screen offers "Add to home screen" so it runs like an installed app
+(web app manifest; no service worker, no offline mode).
+
 ## Develop & test
 
 ```

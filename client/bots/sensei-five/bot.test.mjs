@@ -195,33 +195,129 @@ test("sensei-five: Very hard answers within 600 ms per move at 15×15 under a 20
     }
 });
 
-/* ---------- win chance estimate ---------- */
-test("sensei-five: estimate() — 0.5 on an empty board, open four ≈ 1 / 0, terminal exact, ≤ 15 ms at 15×15", () => {
-    const est = def.estimate;
-    assert.equal(est(position([])), 0.5);
-    assert.equal(est(rules.create({ n: 15, winLen: 5 }, Rules.base({ n: 15 }))), 0.5);
-    const openFourP0 = position([40, 0, 41, 1, 42, 2, 43]);                 // O to move, cannot stop 39/44
-    assert.ok(est(openFourP0) > 0.9, `open four for player 0: ${est(openFourP0)}`);
-    const openFourP1 = position([0, 40, 1, 41, 2, 42, 3, 43, 72]);         // the mirror: player 1 has it
-    assert.ok(est(openFourP1) < 0.1, `open four for player 1: ${est(openFourP1)}`);
-    const fourToMove = position([36, 60, 37, 61, 38, 62, 39, 63]);         // player 0 to move with a completion cell
-    assert.ok(est(fourToMove) > 0.95);
+/* ---------- win chance: evaluate(state, tools) — raw score from player 0's view ---------- */
+const evalAt = (state, nodes) => def.evaluate(state, Bots.tools("five", { seed: 0, budget: { ms: Infinity, nodes } }));
+const S = 300;                                                   // units of a clear advantage (see README)
+const logistic = (raw) => (raw === Infinity ? 1 : raw === -Infinity ? 0 : 1 / (1 + Math.exp(-raw / S)));
+const mirror = (state) => ({ ...state, cells: state.cells.map((c) => (c < 0 ? c : 1 - c)), current: 1 - state.current, movesBy: [state.movesBy[1], state.movesBy[0]] });
+
+test("sensei-five: evaluate() — terminal positions exact, empty board 0, a full board 0", async () => {
     const won0 = t.apply(position([40, 0, 41, 1, 42, 2, 43, 3]), 44);
-    assert.equal(won0.over, true); assert.equal(est(won0), 1);
+    assert.equal(won0.winner, 0); assert.equal(await evalAt(won0, 2000), Infinity);
     const won1 = t.apply(position([0, 40, 1, 41, 2, 42, 3, 43, 72]), 44);
-    assert.equal(won1.winner, 1); assert.equal(est(won1), 0);
+    assert.equal(won1.winner, 1); assert.equal(await evalAt(won1, 2000), -Infinity);
+    // a five on the board counts even when the flags are missing (a state rebuilt from cells)
+    assert.equal(await evalAt({ ...won0, over: false, winner: undefined }, 12000), Infinity);
     let draw = rules.create({ n: 3, winLen: 3 }, Rules.base({ n: 3 }));
-    for (const m of [0, 1, 2, 4, 3, 5, 7, 6, 8]) draw = t.apply(draw, m);
-    assert.equal(draw.over, true); assert.equal(draw.winner, -1); assert.equal(est(draw), 0.5);
-    // deterministic, symmetric-ish, monotone with material
-    assert.equal(est(position([40, 31])), est(position([40, 31])));
-    assert.ok(est(position([40, 0, 41, 1, 42])) > 0.6, "three stones in a row vs scattered");
-    // speed: a 15×15 middlegame
+    for (const m of [1, 0, 2, 5, 3, 6, 4, 7, 8]) draw = t.apply(draw, m);
+    assert.equal(draw.winner, -1); assert.equal(await evalAt(draw, 2000), 0);
+    // a dead board (#18: no window free of the opponent for anyone, 2 cells still empty) is a draw
+    // for the engine too, flags or not: the engine's open-window totals reach 0 exactly there
+    let dead = rules.create({ n: 6, winLen: 5 }, Rules.base({ n: 6 }));
+    for (const m of [22, 0, 18, 35, 33, 9, 21, 25, 13, 34, 14, 16, 4, 12, 7, 5, 19, 2, 17, 29, 10, 6, 1, 23, 27, 30, 11, 8, 28, 24, 31, 3, 26, 20]) dead = t.apply(dead, m);
+    assert.equal(dead.over, true); assert.equal(dead.winner, -1); assert.equal(dead.cells.filter((c) => c < 0).length, 2);
+    const deadBoard = new Board(6, 5); deadBoard.load(dead.cells);
+    assert.equal(JSON.stringify(deadBoard.OW), "[0,0]", "no open window for either player");
+    assert.equal(await evalAt(dead, 2000), 0);
+    assert.equal(await evalAt({ ...dead, over: false, winner: undefined }, 12000), 0);
+    for (const nodes of [2000, 12000, 60000]) {
+        assert.equal(await evalAt(position([]), nodes), 0, `empty 9×9 @${nodes}`);
+        assert.equal(await evalAt(rules.create({ n: 15, winLen: 5 }, Rules.base({ n: 15 })), nodes), 0, `empty 15×15 @${nodes}`);
+    }
+});
+
+test("sensei-five: evaluate() — a four / open four is decided whoever is to move, immediate threats are handled at 2 000 nodes", async () => {
+    const openFourP0 = position([40, 0, 41, 1, 42, 2, 43]);                 // O to move, cannot stop 39/44
+    const fourToMoveP0 = position([36, 60, 37, 61, 38, 62, 39, 63]);         // X to move with a completion cell
+    const openFourP1 = position([0, 40, 1, 41, 2, 42, 3, 43, 72]);           // the mirror: O owns the open four, X to move
+    const twoFoursP1 = position([0, 36, 2, 37, 4, 38, 6, 39, 8, 45, 18, 46, 20, 47, 22, 48]);   // O 36-39 and 45-48, X scattered
+    for (const nodes of [2000, 12000]) {
+        assert.equal(await evalAt(openFourP0, nodes), Infinity, `open four p0 @${nodes}`);
+        assert.equal(await evalAt(fourToMoveP0, nodes), Infinity, `four to move p0 @${nodes}`);
+        assert.equal(await evalAt(openFourP1, nodes), -Infinity, `open four p1 @${nodes}`);
+    }
+    // one enemy four: the forced block is assumed, the score stays finite (X blocks 40 and plays on)
+    const mustBlock = position([60, 36, 61, 37, 62, 38, 70, 39]);           // X to move, O 36-39 needs 40
+    const v = await evalAt(mustBlock, 2000);
+    assert.ok(Number.isFinite(v), `must-block position stays finite: ${v}`);
+    // two enemy fours (completion cells 40 and 49) → decided against the side to move
+    assert.equal(twoFoursP1.current, 0); assert.equal(twoFoursP1.over, false);
+    assert.equal(await evalAt(twoFoursP1, 2000), -Infinity);
+});
+
+test("sensei-five: evaluate() — forced wins are reported before they are on the board (four-three at 2 000, three-three fork at 12 000 nodes)", async () => {
+    const fourThree = position([4, 62, 13, 64, 22, 66, 29, 68, 30, 80]);    // X to move: 31 makes a four and an open three
+    assert.equal(await evalAt(fourThree, 2000), Infinity);
+    assert.equal(await evalAt(fourThree, 12000), Infinity);
+    const fork = position([39, 0, 41, 1, 22, 2, 58, 80]);                   // X to move: 40 makes two open threes
+    assert.ok(Number.isFinite(await evalAt(fork, 2000)), "the quick stage has no threat search");
+    assert.equal(await evalAt(fork, 12000), Infinity, "VCT with three-makers finds the fork");
+    // the same fork with the colours swapped (player 1 to move): decided against player 0
+    assert.equal(await evalAt(mirror(fork), 12000), -Infinity);
+});
+
+test("sensei-five: evaluate() — mirrored positions negate, deterministic per budget, monotone with material", async () => {
+    const rnd = Bots.tools("five", { seed: 21 });
+    let s = position([]);
+    for (let k = 0; k < 14 && !s.over; k++) {
+        s = rnd.apply(s, rnd.pick(rules.legalMoves(s)));
+        for (const nodes of [2000, 12000]) {
+            const a = await evalAt(s, nodes), b = await evalAt(mirror(s), nodes);
+            assert.equal(a, -b || 0, `mirror after ${k + 1} moves @${nodes}: ${a} vs ${b}`);   // (-0 is 0)
+            assert.equal(await evalAt(t.clone(s), nodes), a, `deterministic @${nodes}`);
+        }
+    }
+    assert.ok((await evalAt(position([40, 0, 41, 1, 42]), 2000)) > 100, "three in a row vs scattered stones");
+});
+
+test("sensei-five: evaluate() — the 2 000-node stage averages under 5 ms at 15×15; the long stages yield", async () => {
+    // a random 15×15 middlegame that the quick stage does not already see as decided
     let s = rules.create({ n: 15, winLen: 5 }, Rules.base({ n: 15 }));
     const r = Bots.tools("five", { seed: 5 });
-    for (let k = 0; k < 40; k++) s = r.apply(s, r.pick(rules.legalMoves(s)));
+    let quick;
+    for (let k = 0; k < 60; k++) {
+        s = r.apply(s, r.pick(rules.legalMoves(s)));
+        quick = evalAt(s, 2000);
+        assert.ok(typeof quick === "number", "the quick stage is synchronous");
+        if (k >= 30 && Number.isFinite(quick)) break;
+    }
+    assert.ok(Number.isFinite(quick), "found an undecided middlegame");
     const t0 = performance.now();
-    for (let k = 0; k < 20; k++) est(s);
+    for (let k = 0; k < 20; k++) evalAt(s, 2000);
     const ms = (performance.now() - t0) / 20;
-    assert.ok(ms <= 15, `estimate took ${ms.toFixed(2)} ms`);
+    console.log(`  evaluate 15×15 @2000: ${ms.toFixed(2)} ms`);
+    assert.ok(ms < 5, `2 000-node evaluate took ${ms.toFixed(2)} ms`);
+    const long = evalAt(s, 12000);
+    assert.ok(long && typeof long.then === "function", "a long stage returns a Promise");
+    assert.ok(Number.isFinite(await long));
+});
+
+/* Swing: 10 seeded Normal-vs-Normal games on 9×9 (4 random opening plies near the centre for
+   variety), every settled position evaluated with 12 000 nodes, p through a fixed logistic.
+   Before (the old estimate()): mean |Δp| 0.166, 243 jumps > 0.25 in 630 transitions. */
+test("sensei-five: evaluate() — win chance is calm: mean |Δp| < 0.05 between consecutive positions (12 000 nodes, 10 games)", async () => {
+    let sum = 0, cnt = 0, big = 0;
+    const bias = [[0, 0], [0, 0]];
+    for (let g = 0; g < 10; g++) {
+        const rnd = Bots.tools("five", { seed: 1000 + g });
+        let s = rules.create({ n: 9, winLen: 5 }, Rules.base({ n: 9, startPlayer: g % 2 }));
+        const bots = [Bots.create(ID, { me: 0, difficulty: "normal", seed: 10 + g, budget: BUDGET }), Bots.create(ID, { me: 1, difficulty: "normal", seed: 20 + g, budget: BUDGET })];
+        const ps = [logistic(await evalAt(s, 12000))], movers = [s.current];
+        for (let k = 0; !s.over && k < 200; k++) {
+            let mv;
+            if (k < 4) mv = rnd.pick(rules.legalMoves(s).filter((i) => Math.abs(i % 9 - 4) <= 2 && Math.abs(Math.floor(i / 9) - 4) <= 2));
+            else mv = await bots[s.current].move(t.clone(s));
+            s = t.apply(s, mv);
+            ps.push(logistic(await evalAt(t.clone(s), 12000))); movers.push(s.current);
+        }
+        for (let i = 1; i < ps.length; i++) { const d = Math.abs(ps[i] - ps[i - 1]); sum += d; cnt++; if (d > 0.25) big++; }
+        for (let i = 1; i < ps.length - 1; i++) {
+            if ([ps[i - 1], ps[i], ps[i + 1]].some((p) => p === 0 || p === 1)) continue;
+            bias[movers[i]][0] += ps[i] - (ps[i - 1] + ps[i + 1]) / 2; bias[movers[i]][1]++;
+        }
+    }
+    const mean = sum / cnt;
+    console.log(`  swing @12000: mean |Δp| ${mean.toFixed(4)} over ${cnt} transitions, ${big} jumps > 0.25, mover bias p0 ${(bias[0][0] / bias[0][1]).toFixed(4)} p1 ${(bias[1][0] / bias[1][1]).toFixed(4)}`);
+    assert.ok(mean < 0.05, `mean |Δp| ${mean.toFixed(4)}`);
+    assert.ok(Math.abs(bias[0][0] / bias[0][1]) < 0.02 && Math.abs(bias[1][0] / bias[1][1]) < 0.02, "no side-to-move zigzag");
 });

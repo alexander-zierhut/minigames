@@ -31,8 +31,12 @@ test("build writes hashed assets and a rewritten index.html", () => {
         assert.ok(sounds.length >= 8, `sounds referenced from the bundle (${sounds.length})`);
         for (const f of sounds) { assert.ok(existsSync(join(dist, "assets", "sounds", f)), `sound ${f} exists`); assert.match(f, /\.[0-9a-f]{10}\.ogg$/); }
         assert.ok(!/client\/sounds\/[A-Za-z0-9_]/.test(bundle0), "sound paths rewritten");
-        // icons referenced from index.html are copied
-        for (const m of html.matchAll(/href="([^"]+\.(?:ico|png))"/g)) assert.ok(existsSync(join(dist, m[1])), `${m[1]} copied to dist`);
+        // icons and the web app manifest referenced from index.html are copied, with every manifest icon
+        for (const m of html.matchAll(/href="([^"]+\.(?:ico|png|json))"/g)) assert.ok(existsSync(join(dist, m[1])), `${m[1]} copied to dist`);
+        const manifest = JSON.parse(readFileSync(join(dist, "manifest.json"), "utf8"));
+        assert.equal(manifest.display, "standalone");
+        for (const icon of manifest.icons) assert.ok(existsSync(join(dist, icon.src)), `manifest icon ${icon.src} in dist`);
+        assert.ok(manifest.icons.some((i) => i.purpose === "maskable"), "a maskable icon for Android");
         // bundle contains every client script and parses
         const bundle = readFileSync(join(dist, "assets", js), "utf8");
         for (const g of ["ChainGame", "FiveGame", "Clock", "Net", "Peer"]) assert.ok(bundle.includes(g), `bundle contains ${g}`);

@@ -71,6 +71,19 @@ kept. `client/sounds/*.ogg` — Minecraft sounds from the owner's own installati
 `Sound.FILES` references. `README.md` is the short public readme; `CLAUDE.md` just imports this file.
 `server/` (a 2022 PHP stub) was deleted; don't bring it back.
 
+## Install as an app (Android)
+
+`manifest.json` (name, `standalone`, navy theme/background, icons 192/512 "any" + a
+`maskable` 512 with the artwork inside the safe zone for Android's adaptive icons) is
+linked from `index.html` and copied by the build (`ROOT_EXTRAS`). The title screen's
+`#btn-install` ("📲 Add to home screen") is hidden until the browser fires
+`beforeinstallprompt` (Android Chrome and other Chromium browsers; never on iOS Safari,
+which has no prompt — the owner wants the button only where it works), then calls
+`prompt()` and hides itself; `appinstalled` toasts. The icon set (favicon, apple-touch,
+192/512, maskable) is generated: a navy rounded tile with a 2×2 Chain React board, a cyan
+and an amber glowing block with lamp dots — regenerate all sizes together if it changes.
+No service worker (nothing is cached; the deploy's hashed assets handle freshness).
+
 ## Build & deploy
 
 - `npm run build` (= `node build.mjs`) writes `dist/`: `index.html` + `assets/app.<hash>.js`
