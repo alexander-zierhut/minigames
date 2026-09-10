@@ -73,3 +73,15 @@ test("the estimator itself: bot with evaluate() is preferred, calibration applie
     }
     w.close();
 });
+
+// the Käsekästchen bar used to read 43 % at the first stage and 100 % at the third one
+test("Käsekästchen: the same number at every stage, and an even board is even", () => {
+    const w = loadDom(); const Bots = w.eval("Bots"); const Rules = w.eval("Rules");
+    const cfg = { n: 5, players: 2 };
+    const state = Rules.of("boxes").create(cfg, Rules.base(cfg));
+    const est = Bots.estimator("boxes", cfg);
+    const values = est.stages.map((nodes) => est.at(state, nodes));
+    assert.ok(values.every((v) => v === values[0]), `one value for every stage (${values.join(", ")})`);
+    assert.ok(Math.abs(values[0] - 0.5) < 0.01, `the empty board is even (${values[0]})`);
+    w.close();
+});

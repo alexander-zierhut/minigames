@@ -8,7 +8,14 @@
    which imports calibrate() from here.   Standalone: node scripts/calibrate.mjs [botId …] */
 import { loadHeadless } from "./headless.mjs";
 
-export const SERIES = { chain: { games: 30, config: { n: 6, chainRule: false }, maxMoves: 400 }, five: { games: 40, config: { n: 9, winLen: 5 }, maxMoves: 200 }, isolation: { games: 40, config: { n: 7 }, maxMoves: 200 }, boxes: { games: 24, config: { n: 5 }, maxMoves: 90 } };
+/* One series per game. Pick a board where plenty of positions are still *undecided* (see the
+   boxes note below) and, for an evaluator that is symmetric by construction, say so:
+   `symmetric` fits the samples together with their mirrors, which pins the 50 % point at raw
+   0 and takes the series' own seat prior out of the curve (every fifth game is played against
+   Random, always on seat 1). Käsekästchen runs on 7 × 7: Fencer proves 5 × 5 endgames
+   exactly, and on that board nearly every position in which a box has already been won is
+   proven, so 95 % of the finite samples were a plain raw 0 and the fit collapsed. */
+export const SERIES = { chain: { games: 30, config: { n: 6, chainRule: false }, maxMoves: 400 }, five: { games: 40, config: { n: 9, winLen: 5 }, maxMoves: 200 }, isolation: { games: 40, config: { n: 7 }, maxMoves: 200 }, boxes: { games: 24, config: { n: 7 }, maxMoves: 200, symmetric: true } };
 export const BUDGET = 12000;          // nodes per evaluation (the middle HUD stage)
 
 // fit scale/shift of a 1-D logistic on samples [{ raw, y }] (y = 1 / 0.5 / 0), infinite raws excluded
@@ -73,8 +80,10 @@ export async function collect(H, def, series = SERIES[def.game]) {
 }
 
 export async function calibrate(H, def) {
-    const samples = await collect(H, def);
-    const cal = fitLogistic(samples);
+    const series = SERIES[def.game];
+    const samples = await collect(H, def, series);
+    // a symmetric evaluator must map raw 0 to 50 %: fit the samples and their mirrors
+    const cal = fitLogistic(series && series.symmetric ? samples.concat(samples.map((s) => ({ ...s, raw: -s.raw, y: 1 - s.y }))) : samples);
     if (!cal) return null;
     const m = metrics(samples, cal, H.Bots.toProbability);
     return { scale: Math.round(cal.scale * 1000) / 1000, shift: Math.round(cal.shift * 1000) / 1000, ...m, budget: BUDGET, games: SERIES[def.game].games };

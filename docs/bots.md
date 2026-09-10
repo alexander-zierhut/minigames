@@ -194,7 +194,7 @@ const r = await H.Bots.playout("chain", { n: 6 }, [a, b], { maxMoves: 600 });
 | `random-isolation` | Random | Isolation | Normal | any legal step and any tile to break; `baseline: true` (benchmark opponent, fallback; never offered) |
 | `warden-isolation` | Warden | Isolation | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | Int8Array board with the rules' own "trapped when your turn comes" handling, paranoid alpha-beta (I maximise, everybody else minimises) with iterative deepening; the generator keeps every step but only the broken tiles near an opponent plus the tile just left, capped per level; evaluation = Voronoi territory (one multi-source BFS, king steps) + mobility + tempo, which is also the exact measure once the board falls apart. 100 % vs Random, 198/200 puzzles at Very hard (Easy 68.5 %, Normal 90 %, Hard 97 %). Provides the win chance (evaluate: the same search averaged over "me to move" and "the other seat to move", which removes the tempo artefact; calibrated scale ≈ 693, swing 11.7 %). Plays 2 to 4 seats. See its README. |
 | `random-boxes` | Random | Käsekästchen | Normal | any undrawn line; `baseline: true` (benchmark opponent, fallback; never offered) |
-| `fencer-boxes` | Fencer | Käsekästchen | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | two engines: an **exact endgame** (alpha-beta negamax to the last line with a transposition table keyed by the bitmask of lines drawn since the root, free captures forced) that solves any two-player position with up to 30 undrawn lines, so it plays the whole second half of a 5 × 5 game perfectly including the "all but two" double-dealing sacrifices; and **chain play** for the rest (take every free box, decline the last two of a chain while control is worth more, play the safe line that commits least, and open the shortest chain when everything is loony). 100 % vs Random, 149/170 puzzles at the 20 000-node benchmark budget (162/170 at its own Very hard budget; take-box, sacrifice and double-deal all 100 %). Provides the win chance (evaluate: the exact final box difference once the endgame is solvable, ±Infinity only for proven results, otherwise boxes won plus who has to open first; calibrated scale ≈ 3, swing 3.9 %). See its README. |
+| `fencer-boxes` | Fencer | Käsekästchen | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | two engines: an **exact endgame** (alpha-beta negamax to the last line with a transposition table keyed by the bitmask of lines drawn since the root, free captures forced) that solves any two-player position with up to 30 undrawn lines, so it plays the whole second half of a 5 × 5 game perfectly including the "all but two" double-dealing sacrifices; and **chain play** for the rest (take every free box, decline the last two of a chain while control is worth more, play the safe line that commits least, and open the shortest chain when everything is loony). 100 % vs Random, 149/170 puzzles at the 20 000-node benchmark budget (162/170 at its own Very hard budget; take-box, sacrifice and double-deal all 100 %). Provides the win chance (evaluate: the exact final box difference once the endgame is solvable, ±Infinity only for proven results, otherwise the box lead against the boxes still open, and nothing else, because nothing else survived an out-of-sample test; one node cap for every HUD stage; calibrated scale 0.118 shift 0, swing 1.2 %). See its README. |
 
 Each bot folder's README describes its search and evaluation; `benchmark.js` carries the
 scores shown in the bot modal. Players see Creeper, Sensei, Warden and Fencer as "Bot".
@@ -227,16 +227,16 @@ The HUD's win chance is the most visible thing a bot does besides playing, and i
 to make it look nervous. The two evaluators went through this cycle; the numbers are from
 seeded self-play at the 12 000-node stage.
 
-| | Creeper (Chain React) | Sensei (Five Wins) | Warden (Isolation) |
-| --- | --- | --- | --- |
-| first version | 600-node ~3-ply search, steep logistic | static patterns + a ±1000 penalty for facing an open three | depth-2 Voronoi search whose root maximised for whoever was to move |
-| symptom | 80 → 10 → 80 flips every turn (side-to-move bias ±0.039) | mean move-to-move change 0.166, 243 jumps > 0.25 in 10 games | 85 → 53 → 90 → 53 every turn; swing 32 %, shift 464 |
-| what fixed it | even depths only, completed depths only, mean of the last three completed depths, 10-ply quiescence over explosive captures, proven results → ±∞ | depth-2 search where forced fours cost no depth, open-three extension through the restricted defence set instead of a penalty, VCF/VCT on long budgets, dead-board draw terminal | a root that minimises when the other seat moves (a real bug), then averaging the search of the position with the search of the same position with the other seat to move, and a narrower generator to buy depth |
-| result | bias ±0.008, swing 0.05 (undecided 0.04) | swing 0.031, bias ±0.006 | swing 0.117, shift 271 |
-| own scale guess | 10 | 300 | — |
-| calibrated scale | 31.3 (shift −5.5) | 1166 (shift −62) | 693 (shift +271) |
-| Brier | 0.21 | 0.006 | 0.206 |
-| ms per call (2k / 12k / 60k nodes) | 2 / 15 / 59 (6×6) | 0.6 / 45 / 177 (9×9), 0.9 / 84 / 353 (15×15) | 3 / 12 / 55 (7×7) |
+| | Creeper (Chain React) | Sensei (Five Wins) | Warden (Isolation) | Fencer (Käsekästchen) |
+| --- | --- | --- | --- | --- |
+| first version | 600-node ~3-ply search, steep logistic | static patterns + a ±1000 penalty for facing an open three | depth-2 Voronoi search whose root maximised for whoever was to move | exact endgame on the caller's node budget, plus a safe-line parity term worth up to 4 boxes |
+| symptom | 80 → 10 → 80 flips every turn (side-to-move bias ±0.039) | mean move-to-move change 0.166, 243 jumps > 0.25 in 10 games | 85 → 53 → 90 → 53 every turn; swing 32 %, shift 464 | 43 ↔ 72 on quiet moves, then 0 → 47 → 68 → 100 → 0 as the proof came and went; 45 of 253 undecided steps flipped > 15 points |
+| what fixed it | even depths only, completed depths only, mean of the last three completed depths, 10-ply quiescence over explosive captures, proven results → ±∞ | depth-2 search where forced fours cost no depth, open-three extension through the restricted defence set instead of a penalty, VCF/VCT on long budgets, dead-board draw terminal | a root that minimises when the other seat moves (a real bug), then averaging the search of the position with the search of the same position with the other seat to move, and a narrower generator to buy depth | one node cap of its own for every HUD stage, a null-window proof (sign only, 91 % → 95 % of 5 × 5 endgames proven at 30 000 nodes), and deleting the parity term: nothing beat the plain box lead out of sample |
+| result | bias ±0.008, swing 0.05 (undecided 0.04) | swing 0.031, bias ±0.006 | swing 0.117, shift 271 | undecided swing 0.18 % (was 4.9), 0 of 234 undecided steps over 15 points (was 45 of 253), mover bias 0.0000 (was −0.009), 0 stage disagreements (was 12 of 120) |
+| own scale guess | 10 | 300 | — | — |
+| calibrated scale | 31.3 (shift −5.5) | 1166 (shift −62) | 693 (shift +271) | 0.118 (shift 0, pinned by fitting the mirrored samples too) |
+| Brier | 0.21 | 0.006 | 0.206 | 0.177 |
+| ms per call (2k / 12k / 60k nodes) | 2 / 15 / 59 (6×6) | 0.6 / 45 / 177 (9×9), 0.9 / 84 / 353 (15×15) | 3 / 12 / 55 (7×7) | 1.7 at every stage (5×5), worst call 21 |
 
 Rules of thumb:
 1. Return a consistent raw score and let `scripts/calibrate.mjs` fit the curve; your own
@@ -250,4 +250,21 @@ Rules of thumb:
    "Budget exhausted" is unknown, never a verdict.
 5. Measure before/after with the same seeded games; assert the swing and the bias in the
    bot's tests so a future tweak can't quietly bring the zigzag back.
+6. **A budget-dependent proof is a jump generator.** The HUD asks the same position three
+   times with growing node budgets. If "solved" depends on the budget, the bar reads 43 %,
+   then 100 %, and the next position 0 % again, because whether a search finishes is not
+   monotone in how far the game has progressed. Give the proof one cap of its own, ignore the
+   caller's, and ask it the cheapest question you can (a null-window "does this side win?"
+   proves it far sooner than a full-window "by how much?").
+7. **Test the term, don't assume it.** Käsekästchen's tempo term (who has to open first) is
+   textbook dots-and-boxes theory and looked indispensable. Fitted symmetrically and scored
+   out of sample it predicted no better than the plain box lead, on clean self-play, on
+   self-play with 12 % random moves and against Random, and so did Monte-Carlo rollouts of the
+   rest of the game. A term that only *looks* informative costs 30 points of bar movement per
+   flip. When nothing survives the test, say 50 %: that is the honest number.
+8. **A symmetric evaluator needs a symmetric fit.** Mirroring the seats negates such a score,
+   so raw 0 must be 50 %; the calibration series is not neutral though (every fifth game is
+   played against Random, always on seat 1), and the fit happily leans a couple of points
+   toward that seat. `symmetric: true` on the series fits the samples together with their
+   mirrors and pins the shift at 0.
 

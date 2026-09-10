@@ -821,7 +821,9 @@ a drawn line, the matching stained glass as a closed box.
   player 0's view, ±Infinity when decided, deterministic for a node budget, may be async)
   mapped through the bot's **calibration** (`Bots.calibration(id, { scale, shift, brier,
   swing, … })` in its benchmark.js, fitted from seeded self-play by `scripts/calibrate.mjs`
-  = `npm run calibrate`, also run by the benchmark; `Bots.toProbability` clamps to
+  = `npm run calibrate`, also run by the benchmark; a series may say `symmetric: true`, which
+  fits the samples together with their mirrors so an evaluator that negates when the seats are
+  swapped maps raw 0 to exactly 50 %; `Bots.toProbability` clamps to
   0.5–99.5 %, only decided positions show 100/0); else the rules module's `estimate`
   heuristic. On every `game:position` (a settled position: new game, move settled, replay,
   elimination, end — **never during an animation**) it runs the stages of
@@ -1539,7 +1541,7 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   sets), `chat.test.mjs` (log boxes, limits, HTML safety, offline, chat survives a new
   game), `reactions.test.mjs` (float duration from the recent rate with a mocked clock,
   own + received, rate limits, the sender's colour on every float, #33), `winchance.test.mjs` (frozen while animating, stages,
-  smoothing), `replays.test.mjs` (#42: every sample in `tests/replays/` migrates, validates and plays to its
+  smoothing, and Käsekästchen reading the same number at every stage), `replays.test.mjs` (#42: every sample in `tests/replays/` migrates, validates and plays to its
   recorded result; a sample and a migration exist for every version; refused files;
   `fromRecord` round trips; file name, date and summary; the store, in memory under jsdom;
   `Match.watch`), `replay.test.mjs` (#38: the engine's view-only preview — the position after n
@@ -1789,17 +1791,42 @@ and `roster` are the ones that never get relayed (host to all, or guest to host 
   persona), and an optional `sizeLabel` on the definition. Everything else — rooms, sync,
   replay, premoves, clocks, spectators, the HUD — worked unchanged, including a board whose
   `cells.length` is 2n(n+1) rather than n².
+- **Käsekästchen's win chance: two artefacts and one honest answer.** The bar jumped
+  between 43 % and 72 % on quiet moves and then between a proven 100 % and an unproven 60 % on
+  the next one. Cause one: the endgame proof ran on *the caller's* node budget, and whether a
+  30-line search finishes is not monotone in the lines left, so the same position read 43 % at
+  the HUD's 2 000-node stage and 100 % at the 60 000-node one, and the next position was
+  unproven again. Fix: one cap of its own (`EVAL_NODES`) for every stage, plus a null-window
+  probe that only proves the *sign* of the final box difference (`exactWinner`, two probes
+  sharing one table), which lifted the share of 5 × 5 endgames proven at 30 000 nodes from
+  91 % to 95 % and 7 × 7 to 100 %, so the proof arrives once and stays. Cause two: the score
+  added a tempo term (who has to open first, from the parity of the safe lines) worth up to
+  four boxes, which flipped whenever a move made several lines unsafe. Measured against seeded
+  self-play, self-play with 12 % random moves and games against Random, always with a
+  symmetric fit, that term predicted **no better than the plain box lead** out of sample, and
+  neither did Monte-Carlo rollouts of the rest of the game with the bot's own chain policy
+  (they only look convincing on the games their own policy played). So it is gone: until the
+  endgame is proven, Käsekästchen has no honest signal beyond the boxes on the table, and
+  `evaluate` returns `(boxes 0 - boxes 1) / (boxes still open + 1)`, symmetric and independent
+  of who is to move. Undecided move-to-move change 4.9 % → 0.18 %, undecided flips over 15
+  points 45 of 253 → 0 of 234, mover bias −0.009 → 0.000, stage disagreements 12 of 120 → 0
+  (5 × 5; 7 × 7 went 5.6 % → 0.8 % and 100 of 567 → 0). Being right about *nothing* beats
+  being nervous about everything.
 - **Prove a search reduction, don't reason about it.** "If a capture is available, take it"
   looks obviously right in dots and boxes and is **wrong**: eating a chain to the end hands
   control away, which is the whole point of the "all but two" sacrifice. Only a capture that
   leaves no new three-sided box behind is provably free. The boxes solver ships a
   reduction-free brute force next to the fast engine and the test compares the two on 80
   positions — that is what turned "I think this is safe" into a checked fact.
-- **A calibration needs undecided positions.** Fencer solves 4 × 4 endgames exactly, so nearly
-  every self-play sample came back ±Infinity, the logistic had fewer than 20 finite points and
-  `calibrate` silently returned null (no `Bots.calibration` line in benchmark.js). Moving the
-  calibration series to a 5 × 5 board fixed it. Check the benchmark output for the "win chance:
-  scale …" part after adding a bot.
+- **A calibration needs undecided positions *with different scores*.** Fencer solves 4 × 4
+  endgames exactly, so nearly every self-play sample came back ±Infinity, the logistic had
+  fewer than 20 finite points and `calibrate` silently returned null (no `Bots.calibration`
+  line in benchmark.js). A 5 × 5 series fixed the count but not the content: 95 % of its finite
+  samples were a plain raw 0, because on that board every position in which a box has already
+  been won is proven anyway, and the fit collapsed to a step (scale 0.002). The series runs on
+  7 × 7 now. Check the benchmark output for the "win chance: scale …" part after adding a bot,
+  and look at the scale itself: a value orders of magnitude away from your raws means the fit
+  found no spread, not a confident bot.
 - **Puzzle sets are only as good as their solver's guarantee.** Both solvers are exhaustive
   or threat-proven and re-solve every puzzle in their tests; `puzzles/verify.mjs` re-proves
   the tactical ones with an independent one-ply check. When a rule changes (the dead-board

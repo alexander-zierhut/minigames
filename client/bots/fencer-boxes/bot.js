@@ -18,14 +18,23 @@
       line is loony open the chain that concedes the fewest boxes.
 
    Deterministic everywhere: node budgets instead of wall clock, seeded tie-breaks, no
-   Math.random. `evaluate` returns the final box difference from player 0's view and
-   ±Infinity once the result is proven (a solved endgame or a majority of the boxes). */
+   Math.random. `evaluate` (the HUD's win chance) is ±Infinity once the result is proven (a
+   solved endgame or a majority of the boxes) and otherwise the box lead measured against the
+   boxes still open; it runs on a node cap of its own so every HUD stage agrees. */
 
 "use strict";
 
 (() => {
     const EXACT_MAX = 30;                 // undrawn lines the exact search will even try (the mask must fit an int32)
     const YIELD_EVERY = 2000;             // nodes between two tools.yield() calls on the long levels
+    const EVAL_NODES = 30000;             // the win chance's own node cap: the same one at every HUD stage
+
+    // a node budget of our own, independent of the caller's (see evaluate)
+    function capped(nodes) {
+        let used = 0;
+        const expired = () => used >= nodes;
+        return { expired, tick: (n = 1) => { used += n; return expired(); }, nodes: () => used };
+    }
 
     /* ---------- per board size: which lines belong to which box and back ---------- */
     const TABLES = new Map();
@@ -175,6 +184,21 @@
         const s = exactSolver(board, rootFree, budget);
         const v = s.search(-Infinity, Infinity);
         return s.aborted ? null : v;
+    }
+
+    /* Who wins from here, and nothing more: 1 = player 0, -1 = player 1, 0 = a tie,
+       null = the budget ran out. The win chance only needs the sign of the final box
+       difference, and a null-window probe ("is the mover's margin at least t?") proves that
+       with a fraction of the nodes a full-window value search needs — the cut-offs are much
+       harder. Both probes share one transposition table, so the second one is nearly free.
+       `lead` = boxes of player 0 minus boxes of player 1 so far. */
+    function exactWinner(board, rootFree, budget, lead, current) {
+        const s = exactSolver(board, rootFree, budget);
+        const atLeast = (t) => s.search(t - 1, t) >= t;              // is the mover's margin >= t?
+        let r;
+        if (current === 0) r = atLeast(1 - lead) ? 1 : atLeast(-lead) ? 0 : -1;
+        else r = !atLeast(lead) ? 1 : !atLeast(lead + 1) ? 0 : -1;
+        return s.aborted ? null : r;
     }
 
     // the exact best move (null when the budget ran out); yields between root moves on long budgets
@@ -333,9 +357,27 @@
         create(tools) {
             return { move: (state) => chooseMove(tools, state) };
         },
-        /* Win chance: the final box difference from player 0's point of view. ±Infinity only
-           for proven results (a majority of the boxes, or a solved endgame). */
-        evaluate(state, tools) {
+        /* Win chance from player 0's point of view. ±Infinity only for proven results (a
+           majority of the boxes, or a solved endgame); everything else is the lead measured
+           against what is still on the table.
+
+           Two things make this number calm, and both were measured (see docs/bots.md §11):
+           - **One node cap for every stage.** The HUD asks at 2 000, 12 000 and 60 000 nodes;
+             if the endgame proof depended on that budget the same position would read 43 %,
+             then 100 %, and the next one 0 % again, because whether the search finishes is
+             not monotone in the lines left. The proof therefore always gets EVAL_NODES,
+             whatever the caller offers, and every stage returns the same value.
+           - **No positional guess.** The old score added a term for who would have to open
+             first (the parity of the safe lines), which flipped with every quiet move and
+             was worth nothing: in seeded self-play with 12 % random moves it predicted no
+             better than the plain box count, and neither did chain-play rollouts of the rest
+             of the game (they only looked convincing on the games their own policy played).
+             Until the endgame is proven, Käsekästchen simply has no honest signal beyond the
+             boxes on the table, and pretending otherwise is what made the bar jump.
+
+           Symmetric by construction: swapping the seats negates the score, and nothing here
+           depends on who is to move (the exact search accounts for the turn itself). */
+        evaluate(state) {
             const total = state.n * state.n;
             const s0 = state.scores[0] || 0, s1 = state.scores[1] || 0;
             if (state.over) return state.winner < 0 ? 0 : state.winner === 0 ? Infinity : -Infinity;
@@ -344,18 +386,11 @@
             const board = new Board(state.n).load(state);
             const free = board.freeEdges();
             if (state.players === 2 && free.length <= EXACT_MAX) {
-                const v = exactValue(board, free, tools.deadline());
-                if (v !== null) {
-                    const diff = s0 - s1 + (state.current === 0 ? v : -v);
-                    return diff > 0 ? Infinity : diff < 0 ? -Infinity : 0;
-                }
+                const r = exactWinner(board, free, capped(EVAL_NODES), s0 - s1, state.current);
+                if (r !== null) return r > 0 ? Infinity : r < 0 ? -Infinity : 0;
             }
-            // undecided: the boxes already won plus who will have to open first (with an odd
-            // number of safe lines left, the player to move keeps the tempo)
-            const leftBoxes = total - s0 - s1;
-            const opener = countSafe(board) % 2 === 1 ? 1 - state.current : state.current;
-            return s0 - s1 + (opener === 0 ? -1 : 1) * Math.min(leftBoxes, 4) * 0.45;
+            return (s0 - s1) / (total - s0 - s1 + 1);
         },
-        internals: { Board, tablesFor, chainOf, chainPlay, exactValue, exactMove, EXACT_MAX },
+        internals: { Board, tablesFor, chainOf, chainPlay, exactValue, exactMove, exactWinner, capped, EXACT_MAX, EVAL_NODES },
     });
 })();

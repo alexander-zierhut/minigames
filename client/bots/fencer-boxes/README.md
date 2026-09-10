@@ -48,17 +48,42 @@ are not identical while everything stays reproducible per seed.
 
 ## 3. Win chance (`evaluate`)
 
-From player 0's point of view, in boxes:
+From player 0's point of view:
 
 - A majority of the boxes, or a finished game: ±Infinity (that is a rule, not a guess).
-- A solved endgame: the exact final box difference decides, so ±Infinity for a proven win or
-  loss and 0 for a proven tie. The bar is allowed to say 100 % there because it is a fact.
-- Otherwise: boxes already won, plus who will have to open first (with an odd number of safe
-  lines left the player to move keeps the tempo), capped at four boxes.
+- A **proven** endgame: ±Infinity for a win or a loss, 0 for a tie. The bar is allowed to say
+  100 % there because it is a fact.
+- Otherwise the lead against what is still on the table: `(boxes 0 - boxes 1) / (boxes still
+  open + 1)`. Nothing else.
 
-`scripts/calibrate.mjs` fits the logistic on seeded 5 × 5 self-play (scale ≈ 3, shift ≈ -1,
-Brier 0.138, mean move-to-move swing 3.9 %). The swing is higher than the other two bots'
-because a solved endgame legitimately snaps to 100 %.
+Three properties, and the first two are what the rewrite was about (the bar used to
+jump between 43 % and 72 % on quiet moves, and between a proven 100 % and an unproven 60 % on
+the next one):
+
+- **One node cap for every HUD stage.** The bar asks at 2 000, 12 000 and 60 000 nodes. Whether
+  a 30-line endgame gets solved is *not* monotone in the lines left, so a budget-dependent
+  proof made the same position read 43 % at the first stage and 100 % at the third. `evaluate`
+  therefore ignores the caller's budget and always gives the proof `EVAL_NODES` (30 000).
+- **The proof only asks for the sign.** A null-window probe ("is the mover's margin at least
+  t?", `exactWinner`) proves who wins with a fraction of the nodes the full-window value needs;
+  two probes share one table, so the second is nearly free. That lifts the share of endgames
+  proven at 30 000 nodes from 91 % to 95 % on 5 × 5 and to 100 % on 7 × 7, which is what makes
+  the proof arrive once and stay instead of coming and going.
+- **No positional guess.** The old score added a term for who would have to open first (the
+  parity of the safe lines). It was measured against seeded self-play, self-play with 12 %
+  random moves and games against Random, always with a symmetric fit: it predicted no better
+  than the plain box count, and neither did Monte-Carlo rollouts of the rest of the game with
+  the chain policy above (those only look convincing on the games their own policy played, and
+  were worse out of sample). Until the endgame is proven, Käsekästchen has no honest signal
+  beyond the boxes on the table.
+
+The score is symmetric by construction (mirroring the seats negates it) and, while nothing is
+proven, independent of who is to move, which is why `scripts/calibrate.mjs` fits it on the
+samples *and their mirrors* (`symmetric: true` in `SERIES`): that pins 50 % at raw 0 instead of
+letting the series' own seat prior tilt the curve. The series runs on **7 × 7**, because on
+5 × 5 the exact search proves nearly every position in which a box has already been won and
+95 % of the finite samples were a plain 0. Result: scale 0.118, shift 0, Brier 0.177, mean
+move-to-move swing 1.2 % (was 3.9 %).
 
 ## 4. Levels and numbers
 
@@ -80,4 +105,5 @@ sacrifice and double-deal at 100 %.
 - Loops are eaten rather than declined in chain play, so a big board with several loops is
   played slightly below best until the endgame search takes over.
 - There is no opening theory: the long-chain parity rule is not implemented, only the safe-line
-  heuristic that keeps the board uncommitted.
+  heuristic that keeps the board uncommitted. The win chance says so honestly: it sits near
+  50 % until a box is won or the endgame is proven.

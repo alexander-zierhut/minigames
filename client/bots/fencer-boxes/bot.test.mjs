@@ -205,6 +205,118 @@ test("fencer-boxes: evaluate is the solver's verdict in the endgame and never cl
     if (!won.over && won.scores[0] * 2 > won.n * won.n) assert.equal(def.evaluate(won, tools), Infinity);
 });
 
+test("fencer-boxes: the null-window verdict says exactly what the full-window value says", () => {
+    const { exactWinner, exactValue, Board: B, capped, EXACT_MAX } = def.internals;
+    let checked = 0;
+    for (let k = 0; k < 60; k++) {
+        const s = played(4, 6 + (k % 16), 7700 + k);
+        if (s.over) continue;
+        const board = new B(s.n).load(s);
+        const free = board.freeEdges();
+        if (free.length > EXACT_MAX) continue;
+        const v = exactValue(board, free, capped(400000));
+        if (v === null) continue;
+        const lead = s.scores[0] - s.scores[1];
+        const diff = lead + (s.current === 0 ? v : -v);
+        const r = exactWinner(board, free, capped(400000), lead, s.current);
+        assert.equal(r, Math.sign(diff), `null window agrees with the value (${diff})`);
+        checked++;
+    }
+    assert.ok(checked >= 30, `${checked} endgames compared`);
+});
+
+test("fencer-boxes: the win chance is the same at every HUD stage (one node cap of its own)", () => {
+    let checked = 0;
+    for (let k = 0; k < 40; k++) {
+        for (const n of [4, 5]) {
+            const s = played(n, 8 + (k % 24), 8800 + k);
+            if (s.over) continue;
+            const values = Bots.ESTIMATE_STAGES.map((nodes) => def.evaluate(s, Bots.tools("boxes", { seed: 0, budget: { ms: Infinity, nodes } })));
+            assert.ok(values.every((v) => Object.is(v, values[0])), `same value at every stage (${values.join(", ")})`);
+            checked++;
+        }
+    }
+    assert.ok(checked >= 40, `${checked} positions`);
+});
+
+test("fencer-boxes: evaluate is symmetric, and does not depend on who is to move while nothing is proven", () => {
+    // mirroring the seats negates the score
+    const mirror = (s) => {
+        const m = t.clone(s);
+        m.scores = [s.scores[1], s.scores[0]];
+        m.movesBy = [s.movesBy[1], s.movesBy[0]];
+        m.current = 1 - s.current;
+        m.cells = s.cells.map((c) => (c < 0 ? c : 1 - c));
+        m.boxes = s.boxes.map((b) => (b < 0 ? b : 1 - b));
+        return m;
+    };
+    let checked = 0, undecided = 0;
+    for (let k = 0; k < 40; k++) {
+        const s = played(4 + (k % 2), 10 + (k % 20), 6600 + k);
+        if (s.over) continue;
+        const a = def.evaluate(s), b = def.evaluate(mirror(s));
+        assert.ok(Object.is(b, -a) || (a === 0 && b === 0), `mirroring negates the score (${a} / ${b})`);
+        checked++;
+    }
+    // a quiet position (too many lines left for the endgame proof) reads the same either way
+    for (let k = 0; k < 20; k++) {
+        const s = played(5, 34 + (k % 16), 6400 + k);
+        if (s.over) continue;
+        const a = def.evaluate(s);
+        assert.ok(Number.isFinite(a), "nothing is proven this early");
+        const other = t.clone(s);
+        other.current = 1 - s.current;
+        assert.equal(def.evaluate(other), a, "an unproven position reads the same for either side to move");
+        undecided++;
+    }
+    assert.ok(checked >= 20 && undecided >= 15, `${checked} positions, ${undecided} of them quiet`);
+});
+
+/* The owner's complaint: the bar jumped between 43 % and 72 % on quiet moves and
+   between a proven 100 % and an unproven 60 % on the next one. Thresholds are set well
+   above what the fixed evaluator actually reaches (0 jumps over 15 points and a mover bias
+   of 0.000 in these games), so a future tweak that brings the zigzag back fails here. */
+test("fencer-boxes: the win chance stays calm over whole seeded games", async () => {
+    const est = Bots.estimator("boxes", {});
+    const seats = (n, seed, vsRandom) => [
+        Bots.create(ID, { me: 0, difficulty: "normal", seed: 300 + seed, budget: { ms: Infinity, nodes: 4000 } }),
+        vsRandom ? Bots.create("random-boxes", { me: 1, seed: 900 + seed })
+            : Bots.create(ID, { me: 1, difficulty: "normal", seed: 600 + seed, budget: { ms: Infinity, nodes: 4000 } }),
+    ];
+    let steps = 0, sum = 0, worst = 0, triples = 0;
+    const bias = [[], []];
+    const und = (v) => v > 0.1 && v < 0.9;
+    for (const [n, seed, vsRandom] of [[5, 1, false], [5, 2, true], [7, 3, false], [4, 4, false]]) {
+        const bots = seats(n, seed, vsRandom);
+        const state = Rules.create({ n, players: 2, startPlayer: seed % 2 }, "boxes");
+        const ps = [], turn = [];
+        for (let m = 0; !state.over && m < 400; m++) {
+            Rules.step(rules, state, await bots[state.current].move(t.clone(state)));
+            if (state.over) break;
+            ps.push(est.at(state, 12000));
+            turn.push(state.current);
+        }
+        assert.ok(ps.length > 20, "a whole game");
+        for (let i = 1; i < ps.length; i++) {
+            if (!und(ps[i]) || !und(ps[i - 1])) continue;              // a proven 100 % may follow a 50 %
+            const d = Math.abs(ps[i] - ps[i - 1]);
+            sum += d; steps++; worst = Math.max(worst, d);
+        }
+        for (let i = 1; i < ps.length - 1; i++) {
+            if (!und(ps[i]) || !und(ps[i - 1]) || !und(ps[i + 1])) continue;
+            bias[turn[i]].push(ps[i] - (ps[i - 1] + ps[i + 1]) / 2);
+            triples++;
+        }
+    }
+    const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
+    const mover = Math.abs(mean(bias[0]) - mean(bias[1])) / 2;
+    console.log(`  undecided steps ${steps}, mean change ${(sum / steps * 100).toFixed(2)} %, worst ${(worst * 100).toFixed(1)} points, mover bias ${mover.toFixed(4)} over ${triples} triples`);
+    assert.ok(steps >= 100 && triples >= 100, `${steps} steps, ${triples} triples`);
+    assert.ok(worst <= 0.2, `no undecided step flips by more than 20 points (worst ${(worst * 100).toFixed(1)})`);
+    assert.ok(sum / steps <= 0.04, `the average undecided step stays under 4 points (${(sum / steps * 100).toFixed(2)})`);
+    assert.ok(mover <= 0.03, `the mover bias stays under 3 points (${mover.toFixed(4)})`);
+});
+
 test("fencer-boxes: calibrated win chance stays inside 0..1 and the bars add up", () => {
     const est = Bots.estimator("boxes", {});
     assert.equal(est.bot, ID, "the win chance uses this bot");
