@@ -14,6 +14,27 @@
         },
         {
           "type": "feature",
+          "text": "Waiting alone in a room? \"Against a bot instead\" puts a bot on the empty seat, so you can play right away, share the spectate link for others to watch, and let a friend take the seat over when they arrive.",
+          "refs": [
+            "#36"
+          ]
+        },
+        {
+          "type": "feature",
+          "text": "In the room you can swap between playing and watching: a player steps back with \"Watch instead\" and a spectator sits down with \"Take a seat\", so three people can take turns at two seats.",
+          "refs": [
+            "#39"
+          ]
+        },
+        {
+          "type": "fix",
+          "text": "The spectate link now uses a code of its own, so people you invite to watch can never turn themselves into players and never see the room code.",
+          "refs": [
+            "#29"
+          ]
+        },
+        {
+          "type": "feature",
           "text": "Five Wins: a new Yavalath rule in the settings. One stone short of the winning row loses (four wins, three loses with the classic values); with three or four players the loser is out and the rest play on. The bot does not know the rule yet, so a random opponent stands in."
         },
         {

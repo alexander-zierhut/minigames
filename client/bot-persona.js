@@ -28,7 +28,8 @@ const BotPersona = (() => {
     let session = null;          // the active bot game, or null
     let unsubscribe = [];
 
-    // params: { bot (Bots.create result), seat, game, state: () => state, estimate: p0 -> chance, color, delays? }
+    // params: { bot (Bots.create result), seat, game, state: () => state, estimate: p0 -> chance,
+    //           color, post? (how a reaction is shown; default Reactions.receive), delays? }
     function attach(params) {
         detach();
         const random = Bots.rng((params.bot.tools.seed ^ 0xc0ffee) >>> 0);
@@ -81,7 +82,8 @@ const BotPersona = (() => {
         s.lastAt = Date.now();
         const emoji = pick(s, pool);
         const delay = s.delays.min + Math.floor(s.random() * (s.delays.max - s.delays.min + 1));
-        const t = setTimeout(() => { if (session === s) Reactions.receive(emoji, s.color); }, delay);
+        const post = s.post || ((e) => Reactions.receive(e, s.color));   // a room relays them too (#36)
+        const t = setTimeout(() => { if (session === s) post(emoji); }, delay);
         s.timers.push(t);
         return true;
     }

@@ -47,15 +47,22 @@
         const players = Settings.read().players;
         $("lobby-kind").textContent = online ? "Room" : bot ? "Against a bot" : "Local game";
         $("lobby-code").textContent = online ? Room.codeText() : bot ? "You vs bot" : "Same device";
+        $("lobby-code").classList.toggle("as-word", online && Room.watching);   // "Watching" is a word, not a code
+        // a spectate-link viewer never sees the room code, so it gets no eye and no share
+        // or copy button: only the 👀 link to invite more viewers (#29)
+        const watcher = Room.watching;
         const eye = $("btn-hide-code");
-        eye.hidden = !online;
+        eye.hidden = !online || watcher;
         eye.textContent = Room.codeHidden ? "🙈" : "👁";
         eye.title = Room.codeHidden ? "Show the room code" : "Hide the room code";
         eye.setAttribute("aria-label", eye.title);
-        $("btn-opponent").hidden = !bot;
-        if (bot) $("opponent-summary").textContent = Opponent.summary(Settings.game, Settings.read());
+        const roomBot = online ? Settings.bot : null;               // the room plays a bot (#36)
+        $("btn-opponent").hidden = !bot && !roomBot;
+        if (bot || roomBot) $("opponent-summary").textContent = Opponent.summary(Settings.game, Settings.read(), roomBot);
         Settings.setLocked(online && Match.spectator);              // spectators only watch (#29)
         $("lobby-share").hidden = !online;
+        $("btn-share").hidden = watcher;
+        $("btn-copy-code").hidden = watcher;
         $("lobby-players").hidden = !online;
         $("group-players").hidden = bot;                            // against a bot the whole group is empty (two seats, no room)
         const box = $("lobby-players");
@@ -64,13 +71,25 @@
             for (let k = 0; k < players; k++) box.appendChild(Util.fromTemplate("tpl-lobby-player", k));
         }
         const present = Room.presentSeats();
+        const botSeat = online ? Room.botSeat() : -1;                // Room.names() already calls it "Bot" (#36)
         for (let k = 0; k < players; k++) {
             const mine = Match.me === k;
             $(`lp-${k}`).querySelector(".lp-name").textContent = nm[k];
             $(`lp-${k}`).querySelector(".lp-you").textContent = online && mine ? "(you)" : "";
             $(`lp-${k}`).classList.toggle("absent", online && !present[k]);
-            $(`lp-${k}-status`).textContent = !online ? "" : mine ? "ready" : (present[k] ? "connected" : "not here yet");
+            $(`lp-${k}-status`).textContent = !online ? "" : mine || k === botSeat ? "ready" : (present[k] ? "connected" : "not here yet");
         }
+        // swap between playing and watching (#39): a spectate-link viewer never sits down
+        const canSwap = online && !watcher;
+        const free = Room.seatFree();
+        $("btn-watch").hidden = !(canSwap && Match.me >= 0);
+        $("btn-take-seat").hidden = !(canSwap && Match.me < 0);
+        $("btn-take-seat").disabled = !free;
+        $("btn-take-seat").title = free ? "" : "Every seat is taken right now.";
+        // a two-seat room waiting for a friend may play a bot instead (#36)
+        const mayAskBot = canSwap && Match.me >= 0 && players === 2 && Opponent.current(Settings.game, Settings.read());
+        $("btn-room-bot").hidden = !(mayAskBot && !roomBot && !Room.allHere());
+        $("btn-room-bot-off").hidden = !(mayAskBot && roomBot);
         const watching = online ? Room.spectators : 0;
         $("lobby-spectators").textContent = watching > 0 ? `${watching} spectator${watching > 1 ? "s" : ""} watching` : "";
         const start = $("btn-start");
@@ -189,12 +208,13 @@
         hideReplay();
         $("net-banner").hidden = true;
         show("lobby");
+        Room.enteredLobby();                             // somebody waiting for a seat gets the bot's (#36)
         Room.save();
     }
 
     /* ================= wiring ================= */
     // title screen
-    $("btn-create").addEventListener("click", () => Room.enter(Net.randomCode(), true, 0));
+    $("btn-create").addEventListener("click", () => Room.enter(Net.randomCode(), { preferHost: true, seat: 0, spec: Net.randomCode() }));
     $("btn-join-open").addEventListener("click", () => {
         const panel = $("join-panel");
         panel.hidden = !panel.hidden;
@@ -203,13 +223,13 @@
     $("btn-join").addEventListener("click", () => {
         const code = Net.normalizeCode($("join-code").value);
         if (code.length < 4) { toast("Enter the 5-letter room code"); $("join-code").focus(); return; }
-        Room.enter(code, false);
+        Room.enter(code, { preferHost: false });
     });
     $("join-code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-join").click(); });
     $("join-code").addEventListener("input", () => { $("join-code").value = Net.normalizeCode($("join-code").value); });
     $("btn-local").addEventListener("click", () => openLocalLobby(false));
     $("btn-bot").addEventListener("click", () => openLocalLobby(true));
-    $("btn-opponent").addEventListener("click", () => Opponent.open(Settings.game, Settings.read()));
+    $("btn-opponent").addEventListener("click", () => Opponent.open(Settings.game, Settings.read(), Room.online ? Settings.bot : null));
 
     // lobby
     async function shareLink(link, text) {
@@ -219,13 +239,18 @@
         try { await navigator.clipboard.writeText(link); toast("Link copied"); }
         catch (e) { prompt("Copy this link:", link); }
     }
-    $("btn-share").addEventListener("click", () => shareLink(Room.roomLink(Net.code), `Play ${Games.get(Settings.game).title} with me!`));
-    $("btn-share-spectate").addEventListener("click", () => shareLink(Room.roomLink(Net.code, true), `Watch us play ${Games.get(Settings.game).title}!`));
+    $("btn-share").addEventListener("click", () => shareLink(Room.roomLink(), `Play ${Games.get(Settings.game).title} with me!`));
+    // the spectate link carries the room's own spectator code, never the room code (#29)
+    $("btn-share-spectate").addEventListener("click", () => shareLink(Room.spectateLink(), `Watch us play ${Games.get(Settings.game).title}!`));
     $("btn-copy-code").addEventListener("click", async () => {
         try { await navigator.clipboard.writeText(Net.code); toast("Code copied"); }
         catch (e) { prompt("Room code:", Net.code); }
     });
     $("btn-hide-code").addEventListener("click", () => Room.hideCode(!Room.codeHidden));
+    $("btn-watch").addEventListener("click", () => Room.watchInstead());
+    $("btn-take-seat").addEventListener("click", () => Room.takeSeat());
+    $("btn-room-bot").addEventListener("click", () => Opponent.open(Settings.game));
+    $("btn-room-bot-off").addEventListener("click", () => { Settings.setBot(null); renderLobby(); });
     $("btn-lobby-back").addEventListener("click", leaveRoom);
     $("btn-start").addEventListener("click", startFromLobby);
 
@@ -295,7 +320,9 @@
         // picking a game keeps the default opponent (best bot, middle level, #12); the Opponent row opens the picker
         onSelectGame: () => { if (Match.mode === "bot" && phase === "lobby") renderLobby(); },
     });
-    Opponent.init({ onDone: () => renderLobby() });
+    // Play in the bot modal: offline it only remembers my choice, in a room it sets the
+    // room's bot, so everybody sees it on the empty seat (#36)
+    Opponent.init({ onDone: (game, played) => { if (played && Room.online) Settings.setBot(Opponent.current(game, Settings.read())); renderLobby(); } });
     Changelog.init();
     Reactions.init({
         onSend: (e) => { if (Room.online) Room.react(e); },
@@ -318,6 +345,8 @@
         live: Room.live,
         names: seatNames,
         turnHint: (p) => (Room.online ? Room.turnHint(p) : "to move"),
+        hostsBot: () => Room.isHost,                 // the room's bot seat runs on the transport host (#36)
+        onBotReact: (seat, e) => { if (Room.online) Room.react(e, seat); },
         onLocalMove: (i) => { if (Room.online) Room.sendMove(i); },
         onChanged: Room.onChanged,
         onIdle: Room.onIdle,
@@ -329,25 +358,35 @@
 
     const params = new URLSearchParams(location.search);
     const roomFromUrl = Net.normalizeCode(params.get("room"));
+    const watchFromUrl = Net.normalizeCode(params.get("watch"));      // the spectate link (#29): a code of its own
     const spectateFromUrl = params.get("spectate") === "1";
     const session = Session.load();
-    // a refresh inside a room: the URL names the session's room, or the session hid the code (then the URL carries none)
-    const rejoin = session && session.code && (roomFromUrl ? session.code === roomFromUrl : !!session.codeHidden);
+    // a refresh inside a room: the URL names the session's room (or its spectator code), or
+    // the session hid the code (then the URL carries none)
+    const rejoin = session && session.code && (session.watch
+        ? (watchFromUrl ? session.code === watchFromUrl : true)
+        : (roomFromUrl ? session.code === roomFromUrl : !!session.codeHidden));
     if (rejoin) {
         // rebuild from the session's game record, then re-sync with the friends
         const me = session.me ?? -1;
-        Room.enter(session.code, session.role ? session.role === "host" : me === 0, me, !!session.spectator, !!session.codeHidden);
+        Room.enter(session.code, {
+            preferHost: session.role ? session.role === "host" : me === 0,
+            seat: me, spectate: !!session.spectator, watch: !!session.watch,
+            spec: session.spec || null, hidden: !!session.codeHidden,
+        });
         Match.gameNo = session.gameNo || 0;
         if (session.phase === "game" && session.config) {
             startGame(session.config, Match.gameNo);
             Match.engine.replay(session.history || [], session.outs || []);
             Clock.restore(session.clocks);
             Clock.pause();
-            Log.add("Rejoining room " + Room.codeText() + "…", "x");
+            Log.add(session.watch ? "Rejoining as a spectator…" : "Rejoining room " + Room.codeText() + "…", "x");
         }
         Room.rev = session.rev || 0;
+    } else if (watchFromUrl) {
+        Room.enter(watchFromUrl, { preferHost: false, spectate: true, watch: true });
     } else if (roomFromUrl) {
-        Room.enter(roomFromUrl, false, -1, spectateFromUrl);
+        Room.enter(roomFromUrl, { preferHost: false, spectate: spectateFromUrl });
     } else {
         Settings.setMode("local");
         show("menu");

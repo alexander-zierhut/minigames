@@ -130,6 +130,8 @@
 .lobby-head .label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); }
 .lobby-head .room-code { font-size: 32px; letter-spacing: 5px; margin-top: 0; line-height: 1.15; }
 .room-code-row { display: flex; align-items: center; justify-content: center; gap: 8px; }
+/* a spectate-link viewer sees the word "Watching" instead of a code (#29) */
+.lobby-head .room-code.as-word { font-size: 20px; letter-spacing: 2px; font-weight: 800; }
 .code-eye { background: none; color: var(--muted); border: 2px solid var(--line); border-radius: 8px; font-size: 16px; line-height: 1; padding: 4px 6px; cursor: pointer; }
 .code-eye:hover { border-color: #46528a; color: var(--text); }
 /* one row: the primary share button carries the text, copy code and spectate link are icons */
@@ -166,6 +168,11 @@
 .lobby-player.absent { background: transparent; border-style: dashed; border-color: var(--line); color: var(--muted); }
 .lobby-player.absent .cube { opacity: .35; }
 .lp-status { margin-left: auto; font-size: 10px; font-weight: 400; color: var(--muted); white-space: nowrap; }
+/* quiet seat controls under the seat cards: watch instead / take a seat (#39) */
+.seat-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+.seat-actions:empty, .seat-actions:not(:has(button:not([hidden]))) { display: none; }
+.seat-actions .btn.small { padding: 4px 10px; font-size: 12px; }
+.seat-actions .btn:disabled { opacity: .45; }
 .lobby-status { text-align: center; font-size: 12px; color: var(--muted); }
 .lobby-status:empty { display: none; }
 /* one primary action; leaving is a quiet text button under it */

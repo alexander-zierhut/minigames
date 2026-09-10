@@ -14,8 +14,14 @@
      onFlag(p)             the local clock of seat p ran out (online: only the owner decides)
      onFinish(winner, why)
 
+     hostsBot()            online: does this device run the room's bot seat (#36)   default false
+     onBotReact(seat, e)   the bot's persona reacted (online: relay it to the room)
+
    Seats: Match.seats[p] = { kind: "local" | "remote" | "bot" }. Bot mode: you are seat 0,
-   the bot seat 1 (Opponent.current(game) picks which bot and level).
+   the bot seat 1 (Opponent.current(game) picks which bot and level). Online a room can
+   have a bot too (#36): `config.bot = { id, difficulty, seat }` names it, the transport
+   host runs it (hostsBot) and relays its moves and reactions, and for everybody else that
+   seat is a normal remote seat that happens to be called "Bot".
 
    Premove (#37): with exactly one local seat (against a bot or online with a seat) a click
    while the friend / bot is to move remembers that cell instead of dropping the click. The
@@ -42,8 +48,8 @@ const Match = (() => {
     let deferred = [];                                 // { key, fn } to run once the engine is idle
     let running = false;                               // a game is on the screen (start … stop)
     let h = {
-        live: () => true, names: () => ["Player 1", "Player 2", "Player 3", "Player 4"], turnHint: () => "to move",
-        onLocalMove: () => {}, onChanged: () => {}, onIdle: () => {}, onFlag: () => {}, onFinish: () => {},
+        live: () => true, names: () => ["Player 1", "Player 2", "Player 3", "Player 4"], turnHint: () => "to move", hostsBot: () => false,
+        onLocalMove: () => {}, onChanged: () => {}, onIdle: () => {}, onFlag: () => {}, onBotReact: () => {}, onFinish: () => {},
     };
 
     const online = () => st.mode === "online";
@@ -52,9 +58,14 @@ const Match = (() => {
     const isBot = (p) => kind(p) === "bot";
     // seat 0 starts game 1, then the next seat, round-robin
     const startPlayerFor = (gameNo, players = 2) => (gameNo - 1) % players;
-    // who moves for each seat: this device, a friend, or the bot
+    // the seat a bot holds: offline every seat but mine, online the one the room's config names (#36)
+    const roomBotSeat = () => (st.config && st.config.bot ? st.config.bot.seat : -1);
+    // who moves for each seat: this device, a friend, or the bot. Online the room's bot runs
+    // on the transport host and is a normal remote seat for everybody else (#36).
     const makeSeats = (players) => Array.from({ length: players }, (_, p) => ({
-        kind: online() ? (p === st.me ? "local" : "remote") : (st.mode === "bot" && p > 0 ? "bot" : "local"),
+        kind: online()
+            ? (p === roomBotSeat() ? (h.hostsBot() ? "bot" : "remote") : p === st.me ? "local" : "remote")
+            : (st.mode === "bot" && p > 0 ? "bot" : "local"),
     }));
     const playerColor = (p) => (p >= 0 ? `var(--c${p})` : "#ffffff");
     // my seat at this table: the one seat this device plays (-1 = none / several / spectator)
@@ -64,8 +75,9 @@ const Match = (() => {
     };
     // premoves make sense only when somebody else moves in between (bot or online seat)
     const premovable = () => running && !st.spectator && st.mode !== "local" && mySeat() >= 0;
-    // seat names for the HUD: what the people at the table are called; a bot seat is simply "Bot" (#21)
-    const names = () => h.names().map((n, p) => (isBot(p) && st.bot ? Opponent.NAME : n));
+    // seat names for the HUD: what the people at the table are called; a bot seat is simply
+    // "Bot" (#21) — in a room on every device, not only on the one that runs it (#36)
+    const names = () => h.names().map((n, p) => ((isBot(p) && st.bot) || p === roomBotSeat() ? Opponent.NAME : n));
 
     /* ---------- engine hooks ---------- */
     const hooks = {
@@ -152,7 +164,7 @@ const Match = (() => {
     // a clock ran out: online only the owner of that clock decides (clocks drift)
     function onFlag(p) {
         if (Game.state.over) return;
-        if (online() && p !== st.me) return;
+        if (online() && p !== st.me && !isBot(p)) return;   // the bot's clock belongs to whoever runs it (#36)
         h.onFlag(p);
         flagged(p);
     }
@@ -183,21 +195,43 @@ const Match = (() => {
             if (!stillOn()) return;
             if (!Game.isLegal(i, p)) i = bot.tools.pick(bot.tools.legalMoves(Game.state, p));
             st.botInfo = { id: bot.def.id, difficulty: bot.difficulty, budget: bot.tools.budget.nodes, move: i, ms: performance.now() - t0, nodes: bot.tools.lastDeadline ? bot.tools.lastDeadline.nodes() : null, ...(bot.tools.last || {}) };
-            if (i !== undefined) Game.play(i);
+            if (i === undefined) return;
+            h.onLocalMove(i);                    // in a room the bot's move is mine to relay (#36)
+            Game.play(i);
         }, THINK_MS);
     }
+    // build the bot instance for the seat this device plays the bot on (offline: the
+    // opponent I picked; online: the bot the room's config names)
     function setupBot(cfg, players) {
         BotPersona.detach();
         st.bot = null;
-        if (st.mode !== "bot") return;
-        const choice = Opponent.current(cfg.game, cfg);
-        if (!choice) { st.seats[1].kind = "local"; return; }        // no bot for this game: play both sides
+        const seat = st.seats.findIndex((s) => s.kind === "bot");
+        if (seat < 0) return;
+        // the room's bot is named by the config (#36), mine by the opponent I picked. A rule
+        // variant can change which bot can play at all (#35's Yavalath), so a room bot that
+        // does not know the rules steps aside for one that does, exactly like offline.
+        let choice = online() ? cfg.bot : Opponent.current(cfg.game, cfg);
+        if (online() && choice && !(Bots.get(choice.id) && Bots.supports(choice.id, cfg))) choice = Opponent.current(cfg.game, cfg);
+        if (!choice || !Bots.get(choice.id)) { if (!online()) st.seats[seat].kind = "local"; return; }   // no bot for this game: play both sides
         // seed: fresh per game so the bot varies; tests pin it via sessionStorage["chainreact.botseed"]
         const seed = ((Number(Util.load(sessionStorage, "chainreact.botseed")) || Date.now()) + st.gameNo) >>> 0;
-        st.bot = Bots.create(choice.id, { me: 1, difficulty: choice.difficulty, seed, players });
+        st.bot = Bots.create(choice.id, { me: seat, difficulty: choice.difficulty, seed, players });
         st.botInfo = { id: st.bot.def.id, difficulty: st.bot.difficulty, budget: st.bot.tools.budget.nodes };
         const est = Bots.estimator(cfg.game, cfg);
-        BotPersona.attach({ bot: st.bot, seat: 1, game: cfg.game, state: () => Game.state, estimate: (s) => est.at(s, 300), color: playerColor(1) });
+        BotPersona.attach({
+            bot: st.bot, seat, game: cfg.game, state: () => Game.state, estimate: (s) => est.at(s, 300), color: playerColor(seat),
+            post: (e) => { Reactions.receive(e, playerColor(seat)); h.onBotReact(seat, e); },   // the room sees them too (#36)
+        });
+    }
+    // seats changed under a running game (the transport host swapped, #36): rebuild them and
+    // let the bot move if it is its turn now
+    function refreshSeats() {
+        if (!running || !st.config) return;
+        const players = st.config.players || 2;
+        st.seats = makeSeats(players);
+        setupBot(st.config, players);
+        const s = Game.state;
+        if (!s.over && !s.busy && isBot(s.current)) botTurn(s.current);
     }
 
     /* ---------- lifecycle ---------- */
@@ -252,7 +286,7 @@ const Match = (() => {
     function init(handlers) { h = { ...h, ...handlers }; }
 
     return {
-        init, start, stop, reset, setSeat, record, flagged, whenIdle, syncClock, startPlayerFor, playerColor,
+        init, start, stop, reset, setSeat, refreshSeats, record, flagged, whenIdle, syncClock, startPlayerFor, playerColor,
         get engine() { return Game; }, get state() { return Game.state; }, get names() { return names(); }, get running() { return running; },
         get mode() { return st.mode; }, get me() { return st.me; }, get spectator() { return st.spectator; },
         get seats() { return st.seats; }, get config() { return st.config; }, get gameNo() { return st.gameNo; }, get bot() { return st.bot; },
