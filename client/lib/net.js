@@ -7,12 +7,19 @@
    redials. If the host stays gone a guest claims the room id itself (roles can swap;
    player seats are the app's business, not the transport's — the app tags every
    connection with a seat via setSeat so a refreshed guest replaces its stale
-   connection). The app layer re-syncs the game after every (re)connect. */
+   connection). The app layer re-syncs the game after every (re)connect.
+
+   Spectators have their OWN code (#29): the host registers a second peer under
+   "<PREFIX>s-<SPECTATOR CODE>" (hostSpectators), and a viewer opens the room with the
+   role "spectator", which dials that id and never claims a room. Such a connection is
+   tagged `spectator` for the app (it never gets a seat) and the room code never travels
+   to it, so removing a query parameter cannot turn a viewer into a player. */
 
 "use strict";
 
 const Net = (() => {
     const PREFIX = "chainreact-v1-";
+    const SPEC_PREFIX = PREFIX + "s-";      // the host's second peer, for spectate-link viewers (#29)
     const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
     const PING_EVERY = 3000, PING_TIMEOUT = 12000;
     // ICE servers for the WebRTC connection. STUN alone fails when both players are on
@@ -49,12 +56,13 @@ const Net = (() => {
         iceCache = { at: Date.now(), promise };
         return promise;
     }
+    const relayOnlyNow = () => !!(typeof handlers.relayOnly === "function" ? handlers.relayOnly() : handlers.relayOnly);
     // create the Peer once the ICE servers are known; ignored if the room was left meanwhile
     function createPeer(id, setup) {
         const gen = openGen;
         iceServers().then((servers) => {
             if (gen !== openGen || !wantConnection) return;
-            const relayOnly = !!(typeof handlers.relayOnly === "function" ? handlers.relayOnly() : handlers.relayOnly);
+            const relayOnly = relayOnlyNow();
             iceInfo = { relayOnly, turn: servers.some(isTurn), servers: servers.length };
             peer = new Peer(id, { debug: 0, config: peerConfig(servers, relayOnly) });
             setup(peer);
@@ -73,8 +81,12 @@ const Net = (() => {
     const BROKER_ERRORS = ["network", "server-error", "socket-error", "socket-closed", "disconnected"];
 
     let peer = null;
+    let specPeer = null;        // host: the second peer spectate-link viewers dial (#29)
+    let specCode = null;        // host: the room's spectator code
+    let specTries = 0;
+    let watchOnly = false;      // this device opened the room as a spectate-link viewer
     let conn = null;            // guest: the connection to the host
-    let conns = [];             // host: one entry per guest { c, id, seat, meta, lastPong }
+    let conns = [];             // host: one entry per guest { c, id, seat, meta, spectator, lastPong }
     let nextId = 1;
     let code = null;
     let role = null;            // "host" | "guest"
@@ -92,7 +104,7 @@ const Net = (() => {
     let roomFull = false;       // the host turned us away; keep the message while retrying quietly
     let channelFailures = 0;    // dials whose data channel never opened (NAT trouble, not an absent host)
     let lastPong = 0;           // guest: last pong from the host
-    const timers = { ping: null, retry: null, signaling: null };
+    const timers = { ping: null, retry: null, signaling: null, spec: null };
 
     function randomCode(len = 5) {
         const arr = new Uint32Array(len);
@@ -119,15 +131,18 @@ const Net = (() => {
     }
     function after(name, ms, fn) { clearTimer(name); timers[name] = setTimeout(fn, ms); }
 
-    /* ---------- open a room: try to be host, otherwise join as guest ---------- */
+    /* ---------- open a room: try to be host, otherwise join as guest ----------
+       preferredRole "spectator" = a spectate-link viewer: `code` is the room's spectator
+       code, the dial goes to the host's spectator peer and this device never claims a room. */
     function open(roomCode, h, preferredRole) {
         leave();
         handlers = h || {};
         code = normalizeCode(roomCode) || randomCode();
         wantConnection = true;
+        watchOnly = preferredRole === "spectator";
         openGen++;
         hostClaimTries = 0;
-        if (preferredRole === "guest") joinAsGuest();
+        if (watchOnly || preferredRole === "guest") joinAsGuest();
         else claimHost();
         return code;
     }
@@ -143,6 +158,49 @@ const Net = (() => {
     function dropPeer() {
         const old = peer;
         peer = null;
+        if (old) { try { old.destroy(); } catch (e) {} }
+    }
+
+    /* ---------- host: the spectator peer (#29) ----------
+       A second peer id, built from an independent spectator code, so a viewer never learns
+       the room code. The app calls this once it knows the code (room creation, a `state`
+       message, or a takeover); it is idempotent and torn down when this device stops hosting. */
+    function hostSpectators(spectatorCode) {
+        const wanted = normalizeCode(spectatorCode);
+        if (!wanted || !wantConnection || role !== "host") return;
+        if (specPeer && specCode === wanted) return;
+        dropSpecPeer();
+        specCode = wanted;
+        specTries = 0;
+        openSpecPeer();
+    }
+    function openSpecPeer() {
+        const gen = openGen;
+        if (!wantConnection || role !== "host" || !specCode || specPeer) return;
+        iceServers().then((servers) => {
+            if (gen !== openGen || !wantConnection || role !== "host" || !specCode || specPeer) return;
+            const p = new Peer(SPEC_PREFIX + specCode, { debug: 0, config: peerConfig(servers, relayOnlyNow()) });
+            specPeer = p;
+            p.on("connection", (c) => {
+                if (c.open) accept(c, true);
+                else c.on("open", () => accept(c, true));
+            });
+            p.on("error", (err) => {
+                if (p !== specPeer) return;
+                // an id left over from our own previous tab: try again a few times, then give up quietly
+                if (err && err.type === "unavailable-id" && specTries++ < 4) { dropSpecPeer(); after("spec", 1500, openSpecPeer); }
+            });
+            p.on("close", () => {
+                if (p !== specPeer) return;
+                specPeer = null;
+                if (wantConnection && role === "host" && specCode) after("spec", 1500, openSpecPeer);
+            });
+        });
+    }
+    function dropSpecPeer() {
+        const old = specPeer;
+        specPeer = null;
+        clearTimer("spec");
         if (old) { try { old.destroy(); } catch (e) {} }
     }
 
@@ -175,6 +233,7 @@ const Net = (() => {
 
     function joinAsGuest() {
         role = "guest";
+        dropSpecPeer();                          // we are not hosting any more
         setStatus("connecting", "Joining room…");
         createPeer(undefined, (peer) => {
         bindPeer(peer, joinAsGuest);
@@ -212,7 +271,7 @@ const Net = (() => {
         else if (everConnected) setStatus("reconnecting", dialAttempts > 1 ? `Reconnecting to your friend… (try ${dialAttempts})` : "Reconnecting to your friend…");
         else setStatus("connecting", dialAttempts > 1 ? "Your friend isn't in the room yet. Waiting…" : "Looking for the room…");
         const metadata = handlers.metadata ? handlers.metadata() : {};   // e.g. my seat, for the host's full-room check
-        const c = peer.connect(PREFIX + code, { reliable: true, metadata });
+        const c = peer.connect((watchOnly ? SPEC_PREFIX : PREFIX) + code, { reliable: true, metadata });
         // The host answers the open channel with welcome (or full). Listen from the start:
         // under load the first message can be delivered before our own "open" event, and the
         // host's pings count as a welcome too. Attach once the channel is open and welcomed.
@@ -290,9 +349,9 @@ const Net = (() => {
     // newcomer is asked of the app (admit) — when every seat is taken it is turned away,
     // unless an existing connection has stopped answering pings (> 6 s): that stale one
     // is dropped in its favour.
-    function accept(c) {
+    function accept(c, spectator = false) {
         const meta = c.metadata || {};
-        const seat = Number.isInteger(meta.seat) && meta.seat >= 0 ? meta.seat : -1;
+        const seat = spectator ? -1 : (Number.isInteger(meta.seat) && meta.seat >= 0 ? meta.seat : -1);
         const same = conns.find((x) => x.c.peer === c.peer) || (seat >= 0 ? conns.find((x) => x.seat === seat) : null);
         if (same) dropConn(same, "replaced");
         else if (handlers.admit && !handlers.admit(meta, peers())) {
@@ -305,11 +364,11 @@ const Net = (() => {
             dropConn(silent, "replaced");
         }
         try { c.send({ t: "welcome" }); } catch (e) {}      // the guest attaches only after this
-        attachHost(c, seat, meta);
+        attachHost(c, seat, meta, spectator);
     }
 
-    function attachHost(c, seat, meta) {
-        const entry = { c, id: "c" + nextId++, seat, meta, lastPong: Date.now() };
+    function attachHost(c, seat, meta, spectator = false) {
+        const entry = { c, id: "c" + nextId++, seat, meta, spectator: !!spectator, lastPong: Date.now() };
         conns.push(entry);
         everConnected = true;
         clearTimer("retry");
@@ -362,10 +421,13 @@ const Net = (() => {
             // the host isn't registered at the broker (left, tabbed out, or not there yet).
             // After a couple of tries we take over the room id ourselves, so the room lives on
             // as long as anyone is in it and a friend who left can come back by the same link.
-            if (++hostMissing >= 2) { hostMissing = 0; dropPeer(); claimHost(); return; }
-            setStatus(everConnected ? "reconnecting" : "connecting", everConnected
-                ? "Your friend seems to be away. Waiting for them to come back…"
-                : "Nobody is in this room yet. Waiting for your friend…");
+            // A spectate-link viewer never takes over: it has no room code and only watches (#29).
+            if (++hostMissing >= 2 && !watchOnly) { hostMissing = 0; dropPeer(); claimHost(); return; }
+            setStatus(everConnected ? "reconnecting" : "connecting", watchOnly
+                ? (everConnected ? "The room is away. Waiting for it to come back…" : "Nobody is in this room yet. Waiting…")
+                : everConnected
+                    ? "Your friend seems to be away. Waiting for them to come back…"
+                    : "Nobody is in this room yet. Waiting for your friend…");
             after("retry", 2500, dial);
             return;
         }
@@ -406,7 +468,7 @@ const Net = (() => {
         return sent;
     }
     // host: the guests as the app sees them
-    const peers = () => conns.map((x) => ({ id: x.id, seat: x.seat, meta: x.meta, open: !!x.c.open, silent: isSilent(x) }));
+    const peers = () => conns.map((x) => ({ id: x.id, seat: x.seat, meta: x.meta, spectator: !!x.spectator, open: !!x.c.open, silent: isSilent(x) }));
 
     // the WebRTC route of one DataConnection (dev panel, #31): the selected candidate pair
     async function routeOf(c) {
@@ -434,6 +496,12 @@ const Net = (() => {
         const x = conns.find((e) => e.id === id);
         if (x) x.seat = seat;
     }
+    // host: remember that a connection does not want a seat (it chose to watch, #39), so a
+    // reseat never hands it one back; it travels with the next dial as metadata anyway
+    function setSpectate(id, on) {
+        const x = conns.find((e) => e.id === id);
+        if (x) x.meta = { ...(x.meta || {}), spectate: !!on };
+    }
 
     function leave() {
         wantConnection = false;
@@ -444,6 +512,9 @@ const Net = (() => {
         for (const x of conns) { try { x.c.close(); } catch (e) {} }
         conns = [];
         roomFull = false;
+        watchOnly = false;
+        specCode = null;
+        dropSpecPeer();
         dropPeer();
         role = null;
         setStatus("idle", "");
@@ -458,8 +529,10 @@ const Net = (() => {
     }
 
     return {
-        open, send, sendTo, sendExcept, leave, retryNow, randomCode, normalizeCode, setSeat, peerConfig, isTurn, stats,
+        open, send, sendTo, sendExcept, leave, retryNow, randomCode, normalizeCode, setSeat, setSpectate, hostSpectators, peerConfig, isTurn, stats,
+        PREFIX, SPEC_PREFIX,
         get iceInfo() { return { ...iceInfo }; },
+        get watching() { return watchOnly; },         // this device dialled the spectator peer (#29)
         // the transport's inner state for the dev panel (#31)
         get transport() { return { broker: !peer ? "none" : peer.destroyed ? "destroyed" : peer.disconnected ? "disconnected" : peer.open ? "open" : "opening", dialAttempts, channelFailures, everConnected }; },
         get code() { return code; },

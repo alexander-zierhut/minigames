@@ -41,8 +41,12 @@
         const players = Settings.read().players;
         $("lobby-kind").textContent = online ? "Room" : bot ? "Against a bot" : "Local game";
         $("lobby-code").textContent = online ? Room.codeText() : bot ? "You vs bot" : "Same device";
+        $("lobby-code").classList.toggle("as-word", online && Room.watching);   // "Watching" is a word, not a code
+        // a spectate-link viewer never sees the room code, so it gets no eye and no share
+        // or copy button: only the 👀 link to invite more viewers (#29)
+        const watcher = Room.watching;
         const eye = $("btn-hide-code");
-        eye.hidden = !online;
+        eye.hidden = !online || watcher;
         eye.textContent = Room.codeHidden ? "🙈" : "👁";
         eye.title = Room.codeHidden ? "Show the room code" : "Hide the room code";
         eye.setAttribute("aria-label", eye.title);
@@ -50,6 +54,8 @@
         if (bot) $("opponent-summary").textContent = Opponent.summary(Settings.game);
         Settings.setLocked(online && Match.spectator);              // spectators only watch (#29)
         $("lobby-share").hidden = !online;
+        $("btn-share").hidden = watcher;
+        $("btn-copy-code").hidden = watcher;
         $("lobby-players").hidden = !online;
         $("group-players").hidden = bot;                            // against a bot the whole group is empty (two seats, no room)
         const box = $("lobby-players");
@@ -188,7 +194,7 @@
 
     /* ================= wiring ================= */
     // title screen
-    $("btn-create").addEventListener("click", () => Room.enter(Net.randomCode(), true, 0));
+    $("btn-create").addEventListener("click", () => Room.enter(Net.randomCode(), { preferHost: true, seat: 0, spec: Net.randomCode() }));
     $("btn-join-open").addEventListener("click", () => {
         const panel = $("join-panel");
         panel.hidden = !panel.hidden;
@@ -197,7 +203,7 @@
     $("btn-join").addEventListener("click", () => {
         const code = Net.normalizeCode($("join-code").value);
         if (code.length < 4) { toast("Enter the 5-letter room code"); $("join-code").focus(); return; }
-        Room.enter(code, false);
+        Room.enter(code, { preferHost: false });
     });
     $("join-code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-join").click(); });
     $("join-code").addEventListener("input", () => { $("join-code").value = Net.normalizeCode($("join-code").value); });
@@ -213,8 +219,9 @@
         try { await navigator.clipboard.writeText(link); toast("Link copied"); }
         catch (e) { prompt("Copy this link:", link); }
     }
-    $("btn-share").addEventListener("click", () => shareLink(Room.roomLink(Net.code), `Play ${Games.get(Settings.game).title} with me!`));
-    $("btn-share-spectate").addEventListener("click", () => shareLink(Room.roomLink(Net.code, true), `Watch us play ${Games.get(Settings.game).title}!`));
+    $("btn-share").addEventListener("click", () => shareLink(Room.roomLink(), `Play ${Games.get(Settings.game).title} with me!`));
+    // the spectate link carries the room's own spectator code, never the room code (#29)
+    $("btn-share-spectate").addEventListener("click", () => shareLink(Room.spectateLink(), `Watch us play ${Games.get(Settings.game).title}!`));
     $("btn-copy-code").addEventListener("click", async () => {
         try { await navigator.clipboard.writeText(Net.code); toast("Code copied"); }
         catch (e) { prompt("Room code:", Net.code); }
@@ -311,25 +318,35 @@
 
     const params = new URLSearchParams(location.search);
     const roomFromUrl = Net.normalizeCode(params.get("room"));
+    const watchFromUrl = Net.normalizeCode(params.get("watch"));      // the spectate link (#29): a code of its own
     const spectateFromUrl = params.get("spectate") === "1";
     const session = Session.load();
-    // a refresh inside a room: the URL names the session's room, or the session hid the code (then the URL carries none)
-    const rejoin = session && session.code && (roomFromUrl ? session.code === roomFromUrl : !!session.codeHidden);
+    // a refresh inside a room: the URL names the session's room (or its spectator code), or
+    // the session hid the code (then the URL carries none)
+    const rejoin = session && session.code && (session.watch
+        ? (watchFromUrl ? session.code === watchFromUrl : true)
+        : (roomFromUrl ? session.code === roomFromUrl : !!session.codeHidden));
     if (rejoin) {
         // rebuild from the session's game record, then re-sync with the friends
         const me = session.me ?? -1;
-        Room.enter(session.code, session.role ? session.role === "host" : me === 0, me, !!session.spectator, !!session.codeHidden);
+        Room.enter(session.code, {
+            preferHost: session.role ? session.role === "host" : me === 0,
+            seat: me, spectate: !!session.spectator, watch: !!session.watch,
+            spec: session.spec || null, hidden: !!session.codeHidden,
+        });
         Match.gameNo = session.gameNo || 0;
         if (session.phase === "game" && session.config) {
             startGame(session.config, Match.gameNo);
             Match.engine.replay(session.history || [], session.outs || []);
             Clock.restore(session.clocks);
             Clock.pause();
-            Log.add("Rejoining room " + Room.codeText() + "…", "x");
+            Log.add(session.watch ? "Rejoining as a spectator…" : "Rejoining room " + Room.codeText() + "…", "x");
         }
         Room.rev = session.rev || 0;
+    } else if (watchFromUrl) {
+        Room.enter(watchFromUrl, { preferHost: false, spectate: true, watch: true });
     } else if (roomFromUrl) {
-        Room.enter(roomFromUrl, false, -1, spectateFromUrl);
+        Room.enter(roomFromUrl, { preferHost: false, spectate: spectateFromUrl });
     } else {
         Settings.setMode("local");
         show("menu");
