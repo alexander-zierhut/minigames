@@ -271,9 +271,14 @@ approved ("wuchtiger" like TNT).
 ## Five Wins rules (`five-rules.js`)
 
 n×n board (default 11×11). Place on any empty cell. `winLen` **or more** in a row (4
-directions) wins;
-winning stones get `.win` + `--k` and jump in a wave (`stone-jump`, the MC blocks
-jumping). Full board = draw (`winner -1`, overlay "Draw!"). With 3–4 players the turn
+directions) wins; winning stones get `.win` + `--k` and jump in a wave (`stone-jump`,
+the MC blocks jumping). Draw (`winner -1`, overlay "Draw!"): a full board ("The board
+is full."), or — #18 — a **dead board**: after every move `conclude` checks
+`canWin(state, p)` for every player still in (`Rules.remaining`) — a window of `winLen`
+cells in one of the 4 directions holding only that player's stones or empties; none for
+anybody → "No line can be completed any more." (O(cells × 4 × winLen), pure and
+deterministic, so online clients and `replay` agree; the puzzle solver mirrors it as
+`Board.dead()`). With 3–4 players the turn
 rotates (`Rules.pass`) and the first line wins; when everyone else is `out` the last
 player wins ("Everyone else is out."). HUD: stones placed, best row
 as the bar. MC skins: quartz tiles on obsidian, diamond/gold blocks as stones; hover

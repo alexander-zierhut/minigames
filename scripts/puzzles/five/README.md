@@ -1,8 +1,10 @@
 # Five Wins puzzles
 
 Test positions for **Five Wins** (gomoku without gravity: n×n board, `winLen` **or more**
-in a row in one of four directions wins, a full board is a draw) whose perfect move(s) are
-computed by an algorithm, so bots can be graded on how many perfect moves they find.
+in a row in one of four directions wins; a full board is a draw, and so is a *dead* board
+where no window of `winLen` cells is free of enemy stones for either side — #18) whose
+perfect move(s) are computed by an algorithm, so bots can be graded on how many perfect
+moves they find.
 
 ```
 node scripts/puzzles/five/generate.mjs         # regenerates puzzles.json (≈ 2 min, deterministic)
@@ -49,8 +51,10 @@ prove anything the value is `"unknown"` and such positions never become puzzles.
    windows, so nothing within 5 plies can be missed. Hence for `depth ≤ 5`, `best` is the
    complete set of fastest winning moves and "no win within 5 plies" is a proven fact.
 2. **Exhaustive alpha-beta negamax** (`solveExhaustive`): searches every line to a win, a
-   loss or a full board — there is no static evaluation and no depth limit, so the result
-   is the game-theoretic value. Scores carry the distance to the result, so the root
+   loss or a draw (a full board, or a dead board — `Board.dead()` keeps a count of the
+   windows still free of enemy stones per side, so the rules' early draw ends a line at
+   the same move it ends the real game) — there is no static evaluation and no depth
+   limit, so the result is the game-theoretic value. Scores carry the distance to the result, so the root
    returns the fastest wins. Exact pruning only: a side that can complete a line does so;
    a side facing two enemy completion cells has lost; facing one, its only non-losing move
    is that cell. A transposition table keyed by the exact board (no hashing collisions)

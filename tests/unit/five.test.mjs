@@ -71,8 +71,19 @@ test("occupied cells are illegal, game over blocks moves", async () => {
 });
 
 test("full board without a line is a draw", () => {
-    // 5x5, winLen 5, a known draw pattern (no 5 in any line)
-    const { G, calls } = fresh({ n: 5, winLen: 5 });
+    // 3×3, winLen 3: row 2 stays open for Amber until Cyan's last stone fills the board
+    const { G, calls } = fresh({ n: 3, winLen: 3 });
+    G.replay([1, 0, 2, 5, 3, 6, 4, 7, 8]);
+    assert.equal(G.state.over, true);
+    assert.equal(G.state.winner, -1);
+    assert.equal(G.state.history.length, 9);
+    assert.match(calls.finish.why, /full/i);
+});
+
+test("draw as soon as no line can be completed any more, with empty cells left (#18)", () => {
+    // 5x5, winLen 5, a known draw pattern (no 5 in any line): every window holds both
+    // colours long before the board is full
+    const { w, G, calls } = fresh({ n: 5, winLen: 5 });
     const pattern = [
         0, 0, 1, 1, 0,
         1, 1, 0, 0, 1,
@@ -88,7 +99,21 @@ test("full board without a line is a draw", () => {
     G.replay(seq);
     assert.equal(G.state.over, true);
     assert.equal(G.state.winner, -1);
-    assert.match(calls.finish.why, /full/i);
+    assert.match(calls.finish.why, /No line can be completed any more/);
+    assert.ok(G.state.history.length < 25, `ended with ${25 - G.state.history.length} empty cells`);
+    assert.equal(w.document.getElementById("overlay-title").textContent, "Draw!");
+    assert.match(w.document.getElementById("overlay-sub").textContent, /No line can be completed any more/);
+    assert.equal(w.document.getElementById("turn-name").textContent, "Draw");
+    assert.ok(w.document.getElementById("board").classList.contains("over"));
+    // the animated path ends the same way at the same move
+    const live = fresh({ n: 5, winLen: 5 });
+    return (async () => {
+        for (const i of seq) { if (live.G.state.over) break; assert.equal(await live.G.play(i), true); }
+        assert.equal(live.G.state.history.length, G.state.history.length);
+        assert.equal(live.G.state.winner, -1);
+        assert.equal(live.calls.finish.why, calls.finish.why);
+        assert.equal(live.G.hash(), G.hash(), "replay == play");
+    })();
 });
 
 test("replay matches play", async () => {

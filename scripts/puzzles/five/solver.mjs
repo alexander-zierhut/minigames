@@ -1,5 +1,7 @@
 /* Five Wins solver (gomoku without gravity: n×n board, `winLen` OR MORE in a row in one
-   of 4 directions wins, a full board is a draw).
+   of 4 directions wins; a full board is a draw, and so is a DEAD board — one where no
+   window of winLen cells is free of enemy stones for either side, #18 — the rules end the
+   game there, so the search treats it as a terminal draw too: `Board.dead()`).
 
    solve(state, options) → { value, best, depth, method, nodes, moveValues? }
      value   "win" | "draw" | "loss" from the perspective of state.current, or "unknown"
@@ -15,8 +17,8 @@
 
    1. Exhaustive alpha-beta negamax to terminal positions (`solveExhaustive`), used when
       the board is small enough / empty enough to finish within `maxNodes`. Every line is
-      searched to a win, a loss or a full board — there is no static evaluation, so the
-      value is the game-theoretic value of the position. Scores carry the distance to the
+      searched to a win, a loss or a draw (full or dead board) — there is no static
+      evaluation, so the value is the game-theoretic value of the position. Scores carry the distance to the
       result (WIN - plies), so the root distinguishes fast wins from slow ones. A
       transposition table (exact board key, no hashing collisions possible) and two exact
       pruning rules keep it fast:
@@ -79,27 +81,32 @@ export class Board {
         this.cnt = [new Int8Array(this.geo.windows.length), new Int8Array(this.geo.windows.length)];
         this.keys = new Float64Array(Math.ceil(n * n / 25));   // exact base-3 encoding in 25-cell chunks
         this.empties = 0;
+        this.open = [this.geo.windows.length, this.geo.windows.length];   // windows without an enemy stone, per player
         this.mark = new Int32Array(n * n); this.stamp = 0;
         for (let i = 0; i < this.cells.length; i++) {
             const p = this.cells[i];
             if (p < 0) { this.empties++; continue; }
-            for (const w of this.geo.cellWindows[i]) this.cnt[p][w]++;
+            for (const w of this.geo.cellWindows[i]) { if (this.cnt[p][w]++ === 0) this.open[1 - p]--; }
             this.keys[(i / 25) | 0] += (p + 1) * POW3[i % 25];
         }
     }
     static fromState(state) { return new Board(state.n, state.winLen, state.cells, state.current); }
     place(i, p) {
         this.cells[i] = p; this.empties--;
-        for (const w of this.geo.cellWindows[i]) this.cnt[p][w]++;
+        for (const w of this.geo.cellWindows[i]) { if (this.cnt[p][w]++ === 0) this.open[1 - p]--; }
         this.keys[(i / 25) | 0] += (p + 1) * POW3[i % 25];
         this.current = 1 - p;
     }
     undo(i, p) {
         this.cells[i] = -1; this.empties++;
-        for (const w of this.geo.cellWindows[i]) this.cnt[p][w]--;
+        for (const w of this.geo.cellWindows[i]) { if (--this.cnt[p][w] === 0) this.open[1 - p]++; }
         this.keys[(i / 25) | 0] -= (p + 1) * POW3[i % 25];
         this.current = p;
     }
+    // no line can be completed any more by either side: the rules call that a draw (#18)
+    dead() { return this.open[0] === 0 && this.open[1] === 0; }
+    // terminal draw: full or dead board
+    drawn() { return this.empties === 0 || this.dead(); }
     key() { return this.keys.join("|"); }
     empty() { const out = []; for (let i = 0; i < this.cells.length; i++) if (this.cells[i] < 0) out.push(i); return out; }
     // cells where `p` completes a line right now (each listed once)
@@ -160,7 +167,7 @@ export function solveExhaustive(board, { maxNodes = 2_000_000, classify = true }
         if (++nodes > maxNodes) throw ABORT;
         const me = b.current, op = 1 - me;
         if (b.threats(me).length) return WIN - (ply + 1);            // complete a line now
-        if (b.empties === 0) return 0;                                // full board: draw
+        if (b.drawn()) return 0;                                      // full or dead board: draw
         const opT = b.threats(op);
         if (opT.length >= 2) return -(WIN - (ply + 2));               // cannot fill two cells at once
         const key = b.key();
@@ -221,7 +228,7 @@ export function solveExhaustive(board, { maxNodes = 2_000_000, classify = true }
                 let cls;
                 const opWins = b.threats(op).length;
                 if (opWins) cls = "loss";
-                else if (b.empties === 0) cls = "draw";
+                else if (b.drawn()) cls = "draw";
                 else {
                     const s1 = negamax(1, -1, 0);                      // child ≤ -1 ⇔ we win
                     if (s1 <= -1) cls = "win";
@@ -253,7 +260,7 @@ export function proveWin(board, { maxPlies = MAX_PROOF, maxNodes = 5_000_000 } =
     function attack(ply, limit) {
         if (++nodes > maxNodes) throw ABORT;
         if (b.threats(att).length) return ply + 1 <= limit;
-        if (ply + 3 > limit) return false;
+        if (ply + 3 > limit || b.dead()) return false;
         const defT = b.threats(def);
         if (defT.length >= 2) return false;                           // the defender wins first
         const rel = limit - ply, key = b.key();
@@ -276,7 +283,7 @@ export function proveWin(board, { maxPlies = MAX_PROOF, maxNodes = 5_000_000 } =
     function defend(ply, limit) {
         if (++nodes > maxNodes) throw ABORT;
         if (b.threats(def).length) return false;                      // defender completes a line
-        if (b.empties === 0) return false;                            // draw
+        if (b.drawn()) return false;                                  // draw (full or dead board)
         const attT = b.threats(att);
         if (attT.length >= 2) return ply + 2 <= limit;                // one block cannot stop two
         if (ply + 4 > limit) return false;                            // need def, att, def, att
@@ -324,7 +331,7 @@ export function solve(state, options = {}) {
     const { exhaustiveNodes = 1_500_000, exhaustiveMaxEmpties = 30, maxPlies = MAX_PROOF, classify = true } = options;
     if (state.over) throw new Error("solve: the game is over");
     const b = Board.fromState(state);
-    if (b.empties === 0) throw new Error("solve: no legal moves");
+    if (b.drawn()) throw new Error("solve: the game is over (full or dead board)");
     const t = proveWin(b, { maxPlies });
     if (t.value === "win") return t;
     if (exhaustiveNodes > 0 && b.empties <= exhaustiveMaxEmpties) {

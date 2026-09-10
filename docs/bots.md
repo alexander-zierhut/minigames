@@ -79,7 +79,10 @@ order = display order.
 State shape (from `Rules.base` + the game's `create`): `n, players, current, round, history,
 movesBy, busy, over, winner, finishWhy, cells` (chain: `[{ count, owner, cap }]`, plus
 `chainRule, chainLen, chainNow, chainBest, explosions`; five: owner per cell -1/0/1, plus
-`winLen, winLine`). Cell id = `y * n + x`.
+`winLen, winLine`). Cell id = `y * n + x`. Five Wins ends in a draw not only on a full board
+but as soon as no window of `winLen` cells is free of enemy stones for any player still in
+(`FiveRules.canWin(state, p)`, #18) — a bot's own board model must mirror that or its
+"engine equals the rules" tests and `apply()` will disagree at the end of drawn games.
 
 ## 4. Budgets: strong on a phone, deterministic in CI
 
@@ -133,7 +136,7 @@ exact at terminal positions (1 / 0 / 0.5), roughly 0.5 on an empty board.
   100 %** and no test may gate the deploy on a fixed strength number.
 - **Puzzles** (`tests/puzzles/<game>/puzzles.json`, proven by `scripts/puzzles/<game>/solver.mjs`):
   `evaluateBot(H, id, { difficulty, budget })` → `{ solved, total, pct, chance, byTag, failures }`.
-  `chance` is what blind random picking scores on that set (chain 23 %, five 5.5 %).
+  `chance` is what blind random picking scores on that set (chain 23 %, five 5.7 %).
   `npm run puzzles` regenerates the sets, `npm run puzzles:verify` re-proves the tactical
   ones without the solvers.
 - **Benchmark** (`npm run benchmark [id]`): 60 (chain) / 100 (five) seeded games against

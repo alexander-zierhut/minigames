@@ -82,6 +82,52 @@ test("five: lineThrough, bestRow, win, draw and legalMoves", () => {
     const r = move(R, s, 3);
     assert.equal(r.winner, 0); assert.equal(JSON.stringify(s.winLine.sort()), "[0,1,2,3]");
     const d = five({ n: 3, winLen: 3 });
-    for (const i of [0, 1, 2, 4, 3, 5, 7, 6]) move(d.R, d.s, i);
-    assert.equal(move(d.R, d.s, 8).winner, -1, "full board is a draw");
+    for (const i of [1, 0, 2, 5, 3, 6, 4, 7]) move(d.R, d.s, i);   // the last window (row 2) stays open until the last stone
+    const full = move(d.R, d.s, 8);
+    assert.equal(full.winner, -1, "full board is a draw"); assert.match(full.why, /full/i);
+});
+
+// 9×9 / 5 stones that block every window of 5 for both colours while 36 cells stay empty:
+// rows 2, 4, 6 in every column (colours alternating along rows, columns and diagonals)
+// plus columns 2, 4, 6 in the other rows (a, b, a per row). Returned as [cell, colour].
+function deadNine() {
+    const n = 9, stones = [];
+    for (const y of [2, 4, 6]) for (let x = 0; x < n; x++) stones.push([y * n + x, (x + y / 2 + 1) % 2]);
+    [0, 1, 3, 5, 7, 8].forEach((y, k) => { const a = k % 2; for (const x of [2, 4, 6]) stones.push([y * n + x, x === 4 ? 1 - a : a]); });
+    return stones;
+}
+// a legal move order: player 0 first, alternating
+function interleave(stones) {
+    const p0 = stones.filter((s) => s[1] === 0).map((s) => s[0]), p1 = stones.filter((s) => s[1] === 1).map((s) => s[0]);
+    assert.ok(p0.length === p1.length || p0.length === p1.length + 1, `playable counts (${p0.length}/${p1.length})`);
+    const seq = [];
+    for (let k = 0; k < p0.length; k++) { seq.push(p0[k]); if (k < p1.length) seq.push(p1[k]); }
+    return seq;
+}
+
+test("five: draw as soon as no line can be completed any more (#18)", () => {
+    // 3×3: after 8 stones every window of 3 holds both colours → draw with a cell still empty
+    const d = five({ n: 3, winLen: 3 });
+    for (const i of [0, 1, 2, 4, 3, 5, 7]) assert.equal(move(d.R, d.s, i), null);
+    const r = move(d.R, d.s, 6);
+    assert.equal(r.winner, -1); assert.match(r.why, /No line can be completed/);
+    assert.equal(d.s.history.length, 8);
+    assert.equal(d.R.canWin(d.s, 0), false); assert.equal(d.R.canWin(d.s, 1), false);
+    // 9×9 / 5: 45 stones block every window of 5 for both colours; ≥ 36 cells stay empty
+    const n = 9, stones = deadNine();
+    assert.equal(stones.length, 45);
+    const seq = interleave(stones);
+    const g = five({ n, winLen: 5 });
+    let res = null;
+    for (const i of seq) { res = move(g.R, g.s, i); if (res) break; }
+    assert.ok(res && res.winner === -1, "draw"); assert.match(res.why, /No line can be completed/);
+    assert.ok(g.s.cells.filter((c) => c === -1).length >= 36, `many empties left (${g.s.history.length} stones)`);
+    assert.equal(g.R.canWin(g.s, 0), false); assert.equal(g.R.canWin(g.s, 1), false);
+    // one stone less at (0,2): column 0 (rows 0–4) still has a window for Amber, who owns
+    // (0,4) → the game goes on to the last stone, Cyan has no window left
+    const h = five({ n, winLen: 5 });
+    for (const i of interleave(stones.filter((s) => s[0] !== 2 * n))) assert.equal(move(h.R, h.s, i), null, `move ${i} keeps the game going`);
+    assert.equal(h.s.history.length, 44);
+    assert.equal(h.R.canWin(h.s, 1), true, "Amber can still fill column 0 (rows 0–4)");
+    assert.equal(h.R.canWin(h.s, 0), false, "Cyan has no window left");
 });

@@ -15,6 +15,8 @@ for (const game of games) {
     const data = loadPuzzles(game);
     const winsNow = (s, i) => { const t = tools.apply(s, i); return t.over && t.winner === s.current; };
     const opponentWinsNext = (t) => !t.over && rules.legalMoves(t, t.current).some((r) => winsNow(t, r));
+    // lost at once: the move ended the game for somebody else (a draw — full or dead board, #18 — is not a loss)
+    const lostAtOnce = (s, t) => t.over && t.winner >= 0 && t.winner !== s.current;
     const bad = [];
     let chance = 0, checked = 0;
     for (const p of data.puzzles) {
@@ -28,10 +30,10 @@ for (const game of games) {
         }
         if (p.tags.includes("must-block") || p.tags.includes("avoid-loss")) {
             checked++;
-            for (const b of p.best) { const t = tools.apply(s, b); if ((t.over && t.winner !== s.current) || opponentWinsNext(t)) bad.push(`${p.id}: best ${b} loses at once`); }
+            for (const b of p.best) { const t = tools.apply(s, b); if (lostAtOnce(s, t) || opponentWinsNext(t)) bad.push(`${p.id}: best ${b} loses at once`); }
             // "avoid-loss" means every other move loses by force; only when the puzzle's depth says the
             // loss comes at once (depth 2) can a one-ply check confirm that for the other moves
-            if (p.tags.includes("avoid-loss") && p.depth === 2) for (const m of legal) if (!p.best.includes(m)) { const t = tools.apply(s, m); if (!(t.over && t.winner !== s.current) && !opponentWinsNext(t)) bad.push(`${p.id}: non-best ${m} does not lose at once`); }
+            if (p.tags.includes("avoid-loss") && p.depth === 2) for (const m of legal) if (!p.best.includes(m)) { const t = tools.apply(s, m); if (!lostAtOnce(s, t) && !opponentWinsNext(t)) bad.push(`${p.id}: non-best ${m} does not lose at once`); }
         }
     }
     problems += bad.length;

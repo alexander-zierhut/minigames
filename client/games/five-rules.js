@@ -1,5 +1,7 @@
 /* Five Wins rules (pure, no DOM). Gomoku without gravity: place a stone on any empty
-   cell; `winLen` or more in a row (4 directions) wins; a full board is a draw. */
+   cell; `winLen` or more in a row (4 directions) wins; a full board is a draw, and so is
+   a board where no line can be completed any more (#18: no window of winLen cells is
+   free of enemy stones for any player still in the game). */
 
 "use strict";
 
@@ -52,6 +54,23 @@ const FiveRules = (() => {
         return Math.min(best, state.winLen);
     }
 
+    // can `player` still complete a line: is there a window of winLen cells (any of the 4
+    // directions) holding only that player's stones or empties? O(cells × 4 × winLen).
+    function canWin(state, player) {
+        const n = state.n, w = state.winLen, cells = state.cells;
+        for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) for (const [dx, dy] of DIRS) {
+            const ex = x + dx * (w - 1), ey = y + dy * (w - 1);
+            if (ex < 0 || ey < 0 || ex >= n || ey >= n) continue;
+            let open = true;
+            for (let s = 0; s < w && open; s++) {
+                const o = cells[(y + dy * s) * n + x + dx * s];
+                if (o !== -1 && o !== player) open = false;
+            }
+            if (open) return true;
+        }
+        return false;
+    }
+
     function place(state, i, player) {
         state.cells[i] = player;
         state.history.push(i);
@@ -68,6 +87,8 @@ const FiveRules = (() => {
         if (state.history.length === state.cells.length) return { winner: -1, why: "The board is full." };
         const left = Rules.remaining(state);
         if (left.length === 1 && state.players > 1) return { winner: left[0], why: "Everyone else is out." };
+        // dead board (#18): nobody still in the game has a window left → draw, however many cells are empty
+        if (!left.some((p) => canWin(state, p))) return { winner: -1, why: "No line can be completed any more." };
         Rules.pass(state);
         return null;
     }
@@ -81,6 +102,6 @@ const FiveRules = (() => {
         return 1 / (1 + Math.exp(-4 * edge));
     }
 
-    return { create, ownerOf, isLegal, legalMoves, place, settle, conclude, lineThrough, bestRow, estimate };
+    return { create, ownerOf, isLegal, legalMoves, place, settle, conclude, lineThrough, bestRow, canWin, estimate };
 })();
 Rules.register("five", FiveRules);
