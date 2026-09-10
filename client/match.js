@@ -63,7 +63,9 @@ const Match = (() => {
         return local.length === 1 ? local[0] : -1;
     };
     // premoves make sense only when somebody else moves in between (bot or online seat)
-    const premovable = () => running && !st.spectator && st.mode !== "local" && mySeat() >= 0;
+    // (a game whose move needs more than one click says premove: false in its definition)
+    const premovable = () => running && !st.spectator && st.mode !== "local" && mySeat() >= 0
+        && (!st.config || Games.get(st.config.game).premove !== false);
     // seat names for the HUD: what the people at the table are called; a bot seat is simply "Bot" (#21)
     const names = () => h.names().map((n, p) => (isBot(p) && st.bot ? Opponent.NAME : n));
 
@@ -75,7 +77,7 @@ const Match = (() => {
             const hint = isBot(p) ? "thinking…" : h.turnHint(p);
             return st.premove >= 0 && !isLocal(p) ? `${hint} · premove set` : hint;
         },
-        cellClass: (i) => (i === st.premove ? "premove" : ""),
+        cellClass: (i) => (st.premove >= 0 && Game.cellOf(st.premove) === i ? "premove" : ""),
         onCellClick: (i) => {
             const s = Game.state;
             if (s.over) return;

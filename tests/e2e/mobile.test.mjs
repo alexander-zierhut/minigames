@@ -124,3 +124,31 @@ test("replay bar (#38): one row above the HUD, clear of its controls, no scroll"
     assert.match(await M.text("replay-pos"), /^Move 0 \/ \d+$/);
     assert.deepEqual(M.errors, []);
 });
+
+test("isolation: the board and the two-step highlights fit the phone, no scroll", async () => {
+    await M.click("#result-fab");
+    await M.click("#overlay-menu");
+    await M.selectGame("isolation");
+    await M.click("#btn-settings"); await M.set("set-size", 7); await M.click("#btn-settings-done");
+    await assertNoScroll("isolation lobby");
+    await M.click("#btn-start");
+    await assertNoScroll("isolation game");
+    const b = JSON.parse(await M.ev("JSON.stringify(document.getElementById('board').getBoundingClientRect())"));
+    assert.ok(b.left >= 4 && b.right <= 356, `board leaves room for the turn outline (${b.left}..${b.right})`);
+    assert.equal(await M.ev("document.querySelectorAll('#board > .slab').length"), 49);
+    assert.equal(await M.ev("document.querySelectorAll('#board > .slab.taken').length"), 2);
+    assert.equal(await M.ev("getComputedStyle(document.querySelector('#p-0 .win-bar')).display"), "block");
+    assert.match(await M.text("mini-line2"), /free moves/);
+    // the first click of a move highlights the tiles that may be broken, still without scrolling
+    const to = await M.ev("IsolationRules.steps(IsolationGame.state, IsolationGame.state.current)[0]");
+    await M.ev(`document.querySelectorAll('#board > .slab')[${to}].click(); true`);
+    assert.ok(await M.ev(`document.querySelectorAll('#board > .slab')[${to}].classList.contains('pending')`));
+    await assertNoScroll("isolation pending");
+    await M.screenshot("mobile-isolation.png");
+    const far = await M.ev("IsolationGame.state.cells.findIndex((c, i) => c === -1 && i !== IsolationGame.state.pawns[0])");
+    await M.ev(`document.querySelectorAll('#board > .slab')[${far}].click(); true`);
+    await M.idle();
+    assert.equal((await M.state()).history.length, 1);
+    await assertNoScroll("isolation after a move");
+    assert.deepEqual(M.errors, []);
+});

@@ -6,6 +6,10 @@
       "entries": [
         {
           "type": "feature",
+          "text": "A third game: Isolation. Every player has one pawn, you step to a neighbouring tile and then break any tile away, and whoever cannot move when their turn comes is trapped. Two to four players, boards from 5 to 12, and a bot to practise against."
+        },
+        {
+          "type": "feature",
           "text": "Five Wins: a new Yavalath rule in the settings. One stone short of the winning row loses (four wins, three loses with the classic values); with three or four players the loser is out and the rest play on. The bot does not know the rule yet, so a random opponent stands in."
         },
         {

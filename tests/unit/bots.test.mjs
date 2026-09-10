@@ -7,7 +7,7 @@ import { loadHeadless } from "../../scripts/headless.mjs";
 
 const H = loadHeadless();
 const { Bots, Rules } = H;
-const CONFIGS = { chain: { n: 5, chainRule: false }, five: { n: 7, winLen: 5 } };
+const CONFIGS = { chain: { n: 5, chainRule: false }, five: { n: 7, winLen: 5 }, isolation: { n: 6 } };
 
 test("registry: every bot has valid metadata; bad definitions are rejected", () => {
     assert.ok(Bots.list().length >= 2);
@@ -19,8 +19,8 @@ test("registry: every bot has valid metadata; bad definitions are rejected", () 
     }
     assert.ok(Bots.forGame("chain").some((b) => b.id === "random-chain") && Bots.forGame("chain").every((b) => b.game === "chain"));
     // one bot per game (#21): the Random bots are baselines (benchmark opponent, fallback), never the opponent
-    assert.equal(Bots.get("random-chain").baseline, true); assert.equal(Bots.get("random-five").baseline, true);
-    assert.equal(Bots.botFor("chain").id, "creeper-chain"); assert.equal(Bots.botFor("five").id, "sensei-five");
+    assert.equal(Bots.get("random-chain").baseline, true); assert.equal(Bots.get("random-five").baseline, true); assert.equal(Bots.get("random-isolation").baseline, true);
+    assert.equal(Bots.botFor("chain").id, "creeper-chain"); assert.equal(Bots.botFor("five").id, "sensei-five"); assert.equal(Bots.botFor("isolation").id, "warden-isolation");
     assert.equal(Bots.botFor("nope"), null);
     assert.throws(() => Bots.validate({ id: "xx-bot", name: "X", game: "chain", baseline: "yes", difficulties: [{ id: "n", label: "N" }], create() {} }), /baseline/);
     for (const bad of [{}, { id: "x", name: "X", game: "chain", difficulties: [], create() {} }, { id: "Bad Id", name: "X", game: "chain", difficulties: [{ id: "n", label: "N" }], create() {} }]) {

@@ -8,7 +8,8 @@ behaviour, protocol keys, files or events, update the matching section here.
 ## What this is
 
 A static site with nostalgic minigames the owner played on a Minecraft server in
-2015: **Chain React** and **Five Wins** (gomoku without gravity), for two to four
+2015: **Chain React**, **Five Wins** (gomoku without gravity) and **Isolation** (the
+pen-and-paper Isola: step, then break a tile), for two to four
 players (plus spectators) in one room. Hosted as
 plain files on Scaleway Object Storage at `https://minigames.alzlper.com/` (GitHub
 `alexander-zierhut/minigames`, git remote `github`; the old `origin` points at the
@@ -46,6 +47,8 @@ Scripts, in order (each defines the global named in brackets):
 | `client/games/chain.js` | `ChainView`, `ChainGame` | Chain React board/animation/HUD model + registration (settings rows declared here) |
 | `client/games/five-rules.js` | `FiveRules` | Five Wins rules, pure |
 | `client/games/five.js` | `FiveView`, `FiveGame` | Five Wins view + registration (smallest game: the template) |
+| `client/games/isolation-rules.js` | `IsolationRules` | Isolation rules, pure (a move is one encoded integer) |
+| `client/games/isolation.js` | `IsolationView`, `IsolationGame` | Isolation view (the two-step click) + registration |
 | `client/bots.js` | `Bots` | bot registry, the toolset bots play with, headless playout, win-chance estimator |
 | `client/winchance.js` | `WinChance` | win-chance bars: a Bus observer of `game:new` / `game:position` (no engine or game knows it) |
 | `client/bots/<id>/bot.js` | (registers) | one folder per bot: `bot.js`, generated `benchmark.js`, `bot.test.mjs` |
@@ -67,7 +70,8 @@ inputs, modal, toast, loader) → `client/css/menu.css` (title, lobby, picker, s
 changelog) → `client/css/game.css` (game layout, generic board, HUD incl. the generic
 `.game-box`, overlay, banner, reactions) → `client/css/skin-mc.css` (Blocks board part
 shared by both textured skins + Blocks UI part) → `client/games/chain.css` →
-`client/games/five.css` (each game's board, classic first, then its textured-skin rules).
+`client/games/five.css` → `client/games/isolation.css` (each game's board, classic first,
+then its textured-skin rules).
 
 Other: `client/textures/*.png` — 16×16 Mojang block textures from the owner's own
 1.12.2 jar (personal use; the textured skins stay opt-in). Only textures referenced from
@@ -383,8 +387,9 @@ holds the active engine (`Match.engine`) and, like everything else, only uses:
 | `abandon()` | Marks a running game over without a result (Back to room). |
 | `hash()` | 32-bit fingerprint of cells/current/over/winner/movesBy/out; equal on clients that are in sync (used by `move`/`sync`). |
 | `record()` | The game as data: `{ game, config, history, outs, over, winner, why }` — see "Game records". |
-| `render()` | No-op until a board exists. Renders the shown position (the preview if there is one, else the live state): every cell (shared classes `p<k>`, `taken`, `last`, `can-place`/`locked`, then the one class `hooks.cellClass(i)` asks for, then `view.renderCell`) and the HUD from `view.hud(...)`. |
+| `render()` | No-op until a board exists. Renders the shown position (the preview if there is one, else the live state): every cell (shared classes `p<k>`, `taken`, `last` (the cell of `cellOf(last move)`), `can-place`/`locked` (from the optional rules function `canPlay(state, i, player)` when the game has one, else `isLegal` — Isolation's move needs two clicks, so `canPlay` says which tiles *start* a move), then the one class `hooks.cellClass(i)` asks for, then `view.renderCell`) and the HUD from `view.hud(...)`. |
 | `isLegal(i, player)` | Pure check via the rules. |
+| `cellOf(move)` | The board cell a move belongs to. Games whose move is not a plain cell id say so through the optional rules function `cellOf(state, move)` (Isolation: a move is `to * cells + removed`, and the cell is `to`); everything else keeps the identity. Used for the `last` marker and by `Match` for the premove marker. |
 | `preview(ply)` | **View only** (#38, the replay bar): show the position after `ply` moves (`Rules.replay(record(), ply)`) instead of the live one and re-render; `null` (or a `ply` at / past the end) goes back to the live position. Returns the new `previewPly`. It never touches the live state, the record, `hash()`, the session or the Bus, and while it is on every cell is `locked` and clicks are dropped, so a preview can never leak into play or into what the friends receive. |
 | `previewPly` (getter) | How many moves the shown position has, `null` when the live position is shown. |
 
@@ -490,6 +495,42 @@ eliminations inside the rules, not `outs`) and the last one standing wins. The H
 uses the rules' `estimate` heuristic (owner: the bot need not play this mode). MC skins: quartz tiles on obsidian, diamond/gold blocks as stones; hover
 keeps the texture (no background transition on textured tiles — a flicker bug once).
 
+## Isolation rules (`isolation-rules.js`)
+
+The pen-and-paper Isola. n×n tiles (5–12, default 7), one pawn per seat. Start positions:
+the middle of the top edge (seat 0), of the bottom edge (1), of the left edge (2) and of the
+right edge (3), so 2, 3 and 4 players all start symmetrically.
+
+- A turn is **two steps that count as one move**: step onto one of the up to 8 neighbouring
+  tiles that still exists and is free, then break any remaining tile nobody stands on (the
+  tile you just left included, and not necessarily near you).
+- Both steps are **one integer** so history, `sync`, the session, the record, the replay bar
+  and `Rules.replay` need no change: `move = to * (n * n) + removed`
+  (`IsolationRules.encode/decode`). `cells[i]` holds everything: `-2` = broken (a hole),
+  `-1` = a free tile, `>= 0` = the tile that seat's pawn stands on; `state.pawns[p]` is the
+  same information indexed by seat.
+- Whoever **cannot step when their turn comes** is trapped and out. That is decided in
+  `conclude` (never earlier: being locked in on somebody else's turn means nothing), inside
+  the rules like five's Yavalath rule: `state.trapped[p]` is the rules' own alive list for
+  `Rules.pass` / `Rules.remaining`, not an `outs` entry. With two players that ends the game
+  ("Trapped!"), with three or four the rest play on and the last one standing wins
+  ("Everyone else is trapped."). There are no draws.
+- HUD: moves played and the pawn's current mobility ("Free moves", the bar out of 8, "trapped"
+  on a seat that is out); `line2` = "free moves 5 · 3"; the overlay says how many moves.
+  `estimate` (until the bot answers) compares Voronoi territory and mobility.
+- The view owns the **two-step click** (`IsolationView`): the first click on a tile the engine
+  marked `can-place` (via `IsolationRules.canPlay`) becomes `.pending` and lights every
+  breakable tile in red, the second one submits `onClick(to * cells + removed)`, a click on the
+  pending tile takes it back, anything else does nothing. The overlay is painted by the view
+  alone (it remembers what the engine last painted per cell and restores it), so nothing of
+  the framework knows about it. `animateMove` slides the pawn from `state.lastFrom` (Web
+  Animations) and drops the broken tile away (`.dropping`, 300 ms).
+- Premoves are off for this game (`premove: false` in the definition, honoured by `Match`):
+  one click is not a move here.
+- Board: `.slab` per tile (the element is the pit, `::before` the tile face, `::after` the
+  highlight ring, `i.pawn` the pawn), so a broken tile really looks like a hole. Blocks looks:
+  quartz tiles on obsidian, the seat's block as the pawn.
+
 ## Board / HUD layout rules
 
 - **Whose turn**: `#board.turn-p<k>` → 4px outline in the active colour. `fitBoard`
@@ -520,8 +561,9 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   on the textured looks `skin-mc.css` adds a dark inset backing so the dashes read on
   quartz and glass (it is hidden behind chain's tiles, where the outline alone carries).
 - **Last move**: every cell has a `.last-marker` child; the engine adds `.last` to the
-  newest history cell. Chain: static thin white border at the cell edge. Five: static
-  white ring, **red** on the textured skins (white is invisible on quartz). Owner: no marker
+  newest history cell. Chain: static thin white border at the cell edge. Five and Isolation: static
+  white ring, **red** on the textured skins (white is invisible on quartz); for Isolation the
+  engine asks the rules' `cellOf` where the move happened (the tile stepped onto). Owner: no marker
   animation. Hidden while a chain cell primes/booms and once the game is over
   (`#board.over`).
 - Board size = min(wrapper width, height) − 10 → `--board` (`fitBoard` in app.js, on
@@ -826,7 +868,8 @@ the game as before.
 
 **Premoves (#37, `Match.premove`)** exist only where somebody else moves in between: this
 device holds exactly one `local` seat (`mySeat()`), so against a bot or online with a seat,
-never in local multiplayer and never for a spectator. A click while a non-local seat is to
+never in local multiplayer, never for a spectator and never for a game whose definition says
+`premove: false` (Isolation, where a move takes two clicks). A click while a non-local seat is to
 move does not fall through any more: `onCellClick` remembers the cell (the same cell takes
 it back, another one moves it, no legality check yet), `hooks.cellClass` marks it and
 `turnHint` appends " · premove set". When `onTurn` names my seat, `firePremove` clears it
@@ -899,8 +942,8 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   prove strength facts: beats Random by a margin, blocks an open four, takes a win in one,
   never worse than depth-1 greedy, etc. (VM realm: compare arrays via `JSON.stringify`.)
 - **Benchmark** (`npm run benchmark` = `scripts/benchmark.mjs [id…]`): every real bot
-  (not the baselines) plays a seeded series against the Random bot of its game (chain 100 games 6×6, five 200 games
-  9×9, both colours, highest difficulty) → score = win rate in % (draw = ½) plus
+  (not the baselines) plays a seeded series against the Random bot of its game (chain 60 games 6×6, five 100 games
+  9×9, isolation 100 games 7×7, both colours, highest difficulty) → score = win rate in % (draw = ½) plus
   `games, opponent, avgMoves, version, commit, at` (60 chain / 100 five games, 20 000-node
   budget per move so the series is deterministic), written to
   `client/bots/<id>/benchmark.js` (`Bots.benchmark(id, result)`; `at/commit` kept when the
@@ -943,7 +986,9 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   value, depth, tags, note }] }`; `history` replays from an empty board, `best` = all
   optimal moves, `value` from the mover's view, tags like `win-in-1`, `must-block`,
   `avoid-loss`, `win-in-2`, `endgame-exhaustive`; note the sets differ slightly: chain's
-  `avoid-loss` means "loses to the immediate reply", five's "loses by force"). Each test
+  `avoid-loss` means "loses to the immediate reply", five's "loses by force", and isolation's
+  set is all endgames — no draws exist there, so `best` is every move that keeps the win and
+  `avoid-trap` means every other move hands over an immediate trap). Each test
   folder has `solver.test.mjs` (the solver on hand-made positions + the set's consistency,
   re-solving every puzzle), each script folder a README with the guarantee and the limits.
   `scripts/puzzles/verify.mjs` (`npm run puzzles:verify`) re-proves the tactical puzzles
@@ -952,7 +997,8 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   checks every set (≥ 100, replayable, legal best moves) and prints every bot's score; the
   benchmark stores it as `puzzles: { solved, total, pct, chance }` in `benchmark.js`
   (`chance` = what random picking scores on that set — small boards have few legal
-  moves, so Random gets ~22 % on the chain set; read scores against it). **No test and no
+  moves, so Random gets ~22 % on the chain set and ~21 % on the isolation one; read scores
+  against it). **No test and no
   workflow ever requires 100 % or any fixed puzzle score to pass the build or deploy**
   (owner's rule): the shared test only checks the sets, real bots assert their own
   thresholds on `evaluateBot` in `bot.test.mjs`, set below the level they actually reach.
@@ -1051,7 +1097,11 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   generic HUD from the model, settings rows generated from the definitions, Match seats /
   bot seat / `whenIdle` / `record`, the seat names of #35 through `Match.init({ names })` and
   `Room.names()`, Session), `chain.test.mjs` (caps, waves, board-decided
-  stop, win, chain rule, replay == play, hooks, HUD), `five.test.mjs`, `clock.test.mjs`
+  stop, win, chain rule, replay == play, hooks, HUD), `five.test.mjs`, `isolation.test.mjs`
+  (the pure rules in a bare vm: start positions, encoded moves, the trap with 2 and 3 players;
+  then the engine and the view: the two-step click and taking it back, the last marker on the
+  tile stepped onto, HUD rows, replay == play, the win-chance rows, the picker card),
+  `clock.test.mjs`
   (call `C.setup(0)` + `w.close()` at the end or the interval keeps the file alive),
   `net.test.mjs` (codes), `prefs.test.mjs` (defaults, clamping, persistence, form wiring,
   the sections: `showSection` / `section` / `sectionSummary` and the menu rows, #32; the name
@@ -1087,7 +1137,8 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   the look leaves the names alone, #35), `mobile` (360×780: title, local lobby,
   an online-shaped lobby with four seats in every skin — share row on one line with
   `Share link` wider than the two icon buttons, the two groups, seat names never cut off,
-  no scroll, screenshots `mobile-lobby-<skin>.png` — game, overlay, replay bar above the HUD), `online` (two browsers through
+  no scroll, screenshots `mobile-lobby-<skin>.png` — game, overlay, replay bar above the HUD,
+  the Isolation board with a step picked), `online` (two browsers through
   the real PeerJS broker: join by link, both names on the seat cards and the HUD cards and a
   rename that reaches the other side (#35), settings mirror, guest start, move sync,
   reactions, chat both ways (colour, text only, HUD input), guest refresh, a guest premove
@@ -1105,6 +1156,9 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   both back to the room; both type the same new code at once), `party` (offline: four
   on one device with rotation and alternating starter, three in Chain React with
   elimination by the rules and the MC textures of seats 2/3, bot mode = 2 players),
+  `isolation` (pick the game, the two-step click incl. taking it back, a whole seeded game to
+  a trap, the overlay, the replay bar, three on one device with a trapped seat, the bot
+  moving by itself),
   `online-spectate` (**three browsers**: a third joins a running two-player game as a
   spectator — locked board, moves arrive, chat as "Spectator", refresh keeps spectating,
   follows a rematch, spectate link with a free seat, leaving drops the count),
@@ -1139,8 +1193,8 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Net` | `open(code, handlers, preferredRole)`, `send`, `sendTo/sendExcept` (host), `setSeat(id, seat)`, `setMeta(id, patch)` (host), `leave`, `retryNow`, `randomCode`, `normalizeCode`; getters `code, role, status, connected, peers`; handlers `onStatus, onRole, onOpen, onClose, onMessage, preferHost, metadata(), admit` |
 | `Install` | `init()`, `offered` |
 | `Rules` | `base(config)`, `pass(state, alive)`, `remaining`, `index`, `inside`, `register(key, rules)`, `of(key)`, **`create(config[, rules])`, `step(rules, state, i) → result|null`, `eliminate(state, p, why)`, `apply(rules, state, history, outs) → applied`, `replay(record, ply) → state`** (`rules` = module or key) |
-| rules module | `create, ownerOf, isLegal, legalMoves, place, settle, conclude, estimate` (+ game helpers) — pure |
-| `Games` / engine | `register(def)`, `get/has/keys`, `positionAt(record, ply)`; engine `state, config, previewPly, newGame, play, replay, preview, finish, eliminate, abandon, render, isLegal, hash, record` |
+| rules module | `create, ownerOf, isLegal, legalMoves, place, settle, conclude, estimate` (+ optional `cellOf(state, move)` / `canPlay(state, i, player)` for games whose move is not a plain cell id, + game helpers) — pure |
+| `Games` / engine | `register(def)`, `get/has/keys`, `positionAt(record, ply)`; engine `state, config, previewPly, newGame, play, replay, preview, finish, eliminate, abandon, render, isLegal, cellOf, hash, record` |
 | `Hud` | `build(players, title)`, `render(state, hooks, model)`, `overlay(name, winner, sub)` |
 | `WinChance` | Bus-driven; `display`, `estimator`, `REFINE_MS`, `SMOOTH`, `DECIDED` |
 | `Bots` | `register, get, list, forGame, botFor(game, config), supports(id, config), create(id, {me, difficulty, seed, players, budget}), tools(game, opts), playout, rng, validate, benchmark/benchmarkOf, calibration/calibrationOf, estimator(game, config) → {bot, stages, at(state, nodes), quick}, toProbability(raw, cal), ESTIMATE_STAGES` |
@@ -1180,6 +1234,13 @@ are the two that never get relayed (host to all, or guest to host only).
   the forced defence instead removed it. Measure the *mover bias* (mean of p − average of
   neighbours, per side to move) separately from the raw swing: proven wins that the weaker
   self-play bots then throw away are legitimate 100→0 changes.
+- **A minimax value carries a tempo artefact.** Isolation's win chance flipped 85 → 53 → 90
+  every single move. Two causes: the root maximised even when the *other* seat was to move (a
+  plain bug in an evaluator that is asked about any position, not only its own turn), and
+  `max min` at one ply parity is systematically better for the mover than `min max` at the
+  other. The fix that worked: search the position **and** the same position with the other
+  seat to move, at the same depth, and average the two — symmetric by construction — plus a
+  narrower move generator for the estimator to buy a ply. Swing 32 % → 11.7 %, shift 464 → 271.
 - **Calibrate, don't guess.** Both bots' own logistic scales were 3–4× too steep compared
   with what self-play outcomes support (Creeper 10 → 31, Sensei 300 → 1166). The flatter,
   data-fitted curve is what makes the number calm and honest; it lives in benchmark.js and
@@ -1254,7 +1315,8 @@ or index.html's HUD markup.** If it seems to need to, extend the definition cont
 instead (and this file).
 
 Copy Five Wins (`five-rules.js`, `five.js`, `five.css`, `random-five`, `sensei-five`) — it
-is the smallest complete game.
+is the smallest complete game. Isolation is the example of a game whose move is not a plain
+cell id (an encoded integer, two clicks, `cellOf` / `canPlay` / `premove: false`).
 
 ## 1. Rules `client/games/<key>-rules.js` (pure — no DOM, no settings, no Bus)
 
@@ -1270,6 +1332,8 @@ Expose a global `<Name>Rules` with these functions and register it (`Rules.regis
 | `settle(state, player)` | Resolve everything that follows a placement instantly (chain waves; no-op for five). |
 | `conclude(state, player)` | Return `{ winner, why }` (winner -1 = draw) or `Rules.pass(state[, alive])` and return `null`. Respect `state.out` (eliminated seats): use `Rules.remaining(state)` / `Rules.pass`, which skip them; with 3–4 players decide what "everyone else is out" means (five: the last one wins). |
 | `estimate(state)` | Optional heuristic P(player 0 wins) in 0..1 for the win chance until a bot offers `evaluate` (see step 6). |
+| `cellOf(state, move)` | Optional. The board cell a move belongs to, when a move packs more than a cell id into its integer (Isolation: `to * cells + removed` → `to`). The engine uses it for the `last` marker and exposes it as `engine.cellOf`, which is how `Match` marks a premove. Default: the move itself. |
+| `canPlay(state, i, player)` | Optional. May this player *start* a move on cell `i`? Drives `can-place` / `locked`, so a game whose move needs two clicks still highlights the right cells. Default: `isLegal`. |
 
 `Rules.step(rules, state, i)` = place + settle + conclude is the **only** way any
 framework code resolves a move (engine replay, bots' `tools.apply`, playout, puzzle
@@ -1302,6 +1366,7 @@ const <Name>Game = Games.register({
     size: { min: 5, max: 19, default: 9 },  // board-size input limits
     minSize: (cfg) => 5,                    // optional, may depend on the game fields (five: winLen)
     players: { min: 2, max: 4 },            // optional (default 2–4): the picker grays the card out otherwise (#28)
+    premove: false,                         // optional (default true): off when one click is not a whole move (#37)
     settings: [                             // the game's rows in #settings-modal, built by settings.js
         { key: "winLen", label: "In a row to win", type: "int", min: 3, max: 25, def: 5, unit: "stones" },
         { key: "speed", label: "Animation speed", type: "select", def: 750, options: [[1100, "Slow"], [750, "Normal"]] },

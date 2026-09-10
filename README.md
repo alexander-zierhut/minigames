@@ -1,8 +1,9 @@
 # ALZlper's Minigames
 
-Two nostalgic minigames for two to four players in one static page: **Chain React** (fill a cell, it
-explodes into its neighbours, take the whole board) and **Five Wins** (five in a row, no
-gravity). Live at https://minigames.alzlper.com/.
+Three nostalgic minigames for two to four players in one static page: **Chain React** (fill a cell, it
+explodes into its neighbours, take the whole board), **Five Wins** (five in a row, no
+gravity) and **Isolation** (step one tile, then break one away until nobody else can move).
+Live at https://minigames.alzlper.com/.
 
 Static site, no backend, no framework. Create a room once, share the link, then pick
 games and settings together in the room lobby; rematch or switch games without new links.

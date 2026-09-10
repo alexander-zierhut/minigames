@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* Screenshot tour for visual checks: title, bot picker, lobby, both games (with a few moves
+/* Screenshot tour for visual checks: title, bot picker, lobby, every game (with a few moves
    so the HUD, win chance and last-move marker show), result overlay — for every skin, on a
    desktop and a phone viewport. Writes PNGs to scripts/../tests/e2e/shots/ (git-ignored) or
    $E2E_SHOTS.   node scripts/screenshots.mjs [tag]   (tag prefixes the file names, e.g. "before") */
@@ -29,6 +29,15 @@ async function tour(B, view, skins) {
         await sleep(300); await B.screenshot(`${tag}-${view}-${skin}-five.png`);
         await B.move(44); await sleep(400); await B.screenshot(`${tag}-${view}-${skin}-overlay.png`);
         await B.click("#overlay-menu");
+        await B.selectGame("isolation");
+        await B.click("#btn-settings"); await B.set("set-size", 7); await B.click("#btn-settings-done");
+        await B.click("#btn-start");
+        // a few two-step moves (step, then break a tile), and one choice left open
+        for (const [to, gone] of [[10, 45], [38, 3], [17, 44], [31, 24], [23, 30]]) { await B.cell(to); await B.cell(gone); await B.idle(); }
+        await sleep(300); await B.screenshot(`${tag}-${view}-${skin}-isolation.png`);
+        await B.cell(await B.ev("IsolationRules.steps(IsolationGame.state, IsolationGame.state.current)[0]"));
+        await sleep(200); await B.screenshot(`${tag}-${view}-${skin}-isolation-pending.png`);
+        await B.click("#btn-menu");
     }
     if (B.errors.length) console.log(view, "page errors:", B.errors);
 }

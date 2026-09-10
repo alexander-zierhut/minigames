@@ -8,7 +8,7 @@
    which imports calibrate() from here.   Standalone: node scripts/calibrate.mjs [botId …] */
 import { loadHeadless } from "./headless.mjs";
 
-export const SERIES = { chain: { games: 30, config: { n: 6, chainRule: false }, maxMoves: 400 }, five: { games: 40, config: { n: 9, winLen: 5 }, maxMoves: 200 } };
+export const SERIES = { chain: { games: 30, config: { n: 6, chainRule: false }, maxMoves: 400 }, five: { games: 40, config: { n: 9, winLen: 5 }, maxMoves: 200 }, isolation: { games: 40, config: { n: 7 }, maxMoves: 200 } };
 export const BUDGET = 12000;          // nodes per evaluation (the middle HUD stage)
 
 // fit scale/shift of a 1-D logistic on samples [{ raw, y }] (y = 1 / 0.5 / 0), infinite raws excluded

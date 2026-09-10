@@ -144,11 +144,12 @@ export async function launchBrowser({ width = 1400, height = 900, mobile = false
         check: (id, on) => B.ev(`(() => { const e = document.getElementById(${JSON.stringify(id)}); e.checked = ${!!on}; e.dispatchEvent(new Event("change")); return e.checked; })()`),
         text: (id) => B.ev(`document.getElementById(${JSON.stringify(id)}).textContent`),
         screen: () => B.ev("document.querySelector('.screen:not([hidden])')?.id"),
-        engine: () => B.ev("document.body.classList.contains('game-five') ? 'FiveGame' : 'ChainGame'"),
-        async cell(i) { await B.ev(`document.querySelectorAll('#board > .cell, #board > .stone')[${i}].click(); true`); },
-        async idle() { const g = await B.engine(); await B.waitFor(`!${g}.state.busy`, { timeout: 60000, every: 40, what: "engine idle" }); },
+        // the running game's key (body.game-<key>); the engine itself is always Match.engine
+        engine: () => B.ev("(document.body.className.match(/\\bgame-(\\S+)/) || [])[1] || null"),
+        async cell(i) { await B.ev(`document.querySelectorAll('#board > .cell, #board > .stone, #board > .slab')[${i}].click(); true`); },
+        async idle() { await B.waitFor("!Match.state.busy", { timeout: 60000, every: 40, what: "engine idle" }); },
         async move(i) { await B.cell(i); await B.idle(); },
-        state: async () => JSON.parse(await B.ev(`JSON.stringify((document.body.classList.contains('game-five') ? FiveGame : ChainGame).state)`)),
+        state: async () => JSON.parse(await B.ev("JSON.stringify(Match.state)")),
         selectSkin: (k) => B.click(`.skin-seg button[data-skin=${k}]`),
         selectGame: (k) => B.click(`.game-card[data-game=${k}]`),
         players: (n) => B.click(`#set-players button[data-players="${n}"]`),     // the lobby's players control (#28)
