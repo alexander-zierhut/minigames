@@ -94,13 +94,29 @@ test("a replay file is opened, watched and filtered by game", async () => {
     await B.click("#btn-menu");
 
     assert.equal(await entries(), 2, "the uploaded game joined the list");
-    await B.click("#replay-filter button[data-filter='chain']");
+    // the filter is a dropdown with the games' preview tiles (#43): open it, pick a row
+    const pick = async (key) => {
+        await B.click("#replay-filter-button");
+        assert.equal(await B.ev("document.getElementById('replay-filter').classList.contains('open')"), true, "the menu opened");
+        await B.click(`#replay-filter .dd-option[data-filter='${key}']`);
+        assert.equal(await B.ev("document.getElementById('replay-filter').classList.contains('open')"), false, "picking closes it");
+    };
+    assert.equal(await B.ev("document.querySelectorAll('#replay-filter .dd-option').length"), 3, "All games plus one row per game");
+    assert.equal(await B.ev("document.querySelector('#replay-filter .dd-button .dd-label').textContent"), "All games");
+    assert.ok(await B.ev("[...document.querySelectorAll('#replay-filter .dd-option')].every(o => o.querySelector('.game-preview.tiny i'))"), "every row shows a preview tile");
+    await pick("chain");
     assert.equal(await entries(), 1);
+    assert.equal(await B.ev("document.querySelector('#replay-filter .dd-button .dd-label').textContent"), "Chain React", "the button says what is picked");
+    assert.ok(await B.ev("document.querySelector('#replay-filter .dd-button .game-preview').classList.contains('chain')"), "with that game's tile");
     assert.match(await firstSub(), /Robin vs Sam/);
-    await B.click("#replay-filter button[data-filter='five']");
+    await pick("five");
     assert.equal(await entries(), 1);
     assert.match(await B.ev("document.querySelector('#replay-list .replay-title').textContent"), /^Five Wins/);
-    await B.click("#replay-filter button[data-filter='all']");
+    // a click next to the open menu closes it again
+    await B.click("#replay-filter-button");
+    await B.click("#replays-hint");
+    assert.equal(await B.ev("document.getElementById('replay-filter').classList.contains('open')"), false, "a click outside closes the menu");
+    await pick("all");
     assert.equal(await entries(), 2);
 
     // the same file again does not double the list

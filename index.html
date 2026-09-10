@@ -174,8 +174,9 @@
     <div class="menu-card replays-card">
         <h1 class="title small">Replays</h1>
         <p class="tagline small">Every game you play is saved on this device. Watch it again, save it as a file or open a file somebody sent you.</p>
-        <!-- All + one button per registered game, built by app.js -->
-        <div class="seg replay-filter" id="replay-filter"></div>
+        <!-- the game filter (#43): a dropdown showing the game's preview tile, built by app.js
+             ("All games" first, then one row per registered game) -->
+        <div class="dropdown replay-filter" id="replay-filter"></div>
         <p class="hint" id="replays-hint" hidden></p>
         <!-- one .replay-item per saved game, from #tpl-replay -->
         <div class="replay-list" id="replay-list"></div>

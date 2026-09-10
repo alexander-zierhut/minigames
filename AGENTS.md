@@ -249,8 +249,12 @@ to try things").
   publishes `--hut-h` = the strip the HUD takes so the bar never covers its controls.
   Online, every step sends `review {ply}` so the whole room looks at the same move.
 - **Replays** (`#screen-replays`, #42): the title screen's 🎬 button opens the list of the
-  games this device played (`Replays.store`, newest first). A `.seg` filter (`#replay-filter`:
-  All + one button per registered game, built by app.js), one `.replay-item` per game from
+  games this device played (`Replays.store`, newest first). A **dropdown** filter
+  (`#replay-filter`, built by app.js, #43: `.dropdown` = a `.dd-button` showing the picked
+  game's small preview tile and its title, and a `.dd-menu` of `.dd-option[data-filter]`
+  rows, "All games" first and then one per registered game, each with its tile; a click
+  next to it or Escape closes it. `.dropdown` lives in `menu.css` and only this screen uses
+  it, because a plain `<select>` cannot show the tiles), one `.replay-item` per game from
   `#tpl-replay` (title "Five Wins · 5 × 5", the sub line "date · names · result · moves"
   from `Replays.summary`) with **Watch** / ⬇ (save as a file) / 🗑 (delete) per row,
   `#btn-replay-upload` (opens the hidden `#replay-file` input: parse → migrate → validate →

@@ -196,20 +196,69 @@
         renderReplayFilter();
         renderReplays();
     }
-    // "All" plus one button per registered game
+    /* The game filter (#43): a small dropdown, because a plain <select> cannot show the
+       games' preview tiles. The button says what is picked, the menu lists "All games"
+       first and then every registered game with its own tile. */
+    const filterLabel = (key) => (key === "all" ? "All games" : Games.get(key).title);
+    // the 3×3 preview of a game (the picker's tile, small); "All games" gets an empty board
+    function previewTile(key) {
+        const el = document.createElement("span");
+        el.className = "game-preview tiny" + (key === "all" ? "" : " " + key);
+        const shape = key === "all" ? "........." : Games.get(key).preview;
+        for (const ch of shape) {
+            const i = document.createElement("i");
+            if (/\d/.test(ch)) i.className = "p" + ch;
+            el.appendChild(i);
+        }
+        return el;
+    }
     function renderReplayFilter() {
         const box = $("replay-filter");
         box.innerHTML = "";
-        const add = (key, label) => {
-            const b = document.createElement("button");
-            b.dataset.filter = key;
-            b.textContent = label;
-            if (key === replayFilter) b.className = "selected";
-            b.addEventListener("click", () => { replayFilter = key; renderReplayFilter(); renderReplays(); });
-            box.appendChild(b);
-        };
-        add("all", "All");
-        for (const key of Games.keys()) add(key, Games.get(key).title);
+        const button = document.createElement("button");
+        button.className = "dd-button";
+        button.id = "replay-filter-button";
+        button.setAttribute("aria-haspopup", "listbox");
+        button.setAttribute("aria-expanded", "false");
+        const label = document.createElement("span");
+        label.className = "dd-label";
+        label.textContent = filterLabel(replayFilter);
+        const chev = document.createElement("span");
+        chev.className = "dd-chev";
+        chev.textContent = "▾";
+        button.append(previewTile(replayFilter), label, chev);
+        button.addEventListener("click", () => openFilter(box.classList.contains("open") ? false : true));
+        const menu = document.createElement("div");
+        menu.className = "dd-menu";
+        menu.setAttribute("role", "listbox");
+        for (const key of ["all", ...Games.keys()]) {
+            const opt = document.createElement("button");
+            opt.className = "dd-option" + (key === replayFilter ? " selected" : "");
+            opt.dataset.filter = key;
+            opt.setAttribute("role", "option");
+            opt.setAttribute("aria-selected", key === replayFilter ? "true" : "false");
+            const name = document.createElement("span");
+            name.className = "dd-label";
+            name.textContent = filterLabel(key);
+            opt.append(previewTile(key), name);
+            opt.addEventListener("click", () => {
+                const byKey = document.activeElement === opt;      // keyboard: keep the focus on the control
+                replayFilter = key;
+                box.classList.remove("open");
+                renderReplayFilter();
+                if (byKey) $("replay-filter-button").focus();
+                renderReplays();
+            });
+            menu.appendChild(opt);
+        }
+        box.append(button, menu);
+    }
+    // open / close the filter menu (a click elsewhere and Escape close it too)
+    function openFilter(on) {
+        const box = $("replay-filter");
+        box.classList.toggle("open", on);
+        const button = box.querySelector(".dd-button");
+        if (button) button.setAttribute("aria-expanded", on ? "true" : "false");
     }
     async function renderReplays() {
         const box = $("replay-list");
@@ -430,6 +479,16 @@
         watchReplay(res.doc);
     });
     $("btn-replays-back").addEventListener("click", () => show("menu"));
+    // the game filter's dropdown closes on a click next to it and on Escape (#43)
+    document.addEventListener("click", (e) => {
+        if (!$("replay-filter").classList.contains("open") || $("replay-filter").contains(e.target)) return;
+        openFilter(false);
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.key !== "Escape" || !$("replay-filter").classList.contains("open")) return;
+        openFilter(false);
+        $("replay-filter-button").focus();
+    });
 
     $("btn-net-retry").addEventListener("click", () => Net.retryNow());
     $("btn-net-leave").addEventListener("click", leaveRoom);
