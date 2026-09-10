@@ -54,7 +54,7 @@
         },
         {
           "type": "feature",
-          "text": "A third game: Isolation. Every player has one pawn, you step to a neighbouring tile and then break any tile away, and whoever cannot move when their turn comes is trapped. Two to four players, boards from 5 to 12, and a bot to practise against."
+          "text": "A third game: Isolation. Every player has one pawn, you step to a neighbouring tile and then break any tile away, and whoever cannot move when their turn comes is trapped. Two to four players, boards from 5 to 12, and a bot to practise against. It has its own tutorial and training positions in the Learn section."
         },
         {
           "type": "feature",

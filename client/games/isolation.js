@@ -142,6 +142,46 @@ const IsolationGame = Games.register({
     players: { min: 2, max: 4 },
     premove: false,                       // a move is two clicks: a premove would need both of them
     settings: [],
+    /* Learn (#41). A tutorial step's `expect` holds whole moves, and an Isolation move is the
+       encoded pair `to * cells + removed` — so the gate only fires on the second click, and
+       every step names its `highlight` cells itself instead of letting them default to
+       `expect`. The positions below are proven: the last step's move really traps. */
+    howto: {
+        rules: [
+            "Every player has one pawn. Yours starts in the middle of the top edge.",
+            "A turn is two clicks: step onto one of the up to eight tiles around your pawn, then break away any tile that is still there.",
+            "You may only step onto a tile that still exists and has nobody on it.",
+            "You may break any tile nobody stands on, anywhere on the board, the one you just left included.",
+            "Whoever cannot step when their turn comes is trapped and out. With two players that ends the game.",
+            "With three or four players the others play on and the last one standing wins.",
+            "There are no draws: every move breaks a tile, so somebody runs out of room.",
+        ],
+        tutorial: [
+            {
+                config: { n: 5 },
+                moves: [],
+                text: "You are the pawn at the top, your opponent sits at the bottom. A turn takes two clicks. First step: click the highlighted tile next to your pawn. Then click any other tile to break it away.",
+                expect: [200, 201, 202, 203, 204, 205, 206, 207, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 223, 224],
+                highlight: [8],
+            },
+            {
+                moves: [87, 409, 183, 565, 49, 402],
+                text: "Breaking tiles far away changes nothing. Take room away from the other pawn instead: step wherever you like, then break one of the highlighted tiles, the ones your opponent could step on.",
+                expect: [10, 11, 17, 20, 21, 22, 135, 136, 142, 145, 146, 147, 160, 161, 167, 170, 171, 172, 185, 186, 192, 195, 196, 197],
+                highlight: [10, 11, 17, 20, 21, 22],
+            },
+            {
+                moves: [87, 409, 183, 565, 49, 402, 171, 504],
+                text: "Your opponent is in the corner with one single tile left to step on. Step anywhere you like and break that tile.",
+                expect: [16, 41, 141, 191, 266, 291],
+                highlight: [16],
+            },
+            {
+                moves: [87, 409, 183, 565, 49, 402, 171, 504, 16],
+                text: "Trapped, and the game is yours. Watch your own room while you take theirs: the pawn with more tiles around it usually wins the race.",
+            },
+        ],
+    },
     rules: IsolationRules,
     view: IsolationView,
 });
