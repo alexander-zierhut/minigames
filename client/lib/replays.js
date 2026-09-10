@@ -58,7 +58,12 @@ const Replays = (() => {
         if (!Number.isInteger(cfg.n) || cfg.n < 2 || cfg.n > 50) return bad("This replay has a board size that cannot be right.");
         const players = cfg.players || 2;
         if (!Number.isInteger(players) || players < 2 || players > 4) return bad("This replay has a number of players that cannot be right.");
-        if (!Array.isArray(doc.history) || doc.history.some((i) => !Number.isInteger(i) || i < 0 || i >= cfg.n * cfg.n)) return bad("This replay has moves that are not on the board.");
+        // how many cells this game's board has for that config (never n * n: Käsekästchen's
+        // cells are the 2n(n+1) lines between the dots)
+        let cells = 0;
+        try { cells = Rules.create({ ...cfg, game: doc.game, players }, doc.game).cells.length; } catch (e) { /* an impossible board */ }
+        if (!cells) return bad("This replay has a board that cannot be built.");
+        if (!Array.isArray(doc.history) || doc.history.some((i) => !Number.isInteger(i) || i < 0 || i >= cells)) return bad("This replay has moves that are not on the board.");
         if (doc.outs !== undefined && !Array.isArray(doc.outs)) return bad("This replay is damaged.");
         if (!doc.result || typeof doc.result !== "object") return bad("This replay does not say how it ended.");
         if (!Array.isArray(doc.players) || doc.players.length < players || doc.players.some((n) => typeof n !== "string")) return bad("This replay does not say who played.");

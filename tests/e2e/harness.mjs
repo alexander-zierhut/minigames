@@ -9,6 +9,10 @@ import { join, extname } from "node:path";
 
 export const ROOT = new URL("../../", import.meta.url).pathname;
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// every board's cells in cell order (chain tiles, five stones, Käsekästchen lines) and
+// the key of the running game, read off the body class
+const CELLS = JSON.stringify("#board > .cell, #board > .stone, #board > .edge");
+const GAME_KEY = "String(document.body.className.split(' ').find(c => c.startsWith('game-'))).slice(5)";
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".json": "application/json", ".ico": "image/x-icon", ".ogg": "audio/ogg" };
 
 /* ---------- static server ---------- */
@@ -157,23 +161,24 @@ export async function launchBrowser({ width = 1400, height = 900, mobile = false
         check: (id, on) => B.ev(`(() => { const e = document.getElementById(${JSON.stringify(id)}); e.checked = ${!!on}; e.dispatchEvent(new Event("change")); return e.checked; })()`),
         text: (id) => B.ev(`document.getElementById(${JSON.stringify(id)}).textContent`),
         screen: () => B.ev("document.querySelector('.screen:not([hidden])')?.id"),
-        engine: () => B.ev("document.body.classList.contains('game-five') ? 'FiveGame' : 'ChainGame'"),
-        async cell(i) { await B.ev(`document.querySelectorAll('#board > .cell, #board > .stone')[${i}].click(); true`); },
-        async idle() { const g = await B.engine(); await B.waitFor(`!${g}.state.busy`, { timeout: 60000, every: 40, what: "engine idle" }); },
+        // the running game, whatever it is: Match holds the active engine and the game key is
+        // the body class, so a new game needs no change here
+        engine: () => B.ev(`({ chain: 'ChainGame', five: 'FiveGame', boxes: 'BoxesGame' })[${GAME_KEY}]`),
+        async cell(i) { await B.ev(`document.querySelectorAll(${CELLS})[${i}].click(); true`); },
+        async idle() { await B.waitFor("!Match.engine.state.busy", { timeout: 60000, every: 40, what: "engine idle" }); },
         async move(i) { await B.cell(i); await B.idle(); },
-        state: async () => JSON.parse(await B.ev(`JSON.stringify((document.body.classList.contains('game-five') ? FiveGame : ChainGame).state)`)),
+        state: async () => JSON.parse(await B.ev("JSON.stringify(Match.engine.state)")),
         selectSkin: (k) => B.click(`.skin-seg button[data-skin=${k}]`),
         selectGame: (k) => B.click(`.game-card[data-game=${k}]`),
         players: (n) => B.click(`#set-players button[data-players="${n}"]`),     // the lobby's players control (#28)
         // seeded "random" legal play until the game is over: the same seed always produces the same game
         async randomGame(maxMoves = 400, seed = 12345) {
             return JSON.parse(await B.ev(`(async () => {
-                const G = document.body.classList.contains('game-five') ? FiveGame : ChainGame;
-                const five = G === FiveGame; let m = 0; const rnd = Bots.rng(${seed});
+                const G = Match.engine, R = Rules.of(${GAME_KEY});
+                let m = 0; const rnd = Bots.rng(${seed});
                 while (!G.state.over && m < ${maxMoves}) {
-                    const me = G.state.current; const legal = [];
-                    G.state.cells.forEach((c, i) => { if (five ? c === -1 : (c.owner === -1 || c.owner === me)) legal.push(i); });
-                    document.querySelectorAll('#board > .cell, #board > .stone')[legal[Math.floor(rnd() * legal.length)]].click(); m++;
+                    const legal = R.legalMoves(G.state, G.state.current);
+                    document.querySelectorAll(${CELLS})[legal[Math.floor(rnd() * legal.length)]].click(); m++;
                     await new Promise(r => { const t = setInterval(() => { if (!G.state.busy) { clearInterval(t); r(); } }, 30); });
                 }
                 return JSON.stringify({ over: G.state.over, moves: m, winner: G.state.winner });

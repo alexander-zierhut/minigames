@@ -28,15 +28,17 @@ export const SIZES = {
     "online.test.mjs": 65,
     "prefs.test.mjs": 40,
     "online-spectate.test.mjs": 32,
+    "replays.test.mjs": 30,        // #43 added the analysis and a room against the bot
     "local-flow.test.mjs": 28,
+    "boxes.test.mjs": 28,
     "settings.test.mjs": 20,
     "dist.test.mjs": 20,
     "update.test.mjs": 18,
+    "learn.test.mjs": 18,
     "party.test.mjs": 17,
     "bot.test.mjs": 15,
     "skins.test.mjs": 13,
     "online-party.test.mjs": 11,
-    "replays.test.mjs": 30,        // #43 added the analysis and a room against the bot
     "mobile.test.mjs": 7,
 };
 

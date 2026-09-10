@@ -9,19 +9,25 @@
 
 (() => {
     const { $, toast } = Util;
-    let phase = "menu";          // "menu" | "lobby" | "game" | "replays"
+    const SCREENS = ["menu", "lobby", "game", "replays", "learn", "learn-game"];
+    let phase = "menu";          // one of SCREENS
     let replayDoc = null;        // the replay document on the board (#42), null = playing
     let replayFilter = "all";    // the replays list's game filter
 
     /* Who sits in each seat (#35). Online the room knows it (every device announces its own
        name); offline the seats are this device's own (Prefs.seatNames: me first, then the
        first default names that are not mine), and a bot seat is renamed by Match. */
-    // watching a replay the names come from the file: that is who played that game (#42)
-    const seatNames = () => (replayDoc ? replayDoc.players : Room.online ? Room.names() : Prefs.seatNames());
+    // watching a replay the names come from the file: that is who played that game (#42);
+    // a Learn tutorial has nobody at the other seat, so it renames that one to "Opponent" (#41)
+    const seatNames = () => {
+        if (replayDoc) return replayDoc.players;
+        const base = Room.online ? Room.names() : Prefs.seatNames();
+        return Learn.names(base) || base;
+    };
 
     /* ================= screens & board fitting ================= */
     function show(name) {
-        for (const s of ["menu", "lobby", "game", "replays"]) $("screen-" + s).hidden = s !== name;
+        for (const s of SCREENS) $("screen-" + s).hidden = s !== name;
         phase = name;
         Update.screenChanged();                      // the "new version" notice lives on the title screen only (#40)
         if (name === "game") requestAnimationFrame(() => { fitBoard(); requestAnimationFrame(fitBoard); });
@@ -131,6 +137,16 @@
             return;
         }
         $("btn-restart").hidden = false;
+        // a Learn lesson owns the board: the result card offers the lesson's own actions (#41)
+        if (Learn.active) {
+            const again = $("overlay-again");
+            again.hidden = false;
+            again.disabled = false;
+            again.textContent = Learn.active.kind === "scenario" ? "Retry" : "Start over";
+            $("overlay-menu").hidden = false;
+            $("overlay-menu").textContent = "Back to Learn";
+            return;
+        }
         $("overlay-again").hidden = false;
         $("overlay-menu").textContent = "Change game";
         const spec = Match.spectator;
@@ -181,7 +197,10 @@
         play.textContent = player.playing ? "❚❚" : "▶▶";
         play.title = player.playing ? "Pause" : "Play through the game";
         play.setAttribute("aria-label", play.title);
-        Match.mark(Analysis.at(ply));                    // the analysis marks the bot's move on the board
+        // the analysis marks the bot's move on the board; a game whose moves are not plain
+        // cell ids says which cell that is (`engine.cellOf`)
+        const best = Analysis.at(ply);
+        Match.mark(best >= 0 && Match.engine.cellOf ? Match.engine.cellOf(best) : best);
     }
     // Play / Pause pressed here: the room follows on its own timer
     function togglePlay() {
@@ -214,7 +233,7 @@
         return Replays.fromRecord(Match.record(), Match.names, Match.mode === "replay" ? "local" : Match.mode);
     }
     function openAnalysis() {
-        const doc = analysisDoc();
+        const doc = Learn.active ? null : analysisDoc();   // a lesson is not a game to judge (#41)
         if (!doc) { Analysis.close(); return; }
         const two = (doc.config.players || 2) === 2;
         // "Play from here" opens a fresh room, so it is offered while watching a replay only
@@ -302,7 +321,7 @@
     // what was played is kept on this device: finished games, and games somebody left
     // through "Back to room" (those are marked unfinished)
     function saveReplay(finished) {
-        if (Match.mode === "replay" || !Match.running || !Match.config) return;
+        if (Match.mode === "replay" || Learn.active || !Match.running || !Match.config) return;   // a lesson is not a game (#41)
         const record = Match.record();
         if (!record.history.length) return;
         if (!finished && record.over) return;             // it was already saved when it ended
@@ -350,6 +369,7 @@
     // ("Play from here", #43); it travels with the room's `start` message and, for anyone who
     // joins later, inside the usual `sync`.
     function startGame(cfg, gameNo, prefix) {
+        Learn.closeHowto();                      // "How to play" never stays up over a game (#41)
         replayDoc = null;                        // a game on the board is never a replay (#42)
         hideReplay();
         Room.newGame();
@@ -371,12 +391,14 @@
 
     // rematch = same config, next game number (online: every player must press)
     function requestRematch() {
+        if (Learn.active) { Learn.restart(); return; }      // a lesson restarts itself (#41)
         if (Room.online) Room.requestRematch();
         else startGame(Match.config, Match.gameNo + 1);
     }
 
     // back to the room lobby to pick another game / settings (anyone may do it)
     function backToLobby(announce) {
+        if (Learn.active) { Learn.exit(); return; }
         saveReplay(false);                       // a game left half way is kept too (#42)
         if (announce && Room.online) Room.tolobby();
         Room.bump();
@@ -409,6 +431,12 @@
     $("btn-bot").addEventListener("click", () => openLocalLobby(true));
     $("btn-opponent").addEventListener("click", () => Opponent.open(Settings.game, Settings.read(), Room.online ? Settings.bot : null));
 
+    // learn (#41): the academy is offline and never touches a room
+    $("btn-learn").addEventListener("click", () => { Room.leave(); Match.reset("local"); Learn.open(); });
+    $("btn-learn-back").addEventListener("click", () => show("menu"));
+    $("btn-learn-game-back").addEventListener("click", () => Learn.open());
+    $("btn-howto").addEventListener("click", () => Learn.openHowto(Settings.game));
+
     // lobby
     async function shareLink(link, text) {
         if (navigator.share) {
@@ -437,6 +465,7 @@
     $("btn-restart").addEventListener("click", () => { if (!Match.state.busy) requestRematch(); });
     $("btn-menu").addEventListener("click", () => {
         if (Match.mode === "replay") closeReplay();
+        else if (Learn.active) Learn.exit();
         else if (Match.spectator) leaveRoom();
         else backToLobby(true);
     });
@@ -557,7 +586,9 @@
         turnHint: (p) => (Room.online ? Room.turnHint(p) : "to move"),
         hostsBot: () => Room.isHost,                 // the room's bot seat runs on the transport host (#36)
         onBotReact: (seat, e) => { if (Room.online) Room.react(e, seat); },
-        onLocalMove: (i) => { if (Room.online) Room.sendMove(i); },
+        beforeMove: (i) => Learn.beforeMove(i),          // a tutorial takes only the cell it asks for (#41)
+        cellClass: (i) => Learn.cellClass(i),            // and highlights it
+        onLocalMove: (i) => { if (Room.online) Room.sendMove(i); else Learn.onLocalMove(i); },
         onChanged: Room.onChanged,
         onIdle: Room.onIdle,
         onFlag: (p) => { if (Room.online) Room.onFlag(p); },
@@ -565,6 +596,8 @@
     });
     Analysis.init({ onSeek: (ply) => showReplay(ply, true), onPlayFrom: playFromHere });
     Room.init({ phase: () => phase, show, startGame, backToLobby, renderLobby, onVotes: renderRematch, onReview: applyReview });
+    // Learn runs its lessons on the game screen; app.js stays the only screen switcher (#41)
+    Learn.init({ show, exit: () => { hideReplay(); $("overlay").hidden = true; show("learn-game"); } });
     Dev.enable(Prefs.get().developer);
 
     const params = new URLSearchParams(location.search);

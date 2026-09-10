@@ -4,6 +4,7 @@
    tests/e2e/replays.test.mjs. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { loadDom } from "./dom.mjs";
 
 const CONFIG = { game: "five", n: 5, winLen: 4, players: 2, startPlayer: 0 };
@@ -152,6 +153,26 @@ test("an illegal or missing bot answer is left out of the score", async () => {
     assert.equal(res.scores[0].moves, 0);
     assert.equal(res.scores[0].score, null);
     assert.equal(A.verdict(res.moves[0]).text, "Not analysed");
+    w.close();
+});
+
+/* Käsekästchen closes a box and moves again, so a seat can play several plies in a row:
+   the seat of a ply is the `current` of the position before it, never the ply's parity. */
+test("a game where one seat moves twice in a row keeps the seats straight", async () => {
+    const w = loadDom();
+    const A = w.eval("Analysis");
+    const doc = JSON.parse(readFileSync(new URL("../replays/v1-boxes.json", import.meta.url).pathname, "utf8"));
+    const bot = { id: "fake", version: 1, nodes: 100, move: (s) => doc.history[s.history.length] };   // agrees with every move
+    const res = await A.analyse(doc, { estimator: null, bot });
+
+    const seats = res.moves.map((m) => m.player).join("");
+    assert.equal(seats.length, doc.history.length);
+    assert.match(seats, /00|11/, "the sample has a seat moving twice in a row");
+    assert.equal(seats, "010100101100", "…and every ply belongs to whoever was to move there");
+    assert.equal(res.scores[0].moves + res.scores[1].moves, doc.history.length, "every move is counted once");
+    assert.equal(res.scores[0].moves, 7);
+    assert.equal(res.scores[1].moves, 5);
+    assert.equal(res.scores[0].score, 100, "the bot agreed with everything");
     w.close();
 });
 

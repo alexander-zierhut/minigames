@@ -1,8 +1,9 @@
 # ALZlper's Minigames
 
-Two nostalgic minigames for two to four players in one static page: **Chain React** (fill a cell, it
-explodes into its neighbours, take the whole board) and **Five Wins** (five in a row, no
-gravity). Live at https://minigames.alzlper.com/.
+Three nostalgic minigames for two to four players in one static page: **Chain React** (fill a
+cell, it explodes into its neighbours, take the whole board), **Five Wins** (five in a row, no
+gravity) and **Käsekästchen** (draw a line between two dots, close a box and it is yours and
+you go again, most boxes wins). Live at https://minigames.alzlper.com/.
 
 Static site, no backend, no framework. Create a room once, share the link, then pick
 games and settings together in the room lobby; rematch or switch games without new links.
@@ -12,6 +13,12 @@ games and settings together in the room lobby; rematch or switch games without n
 - **On one device:** two to four people share a screen or phone, or play against the
   bot (one per game, pick the difficulty; the numbers shown are its win rate against a
   random player and its puzzle score).
+- **Learn:** an offline academy per game. It lists the rules, runs a guided tutorial that
+  walks you through the core mechanics on a real board (it highlights the cell to click and
+  explains what happened), and offers training positions: eight scenarios per game whose
+  best moves were proven by the puzzle solver, played out against the bot with a Retry
+  button. Solved scenarios keep a ✓ on this device. In a room lobby the same rules and
+  steps are one tap away under "How to play".
 - **Online:** one player creates a room and shares the link (or the 5-letter code).
   Everybody typing the same code also works; a room seats two, three or four players
   (the *Players* setting). Uses PeerJS: the public PeerJS broker only brokers the
@@ -33,7 +40,7 @@ thinking: the premove is marked on the board and played the moment it is your tu
 
 The number of players (two, three or four) is picked right in the lobby and can never be
 set below the people already sitting in the room; the settings
-(board size, animation speed, chess-style timer, chain-win rule, stones in a row) are
+(board size or boxes per side, animation speed, chess-style timer, chain-win rule, stones in a row) are
 shared live in the room lobby; anyone can change them. The ⚙ button in
 the top-left corner holds the per-device preferences: your name (a short one is picked for
 you on the first visit, change it under Profile; up to 16 characters, everyone in the room
@@ -75,7 +82,8 @@ room protocol and how to add a game.
 - `client/games.js` — game registry, the engine shell every game shares, the generic HUD (rendered from a model the game returns)
 - `client/games/` — per game: pure `<key>-rules.js`, `<key>.js` (view + registration incl. its settings rows), `<key>.css`
 - `client/bots.js`, `client/bots/<id>/` — bot registry + toolset; one folder per bot with its tests and benchmark score; `client/winchance.js` shows the bars
-- `scripts/` — `headless.mjs` (rules + bots in Node), `benchmark.mjs` (`npm run benchmark`), puzzle solvers, verify, screenshots
+- `client/learn.js`, `client/learn/` — the Learn section: rules, tutorial and scenarios per game (the data lives in the game definitions; `client/learn/<game>-scenarios.js` is generated from the proven puzzle sets)
+- `scripts/` — `headless.mjs` (rules + bots in Node), `benchmark.mjs` (`npm run benchmark`), puzzle solvers, verify, `learn/pick-scenarios.mjs` (`npm run learn:scenarios`), screenshots
 - `client/match.js` (the table: seats, engine, clock, bot seat), `client/room.js` (online protocol, presence, sync), `client/session.js`, `client/app.js` (screens, lobby, flow)
 - `client/skins.js` (the look), `client/prefs.js` (⚙ per-device preferences incl. your name), `client/settings.js`, `client/opponent.js`, `client/reactions.js`, `client/chat.js`, `client/changelog.js`
 - `client/lib/sound.js`, `client/sounds/` — sound cues (synthesized Classic set, the Blocks .ogg files)

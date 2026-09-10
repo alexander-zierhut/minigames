@@ -6,6 +6,11 @@
      live()                may the game run right now (online: everyone here)   default true
      names()               the name of whoever sits in each seat (#35)          default Player 1…4
      turnHint(p)           the turn box hint for a non-bot seat                  default "to move"
+     beforeMove(i, p)      false consumes the click instead of playing it        default true
+                           (Learn's tutorial takes only the cell its step asks for)
+     cellClass(i)          one extra class for cell i, painted by the engine     default ""
+                           (Learn's highlight; the premove and the replay analysis'
+                           best-move marker win over it)
      onLocalMove(i)        a local seat is about to play cell i (online: tell the room)
      onChanged(kind)       the game record changed: "move" (placed, before its animation) or
                            "out" (a flag fall applied) — the room saves the session here
@@ -51,6 +56,7 @@ const Match = (() => {
     let running = false;                               // a game is on the screen (start … stop)
     let h = {
         live: () => true, names: () => ["Player 1", "Player 2", "Player 3", "Player 4"], turnHint: () => "to move", hostsBot: () => false,
+        beforeMove: () => true, cellClass: () => "",
         onLocalMove: () => {}, onChanged: () => {}, onIdle: () => {}, onFlag: () => {}, onBotReact: () => {}, onFinish: () => {},
     };
 
@@ -91,12 +97,17 @@ const Match = (() => {
             const hint = isBot(p) ? "thinking…" : h.turnHint(p);
             return st.premove >= 0 && !isLocal(p) ? `${hint} · premove set` : hint;
         },
-        cellClass: (i) => (i === st.premove ? "premove" : i === st.marked ? "best-move" : ""),
+        // one class per cell: the premove wins, then the replay analysis' best move (#43),
+        // then whatever the app wants there (Learn's highlight). They never overlap in
+        // practice: a lesson is not a finished game and a replay has no premove.
+        cellClass: (i) => (i === st.premove ? "premove" : i === st.marked ? "best-move" : h.cellClass(i)),
         onCellClick: (i) => {
             const s = Game.state;
             if (s.over) return;
             if (!isLocal(s.current)) { premove(i); return; }        // not my turn: remember the cell (#37)
-            if (s.busy || !hooks.mayPlay(s.current) || !Game.isLegal(i, s.current)) return;
+            if (s.busy) return;                                     // nothing lands while a move animates
+            if (!h.beforeMove(i, s.current)) return;                // a lesson may take the click itself (Learn)
+            if (!hooks.mayPlay(s.current) || !Game.isLegal(i, s.current)) return;
             h.onLocalMove(i);
             Game.play(i);
         },

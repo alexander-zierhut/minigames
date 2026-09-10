@@ -1,0 +1,98 @@
+/* ============================================================
+   Käsekästchen board: (2n+1) × (2n+1) grid of thin "line" tracks
+   (dots and the edges between them) and wide box tracks. Classic
+   look first, then the Blocks looks (quartz dots, player blocks
+   as the lines, stained glass as the closed boxes).
+   ============================================================ */
+#board.boxes {
+    --bx-pad: calc(var(--board) * .03);
+    --bx-line: calc((var(--board) - 2 * var(--bx-pad)) / (var(--n) * 6 + 1));
+    --bx-cell: calc(var(--bx-line) * 5);
+    padding: var(--bx-pad);
+    grid-template-columns: repeat(var(--n), var(--bx-line) var(--bx-cell)) var(--bx-line);
+    grid-template-rows: repeat(var(--n), var(--bx-line) var(--bx-cell)) var(--bx-line);
+}
+
+/* the dots: joints between the lines, painted under the edges */
+.dot {
+    border-radius: 50%;
+    background: #46528a;
+    transform: scale(1.45);
+}
+
+/* an edge fills its thin track; its hit area reaches into the boxes on both sides so a
+   line is easy to hit on a phone (percentages resolve against the element, so the bar
+   only grows across its thickness, never along its length) */
+.edge {
+    position: relative;
+    border-radius: calc(var(--bx-line) * .4);
+    background: rgba(255, 255, 255, .05);
+    cursor: pointer;
+    transition: background .15s, box-shadow .15s;
+}
+.edge::before { content: ""; position: absolute; }
+.edge.h::before { inset: -120% 0; }
+.edge.v::before { inset: 0 -120%; }
+.edge.can-place:hover { background: color-mix(in srgb, var(--pc) 45%, transparent); box-shadow: 0 0 10px color-mix(in srgb, var(--pc) 35%, transparent); }
+.edge.locked { cursor: not-allowed; }
+.edge.taken {
+    background: var(--block);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--pc) 55%, transparent);
+    cursor: default;
+}
+/* the line draws itself in from the middle */
+.edge.h.ink { animation: bx-ink-h .16s ease-out; }
+.edge.v.ink { animation: bx-ink-v .16s ease-out; }
+@keyframes bx-ink-h { from { transform: scaleX(.15); opacity: .3; } to { transform: scaleX(1); opacity: 1; } }
+@keyframes bx-ink-v { from { transform: scaleY(.15); opacity: .3; } to { transform: scaleY(1); opacity: 1; } }
+
+/* last move: a bright ring around the newest line (owner: no animation) */
+.edge .last-marker {
+    inset: calc(var(--bx-line) * -.35);
+    border-width: 2px;
+    border-radius: calc(var(--bx-line) * .8);
+}
+
+/* a closed box: the owner's colour with a small cube in the middle */
+.box { position: relative; border-radius: calc(var(--bx-line) * .3); }
+.box.taken { background: var(--pc-bg); }
+.box.taken::after {
+    content: "";
+    position: absolute; inset: 26%;
+    border-radius: 22%;
+    background: var(--block);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--pc) 55%, transparent);
+}
+.box.won { animation: bx-pop .34s cubic-bezier(.2, 1.4, .4, 1); }
+@keyframes bx-pop {
+    0% { transform: scale(.25); opacity: 0; }
+    60% { transform: scale(1.14); opacity: 1; }
+    100% { transform: scale(1); }
+}
+
+.game-preview.boxes { gap: 5px; }
+.game-preview.boxes i { border-radius: 2px; }
+
+/* ---- Blocks board (both textured skins): quartz dots, player blocks as lines,
+        matching stained glass as the closed boxes ---- */
+:is(.skin-mc, .skin-mcboard) #board.boxes { background-size: var(--bx-line) var(--bx-line); }
+:is(.skin-mc, .skin-mcboard) .dot {
+    border-radius: 0; transform: scale(1.3);
+    background: var(--tex-quartz); background-size: cover; image-rendering: pixelated;
+}
+:is(.skin-mc, .skin-mcboard) .edge {
+    border-radius: 0;
+    background: rgba(255, 255, 255, .07);
+    transition: filter .1s;      /* no background transition: the classic hover colour must never bleed in */
+}
+:is(.skin-mc, .skin-mcboard) .edge.can-place:hover { background: rgba(255, 255, 255, .24); box-shadow: none; }
+:is(.skin-mc, .skin-mcboard) .edge.taken {
+    background: var(--tex-p); background-size: var(--bx-line) var(--bx-line); image-rendering: pixelated;
+    box-shadow: none;
+}
+:is(.skin-mc, .skin-mcboard) .box { border-radius: 0; }
+:is(.skin-mc, .skin-mcboard) .box.taken {
+    background: var(--tex-glass-p); background-size: var(--bx-line) var(--bx-line); image-rendering: pixelated;
+}
+:is(.skin-mc, .skin-mcboard) .box.taken::after { display: none; }
+:is(.skin-mc, .skin-mcboard) .edge .last-marker { border-radius: 0; inset: calc(var(--bx-line) * -.3); }
