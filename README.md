@@ -27,7 +27,7 @@ the top-left corner holds the per-device preferences: the look (Classic, MC boar
 Minecraft) and the sounds (volume, categories; the Classic look uses synthesized cues,
 the Minecraft looks the real block, TNT and level-up sounds). Emoji reactions for
 trash talk are in the top-right corner; a room chat lives under the game log (phones:
-behind the ☰ button) and in the lobby.
+behind the ☰ button).
 
 ## Develop & test
 

@@ -15,6 +15,7 @@ test("board size clamps per game; five's minimum follows the win length", async 
     assert.equal(await B.ev("document.getElementById('row-speed').hidden"), false);
     await B.click("#btn-settings-done");
     await B.selectGame("five"); await B.click("#btn-settings");
+    assert.equal(await B.ev("document.getElementById('set-size').value"), "11", "five's fresh default is 11 × 11 (#16)");
     assert.equal(await B.ev("document.getElementById('row-winlen').hidden"), false);
     assert.equal(await B.ev("document.getElementById('row-speed').hidden"), true);
     assert.equal(await B.ev("document.getElementById('row-chain').hidden"), true);
@@ -22,7 +23,7 @@ test("board size clamps per game; five's minimum follows the win length", async 
     assert.equal(await B.set("set-size", 5), "8", "board can't be smaller than the win length");
     assert.equal(await B.text("size-hint"), "(8–25)");
     assert.equal(await B.set("set-winlen", 99), "25");
-    await B.set("set-winlen", 5); await B.set("set-size", 9);
+    await B.set("set-winlen", 5); await B.set("set-size", 11);
     await B.click("#btn-settings-done");
 });
 

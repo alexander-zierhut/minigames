@@ -1,16 +1,32 @@
 /* Emoji reactions (YouTube-live style trash talk). The bar (#react-bar, top-right)
    starts collapsed; #react-layer is placed by place() right next to the board when
    there is room (desktop), else in the free strip above/below the full-width board on
-   phones — never over the board, never off-screen. Spam is allowed on purpose. */
+   phones — never over the board, never off-screen. Spam is allowed on purpose.
+   Speed (#17): a single, occasional reaction floats slowly (~4 s) so it can be seen;
+   the faster people react, the faster the emojis fall (durationFor: 0 shown in the
+   last 3 s → slow, 1 → medium, ≥ 2 → fast ~1.9 s, own and received alike). */
 
 "use strict";
 
 const Reactions = (() => {
     const { $ } = Util;
     const SEND_EVERY = 120, ACCEPT_EVERY = 100, MAX_ON_SCREEN = 14, LAYER_WIDTH = 60;
+    const SLOW_MS = 4000, MEDIUM_MS = 2800, FAST_MS = 1900, RATE_WINDOW = 3000;
     let lastMine = 0, lastTheirs = 0;
+    let shown = [];                                   // when the recent reactions (own + received) appeared
     let allowed = new Set();
     let onSend = () => {};
+
+    // how long a reaction floats, from how many were shown in the last RATE_WINDOW ms
+    // before it (pure; no randomness so both sides of a room behave alike)
+    function durationFor(recent) {
+        return recent <= 0 ? SLOW_MS : recent === 1 ? MEDIUM_MS : FAST_MS;
+    }
+    // reactions shown within the window before `now` (drops the older ones)
+    function recent(now) {
+        shown = shown.filter((t) => now - t < RATE_WINDOW && t <= now);
+        return shown.length;
+    }
 
     function init(handlers) {
         onSend = handlers.onSend || onSend;
@@ -40,6 +56,9 @@ const Reactions = (() => {
     function show(e, theirs, color) {
         const layer = $("react-layer");
         while (layer.children.length > MAX_ON_SCREEN) layer.firstChild.remove();
+        const now = Date.now();
+        const duration = durationFor(recent(now));
+        shown.push(now);
         const el = document.createElement("div");
         const isChip = e.length <= 3 && /^[A-Z]+$/.test(e);
         el.className = "react-float" + (isChip ? " chip" : "") + (theirs ? " theirs" : "");
@@ -54,7 +73,7 @@ const Reactions = (() => {
             { transform: `translate(calc(-50% + 8px), ${Math.round(fall * 0.15)}px) scale(1.15) rotate(${wob * 0.3}deg)`, opacity: 1, offset: 0.15 },
             { transform: `translate(calc(-50% + ${drift * 0.6}px), ${Math.round(fall * 0.6)}px) scale(1) rotate(${wob}deg)`, opacity: .85, offset: 0.6 },
             { transform: `translate(calc(-50% + ${drift}px), ${fall}px) scale(.9) rotate(${-wob * 0.5}deg)`, opacity: 0 },
-        ], { duration: 1900, easing: "cubic-bezier(.2,.6,.3,1)", fill: "forwards" }).onfinish = () => el.remove();
+        ], { duration, easing: "cubic-bezier(.2,.6,.3,1)", fill: "forwards" }).onfinish = () => el.remove();
         Bus.emit("reaction", { emoji: e, theirs: !!theirs });
     }
 
@@ -82,5 +101,5 @@ const Reactions = (() => {
         }
     }
 
-    return { init, receive, place };
+    return { init, receive, place, durationFor, recent, SLOW_MS, MEDIUM_MS, FAST_MS, RATE_WINDOW };
 })();

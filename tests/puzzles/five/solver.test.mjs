@@ -83,6 +83,61 @@ test("forced draw on a 3×3 winLen-3 board: O must take an edge, every corner lo
     for (const m of [2, 6]) assert.equal(r.moveValues[m], "loss");
 });
 
+test("dead board (#18): Board.dead() tracks open windows through place/undo; the rules agree", () => {
+    // 9×9 / 5: rows 2, 4, 6 in every column (colours alternating along rows, columns and
+    // diagonals) plus columns 2, 4, 6 in the other rows — 45 stones that leave every
+    // window of 5 with both colours while 36 cells stay empty
+    const n = 9, stones = [];
+    for (const y of [2, 4, 6]) for (let x = 0; x < n; x++) stones.push([y * n + x, (x + y / 2 + 1) % 2]);
+    [0, 1, 3, 5, 7, 8].forEach((y, k) => { const a = k % 2; for (const x of [2, 4, 6]) stones.push([y * n + x, x === 4 ? 1 - a : a]); });
+    const p0 = stones.filter((s) => s[1] === 0).map((s) => s[0]), p1 = stones.filter((s) => s[1] === 1).map((s) => s[0]);
+    assert.equal(p0.length, 23); assert.equal(p1.length, 22);
+    const history = [];
+    for (let k = 0; k < p0.length; k++) { history.push(p0[k]); if (k < p1.length) history.push(p1[k]); }
+    // play until the rules end the game; `s` is the position before that move
+    let s = mk({ n, winLen: 5 }), at = 0;
+    for (; at < history.length; at++) { const t = replay({ n, winLen: 5 }, history.slice(0, at + 1)); if (t.over) break; s = t; }
+    assert.ok(at < history.length, "the pattern ends the game before the last stone at the latest");
+    assert.equal(s.over, false);
+    const b = Board.fromState(s);
+    assert.equal(b.dead(), false);
+    assert.equal(b.open[0] + b.open[1] > 0, true);
+    assert.equal(FiveRules.canWin(s, 0) || FiveRules.canWin(s, 1), true, "the rules see an open window too");
+    const last = history[at], mover = s.current;
+    b.place(last, mover);
+    assert.equal(b.dead(), true, "the ending stone blocks the last window");
+    assert.ok(b.empties >= 36, `many cells still empty (${b.empties})`);
+    b.undo(last, mover);
+    assert.equal(b.dead(), false, "undo restores the open-window counts");
+    assert.equal(JSON.stringify(b.open), JSON.stringify(Board.fromState(s).open), "incremental counts equal a fresh count");
+    play(s, last);
+    assert.equal(s.over, true); assert.equal(s.winner, -1);
+    assert.match(s.finishWhy, /No line can be completed/);
+    assert.throws(() => solve(s), /over/);
+});
+
+test("dead board (#18): killing the last open window is a terminal draw for the search — the only draws", () => {
+    // 5×5 / 4, O to move. Every window holds both colours except X's two in row 4
+    // ((1,4),(2,4) are X; (0,4),(3,4),(4,4) empty). O draws by (3,4) at once (the board
+    // is dead then), or by (0,4)/(4,4) followed by the forced block; any other move lets
+    // X play (3,4) with two completion cells.
+    const s = position(5, 4,
+        [[0, 1], [2, 1], [4, 1], [1, 3], [3, 3], [1, 0], [1, 2], [1, 4], [2, 4]],
+        [[1, 1], [3, 1], [0, 3], [2, 3], [4, 3], [3, 0], [3, 2], [0, 0]]);
+    assert.equal(s.current, 1);
+    const b = Board.fromState(s);
+    assert.equal(b.dead(), false); assert.equal(b.open[1], 0, "O has no window left"); assert.equal(b.open[0], 2, "X has row 4");
+    const r = solve(s);
+    assert.equal(r.method, "exhaustive");
+    assert.equal(r.value, "draw"); assert.equal(r.depth, "exhaustive");
+    assert.equal(J(r.best), "[20,23,24]");
+    for (const m of [2, 4, 10, 12, 14]) assert.equal(r.moveValues[m], "loss", `move ${m} loses to the double threat`);
+    assert.ok(r.nodes < 300, `the dead board ends the search at once (${r.nodes} nodes)`);
+    const t = replay({ n: 5, winLen: 4 }, [...s.history, 23]);
+    assert.equal(t.over, true); assert.equal(t.winner, -1, "the rules end the game on (3,4)");
+    assert.equal(t.history.length, 18, "with 7 cells still empty");
+});
+
 test("returns ALL optimal moves: an open three has two winning extensions", () => {
     const s = position(7, 5, [[2, 3], [3, 3], [4, 3]], [[0, 0], [6, 0], [0, 6]]);   // X to move
     const r = solve(s);

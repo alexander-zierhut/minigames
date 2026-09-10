@@ -61,7 +61,7 @@ const FiveGame = Games.register({
     tagline: "Place a stone anywhere, no gravity. First to get five in a row wins.",
     desc: "Five in a row, no gravity",
     preview: "0.110...0",
-    size: { min: 5, max: 25, default: 9 },
+    size: { min: 5, max: 25, default: 11 },
     minSize: (cfg) => Math.max(5, cfg.winLen),     // the board can't be smaller than the row to win
     settings: ["winLen"],
     describeRules: (cfg) => [`${cfg.winLen} in a row`],

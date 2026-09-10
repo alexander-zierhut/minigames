@@ -69,11 +69,10 @@
 <!-- ===================== LOBBY (room) ===================== -->
 <section id="screen-lobby" class="screen" hidden>
     <div class="menu-card lobby-card">
+        <!-- kind, room code, and (online) one compact row of share buttons under it -->
         <div class="lobby-head">
-            <div>
-                <div class="label" id="lobby-kind">Room</div>
-                <div class="room-code" id="lobby-code">—</div>
-            </div>
+            <div class="label" id="lobby-kind">Room</div>
+            <div class="room-code" id="lobby-code">—</div>
             <div class="lobby-actions" id="lobby-share">
                 <button class="btn small primary" id="btn-share">Share link</button>
                 <button class="btn small" id="btn-share-spectate">Spectate link</button>
@@ -85,15 +84,6 @@
         <div class="lobby-players" id="lobby-players"></div>
         <div class="lobby-status" id="lobby-status"></div>
         <div class="lobby-status" id="lobby-spectators"></div>
-
-        <!-- room chat (online only): the same lines as the HUD log's chat -->
-        <div class="lobby-chat" id="lobby-chat" hidden>
-            <div class="log" id="lobby-log"></div>
-            <div class="chat-row">
-                <input id="lobby-chat-input" placeholder="Say something…" maxlength="200" autocomplete="off" spellcheck="false" disabled>
-                <button class="btn small" id="lobby-chat-send" disabled>Send</button>
-            </div>
-        </div>
 
         <div class="section">
             <div class="section-title">Game</div>
@@ -185,6 +175,7 @@
             <button data-e="🤡">🤡</button>
             <button data-e="😱">😱</button>
             <button data-e="👏">👏</button>
+            <button data-e="👍">👍</button>
             <button data-e="😎">😎</button>
             <button data-e="🫡">🫡</button>
             <button data-e="😄">😄</button>

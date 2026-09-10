@@ -59,7 +59,7 @@ test("reactions relay to the other side, rate limited", { skip: !ONLINE }, async
     assert.equal(await B.ev("document.querySelector('#react-layer .react-float').classList.contains('theirs')"), true);
 });
 
-test("chat lines relay both ways in the sender's colour, text only, into the game and lobby logs", { skip: !ONLINE }, async () => {
+test("chat lines relay both ways in the sender's colour, text only, into the game log", { skip: !ONLINE }, async () => {
     await A.set("chat-input", "hi <b>there</b>");
     await A.click("#chat-send");
     assert.equal(await A.ev("document.getElementById('chat-input').value"), "", "input cleared after sending");
@@ -67,8 +67,8 @@ test("chat lines relay both ways in the sender's colour, text only, into the gam
     await B.waitFor("document.querySelector('#log .chat') && document.querySelector('#log .chat').textContent === 'Cyan: hi <b>there</b>'", { what: "guest sees the host's line" });
     assert.equal(await B.ev("document.querySelector('#log .chat').className"), "chat p0");
     assert.equal(await B.ev("document.querySelectorAll('#log .chat b').length"), 1, "only the name is bold");
-    assert.equal(await B.ev("document.querySelector('#lobby-log .chat').textContent"), "Cyan: hi <b>there</b>", "mirrored into the lobby log");
-    await B.ev("document.getElementById('lobby-chat-input').value = 'yo'; document.getElementById('lobby-chat-input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); true");
+    assert.equal(await B.ev("document.getElementById('lobby-chat')"), null, "the lobby has no chat any more (#15)");
+    await B.ev("document.getElementById('chat-input').value = 'yo'; document.getElementById('chat-input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); true");
     await A.waitFor("[...document.querySelectorAll('#log .chat')].some(l => l.textContent === 'Amber: yo' && l.classList.contains('p1'))", { what: "host sees the guest's line in amber" });
     assert.equal(await B.ev("Sound.log.filter(l => l.name === 'chat').length"), 1, "the guest heard the host's line, not its own");
 });

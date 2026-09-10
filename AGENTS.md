@@ -34,7 +34,7 @@ Scripts, in order (each defines the global named in brackets):
 | `client/vendor/peerjs.min.js` | `Peer` | PeerJS 1.5.4, vendored (no CDN at runtime) |
 | `client/lib/util.js` | `Util` | `$`, `sleep`, `clamp`, `restartClass`, fail-safe storage `load/save/remove`, `fromTemplate`, `toast` |
 | `client/lib/bus.js` | `Bus` | event bus `on/off/emit` (see Events) |
-| `client/lib/log.js` | `Log` | the HUD event log + lobby log (`add`, `chat`, `room`, `clear`, 40 lines) |
+| `client/lib/log.js` | `Log` | the HUD event log (`add`, `chat`, `clear`, 40 lines) |
 | `client/lib/clock.js` | `Clock` | chess clock for N players |
 | `client/lib/net.js` | `Net` | PeerJS room transport |
 | `client/lib/preload.js` | `Preload` | first-visit texture preload with `#loader` bar |
@@ -51,9 +51,9 @@ Scripts, in order (each defines the global named in brackets):
 | `client/prefs.js` | `Prefs` | per-device preferences (⚙ top-left): look, sound volume / categories |
 | `client/settings.js` | `Settings` | settings form ↔ config, picker cards, persistence, summary |
 | `client/opponent.js` | `Opponent` | bot picker modal: step 1 list of bots with both scores, step 2 one bot + parameters; choice per game |
-| `client/bot-persona.js` | `BotPersona` | a bot seat's sparse emoji reactions (wave, GG, EZ, 🚨, 😲, 😔) |
+| `client/bot-persona.js` | `BotPersona` | a bot seat's sparse emoji reactions (wave, GG, EZ, 👍/👏 for good moves, 😲/🤡 for blunders, 😔), drawn from seeded weighted pools |
 | `client/reactions.js` | `Reactions` | emoji reactions bar + floating layer |
-| `client/chat.js` | `Chat` | room chat: input rows (HUD, lobby), limits, lines into the logs, Bus `chat` |
+| `client/chat.js` | `Chat` | room chat: the input row under the HUD log, limits, lines into the log, Bus `chat` |
 | `client/app.js` | (none) | flow, room protocol, session restore, wiring, boot |
 
 Stylesheets, in order: `client/css/base.css` (tokens, player colour variables, buttons,
@@ -105,13 +105,15 @@ to try things").
   (`#btn-bot`). No Look control here any more (owner: only in the preferences, #9). Never
   scrolls on a phone. The ⚙ preferences button (see
   Preferences) floats top-left on every screen.
-- **Lobby** (`#screen-lobby`), same screen for local and online (`app.mode`): room code +
-  Share link / Spectate link / Copy code (online only), one `.lobby-player` card per seat from `#tpl-lobby-player`
-  (online only; as many as the *Players* setting says, "connected" / "not here yet" /
-  "ready" per seat, `#lobby-spectators` counts people without a seat), the room chat
-  (online only), the game picker (one `.game-card[data-game]` per registered game, built
-  by `Settings.init`), settings summary button → `#settings-modal`, Look control,
-  `Start game`, `Leave room`/`Back`.
+- **Lobby** (`#screen-lobby`), same screen for local and online (`app.mode`): a centred
+  head with the kind label, the room code and — online only — **one compact row** of
+  `Share link` / `Spectate link` / `Copy code` under it (`#lobby-share`; 11px buttons on
+  phones so the three fit 360px in one row, #15), one `.lobby-player` card per seat from
+  `#tpl-lobby-player` (online only; as many as the *Players* setting says, "connected" /
+  "not here yet" / "ready" per seat, `#lobby-spectators` counts people without a seat),
+  the game picker (one `.game-card[data-game]` per registered game, built by
+  `Settings.init`), settings summary button → `#settings-modal`, `Start game`, `Leave
+  room`/`Back`. No chat in the lobby (#15) — chat lives in the game HUD only.
 - **Game** (`#screen-game`): board + HUD ("hut"). Result overlay: `Rematch`, `Look at
   board` (hides it; `#result-fab` brings it back), `Change game` (→ lobby). The HUD has
   `Rematch` and `Back to room` too.
@@ -133,7 +135,9 @@ doesn't snap at "1"). Persisted in `localStorage["chainreact.settings"]` togethe
 `sizeFor` (remembered board size per game). Inputs have `autocomplete="off"` (Firefox
 restores form values on reload).
 
-- Shared rows: board size (limits from the game's `size` + optional `minSize(cfg)`),
+- Shared rows: board size (limits and default from the game's `size` + optional
+  `minSize(cfg)`: chain 3–12, default 6; five 5–25, default 11 since #16 — a size
+  remembered in `sizeFor` wins over the default),
   **players** (`#set-players`: 2 default / 3 / 4 — seats in the room and on one device;
   hidden and forced to 2 against a bot), timer per player (Off default / 1 / 3 / 5 / 10
   min / custom minutes).
@@ -266,9 +270,15 @@ approved ("wuchtiger" like TNT).
 
 ## Five Wins rules (`five-rules.js`)
 
-n×n board. Place on any empty cell. `winLen` **or more** in a row (4 directions) wins;
-winning stones get `.win` + `--k` and jump in a wave (`stone-jump`, the MC blocks
-jumping). Full board = draw (`winner -1`, overlay "Draw!"). With 3–4 players the turn
+n×n board (default 11×11). Place on any empty cell. `winLen` **or more** in a row (4
+directions) wins; winning stones get `.win` + `--k` and jump in a wave (`stone-jump`,
+the MC blocks jumping). Draw (`winner -1`, overlay "Draw!"): a full board ("The board
+is full."), or — #18 — a **dead board**: after every move `conclude` checks
+`canWin(state, p)` for every player still in (`Rules.remaining`) — a window of `winLen`
+cells in one of the 4 directions holding only that player's stones or empties; none for
+anybody → "No line can be completed any more." (O(cells × 4 × winLen), pure and
+deterministic, so online clients and `replay` agree; the puzzle solver mirrors it as
+`Board.dead()`). With 3–4 players the turn
 rotates (`Rules.pass`) and the first line wins; when everyone else is `out` the last
 player wins ("Everyone else is out."). HUD: stones placed, best row
 as the bar. MC skins: quartz tiles on obsidian, diamond/gold blocks as stones; hover
@@ -598,12 +608,18 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   in `localStorage["chainreact.bots"]`; `Opponent.current(game)` / `summary(game)`.
 - **Persona** (`client/bot-persona.js`): `BotPersona.attach({ bot, seat, game, state,
   estimate, color })` in `startGame` (bot mode), `detach()` on back-to-room / leave. Listens
-  to `game:new` (👋), `game:turn`/`game:move` (judges the human's move once it settled: 🚨
-  when the bot's chance drops ≥ 15 points and the move was among the best, 😲 when the move
-  was among the worst 25 % and helped the bot ≥ 10 points; "EZ" once when its chance ≥ 90 %,
-  😔 once when ≤ 12 %), `game:finish` ("GG", 😄 / 😔). One reaction per 6 s, ≤ 8 per game,
-  seeded from the bot's seed (`Bots.rng(seed ^ 0xc0ffee)`), 0.5–1.4 s delay, posted via
-  `Reactions.receive` in the bot's colour. Tests pass `delays`/`cooldownMs` overrides.
+  to `game:new` (👋), `game:turn`/`game:move` (judges the human's move once it settled:
+  praise when the bot's chance drops ≥ 15 points and the move was among the best, a
+  surprised/teasing face when the move was among the worst 25 % and helped the bot ≥ 10
+  points; "EZ" once when its chance ≥ 90 %, 😔 once when ≤ 12 %), `game:finish` ("GG",
+  then a happy or a gracious face). Every moment draws from a weighted pool
+  (`BotPersona.POOLS`: strong 👍 45 / 👏 25 / 🔥 15 / 🫡 15, blunder 😲 40 / 🤡 20 / 💀 20 /
+  😂 20, ez EZ / 😎, sad 😔 / 😱, won 😄 / 😎 / 🥰, lost 😔 / 👏 / 🫡; hello and GG fixed) so
+  it isn't the same every game — the owner found the fixed 🚨/😲 mapping automated; a
+  good move gets a thumbs-up, a blunder a bit of trolling. One reaction per 6 s, ≤ 8 per
+  game, seeded from the bot's seed (`Bots.rng(seed ^ 0xc0ffee)`, the pick uses the same
+  rng), 0.5–1.4 s delay, posted via `Reactions.receive` in the bot's colour. Tests pass
+  `delays`/`cooldownMs` overrides and assert against the pools.
 
 - **Puzzles = perfect-move test sets** (`tests/puzzles/<game>/puzzles.json`): positions whose
   best move(s) were PROVEN by a solver (`scripts/puzzles/<game>/solver.mjs`, exhaustive
@@ -644,21 +660,20 @@ every bot folder into a bare VM — script list parsed from `index.html`).
 
 ## Chat (`client/chat.js`) and the logs (`client/lib/log.js`)
 
-- `Log.line(id, text, cls, name?)` prepends one line (newest first in the DOM; the boxes
-  are `column-reverse`, so the newest shows at the bottom), keeps `Log.MAX_LINES` = 40.
-  `Log.add(text, cls)` → `#log` + Bus `log`; `Log.chat(name, text, cls)` → `#log` **and**
-  `#lobby-log` (bold `name: ` + text, class `chat p<k>` / `chat x`); `Log.room(text)` → a
-  room event in the lobby log only. `Log.clear()` (new game) removes everything but
-  `.chat` lines, so the conversation survives a rematch; `Log.clear("lobby-log")` empties
-  the lobby box (done in `enterRoom`). Text goes in via `textContent` only — never HTML.
-- **Rows**: `#chat-row` (`#chat-input` + `#chat-send`) under the HUD log and
-  `#lobby-chat` (`#lobby-log` + `#lobby-chat-input`/`#lobby-chat-send`) in the lobby.
-  `Chat.enable(online)` toggles `body.online` and the inputs' `disabled`; the rows only
-  render while online (`body.online`). Desktop: the HUD log scrolls (`max-height:
-  150px; overflow-y: auto`), the row sits under it. Phones: the log shows its last two
-  lines (40px) and the chat row is behind ☰ (`#hut.show-controls`); the lobby chat log
-  is two lines too. The lobby card is tighter on phones (gap 10, padding 18/16, share
-  buttons in a row) so an online lobby with chat still fits 360×780.
+- `Log.line(id, text, cls, name?)` prepends one line (newest first in the DOM; the box
+  is `column-reverse`, so the newest shows at the bottom), keeps `Log.MAX_LINES` = 40.
+  `Log.add(text, cls)` → `#log` + Bus `log`; `Log.chat(name, text, cls)` → `#log` (bold
+  `name: ` + text, class `chat p<k>` / `chat x`). `Log.clear()` (new game) removes
+  everything but `.chat` lines, so the conversation survives a rematch. Text goes in via
+  `textContent` only — never HTML. The lobby log (`#lobby-log`, `Log.room`) was removed
+  with the lobby chat (#15); join/leave show on the seat cards and in `#lobby-status`.
+- **Row**: `#chat-row` (`#chat-input` + `#chat-send`) under the HUD log — the only chat
+  input (#15). `Chat.enable(online)` toggles `body.online` and the inputs' `disabled`; the
+  row only renders while online (`body.online`). Desktop: the HUD log scrolls
+  (`max-height: 150px; overflow-y: auto`), the row sits under it. Phones: the log shows
+  its last two lines (40px) and the chat row is behind ☰ (`#hut.show-controls`). The
+  lobby card is tighter on phones (gap 7, padding 16) so an online lobby with four seat
+  cards fits 360×780.
 - **Rules**: `Chat.send(text)` trims and collapses whitespace, cuts to `Chat.MAX_LEN` =
   200, allows one line per `Chat.SEND_EVERY` = 300 ms, refuses when not online, shows
   my line at once in my colour, emits Bus `chat {text, from, mine: true}` and calls
@@ -670,16 +685,19 @@ every bot folder into a bare VM — script list parsed from `index.html`).
 
 ## Emoji reactions (`client/reactions.js`)
 
-`#react-bar` top-right, starts collapsed behind the 😜 toggle; emojis 😂 🔥 💀 🤡 😱 👏 😎
-🫡 😄 🥰 😲 😔 👋 🚨 🤖 + "L"/"EZ"/"GG" chips (the bar's own box never catches taps —
+`#react-bar` top-right, starts collapsed behind the 😜 toggle; emojis 😂 🔥 💀 🤡 😱 👏 👍
+😎 🫡 😄 🥰 😲 😔 👋 🚨 🤖 + "L"/"EZ"/"GG" chips (the bar's own box never catches taps —
 `pointer-events: none` except the list and the toggle — and the toggle sits on the top
 edge next to ⚙, #7/#13; the expanded list stops 124px short of the left edge). `Reactions.place()` (called after every `fitBoard`) puts `#react-layer` **right
 next to the board** when there is ≥ 66px of space (desktop), else in the free strip
 above the full-width board (or below it if that's bigger) — never over the board, never
-off-screen. Emojis drift right → left while falling the layer's height (~2 s, wobble,
-fade, max 14 on screen). Spam is allowed on purpose (~8/s; the receiver accepts one per
-100 ms and only values from its own button set). Friend's reactions get a dot in their
-colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
+off-screen. Emojis drift right → left while falling the layer's height (wobble, fade,
+max 14 on screen). **Speed follows the rate** (#17): `Reactions.durationFor(recent)` with
+`recent` = reactions shown (own + received alike) in the last `RATE_WINDOW` 3 s before
+this one: 0 → `SLOW_MS` 4000 (a lone reaction can be seen), 1 → `MEDIUM_MS` 2800, ≥ 2 →
+`FAST_MS` 1900 (spam stays quick); no randomness beyond the wobble. Spam is allowed on
+purpose (~8/s; the receiver accepts one per 100 ms and only values from its own button
+set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
 
 ## Tests (`npm test` = unit + e2e; CI runs both before every deploy and on every PR)
 
@@ -694,6 +712,8 @@ colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
   `prefs.test.mjs` (defaults, clamping, persistence, form wiring), `sound.test.mjs`
   (event → cue mapping with a fake player, perspective, prefs gate, sound sets),
   `chat.test.mjs` (log boxes, limits, HTML safety, offline, chat survives a new game),
+  `reactions.test.mjs` (float duration from the recent rate with a mocked clock, own +
+  received, rate limits),
   `party.test.mjs` (3–4 players: `out`/`remaining`/pass in the pure rules, engine
   `eliminate` + `replay(history, outs)` == live play, two-player flag fall, settings
   players row / bot mode),
@@ -707,9 +727,11 @@ colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
   uploaded as artifact on CI failure), `waitFor`. Specs: `local-flow`, `settings`,
   `prefs` (⚙ on every screen, look sync, persistence, sounds: locked until a gesture,
   cues logged in order, mc files fetched, mute; phone: clear of cards/board/😜,
-  landscape), `skins` (computed styles per skin), `mobile` (360×780), `online` (two browsers through
+  landscape), `skins` (computed styles per skin), `mobile` (360×780: title, local lobby,
+  an online-shaped lobby with four seats in every skin — share row on one line, no
+  scroll, screenshots `mobile-lobby-<skin>.png` — game, overlay), `online` (two browsers through
   the real PeerJS broker: join by link, settings mirror, guest start, move sync,
-  reactions, chat both ways (colour, text only, lobby mirror), guest refresh, tolobby,
+  reactions, chat both ways (colour, text only, HUD input), guest refresh, tolobby,
   switch game, rematch, host refresh, guest leave +
   rejoin, host leave → guest takes over → host returns as guest; `SKIP_ONLINE=1` skips),
   `online-edge` (third player → spectator, players stay connected; both refresh in the lobby; guest closes the

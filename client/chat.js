@@ -1,7 +1,7 @@
-/* Chat inside the room: an input line under the HUD log (phones: behind the ☰ controls)
-   and one in the lobby. Lines land in both logs in the sender's colour and go through
-   the Bus (`chat`) so sounds can react. Only online: the rows are hidden otherwise and
-   nothing is ever sent. Limits: 200 characters, one message per 300 ms (both when
+/* Chat inside the room: an input line under the HUD log (phones: behind the ☰ controls);
+   the lobby has no chat (#15). Lines land in the log in the sender's colour and go
+   through the Bus (`chat`) so sounds can react. Only online: the row is hidden otherwise
+   and nothing is ever sent. Limits: 200 characters, one message per 300 ms (both when
    sending and when accepting), text only (textContent, never HTML). */
 
 "use strict";
@@ -9,7 +9,7 @@
 const Chat = (() => {
     const { $ } = Util;
     const MAX_LEN = 200, SEND_EVERY = 300, ACCEPT_EVERY = 300;
-    const ROWS = [["chat-input", "chat-send"], ["lobby-chat-input", "lobby-chat-send"]];
+    const ROWS = [["chat-input", "chat-send"]];
     let lastMine = 0, lastTheirs = 0;
     let handlers = { onSend: () => false, name: (seat) => `Player ${seat + 1}`, me: () => -1, online: () => false };
     let count = 0;                                          // lines shown (tests)
@@ -49,7 +49,7 @@ const Chat = (() => {
         if (send(input.value)) input.value = "";
     }
 
-    // the rows exist only while online (body.online drives the CSS; inputs are disabled otherwise)
+    // the row exists only while online (body.online drives the CSS; inputs are disabled otherwise)
     function enable(on) {
         document.body.classList.toggle("online", !!on);
         for (const [inputId, btnId] of ROWS) { $(inputId).disabled = !on; $(btnId).disabled = !on; }

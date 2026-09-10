@@ -79,7 +79,10 @@ order = display order.
 State shape (from `Rules.base` + the game's `create`): `n, players, current, round, history,
 movesBy, busy, over, winner, finishWhy, cells` (chain: `[{ count, owner, cap }]`, plus
 `chainRule, chainLen, chainNow, chainBest, explosions`; five: owner per cell -1/0/1, plus
-`winLen, winLine`). Cell id = `y * n + x`.
+`winLen, winLine`). Cell id = `y * n + x`. Five Wins ends in a draw not only on a full board
+but as soon as no window of `winLen` cells is free of enemy stones for any player still in
+(`FiveRules.canWin(state, p)`, #18) — a bot's own board model must mirror that or its
+"engine equals the rules" tests and `apply()` will disagree at the end of drawn games.
 
 ## 4. Budgets: strong on a phone, deterministic in CI
 
@@ -144,7 +147,7 @@ calmer.
   100 %** and no test may gate the deploy on a fixed strength number.
 - **Puzzles** (`tests/puzzles/<game>/puzzles.json`, proven by `scripts/puzzles/<game>/solver.mjs`):
   `evaluateBot(H, id, { difficulty, budget })` → `{ solved, total, pct, chance, byTag, failures }`.
-  `chance` is what blind random picking scores on that set (chain 23 %, five 5.5 %).
+  `chance` is what blind random picking scores on that set (chain 23 %, five 5.7 %).
   `npm run puzzles` regenerates the sets, `npm run puzzles:verify` re-proves the tactical
   ones without the solvers.
 - **Benchmark** (`npm run benchmark [id]`): 60 (chain) / 100 (five) seeded games against
@@ -179,12 +182,15 @@ scores shown in the picker.
 
 `client/bot-persona.js` makes a bot seat feel like a player without touching the bot: it
 watches the Bus and posts sparse reactions in the bot's colour — a wave at the start,
-"GG" at the end, "EZ" once when its win chance passes 90 %, 😔 once below 12 %, 🚨 when
-the human found a move that costs the bot ≥ 15 points and was among the best options,
-😲 when the human played one of the worst options. It uses `tools.legalMoves`/`apply`
-and the estimator, never more than one reaction per 6 s and eight per game, seeded from
-the bot's seed. Nothing to implement per bot; a bot without `estimate` still waves and
-says GG (the rules' fallback estimate drives the rest).
+"GG" at the end, "EZ" (or 😎) once when its win chance passes 90 %, 😔 (or 😱) once below
+12 %, a thumbs-up / applause / 🔥 / 🫡 when the human found a move that costs the bot
+≥ 15 points and was among the best options, a surprised or teasing face (😲 🤡 💀 😂)
+when the human played one of the worst options, and a happy or gracious face after the
+result. Each moment picks from a weighted pool (`BotPersona.POOLS`) with the seeded rng,
+so two games never feel scripted the same way. It uses `tools.legalMoves`/`apply` and the
+estimator, never more than one reaction per 6 s and eight per game, seeded from the bot's
+seed. Nothing to implement per bot; a bot without `estimate` still waves and says GG (the
+rules' fallback estimate drives the rest).
 
 ## 10. Adding a bot — checklist
 
