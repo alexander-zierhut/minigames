@@ -45,6 +45,14 @@
 .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); padding-left: 2px; }
 .btn-row { display: flex; gap: 8px; }
 .btn-row .btn { flex: 1; }
+.btn-row .btn.big { font-size: 15px; padding: 14px 10px; white-space: nowrap; }
+/* desktop: the title card gets more room and air (#10) */
+@media (min-width: 900px) {
+    #screen-menu .menu-card { max-width: 560px; padding: 40px 44px; gap: 26px; }
+    #screen-menu .menu-actions { gap: 20px; }
+    #screen-menu .btn-row .btn.big { font-size: 17px; padding: 16px 14px; }
+    #screen-menu .tagline { font-size: 15px; }
+}
 #join-panel { display: flex; flex-direction: column; gap: 6px; animation: fadein .15s; }
 .join-row { display: flex; gap: 8px; }
 #join-code {
