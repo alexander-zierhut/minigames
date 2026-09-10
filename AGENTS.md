@@ -59,13 +59,16 @@ Scripts, in order (each defines the global named in brackets):
 | `client/chat.js` | `Chat` | room chat: the input row under the HUD log, limits, lines into the log, Bus `chat` |
 | `client/session.js` | `Session` | the room session in sessionStorage (survives a refresh) |
 | `client/match.js` | `Match` | **the table**: mode, my seat, seats per player, the active engine, the clock, the bot seat, deferred work while a move animates |
+| `client/learn.js` | `Learn` | the Learn section (#41): the two Learn screens, the guided tutorial, the scenarios, the progress, the lobby's "How to play" modal |
+| `client/learn/<game>-scenarios.js` | (registers) | **generated** training positions (`scripts/learn/pick-scenarios.mjs`, from the proven puzzle sets) |
 | `client/room.js` | `Room` | **the online room**: protocol handlers, presence, seat assignment, sync/desync, rematch votes, net box + banner, session save |
 | `client/app.js` | (none) | screens, the lobby, the flow (start / rematch / back / leave), wiring, boot |
 
 Stylesheets, in order: `client/css/base.css` (tokens, player colour variables, buttons,
 inputs, modal, toast, loader) → `client/css/menu.css` (title, lobby, picker, settings,
 changelog) → `client/css/game.css` (game layout, generic board, HUD incl. the generic
-`.game-box`, overlay, banner, reactions) → `client/css/skin-mc.css` (Blocks board part
+`.game-box`, overlay, banner, reactions) → `client/css/learn.css` (the Learn screens, the
+lesson panel in the HUD, the `hint` cell) → `client/css/skin-mc.css` (Blocks board part
 shared by both textured skins + Blocks UI part) → `client/games/chain.css` →
 `client/games/five.css` (each game's board, classic first, then its textured-skin rules).
 
@@ -80,8 +83,9 @@ CSS are kept. `client/sounds/*.ogg` — Minecraft sounds from the owner's own in
 ### Who owns what (the layering, top to bottom)
 
 ```
-app.js      screens + lobby + flow            knows Match, Room, Settings, Opponent, …
+app.js      screens + lobby + flow            knows Match, Room, Learn, Settings, Opponent, …
 Room        online protocol, presence, sync   knows Match (engine, seats), Net, Settings, Clock, Chat
+Learn       lessons: tutorial + scenarios     knows Match (start a table), Games (the howto data)
 Match       table: seats, engine, clock, bot  knows Games (engines), Clock, Bots, Opponent, BotPersona
 Games/Engine/Hud   one engine per game        knows Rules, Log, Bus, the game's view; never the app
 rules.js    pure loop                         knows nothing (no DOM, no settings, no Bus)
@@ -158,7 +162,8 @@ to try things").
   under them the muted hint `#menu-online-hint` ("One room for up to 4 players, plus
   spectators." — the seat count itself is picked in the lobby, #28),
   section *Offline* with `Local multiplayer` (`#btn-local`) and `Against a bot`
-  (`#btn-bot`), the foot with `#btn-install` (see Install) and `#btn-changelog`. No Look
+  (`#btn-bot`) in one row and `📚 Learn to play` (`#btn-learn`, #41) in a second row under
+  them, the foot with `#btn-install` (see Install) and `#btn-changelog`. No Look
   control here (owner: only in the preferences, #9). Never scrolls on a phone. The ⚙
   preferences button floats top-left on every screen.
 - **Lobby** (`#screen-lobby`), same screen for local and online (`Match.mode`), in **three
@@ -185,8 +190,11 @@ to try things").
   3. **Group "Game"** (`#group-game`): the picker (one `.game-card[data-game]` per
      registered game, built by `Settings.init`; each card says "2 to 4 players" and a game
      that doesn't take the chosen count is grayed out, `.unsupported` + `disabled`, #28),
-     its tagline (`#menu-tagline`), the *Opponent* row in bot mode (`#btn-opponent`) and
-     the settings summary button (`#btn-settings` → `#settings-modal`).
+     its tagline (`#menu-tagline`), the *How to play* row (`#btn-howto` → `#howto-modal`,
+     #41: the selected game's rule bullets and its tutorial steps as plain text; reading
+     only, so nobody has to leave the room, and `startGame` closes it), the *Opponent* row
+     in bot mode (`#btn-opponent`) and the settings summary button (`#btn-settings` →
+     `#settings-modal`).
   Then `.lobby-foot`: `Start game` (`#btn-start`, the one big primary button, its text also
   says why it is disabled) and a quiet text button `Leave room` / `Back` (`#btn-lobby-back`,
   class `btn quiet`). No chat in the lobby (#15) — chat lives in the game HUD only. The
@@ -211,7 +219,11 @@ to try things").
   modal is one step (description, scores, difficulty, Cancel / Play). Picking a game does
   **not** open it (#12): the default is the middle difficulty; the row shows the choice.
   You are seat 0, the bot seat 1.
-- `phase` (app.js) ∈ `menu | lobby | game` — Room reads it through its `phase()` handler.
+- **Learn** (`#screen-learn`, `#screen-learn-game`, #41): see the "Learn section" chapter.
+  Lessons themselves run on `#screen-game`.
+- `phase` (app.js) ∈ `menu | lobby | game | learn | learn-game` (the list `SCREENS`, one
+  `#screen-<name>` each) — Room reads it through its `phase()` handler and only ever cares
+  about `game` / `lobby`.
   `Match.gameNo` increments per started game (local too); `Match.startPlayerFor(g,
   players) = (g - 1) % players` → seat 0 starts game 1, then the next seat, round-robin.
   `Settings.setMode(mode)` is called on every mode change (`local` / `bot` / `online`):
@@ -219,7 +231,10 @@ to try things").
 - The flow functions in app.js — `startGame(cfg, gameNo)`, `startFromLobby()`,
   `requestRematch()`, `backToLobby(announce)`, `leaveRoom()`, `openLocalLobby(withBot)` —
   are the only places that switch screens. Room calls `startGame` / `backToLobby` through
-  its handlers when the protocol says so; Match never switches screens.
+  its handlers when the protocol says so, Learn through its `show` / `exit` handlers;
+  Match never switches screens. While `Learn.active`, `requestRematch()` and
+  `backToLobby()` hand over to `Learn.restart()` / `Learn.exit()`, and `renderRematch()`
+  writes the lesson's own overlay texts ("Retry" / "Start over", "Back to Learn").
 
 ## Settings (`client/settings.js`)
 
@@ -391,9 +406,9 @@ holds the active engine (`Match.engine`) and, like everything else, only uses:
 Hooks (built once in `Match`, the engine never sees the app): `names` (getter → the name of
 whoever sits in each seat, #35; bot seats show the bot's name), `mayPlay(p)` (may this device move for p
 now: local seat + `live()`), `turnHint(p)`, `cellClass(i)` (one extra class the table wants
-on that cell, `""` for none — that is how the premove marker gets on the board without any
-game knowing it), `onCellClick(i)`, `onMoveApplied(i, p)`, `onTurn(p)`, `onBusy(bool)`,
-`onFinish(winner, why)`. Tests build their own (`tests/unit/dom.mjs`).
+on that cell, `""` for none — that is how the premove marker and Learn's `hint` get on the
+board without any game knowing it), `onCellClick(i)`, `onMoveApplied(i, p)`, `onTurn(p)`,
+`onBusy(bool)`, `onFinish(winner, why)`. Tests build their own (`tests/unit/dom.mjs`).
 
 ### HUD (`Hud`, generic — a game only supplies a model)
 
@@ -807,6 +822,67 @@ wave), `reaction {emoji, theirs}`, `chat {text, from, mine}` (a chat line was sh
 - "Play a test sound" in the preferences modal plays `turn`. The whole module is
   fail-safe: any player exception is swallowed.
 
+## Learn section (`client/learn.js`, #41)
+
+An offline academy per game, and — like the HUD model and the settings rows — **entirely
+data driven**: everything a game teaches lives in its definition under `howto`, so a new
+game adds data and no code here.
+
+```js
+howto: {
+  rules:     ["one short sentence per rule", …],                   // details page + the lobby modal
+  tutorial:  [{ text, config?, moves?, expect?, highlight? }, …],  // a guided lesson on a real board
+  scenarios: [{ id, title, text, config, history, toMove: 0, best: [cells], tags? }, …],
+}
+```
+
+- **Tutorial step**: a position (`config` + `moves`, replayed instantly) plus what to say
+  about it. `config` carries over from the step before, so only the first step needs one
+  (the framework fills every missing setting from the game's `settings` defaults through
+  `Learn.configFor`, and always forces `players: 2`, `timer: 0`). With `expect: [cells]`
+  the step waits for one of those clicks; any other click plays nothing and the panel says
+  "Try the highlighted cell." Without `expect` a **Next** button advances. `highlight`
+  defaults to `expect` and paints the cells with the class `hint` (a pulsing accent
+  outline). A step's `moves` may jump anywhere: the chain tutorial replays 18 moves to set
+  up its chain reaction. After the last step the panel says the lesson is done and the
+  game is remembered as finished.
+- **Scenario**: a real game against the game's bot from `history` (`Match.reset("bot")` +
+  `Match.start` + `engine.replay`), so `toMove` must be 0 (you are always seat 0, the bot
+  seat 1). The **first** move is judged against `best` (all optimal moves): in it → "Right!"
+  and the scenario counts as solved, otherwise "Not this one." plus **Retry**, which sets
+  the position up again. The game simply plays on either way.
+- **Where the scenarios come from**: `tests/puzzles/<game>/puzzles.json` is proven but
+  never deployed, so `scripts/learn/pick-scenarios.mjs` (`npm run learn:scenarios`) picks
+  8 of them per game (only `toMove === 0` and a value that is not already lost, one per
+  instructive tag in a fixed order, biggest board first, tag titles like "Win in one move")
+  and writes `client/learn/<game>-scenarios.js`, a classic script calling
+  `Learn.scenarios(game, [...])`. It is deterministic (a re-run never diffs), the generated
+  files are committed and listed in `index.html`, and the unit test re-runs the pick and
+  compares. Hand-written scenarios (with a `text` explaining the idea) may sit in the
+  definition's `howto.scenarios`; they are simply concatenated in front of the generated
+  ones. Their `best` has to be right — the test only checks that it is legal.
+- **Screens**: `#screen-learn` (one `.game-card` per game that teaches something, with
+  "k / n scenarios") → `#screen-learn-game` (title, tagline, the rule bullets, "Start
+  tutorial", the scenario rows with ✓, Back). Both lists scroll inside the card so Back
+  stays reachable on a 360×780 phone. Progress lives in
+  `localStorage["chainreact.learn"]` = `{ tutorials: { chain: true }, solved: { five: [ids] } }`,
+  per device, never sent anywhere.
+- **A lesson runs on the normal game screen** with `#learn-panel` as the first block of the
+  HUD (kind, "Step 2 / 6", the text, a hint line, Next / Retry / Back to Learn). There is
+  **no new `Match.mode`**: a tutorial is a plain `local` table (every seat is this device,
+  which is also why premoves never appear) and a scenario a plain `bot` table; `Learn.active`
+  is the flag the rest of the app checks. `body.learn` hides the HUD's Rematch / Back to
+  room row, `body.learn-tutorial` also hides the win bars (noise next to the steps). A
+  tutorial keeps the result overlay hidden; a scenario shows it with the lesson's buttons.
+- **How Learn reaches the board**: two `Match.init` handlers, wired in app.js, keep the
+  table generic — `beforeMove(i, p)` (false consumes the click: that is the tutorial's gate)
+  and `cellClass(i)` (the `hint` class, the same door the premove marker uses). Advancing
+  after a correct click listens to the Bus (`game:position`, then `Learn.STEP_MS` = 450 ms
+  so the move can be seen) instead of hooking into the engine. Seat names come from
+  `Learn.names(base)`: a tutorial renames seat 1 to "Opponent" and leaves your own name
+  alone (so "Alex starts." still reads properly), a scenario changes nothing (Match already
+  calls a bot seat "Bot").
+
 ## Seats, bots and more players (`client/match.js`)
 
 `Match.seats[p] = { kind }` is built per game by `makeSeats`: `local` (this device moves for
@@ -1065,7 +1141,12 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   plies, HUD and board classes, locked cells, no Bus events, the live state / record / hash
   untouched, `preview(null)`), `premove.test.mjs` (#37: set / switch / take back, fires when the turn comes,
   an illegal one is dropped, never on one device or as a spectator, cleared on a new game,
-  on stop and at the end), `persona.test.mjs`, `changelog.test.mjs`, `calibrate.test.mjs`, `puzzles.test.mjs`,
+  on stop and at the end), `learn.test.mjs` (#41: the `howto` contract for every registered
+  game — rule bullets, tutorial steps that replay with legal expected clicks, scenarios that
+  replay to `toMove` with legal `best`; the generated ones equal the puzzle's proven `best`
+  and the committed files equal a fresh `pick()`; the tutorial and scenario runners in
+  jsdom incl. the wrong click, Retry and the localStorage progress),
+  `persona.test.mjs`, `changelog.test.mjs`, `calibrate.test.mjs`, `puzzles.test.mjs`,
   `party.test.mjs` (3–4 players: `out`/`remaining`/pass in the pure rules, engine
   `eliminate` + `replay(history, outs)` == live play, two-player flag fall, settings
   players row / bot mode, the min-players floor and `Room.keepsSeats` of #34),
@@ -1113,7 +1194,11 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   refresh restores seat + board, rematch by every seat, one Back to room moves all, the
   players control cannot drop below the people in the room and the host refuses a forged
   `lobby` that tries it, #34),
-  `bot` (offline vs bot: the one-step modal with scores and difficulty, "Bot" in the HUD, bot moves by itself, rematch, a premove clicked while the bot thinks), `dist` (built bundle: hashed assets only,
+  `bot` (offline vs bot: the one-step modal with scores and difficulty, "Bot" in the HUD, bot moves by itself, rematch, a premove clicked while the bot thinks),
+  `learn` (#41: Learn from the title, the game list, a details page, the tutorial with its
+  highlighted cell / wrong click / right click / Next to the end, a scenario with a wrong
+  move, Retry and the ✓ that survives a reload, the lobby's How to play modal closing when
+  a game starts, and 360×780 with no scroll on every new screen), `dist` (built bundle: hashed assets only,
   preloader, playable, hashed sound files fetched after the audio unlock). Files run 2 at a time; each launches its own Chrome. `B.blank()`
   navigates to about:blank (a closed tab); outline colours transition for .25s → wait
   before reading computed styles. Any new join/rejoin behaviour gets a scenario in
@@ -1123,7 +1208,7 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
 
 `docs/` (`docs/bots.md` = bot system reference and the list of current bots — keep it in
 step with the code), `scripts/` (headless loader, puzzle runner, benchmark, puzzle solvers/generators,
-verify, screenshot tour), `tests/`. The deploy uploads `dist/`
+verify, `learn/pick-scenarios.mjs`, screenshot tour), `tests/`. The deploy uploads `dist/`
 only; `build.mjs` bundles nothing outside `index.html`'s tags and `client/textures`.
 
 ## API at a glance (what a change must keep working)
@@ -1156,11 +1241,14 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Changelog` | `init()`, `open/close`, `render(doc[, all])`, `refUrl(ref)`, `technical(entry)`, `showTechnical`, `SHOW_DAYS` |
 | `Preload` | `textures()` |
 | `Session` | `save(data)`, `load()`, `clear()` (shape incl. `codeHidden`) |
+| `Learn` | `init({show, exit})`, `open()`, `openGame(key)`, `startTutorial(key)`, `startScenario(key, id)`, `restart()`, `exit()`, `howto(key) → {rules, tutorial, scenarios}`, `scenarios(game, list)` (the generated files register here), `games()`, `configFor(key, cfg)`, `names(base)`, `beforeMove(i)` / `cellClass(i)` / `onLocalMove(i)` (Match handlers), `openHowto(key)` / `closeHowto()`, `isSolved(game, id)`, `tutorialDone(game)`; getters `active` (`null` \| `{kind, game, …}`), `page`; `STEP_MS`, `MISS` |
+| game definition | `howto: { rules: [], tutorial: [{text, config?, moves?, expect?, highlight?}], scenarios: [{id, title, text, config, history, toMove, best, tags?}] }` (#41; `Games.register` defaults it to empty) |
 | `Match` | `init(handlers)`, `start(cfg, gameNo)`, `stop()`, `reset(mode, me, spectator)`, `setSeat(me, spectator)`, `record()`, `flagged(p)`, `whenIdle(fn, key)`, `syncClock()`, `startPlayerFor`, `playerColor`, `isLocal/isBot`; getters `engine, state, names, running, mode, me, spectator, seats, config, gameNo, bot, botInfo, premove`; `THINK_MS` |
 | `Room` | `init(handlers)`, `enter(code, preferHost, seat, spectate, hidden)`, `leave()`, `roomLink`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `settingsChanged(cfg)`, `say(text)`, `react(e)`, `tolobby()`, `review(ply)`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/occupiedSeats/allHere/live/who/two/playersNow/turnHint`, `names()`, `nameChanged()`, `accepts(msg, seat)`, `keepsSeats(msg, occupied)`, `PLAYERS_ONLY`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden` |
 
 Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM), `puzzles/runner.mjs`
-(`loadPuzzles`, `positionOf`, `evaluateBot`), `benchmark.mjs`, `calibrate.mjs`
+(`loadPuzzles`, `positionOf`, `evaluateBot`), `learn/pick-scenarios.mjs` (`pick(data)`,
+`writeAll()`), `benchmark.mjs`, `calibrate.mjs`
 (`collect`, `fitLogistic`, `metrics`, `calibrate`), `puzzles/<game>/solver.mjs` +
 `generate.mjs`, `puzzles/verify.mjs`, `screenshots.mjs`.
 
@@ -1248,8 +1336,8 @@ rooms and the host relay for 2–4 seats, lobby sync of the settings, start / re
 back to room, reconnect + replay from the game record, session restore, the chess
 clock and flag falls, spectators, chat, reactions, premoves, sounds for the generic events,
 the bot seat, the bot persona, the win-chance bars, the generic HUD (stat rows, info box,
-phone line), skins and player colours, the picker card, the settings rows, the benchmark
-and puzzle tooling. **A game never touches app.js, room.js, match.js, games.js, settings.js
+phone line), skins and player colours, the picker card, the settings rows, the Learn
+section (rules page, tutorial runner, scenarios), the benchmark and puzzle tooling. **A game never touches app.js, room.js, match.js, games.js, settings.js
 or index.html's HUD markup.** If it seems to need to, extend the definition contract
 instead (and this file).
 
@@ -1309,6 +1397,7 @@ const <Name>Game = Games.register({
     ],
     describeRules: (cfg) => [],             // optional summary parts before the timer ("5 in a row")
     describeOptions: (cfg) => [],           // optional summary parts after the timer ("15-chain wins")
+    howto: { rules: [], tutorial: [], scenarios: [] },   // the Learn data (#41), see step 7
     rules: <Name>Rules, view: <Name>View,
 });
 ```
@@ -1336,7 +1425,9 @@ HUD styling (rare) goes under `body.game-<key> …`.
 `<link rel="stylesheet" href="client/games/<key>.css">` after `five.css`;
 `<script src="client/games/<key>-rules.js">` and `<script src="client/games/<key>.js">`
 after `five.js` and before `bots.js`. Build, the unit-test loader and the headless loader
-(`scripts/headless.mjs` matches `games/<key>-rules.js`) pick them up from there.
+(`scripts/headless.mjs` matches `games/<key>-rules.js`) pick them up from there. Once the
+game has generated Learn scenarios (step 7), one more tag:
+`<script src="client/learn/<key>-scenarios.js">` next to the other scenario files.
 
 ## 5. Sounds (optional)
 
@@ -1365,7 +1456,40 @@ only if none fits. Keep `Sound.map` pure (it is unit-tested with a fake player).
    → `tests/puzzles/<key>/puzzles.json` (≥ 100 proven positions); `tests/unit/puzzles.test.mjs`
    picks the set up and grades every bot. Never make a threshold a build requirement.
 
-## 7. Checklist before calling it done
+## 7. Learn: rules, tutorial and scenarios (`howto` in the definition, #41)
+
+The Learn section renders itself from the definition, so this is data only. Without a
+`howto` the game simply does not appear in Learn (and "How to play" in the lobby is empty),
+which is a poor first impression — write at least the rule bullets.
+
+```js
+howto: {
+    // one short sentence per rule; they show on the details page and in the lobby modal
+    rules: ["Players take turns…", "…", "…"],
+    // a guided lesson on a real board; the first step names the config, later steps inherit it
+    tutorial: [
+        { config: { n: 4, speed: 350 }, moves: [], text: "Click the top left corner.", expect: [0] },
+        { moves: [0], text: "Now the other colour: the far corner.", expect: [15] },
+        { moves: [0, 15, 0], text: "It burst. Here is why…" },          // no `expect` = a Next button
+    ],
+    // optional hand-written training positions; `best` must really be the optimal moves
+    scenarios: [{ id: "<key>-intro", title: "…", text: "…", config: { n: 9 }, history: [], toMove: 0, best: [40], tags: ["opening"] }],
+}
+```
+
+Rules for the data (`tests/unit/learn.test.mjs` checks all of it): every step's `moves`
+must be a legal sequence from an empty board, an `expect` cell must be legal for whoever is
+to move there, `toMove` of a scenario is always 0 (you are seat 0, the bot seat 1), no em
+dashes (#24). Missing settings are filled from the `settings` defaults, and `players: 2` /
+`timer: 0` are forced, so a lesson config only names what matters.
+
+Once the game has a puzzle set (step 6.4), add it to the generator instead of writing
+scenarios by hand: `npm run learn:scenarios` picks 8 proven positions per game with a
+puzzle set and writes `client/learn/<key>-scenarios.js`. Add its `<script>` tag to
+`index.html` next to the other scenario files and commit the generated file; the unit test
+re-runs the pick and fails if the committed file is stale.
+
+## 8. Checklist before calling it done
 
 - Unit: rules in `tests/unit/rules.test.mjs` (no DOM; 2 and 3+ players, eliminations) and
   an engine spec like `five.test.mjs` (win, draw if possible, replay == play, HUD texts via
@@ -1384,6 +1508,9 @@ only if none fits. Keep `Sound.map` pure (it is unit-tested with a fake player).
 - Phone viewport 360×780: lobby, game and result overlay don't scroll; HUD labels fit;
   the game box (if any) shows only on desktop.
 - All three skins: board readable, textures don't flicker on hover.
+- Learn: the game shows up in the Learn list, the rule bullets read well, the tutorial runs
+  from the first step to the last and `tests/unit/learn.test.mjs` passes; `npm run
+  learn:scenarios` once the puzzle set exists.
 - No `Runtime.exceptionThrown` in either browser. Update this file (files table, rules
   section for the game, events if you added any), `README.md`, `docs/bots.md` (bot list)
   and `changelog.json`.

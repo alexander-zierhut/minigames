@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="client/css/base.css">
     <link rel="stylesheet" href="client/css/menu.css">
     <link rel="stylesheet" href="client/css/game.css">
+    <link rel="stylesheet" href="client/css/learn.css">
     <link rel="stylesheet" href="client/css/skin-mc.css">
     <link rel="stylesheet" href="client/games/chain.css">
     <link rel="stylesheet" href="client/games/five.css">
@@ -63,6 +64,10 @@
                 <div class="btn-row">
                     <button class="btn big" id="btn-local">Local multiplayer</button>
                     <button class="btn big" id="btn-bot">Against a bot</button>
+                </div>
+                <!-- the academy (#41): rules, a guided tutorial and training positions per game -->
+                <div class="btn-row">
+                    <button class="btn big" id="btn-learn">📚 Learn to play</button>
                 </div>
             </div>
         </div>
@@ -119,6 +124,13 @@
             <div class="game-picker" id="game-picker"></div>
             <p class="tagline small" id="menu-tagline"></p>
 
+            <!-- the selected game's rules and tutorial steps as text (#41); never leaves the room -->
+            <button class="settings-summary" id="btn-howto">
+                <span class="gear-icon">📚</span>
+                <span id="howto-summary">How to play</span>
+                <span class="chev">›</span>
+            </button>
+
             <!-- bot mode only: which bot, which difficulty (opens #bot-modal) -->
             <button class="settings-summary" id="btn-opponent" hidden>
                 <span class="gear-icon">🤖</span>
@@ -140,6 +152,37 @@
     </div>
 </section>
 
+<!-- ===================== LEARN (#41): the game list and one details page ===================== -->
+<!-- Both screens are filled by the Learn module from every game's `howto` data. -->
+<section id="screen-learn" class="screen" hidden>
+    <div class="menu-card">
+        <h1 class="title small">Learn</h1>
+        <p class="tagline small">The rules, a guided tutorial and training positions. All offline, no room needed.</p>
+        <div class="game-picker" id="learn-games"></div>
+        <button class="btn quiet" id="btn-learn-back">Back</button>
+    </div>
+</section>
+<section id="screen-learn-game" class="screen" hidden>
+    <div class="menu-card">
+        <h1 class="title small" id="learn-title">Game</h1>
+        <p class="tagline small" id="learn-tagline"></p>
+        <div class="lobby-group">
+            <div class="lobby-row"><span class="lobby-row-label">Rules</span></div>
+            <ul class="learn-rules" id="learn-rules"></ul>
+        </div>
+        <div class="lobby-group" id="learn-tutorial-group">
+            <div class="lobby-row"><span class="lobby-row-label">Tutorial</span></div>
+            <button class="btn primary" id="btn-learn-tutorial">Start tutorial</button>
+            <p class="hint" id="learn-tutorial-hint"></p>
+        </div>
+        <div class="lobby-group" id="learn-scenarios-group">
+            <div class="lobby-row"><span class="lobby-row-label">Scenarios</span><span class="lobby-row-note" id="learn-progress"></span></div>
+            <div class="learn-scenarios" id="learn-scenarios"></div>
+        </div>
+        <button class="btn quiet" id="btn-learn-game-back">Back</button>
+    </div>
+</section>
+
 <!-- ===================== GAME ===================== -->
 <section id="screen-game" class="screen" hidden>
     <div id="app">
@@ -148,6 +191,21 @@
         </div>
 
         <aside id="hut">
+            <!-- Learn (#41): the step / scenario text and its buttons; hidden outside a lesson -->
+            <div id="learn-panel" hidden>
+                <div class="learn-head">
+                    <span class="learn-kind" id="learn-kind"></span>
+                    <span class="learn-step" id="learn-step"></span>
+                </div>
+                <div class="learn-text" id="learn-text"></div>
+                <div class="learn-hint" id="learn-hint"></div>
+                <div class="learn-actions">
+                    <button class="btn small primary" id="learn-next">Next</button>
+                    <button class="btn small" id="learn-retry">Retry</button>
+                    <button class="btn small ghost" id="learn-back">Back to Learn</button>
+                </div>
+            </div>
+
             <div class="sign">
                 <div class="sign-title" id="sign-title">CHAIN REACT</div>
                 <div class="sign-sub" id="round-label">Round 1</div>
@@ -386,6 +444,21 @@
     </div>
 </div>
 
+<!-- ===================== HOW TO PLAY (#41; from the lobby, closes when a game starts) ===================== -->
+<!-- Reading only: the interactive tutorial would have to leave the room, so it stays in Learn. -->
+<div id="howto-modal" class="modal" hidden>
+    <div class="menu-card howto-card">
+        <h1 class="title small" id="howto-title">How to play</h1>
+        <p class="tagline small" id="howto-tagline"></p>
+        <div class="section-title">Rules</div>
+        <ul class="learn-rules" id="howto-rules"></ul>
+        <div class="section-title" id="howto-steps-title">Step by step</div>
+        <ol class="learn-steps" id="howto-steps"></ol>
+        <p class="hint">The guided tutorial on a real board is in the Learn section on the title screen.</p>
+        <button class="btn primary" id="btn-howto-done">Done</button>
+    </div>
+</div>
+
 <!-- ===================== CHANGELOG (changelog.json, loaded on demand) ===================== -->
 <div id="changelog-modal" class="modal" hidden>
     <div class="menu-card changelog-card">
@@ -474,6 +547,10 @@
 <script src="client/chat.js"></script>
 <script src="client/session.js"></script>
 <script src="client/match.js"></script>
+<script src="client/learn.js"></script>
+<!-- learn: generated scenario sets (scripts/learn/pick-scenarios.mjs); one file per game -->
+<script src="client/learn/chain-scenarios.js"></script>
+<script src="client/learn/five-scenarios.js"></script>
 <script src="client/room.js"></script>
 <script src="client/dev.js"></script>
 <script src="client/app.js"></script>

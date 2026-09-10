@@ -174,6 +174,50 @@ const ChainGame = Games.register({
         { key: "chainRule", label: "Win on a long chain", type: "bool", def: false,
           with: { key: "chainLen", type: "int", min: 5, max: 99, def: 15, unit: "explosions" } },   // the number next to the checkbox
     ],
+    // Learn (#41): the rules in one sentence each and a guided tutorial on a 4×4 board.
+    // The scenarios come from the proven puzzle set (client/learn/chain-scenarios.js).
+    howto: {
+        rules: [
+            "Players take turns. On your turn you drop one piece into an empty cell or into a cell you already own.",
+            "A cell holds as many pieces as it has neighbours: two in a corner, three on an edge, four in the middle.",
+            "Reaching that number makes the cell burst: it hands one piece to each neighbour and empties itself.",
+            "Every cell a burst reaches turns your colour, pieces and all.",
+            "A burst that fills the next cell sets that one off too, and that is a chain reaction.",
+            "Own every cell on the board and you win.",
+            "Optional setting: a chain of N bursts in one move wins outright.",
+        ],
+        tutorial: [
+            {
+                config: { n: 4, speed: 350 },
+                moves: [],
+                text: "Chain React is played on a grid of cells. Drop your first piece into the top left corner.",
+                expect: [0],
+            },
+            {
+                moves: [0],
+                text: "Both colours are on this device for the tutorial, so play the opponent's answer too: the far corner.",
+                expect: [15],
+            },
+            {
+                moves: [0, 15],
+                text: "A cell bursts once it holds as many pieces as it has neighbours. A corner has only two, so click your corner again to fill it up.",
+                expect: [0],
+            },
+            {
+                moves: [0, 15, 0],
+                text: "It burst: the corner emptied and pushed one piece into each neighbour, and both of those cells turned your colour. That is how you take cells from someone.",
+            },
+            {
+                moves: [0, 15, 0, 12, 1, 13, 2, 7, 2, 10, 5, 11, 5, 6, 5, 9, 0, 8],
+                text: "A few moves later. Edges burst at three pieces, cells in the middle at four, and a burst that fills the next cell sets it off as well. The highlighted edge cell is one piece short. Set it off.",
+                expect: [1],
+            },
+            {
+                moves: [0, 15, 0, 12, 1, 13, 2, 7, 2, 10, 5, 11, 5, 6, 5, 9, 0, 8, 1],
+                text: "One click, seven bursts, half the board changed colour. Long chains are how games swing, so think twice before you load a cell next to a full one.",
+            },
+        ],
+    },
     describeOptions: (cfg) => cfg.chainRule ? [`${cfg.chainLen}-chain wins`] : [],
     rules: ChainRules,
     view: ChainView,

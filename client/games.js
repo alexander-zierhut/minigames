@@ -23,7 +23,8 @@ const Games = (() => {
     function register(def) {
         if (!def || !def.key || !def.rules || !def.view) throw new Error("Games.register: key, rules and view are required");
         const engine = Engine.create(def);
-        defs[def.key] = { settings: [], players: { min: 2, max: 4 }, ...def, engine };   // players: how many seats the game takes (#28)
+        // players: how many seats the game takes (#28); howto: the Learn data (rules, tutorial, scenarios, #41)
+        defs[def.key] = { settings: [], players: { min: 2, max: 4 }, howto: { rules: [], tutorial: [], scenarios: [] }, ...def, engine };
         order.push(def.key);
         return engine;
     }

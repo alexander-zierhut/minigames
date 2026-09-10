@@ -12,6 +12,12 @@ games and settings together in the room lobby; rematch or switch games without n
 - **On one device:** two to four people share a screen or phone, or play against the
   bot (one per game, pick the difficulty; the numbers shown are its win rate against a
   random player and its puzzle score).
+- **Learn:** an offline academy per game. It lists the rules, runs a guided tutorial that
+  walks you through the core mechanics on a real board (it highlights the cell to click and
+  explains what happened), and offers training positions: eight scenarios per game whose
+  best moves were proven by the puzzle solver, played out against the bot with a Retry
+  button. Solved scenarios keep a ✓ on this device. In a room lobby the same rules and
+  steps are one tap away under "How to play".
 - **Online:** one player creates a room and shares the link (or the 5-letter code).
   Everybody typing the same code also works; a room seats two, three or four players
   (the *Players* setting). Uses PeerJS: the public PeerJS broker only brokers the
@@ -64,7 +70,8 @@ room protocol and how to add a game.
 - `client/games.js` — game registry, the engine shell every game shares, the generic HUD (rendered from a model the game returns)
 - `client/games/` — per game: pure `<key>-rules.js`, `<key>.js` (view + registration incl. its settings rows), `<key>.css`
 - `client/bots.js`, `client/bots/<id>/` — bot registry + toolset; one folder per bot with its tests and benchmark score; `client/winchance.js` shows the bars
-- `scripts/` — `headless.mjs` (rules + bots in Node), `benchmark.mjs` (`npm run benchmark`), puzzle solvers, verify, screenshots
+- `client/learn.js`, `client/learn/` — the Learn section: rules, tutorial and scenarios per game (the data lives in the game definitions; `client/learn/<game>-scenarios.js` is generated from the proven puzzle sets)
+- `scripts/` — `headless.mjs` (rules + bots in Node), `benchmark.mjs` (`npm run benchmark`), puzzle solvers, verify, `learn/pick-scenarios.mjs` (`npm run learn:scenarios`), screenshots
 - `client/match.js` (the table: seats, engine, clock, bot seat), `client/room.js` (online protocol, presence, sync), `client/session.js`, `client/app.js` (screens, lobby, flow)
 - `client/skins.js` (the look), `client/prefs.js` (⚙ per-device preferences incl. your name), `client/settings.js`, `client/opponent.js`, `client/reactions.js`, `client/chat.js`, `client/changelog.js`
 - `client/lib/sound.js`, `client/sounds/` — sound cues (synthesized Classic set, the Blocks .ogg files)
