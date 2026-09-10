@@ -5,7 +5,7 @@
    Games.register(def) wraps them into an engine with one uniform interface:
 
      state (getter)   newGame(config, hooks)   play(i) -> Promise<bool>   replay(history)
-     finish(winner, why)   abandon()   render()   isLegal(i, player)   hash()
+     finish(winner, why)   eliminate(p, why)   abandon()   render()   isLegal(i, player)   hash()
 
    app.js only ever talks to that interface, so adding a game never touches app.js. */
 
@@ -90,8 +90,13 @@ const Engine = (() => {
             return true;
         }
 
-        // apply moves instantly with the very same rule functions (reconnect, page refresh)
-        function replay(history) {
+        // apply moves instantly with the very same rule functions (reconnect, page refresh).
+        // `outs` = eliminations (flag falls) with the history length they happened at; they
+        // are replayed at the same point so every client passes the turn identically.
+        function replay(history, outs = []) {
+            const pending = outs.filter((o) => o && !state.out[o.p]).sort((a, b) => a.at - b.at);
+            const applyOuts = () => { while (pending.length && pending[0].at <= state.history.length) { const o = pending.shift(); markOut(o.p, o.why); } };
+            applyOuts();
             for (const i of history) {
                 if (state.over) break;
                 const me = state.current;
@@ -100,10 +105,24 @@ const Engine = (() => {
                 rules.settle(state, me);
                 const result = rules.conclude(state, me);
                 if (result) { state.over = true; state.winner = result.winner; state.finishWhy = result.why; }
+                applyOuts();
             }
             render();
             if (state.over) finish(state.winner, state.finishWhy);
             else if (hooks.onTurn) hooks.onTurn(state.current);
+        }
+
+        // the state change of an elimination (shared by eliminate and replay): skipped from
+        // now on, the turn passes if it was theirs, the last one standing wins
+        function markOut(p, why) {
+            if (state.over || p < 0 || p >= state.players || state.out[p]) return false;
+            state.out[p] = true;
+            state.outs.push({ p, at: state.history.length, why });
+            if (state.players > 2) Log.add(`${hooks.names[p]} is out. ${why}`, "p" + p);
+            const left = Rules.remaining(state);
+            if (left.length <= 1) { state.over = true; state.winner = left.length ? left[0] : -1; state.finishWhy = why; return true; }
+            if (state.current === p) Rules.pass(state);
+            return true;
         }
 
         function finish(winner, why) {
@@ -124,9 +143,23 @@ const Engine = (() => {
             if (hooks.onFinish) hooks.onFinish(winner, why);
         }
 
+        // a player is out without a move of the rules (flag fall; app.js calls this for the
+        // local clock and for a friend's `timeout`). With two players that ends the game.
+        function eliminate(p, why) {
+            const was = state.current;
+            if (!markOut(p, why)) return false;
+            if (state.over) { finish(state.winner, state.finishWhy); return true; }
+            render();
+            if (state.current !== was && !state.busy) {
+                Bus.emit("game:turn", { game: def.key, player: state.current });
+                if (hooks.onTurn) hooks.onTurn(state.current);
+            }
+            return true;
+        }
+
         // fingerprint of everything that matters for play; two clients in sync agree on it
         function hash() {
-            const str = JSON.stringify([state.cells, state.current, state.over, state.winner, state.movesBy]);
+            const str = JSON.stringify([state.cells, state.current, state.over, state.winner, state.movesBy, state.out]);
             let h = 0x811c9dc5;                                        // FNV-1a, 32 bit
             for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
             return h;
@@ -171,7 +204,7 @@ const Engine = (() => {
 
         return {
             get state() { return state; },
-            newGame, play, replay, finish, abandon, render, hash,
+            newGame, play, replay, finish, eliminate, abandon, render, hash,
             isLegal: (i, player) => rules.isLegal(state, i, player),
         };
     }

@@ -66,6 +66,8 @@ const FiveRules = (() => {
             return { winner: player, why: `${state.winLen} in a row!` };
         }
         if (state.history.length === state.cells.length) return { winner: -1, why: "The board is full." };
+        const left = Rules.remaining(state);
+        if (left.length === 1 && state.players > 1) return { winner: left[0], why: "Everyone else is out." };
         Rules.pass(state);
         return null;
     }

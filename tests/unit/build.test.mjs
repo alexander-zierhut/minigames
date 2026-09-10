@@ -25,6 +25,12 @@ test("build writes hashed assets and a rewritten index.html", () => {
             assert.ok(existsSync(join(dist, "assets", "textures", m[1])), `texture ${m[1]} exists`);
             assert.match(m[1], /\.[0-9a-f]{10}\.png$/, "texture is hashed");
         }
+        // every sound the bundle references exists on disk, hashed; no client/sounds path survives
+        const bundle0 = readFileSync(join(dist, "assets", js), "utf8");
+        const sounds = [...bundle0.matchAll(/assets\/sounds\/([A-Za-z0-9_.-]+\.ogg)/g)].map((m) => m[1]);
+        assert.ok(sounds.length >= 8, `sounds referenced from the bundle (${sounds.length})`);
+        for (const f of sounds) { assert.ok(existsSync(join(dist, "assets", "sounds", f)), `sound ${f} exists`); assert.match(f, /\.[0-9a-f]{10}\.ogg$/); }
+        assert.ok(!/client\/sounds\/[A-Za-z0-9_]/.test(bundle0), "sound paths rewritten");
         // icons referenced from index.html are copied
         for (const m of html.matchAll(/href="([^"]+\.(?:ico|png))"/g)) assert.ok(existsSync(join(dist, m[1])), `${m[1]} copied to dist`);
         // bundle contains every client script and parses

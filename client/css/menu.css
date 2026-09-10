@@ -77,6 +77,7 @@
 .lobby-head .label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); }
 .lobby-head .room-code { font-size: 32px; letter-spacing: 5px; margin-top: 0; }
 .lobby-actions { display: flex; gap: 6px; flex-direction: column; align-items: stretch; }
+.lobby-actions .btn { white-space: nowrap; }
 .room-code {
     font-size: 44px;
     font-weight: 900;
@@ -96,6 +97,24 @@
 .lobby-player.absent .lp-status { color: #ffcc33; }
 .lobby-status { text-align: center; font-size: 13px; color: var(--muted); min-height: 18px; }
 .lobby-status:empty { display: none; }
+/* room chat: the last lines + an input (online only) */
+.lobby-chat { display: flex; flex-direction: column; gap: 6px; }
+.lobby-chat .log { min-height: 0; max-height: 96px; overflow-y: auto; overscroll-behavior: contain; }
+/* phones: a tighter lobby card so players, chat, picker and buttons fit 360×780 without scrolling */
+@media (max-width: 899px) {
+    .lobby-card { gap: 7px; padding: 16px 16px; }
+    .lobby-head .room-code { font-size: 28px; letter-spacing: 4px; }
+    .lobby-actions { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; }
+    .lobby-actions .btn.small { padding: 5px 10px; }
+    .lobby-status { font-size: 12px; min-height: 16px; }
+    .lobby-players { gap: 6px; }
+    .lobby-player { padding: 6px 10px; }
+    .lobby-chat .log { max-height: 40px; padding: 3px 8px; font-size: 11px; gap: 1px; }
+    .lobby-card .game-card { padding: 8px 8px 8px; gap: 4px; }
+    .lobby-card .game-preview { width: 56px; height: 56px; }
+    .lobby-card .settings-summary { padding: 8px 12px; }
+    .lobby-card .btn.big { padding: 12px 20px; }
+}
 
 /* ---- game picker ---- */
 .game-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -132,16 +151,28 @@
 .settings-summary #settings-summary { flex: 1; color: var(--muted); }
 .settings-summary .chev { font-size: 20px; color: var(--muted); }
 .settings-card { max-width: 500px; gap: 14px; }
-.settings { display: flex; flex-direction: column; gap: 10px; }
+.settings, .prefs-rows { display: flex; flex-direction: column; gap: 10px; }
 /* label column + fixed control column so every control lines up */
-.settings .row { display: grid; grid-template-columns: 1fr 185px; align-items: center; gap: 12px; font-size: 14px; }
-.settings .row > :last-child { width: 100%; min-width: 0; }
-.settings .row select, .settings .row input[type="number"] { width: 100%; min-width: 0; }
-.settings .row > span:first-child small { color: var(--muted); font-weight: 400; }
+:is(.settings, .prefs-rows) .row { display: grid; grid-template-columns: 1fr 185px; align-items: center; gap: 12px; font-size: 14px; }
+:is(.settings, .prefs-rows) .row > :last-child { width: 100%; min-width: 0; }
+:is(.settings, .prefs-rows) .row select, :is(.settings, .prefs-rows) .row input[type="number"] { width: 100%; min-width: 0; }
+:is(.settings, .prefs-rows) .row > span:first-child small { color: var(--muted); font-weight: 400; }
 .settings .inline { display: flex; align-items: center; gap: 8px; }
 .settings .inline input[type="number"] { width: 74px; flex: 0 0 74px; }
 .settings .inline input[type="checkbox"] { flex: 0 0 auto; }
 .settings .inline small { color: var(--muted); white-space: nowrap; }
+
+/* ---- preferences modal (⚙) ---- */
+.prefs-card { max-width: 440px; gap: 14px; }
+.prefs-card .section-title { margin-top: 4px; }
+.prefs-card .skin-row { font-size: 14px; }
+.prefs-card .row > span:first-child { white-space: nowrap; }
+.pref-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 14px; }
+.pref-toggles label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.pref-toggles input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 auto; }
+#prefs-modal.muted .pref-toggles { opacity: .5; }
+/* phones: the cards start below the ⚙ button */
+@media (max-width: 899px) { #screen-menu, #screen-lobby { padding-top: 56px; } }
 
 /* ---- bot picker ---- */
 .bot-card { max-width: 480px; gap: 14px; }

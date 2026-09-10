@@ -18,6 +18,8 @@
     justify-content: center;
     align-items: center;
 }
+/* phones: keep the board below the corner buttons (⚙ left, reactions right) */
+@media (max-width: 899px) { #board-wrap { padding-top: 52px; } }
 #board {
     width: var(--board);
     height: var(--board);
@@ -60,8 +62,11 @@
     background: var(--panel);
     border-top: 2px solid var(--line);
 }
-#hut .sign, #hut .log, #hut .chain-box, #hut .stat, #hut .controls { display: none; }
+#hut .sign, #hut .chain-box, #hut .stat, #hut .controls, #hut .chat-row { display: none; }
 #hut.show-controls .controls { display: flex; }
+/* phones: the log shows its last two lines; the chat input sits behind ☰ (online only) */
+#hut .log { min-height: 0; max-height: 40px; padding: 3px 8px; font-size: 11px; gap: 1px; }
+body.online #hut.show-controls .chat-row { display: flex; }
 
 .sign { text-align: center; }
 .sign-title { font-weight: 900; letter-spacing: 3px; font-size: 20px; }
@@ -133,6 +138,19 @@
 }
 .log > :is(.p0, .p1, .p2, .p3) { color: var(--pc); }
 .log .x { color: #ff9b3d; }
+.log .chat { color: var(--text); overflow-wrap: anywhere; }
+.log .chat b { color: var(--pc, var(--muted)); }
+.log > div { flex: 0 0 auto; }
+
+/* chat input row (online only; the lobby has one too) */
+.chat-row { display: flex; gap: 6px; }
+.chat-row input {
+    flex: 1 1 0; min-width: 0; width: 0;
+    background: var(--bg2); color: var(--text); border: 2px solid var(--line); border-radius: 8px;
+    padding: 6px 10px; font-size: 13px;
+}
+.chat-row input:disabled { opacity: .5; }
+.chat-row .btn { flex: 0 0 auto; }
 
 .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; padding-top: 4px; }
 
@@ -186,7 +204,8 @@
     #hut .sign, #hut .chain-box { display: block; }
     #hut .stat, #hut .controls { display: flex; }
     #hut .stat-bar { display: block; }
-    #hut .log { display: flex; max-height: 110px; min-height: 80px; }
+    #hut .log { max-height: 150px; min-height: 80px; padding: 6px 10px; font-size: 12px; gap: 2px; overflow-y: auto; overscroll-behavior: contain; }
+    body.online #hut .chat-row { display: flex; }
     .turn-mini, .gear { display: none; }
     .turn-box { gap: 12px; padding: 8px 12px; }
     .turn-block { width: 40px; height: 40px; }

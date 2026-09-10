@@ -17,6 +17,7 @@ const Settings = (() => {
         { key: "chainLen", el: "set-chain-len", type: "int", min: 5, max: 99, def: 15 },
     ];
     let game = null;             // selected game key
+    let maxPlayers = 4;          // 2 against a bot (setMode), else 4
     const sizeFor = {};          // remembered board size per game
     let onChange = () => {};
     let onSelectGame = () => {}; // a game card was clicked (not a mirrored / restored selection)
@@ -43,7 +44,7 @@ const Settings = (() => {
         const timerSel = $("set-timer").value;
         const timer = timerSel === "custom" ? Math.round(parseFloat($("set-timer-custom").value || "3") * 60) : parseInt(timerSel, 10);
         const cfg = {
-            game, players: 2,
+            game, players: clamp(parseInt($("set-players").value, 10) || 2, 2, maxPlayers),
             n: clamp(parseInt($("set-size").value, 10) || d.size.default, lim.min, lim.max),
             timer: Math.max(0, timer || 0), timerSel, timerCustom: $("set-timer-custom").value,
         };
@@ -57,6 +58,7 @@ const Settings = (() => {
         silent = true;
         if (s.game && Games.has(s.game)) game = s.game;
         if (s.n) sizeFor[game] = s.n;
+        if (s.players) $("set-players").value = String(clamp(parseInt(s.players, 10) || 2, 2, 4));
         for (const f of FIELDS) {
             if (f.type === "bool") $(f.el).checked = !!s[f.key];
             else if (s[f.key]) $(f.el).value = String(s[f.key]);
@@ -122,10 +124,11 @@ const Settings = (() => {
         if (!silent) onChange(read());
     }
 
-    // "6 × 6 · 5 in a row · 3 min timer · 15-chain wins"
+    // "6 × 6 · 5 in a row · 3 min timer · 15-chain wins" ("· 3 players" when more than two)
     function summary(cfg = read()) {
         const d = Games.get(cfg.game);
         const parts = [`${cfg.n} × ${cfg.n}`];
+        if (cfg.players > 2) parts.push(`${cfg.players} players`);
         if (d.describeRules) parts.push(...d.describeRules(cfg));
         parts.push(cfg.timer > 0 ? `${Math.round(cfg.timer / 60 * 10) / 10} min timer` : "no timer");
         if (d.describeOptions) parts.push(...d.describeOptions(cfg));
@@ -151,6 +154,13 @@ const Settings = (() => {
         }
     }
 
+    // "bot": you against one bot, so the players row is hidden and read() says 2
+    function setMode(mode) {
+        maxPlayers = mode === "bot" ? 2 : 4;
+        $("row-players").hidden = mode === "bot";
+        renderSummary();
+    }
+
     function open() { $("settings-modal").hidden = false; }
     function close() { clampInputs(); $("settings-modal").hidden = true; }
 
@@ -161,7 +171,7 @@ const Settings = (() => {
         $("btn-settings").addEventListener("click", open);
         $("btn-settings-done").addEventListener("click", close);
         $("settings-modal").addEventListener("click", (e) => { if (e.target === $("settings-modal")) close(); });
-        for (const id of ["set-speed", "set-timer", "set-timer-custom", "set-chain", "set-chain-len"]) {
+        for (const id of ["set-players", "set-speed", "set-timer", "set-timer-custom", "set-chain", "set-chain-len"]) {
             $(id).addEventListener("change", syncUi);
             $(id).addEventListener("input", syncUi);
         }
@@ -171,5 +181,5 @@ const Settings = (() => {
         selectGame(game, false);
     }
 
-    return { init, read, write, selectGame, summary, get game() { return game; } };
+    return { init, read, write, selectGame, summary, setMode, get game() { return game; } };
 })();

@@ -59,6 +59,20 @@ test("reactions relay to the other side, rate limited", { skip: !ONLINE }, async
     assert.equal(await B.ev("document.querySelector('#react-layer .react-float').classList.contains('theirs')"), true);
 });
 
+test("chat lines relay both ways in the sender's colour, text only, into the game and lobby logs", { skip: !ONLINE }, async () => {
+    await A.set("chat-input", "hi <b>there</b>");
+    await A.click("#chat-send");
+    assert.equal(await A.ev("document.getElementById('chat-input').value"), "", "input cleared after sending");
+    assert.equal(await A.ev("document.querySelector('#log .chat').textContent"), "Cyan: hi <b>there</b>", "my own line at once");
+    await B.waitFor("document.querySelector('#log .chat') && document.querySelector('#log .chat').textContent === 'Cyan: hi <b>there</b>'", { what: "guest sees the host's line" });
+    assert.equal(await B.ev("document.querySelector('#log .chat').className"), "chat p0");
+    assert.equal(await B.ev("document.querySelectorAll('#log .chat b').length"), 1, "only the name is bold");
+    assert.equal(await B.ev("document.querySelector('#lobby-log .chat').textContent"), "Cyan: hi <b>there</b>", "mirrored into the lobby log");
+    await B.ev("document.getElementById('lobby-chat-input').value = 'yo'; document.getElementById('lobby-chat-input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); true");
+    await A.waitFor("[...document.querySelectorAll('#log .chat')].some(l => l.textContent === 'Amber: yo' && l.classList.contains('p1'))", { what: "host sees the guest's line in amber" });
+    assert.equal(await B.ev("Sound.log.filter(l => l.name === 'chat').length"), 1, "the guest heard the host's line, not its own");
+});
+
 test("guest refreshes mid-game and gets the board back; host's next move arrives", { skip: !ONLINE }, async () => {
     await B.goto(`${server.url}?room=${code}`);
     await B.waitFor("Net.connected", { timeout: 40000, what: "guest reconnected" });

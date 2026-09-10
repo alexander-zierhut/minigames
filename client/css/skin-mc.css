@@ -14,18 +14,24 @@
     --tex-glass:      url("../textures/glass_white.png");
     --tex-glass-p0:   url("../textures/glass_light_blue.png");
     --tex-glass-p1:   url("../textures/glass_yellow.png");
+    --tex-glass-p2:   url("../textures/glass_lime.png");
+    --tex-glass-p3:   url("../textures/glass_red.png");
     --tex-lamp-off:   url("../textures/redstone_lamp_off.png");
     --tex-lamp-on:    url("../textures/redstone_lamp_on.png");
     --tex-p0:         url("../textures/diamond_block.png");
     --tex-p1:         url("../textures/gold_block.png");
+    --tex-p2:         url("../textures/emerald_block.png");
+    --tex-p3:         url("../textures/redstone_block.png");
     --tex-quartz:     url("../textures/quartz_block_side.png");
     --tex-planks:     url("../textures/planks_big_oak.png");
     --tex-dirt:       url("../textures/dirt.png");
 }
 /* per-player textures, exposed as --tex-p / --tex-glass-p like the colours in base.css
-   (seats 2 and 3 need their own block textures before a 4-player mode) */
+   (seats: diamond / gold / emerald / redstone blocks, matching glass) */
 :is(.skin-mc, .skin-mcboard) .p0 { --tex-p: var(--tex-p0); --tex-glass-p: var(--tex-glass-p0); }
 :is(.skin-mc, .skin-mcboard) .p1 { --tex-p: var(--tex-p1); --tex-glass-p: var(--tex-glass-p1); }
+:is(.skin-mc, .skin-mcboard) .p2 { --tex-p: var(--tex-p2); --tex-glass-p: var(--tex-glass-p2); }
+:is(.skin-mc, .skin-mcboard) .p3 { --tex-p: var(--tex-p3); --tex-glass-p: var(--tex-glass-p3); }
 
 :is(.skin-mc, .skin-mcboard) #board {
     border-radius: 0;
@@ -60,6 +66,8 @@
     --accent: #ffff55;
     --c0: #5fe8f0; --c0-dark: #2fb9c5;
     --c1: #f6d12b; --c1-dark: #c9a11a;
+    --c2: #4fe07a; --c2-dark: #2a9a4e;
+    --c3: #ff5a5a; --c3-dark: #b02a2a;
     --font: "Courier New", Courier, monospace;
     --mc-shadow: 2px 2px 0 rgba(0,0,0,.85);
     --mc-title: #ffff55;
@@ -104,7 +112,7 @@
 }
 .skin-mc .section-title, .skin-mc .tagline, .skin-mc .hint, .skin-mc .overlay-sub, .skin-mc .sign-sub, .skin-mc .game-desc,
 .skin-mc .turn-hint, .skin-mc .turn-mini, .skin-mc .stat span, .skin-mc .net-box, .skin-mc .clock { color: var(--muted); }
-.skin-mc .settings .row { color: #fff; }
+.skin-mc :is(.settings, .prefs-rows) .row { color: #fff; }
 .skin-mc .lobby-status, .skin-mc .turn-name, .skin-mc .player-head, .skin-mc .stat b, .skin-mc .log { color: #fff; }
 .skin-mc .log .x, .skin-mc .turn-mini b, .skin-mc .chain-box #chain-now { color: #ffaa00; }
 .skin-mc .clock.running { color: #fff; } .skin-mc .clock.low { color: #ff5555; }
@@ -131,9 +139,10 @@
 .skin-mc .seg button.selected { background: #6f6f6f; color: #fff; box-shadow: inset 2px 2px 0 #a8a8a8, inset -2px -2px 0 #3d3d3d; }
 
 /* MC text fields: black with a light gray outline */
-.skin-mc select, .skin-mc input[type="number"], .skin-mc input[type="text"], .skin-mc #join-code {
-    background: #000; color: #fff; border: 2px solid #a0a0a0;
+.skin-mc select, .skin-mc input[type="number"], .skin-mc input[type="text"], .skin-mc #join-code, .skin-mc .chat-row input {
+    background: #000; color: #fff; border: 2px solid #a0a0a0; border-radius: 0;
 }
+.skin-mc .chat-row input::placeholder { color: #707070; }
 .skin-mc #join-code::placeholder { color: #707070; }
 .skin-mc input[type="checkbox"] { accent-color: #55ff55; }
 
@@ -154,7 +163,10 @@
 .skin-mc #net-banner { background: #1a0a0a; border: 2px solid #ff5555; }
 .skin-mc #toast { background: #000; border: 2px solid #a0a0a0; }
 .skin-mc #overlay { background: rgba(0,0,0,.75); }
-.skin-mc #react-bar .react-list, .skin-mc #react-toggle { border-radius: 0; border-color: #000; background: rgba(0,0,0,.7); }
+.skin-mc #react-bar .react-list, .skin-mc #react-toggle, .skin-mc .corner-btn { border-radius: 0; border-color: #000; background: rgba(0,0,0,.7); }
+.skin-mc .corner-btn:hover { background: #3a3a3a; }
+.skin-mc input[type="range"] { accent-color: #55ff55; }
+.skin-mc .pref-toggles input[type="checkbox"] { accent-color: #55ff55; }
 .skin-mc .loader-title { background: none; color: var(--mc-title); text-shadow: var(--mc-title-shadow); }
 .skin-mc .loader-bar { border-radius: 0; border-color: #000; background: #000; }
 .skin-mc .loader-fill { background: #55ff55; }

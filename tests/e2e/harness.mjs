@@ -9,7 +9,7 @@ import { join, extname } from "node:path";
 
 export const ROOT = new URL("../../", import.meta.url).pathname;
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".json": "application/json", ".ico": "image/x-icon" };
+const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".json": "application/json", ".ico": "image/x-icon", ".ogg": "audio/ogg" };
 
 /* ---------- static server ---------- */
 export async function startServer(root = ROOT) {

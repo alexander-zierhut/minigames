@@ -81,6 +81,7 @@ const ChainView = (() => {
             if (ready.length === 0 || ChainRules.chainStopped(state)) break;
 
             for (const k of ready) cells[k].classList.add("prime");
+            Bus.emit("chain:prime", { cells: ready, player: me, ms: speed * 0.6 });
             await sleep(speed * 0.6);
             if (state.over) return;
 

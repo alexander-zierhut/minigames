@@ -30,6 +30,9 @@
     </div>
 </div>
 
+<!-- ===================== PREFERENCES (⚙ top-left on every screen; this device only) ===================== -->
+<button id="prefs-btn" class="corner-btn" aria-label="Preferences" title="Preferences">⚙</button>
+
 <!-- ===================== TITLE / MENU ===================== -->
 <section id="screen-menu" class="screen">
     <div class="menu-card">
@@ -81,6 +84,7 @@
             </div>
             <div class="lobby-actions" id="lobby-share">
                 <button class="btn small primary" id="btn-share">Share link</button>
+                <button class="btn small" id="btn-share-spectate">Spectate link</button>
                 <button class="btn small" id="btn-copy-code">Copy code</button>
             </div>
         </div>
@@ -88,6 +92,16 @@
         <!-- one card per seat, from #tpl-lobby-player -->
         <div class="lobby-players" id="lobby-players"></div>
         <div class="lobby-status" id="lobby-status"></div>
+        <div class="lobby-status" id="lobby-spectators"></div>
+
+        <!-- room chat (online only): the same lines as the HUD log's chat -->
+        <div class="lobby-chat" id="lobby-chat" hidden>
+            <div class="log" id="lobby-log"></div>
+            <div class="chat-row">
+                <input id="lobby-chat-input" placeholder="Say something…" maxlength="200" autocomplete="off" spellcheck="false" disabled>
+                <button class="btn small" id="lobby-chat-send" disabled>Send</button>
+            </div>
+        </div>
 
         <div class="section">
             <div class="section-title">Game</div>
@@ -165,6 +179,11 @@
             </div>
 
             <div class="log" id="log"></div>
+            <!-- chat (online only): desktop under the log, phones behind ☰ -->
+            <div class="chat-row" id="chat-row">
+                <input id="chat-input" placeholder="Say something…" maxlength="200" autocomplete="off" spellcheck="false" disabled>
+                <button class="btn small" id="chat-send" disabled>Send</button>
+            </div>
 
             <div class="controls" id="game-controls">
                 <button class="btn" id="btn-restart">Rematch</button>
@@ -221,6 +240,14 @@
                     <option value="350">Fast</option>
                 </select>
             </label>
+            <label class="row" id="row-players">
+                <span>Players</span>
+                <select id="set-players" autocomplete="off">
+                    <option value="2" selected>2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                </select>
+            </label>
             <label class="row">
                 <span>Timer per player</span>
                 <select id="set-timer" autocomplete="off">
@@ -246,6 +273,48 @@
             </label>
         </div>
         <button class="btn primary" id="btn-settings-done">Done</button>
+    </div>
+</div>
+
+<!-- ===================== PREFERENCES MODAL (look, sound; stored per device) ===================== -->
+<div id="prefs-modal" class="modal" hidden>
+    <div class="menu-card prefs-card">
+        <h1 class="title small">Preferences</h1>
+        <p class="tagline small">Only for this device — never shared with the room.</p>
+        <div class="prefs-rows">
+            <div class="section-title">Look</div>
+            <div class="skin-row">
+                <span class="skin-label">Look</span>
+                <div class="seg skin-seg">
+                    <button data-skin="classic" class="selected">Classic</button>
+                    <button data-skin="mcboard">MC board</button>
+                    <button data-skin="mc">Minecraft</button>
+                </div>
+            </div>
+            <div class="section-title">Sound</div>
+            <label class="row">
+                <span>Volume <small id="pref-volume-val">30 %</small></span>
+                <input type="range" id="pref-volume" min="0" max="100" step="5" value="30" autocomplete="off">
+            </label>
+            <label class="row">
+                <span>Sound set</span>
+                <select id="pref-soundset" autocomplete="off">
+                    <option value="auto" selected>Follow the look</option>
+                    <option value="classic">Classic</option>
+                    <option value="mc">Minecraft</option>
+                </select>
+            </label>
+            <div class="pref-toggles" id="pref-toggles">
+                <label><input type="checkbox" id="pref-snd-moves" checked autocomplete="off"> Moves</label>
+                <label><input type="checkbox" id="pref-snd-explosions" checked autocomplete="off"> Explosions</label>
+                <label><input type="checkbox" id="pref-snd-results" checked autocomplete="off"> Win / lose</label>
+                <label><input type="checkbox" id="pref-snd-turn" checked autocomplete="off"> Your turn</label>
+                <label><input type="checkbox" id="pref-snd-reactions" checked autocomplete="off"> Reactions</label>
+                <label><input type="checkbox" id="pref-snd-chat" checked autocomplete="off"> Chat</label>
+            </div>
+            <button class="btn small" id="pref-test-sound">Play a test sound</button>
+        </div>
+        <button class="btn primary" id="btn-prefs-done">Done</button>
     </div>
 </div>
 
@@ -304,6 +373,7 @@
 <script src="client/lib/clock.js"></script>
 <script src="client/lib/net.js"></script>
 <script src="client/lib/preload.js"></script>
+<script src="client/lib/sound.js"></script>
 <script src="client/games/rules.js"></script>
 <script src="client/games.js"></script>
 <script src="client/games/chain-rules.js"></script>
@@ -322,9 +392,11 @@
 <script src="client/bots/sensei-five/bot.js"></script>
 <script src="client/bots/sensei-five/benchmark.js"></script>
 <script src="client/skins.js"></script>
+<script src="client/prefs.js"></script>
 <script src="client/settings.js"></script>
 <script src="client/opponent.js"></script>
 <script src="client/reactions.js"></script>
+<script src="client/chat.js"></script>
 <script src="client/app.js"></script>
 </body>
 </html>

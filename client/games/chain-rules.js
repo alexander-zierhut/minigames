@@ -50,14 +50,14 @@ const ChainRules = (() => {
         for (const c of state.cells) if (c.owner >= 0) { t[c.owner].cells++; t[c.owner].pieces += c.count; }
         return t;
     }
-    // still in the game: owns a cell, or hasn't had a first move yet
+    // still in the game: owns a cell, or hasn't had a first move yet (and not eliminated from outside)
     function alive(state) {
         const t = tally(state);
-        return t.map((x, p) => x.cells > 0 || state.movesBy[p] === 0);
+        return t.map((x, p) => !(state.out && state.out[p]) && (x.cells > 0 || state.movesBy[p] === 0));
     }
     // one owner left after everyone moved: the chain would loop forever, the game is decided
     function boardDecided(state) {
-        if (state.movesBy.some((m) => m === 0)) return false;
+        if (state.movesBy.some((m, p) => m === 0 && !(state.out && state.out[p]))) return false;
         return alive(state).filter(Boolean).length <= 1;
     }
 
@@ -114,7 +114,7 @@ const ChainRules = (() => {
             return { winner: player, why: `Chain reaction of ${state.chainNow} explosions!` };
         }
         const live = alive(state);
-        if (state.movesBy.every((m) => m > 0) && live.filter(Boolean).length === 1) {
+        if (live.filter(Boolean).length === 1 && state.movesBy.every((m, p) => m > 0 || (state.out && state.out[p]))) {
             return { winner: live.indexOf(true), why: "Took over the whole board!" };
         }
         Rules.pass(state, live);
