@@ -130,3 +130,40 @@ test("settings: players 2/3/4 in the config and summary; against a bot it is alw
     assert.equal(S.read().players, 4);
     w.close();
 });
+
+test("settings: a count that would take a seat away is disabled and read() lifts to it (#34)", () => {
+    const w = loadDom(); const d = w.document; const S = w.eval("Settings");
+    S.init({});
+    const btn = (n) => d.querySelector(`#set-players button[data-players="${n}"]`);
+    assert.equal(btn(2).disabled, false, "alone in the room every count is free");
+    S.setPlayers(4);
+    S.setMinPlayers(3);                                           // three seats are taken
+    assert.equal(btn(2).disabled, true);
+    assert.equal(btn(2).title, S.MIN_PLAYERS_HINT);
+    assert.equal(btn(3).disabled, false); assert.equal(btn(3).title, "");
+    assert.equal(btn(4).disabled, false);
+    S.setPlayers(2);                                              // a stale click cannot get through either
+    assert.equal(S.read().players, 3);
+    S.write({ game: "five", players: 2, n: 9 });                  // nor a mirrored config
+    assert.equal(S.read().players, 3, "read() lifts the count to the seats in use");
+    S.setLocked(true);                                            // a spectator: the whole control stays dead (#29)
+    assert.equal(btn(4).disabled, true); assert.equal(btn(4).title, "");
+    S.setLocked(false);
+    assert.equal(btn(4).disabled, false); assert.equal(btn(2).disabled, true);
+    S.setMinPlayers(2);                                           // somebody left
+    assert.equal(btn(2).disabled, false);
+    assert.equal(S.read().players, 3, "the count itself stays where it was");
+    w.close();
+});
+
+test("room: the host refuses a player count below the seats in use (#34)", () => {
+    const w = loadDom(); const R = w.eval("Room");
+    const lobby = (players) => ({ t: "lobby", s: { game: "five", players } });
+    assert.equal(R.keepsSeats(lobby(3), 3), true);
+    assert.equal(R.keepsSeats(lobby(4), 3), true);
+    assert.equal(R.keepsSeats(lobby(2), 3), false, "two seats with three people in the room");
+    assert.equal(R.keepsSeats(lobby(2), 2), true);
+    assert.equal(R.keepsSeats({ t: "move", i: 3 }, 3), true, "only lobby messages carry the count");
+    assert.equal(R.keepsSeats({ t: "lobby" }, 3), true, "a lobby message without settings changes nothing");
+    w.close();
+});

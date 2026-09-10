@@ -167,7 +167,8 @@ to try things").
   `#tpl-lobby-player` (online only; as many as the *Players* control says, "connected" /
   "not here yet" / "ready" per seat, `#lobby-spectators` counts people without a seat),
   the **Players** row (`#row-players`: the segmented `#set-players` with 2 / 3 / 4, #28 —
-  in the lobby so everyone sees the room takes up to four; hidden against a bot), the game
+  in the lobby so everyone sees the room takes up to four; hidden against a bot; a count
+  below the seats people already sit in is disabled, #34), the game
   picker (one `.game-card[data-game]` per registered game, built by `Settings.init`; each
   card says "2 to 4 players" and a game that doesn't take the chosen count is grayed out,
   `.unsupported` + `disabled`, #28), settings summary button → `#settings-modal`, `Start
@@ -209,6 +210,12 @@ restores form values on reload).
   #28). Every game declares `players: { min, max }` (default 2–4, `Games.register` fills
   it in); `Settings.supports(key)` says whether the selected count fits, the picker grays
   the others out and `selectGame` moves off an unsupported game to the first that fits.
+  **Nobody may be pushed out of a seat (#34):** `Settings.setMinPlayers(n)` (called by
+  `renderLobby` with `Room.online ? Room.occupiedSeats() : 2`) disables every smaller
+  count (`title` = `Settings.MIN_PLAYERS_HINT`, "Someone would lose their seat. They have
+  to leave the room first."), and `read()` / `write()` / `setPlayers()` lift the count to
+  that floor, so the host never starts a game with fewer seats than people. A locked
+  control (`setLocked`, #29) stays fully disabled; both paths share `renderPlayers()`.
 - **Game rows are generated** into `#game-settings` from every registered game's
   `settings` list (`Settings.init` → `buildRows`). A setting is
   `{ key, label, type: "int" | "select" | "bool", def, min?, max?, unit?, options?, with? }`;
@@ -617,7 +624,9 @@ hears a neutral `over` for them. A spectator that wins a host takeover stays sea
 **Spectators only watch (#29):** the host refuses `Room.PLAYERS_ONLY` messages (`move,
 timeout, rematch, tolobby, lobby, start-request`) from a seatless connection before
 relaying (`Room.accepts(msg, seat)`; a refused `lobby` gets the host's settings back so the
-sender's view is corrected), `Settings.setLocked(true)` (from `renderLobby`) disables the
+sender's view is corrected) — the same veto path also drops a `lobby` message whose
+`s.players` is below `Room.occupiedSeats()` (`Room.keepsSeats(msg, occupied)`, pure), so a
+stale or forged message cannot take anybody's seat (#34). `Settings.setLocked(true)` (from `renderLobby`) disables the
 picker, the players control and every settings input (`body.settings-locked`,
 `#settings-locked-hint`), and in the game the spectator's HUD button says "Leave room"
 (leaves the room instead of sending everyone `tolobby`) while the overlay's "Change game"
@@ -919,7 +928,7 @@ set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px o
   smoothing), `persona.test.mjs`, `changelog.test.mjs`, `calibrate.test.mjs`, `puzzles.test.mjs`,
   `party.test.mjs` (3–4 players: `out`/`remaining`/pass in the pure rules, engine
   `eliminate` + `replay(history, outs)` == live play, two-player flag fall, settings
-  players row / bot mode),
+  players row / bot mode, the min-players floor and `Room.keepsSeats` of #34),
   `build.test.mjs` (`SKIP_MINIFY=1 DIST_DIR=<tmp>`; hashed names, icons, deterministic).
   Cross-realm arrays: compare via `JSON.stringify`, not `deepStrictEqual`.
 - **E2E** (`npm run test:e2e`, `tests/e2e/*.test.mjs`): `harness.mjs` starts a static
@@ -952,7 +961,9 @@ set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px o
   follows a rematch, spectate link with a free seat, leaving drops the count),
   `online-party` (**three browsers**: players 3, seats 1 and 2, start waits for
   everyone, moves by every seat relayed to everyone, chat/reaction colours, a guest
-  refresh restores seat + board, rematch by every seat, one Back to room moves all),
+  refresh restores seat + board, rematch by every seat, one Back to room moves all, the
+  players control cannot drop below the people in the room and the host refuses a forged
+  `lobby` that tries it, #34),
   `bot` (offline vs bot: the one-step modal with scores and difficulty, "Bot" in the HUD, bot moves by itself, rematch), `dist` (built bundle: hashed assets only,
   preloader, playable, hashed sound files fetched after the audio unlock). Files run 2 at a time; each launches its own Chrome. `B.blank()`
   navigates to about:blank (a closed tab); outline colours transition for .25s → wait
@@ -987,7 +998,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | bot definition | `id, name, game, version, description, difficulties [{id, label, nodes}], create(tools) → {move(state)}, evaluate?(state, tools) → raw, baseline?` |
 | `BotPersona` | `attach({bot, seat, game, state, estimate, color, delays?, cooldownMs?})`, `detach()`, `POOLS` |
 | `Skins` | `init({onChange})`, `set(key)`, `names()`, `current` |
-| `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `setMode(mode)`, `game`, `fields` |
+| `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `setMode(mode)`, `setPlayers(n)`, `setMinPlayers(n)`, `setLocked(on)`, `supports(key)`, `MIN_PLAYERS_HINT`, `game`, `players`, `minPlayers`, `locked`, `fields` |
 | `Prefs` | `init({onChange, context})`, `get() → {volume, soundSet, sounds, hideCode, privateIp}`, `set(patch)`, `open/close`, `feedbackUrl()`, `CATEGORIES`, `isOpen` |
 | `Opponent` | `init({onDone})`, `open(game)`, `current(game) → {id, difficulty, def}`, `summary(game)`, `NAME` ("Bot") |
 | `Reactions` | `init({onSend})`, `receive(emoji, color)`, `place()`, `durationFor(recent)` |
@@ -997,7 +1008,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Preload` | `textures()` |
 | `Session` | `save(data)`, `load()`, `clear()` (shape incl. `codeHidden`) |
 | `Match` | `init(handlers)`, `start(cfg, gameNo)`, `stop()`, `reset(mode, me, spectator)`, `setSeat(me, spectator)`, `record()`, `flagged(p)`, `whenIdle(fn, key)`, `syncClock()`, `startPlayerFor`, `playerColor`, `isLocal/isBot`; getters `engine, state, names, running, mode, me, spectator, seats, config, gameNo, bot`; `THINK_MS` |
-| `Room` | `init(handlers)`, `enter(code, preferHost, seat, spectate, hidden)`, `leave()`, `roomLink`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `settingsChanged(cfg)`, `say(text)`, `react(e)`, `tolobby()`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/allHere/live/who/two/playersNow/turnHint`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden` |
+| `Room` | `init(handlers)`, `enter(code, preferHost, seat, spectate, hidden)`, `leave()`, `roomLink`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `settingsChanged(cfg)`, `say(text)`, `react(e)`, `tolobby()`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/occupiedSeats/allHere/live/who/two/playersNow/turnHint`, `accepts(msg, seat)`, `keepsSeats(msg, occupied)`, `PLAYERS_ONLY`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden` |
 
 Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM), `puzzles/runner.mjs`
 (`loadPuzzles`, `positionOf`, `evaluateBot`), `benchmark.mjs`, `calibrate.mjs`

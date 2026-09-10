@@ -22,6 +22,10 @@ const Room = (() => {
     const PLAYERS_ONLY = new Set(["move", "timeout", "rematch", "tolobby", "lobby", "start-request"]);
     // does the host accept this message from a connection with that seat (-1 = spectator)?
     const accepts = (msg, seat) => !(PLAYERS_ONLY.has(msg.t) && !(seat >= 0));
+    // …and would it push somebody out of their seat? Nobody may shrink the room below the
+    // number of seats people are sitting in; they have to leave first (#34). Pure, so the
+    // unit test can pass any occupied count.
+    const keepsSeats = (msg, occupied) => !(msg.t === "lobby" && msg.s && (parseInt(msg.s.players, 10) || 2) < occupied);
     const STATUS_TEXT = { connected: "Connected", waiting: "Waiting for friend", reconnecting: "Reconnecting…", connecting: "Connecting…", signaling: "Room server reconnecting…", error: "Connection error" };
     const r = {
         rev: 0,                 // room-state revision: +1 per phase change (start, rematch, back to room)
@@ -64,6 +68,7 @@ const Room = (() => {
         return present;
     }
     const missingSeats = () => presentSeats().map((v, k) => (v ? -1 : k)).filter((k) => k >= 0);
+    const occupiedSeats = () => presentSeats().filter(Boolean).length;                // seats with somebody in them (#34)
     const allHere = () => online() && Net.connected && missingSeats().length === 0;   // every seat filled and connected
     const live = () => !online() || allHere();                                        // the game may run (clock, input)
     const someoneLeft = (seats) => seats.some((k) => r.left.has(k) || r.roster.left.includes(k));
@@ -330,7 +335,7 @@ const Room = (() => {
         },
         lobby(msg) {                                  // somebody changed game / settings
             Settings.write(msg.s);
-            if (h.phase() === "lobby") toast(two() ? "Settings updated by your friend" : `Settings updated by ${names()[msg.from] || "your friend"}`);
+            if (h.phase() === "lobby") { toast(two() ? "Settings updated by your friend" : `Settings updated by ${names()[msg.from] || "your friend"}`); h.renderLobby(); }
             reseat();
         },
         "start-request"() {                           // a guest asked the host to start
@@ -381,14 +386,16 @@ const Room = (() => {
     function onMessage(msg, id) {
         if (isHost() && id !== "host") {
             msg.from = seatOf(id);                    // the host stamps every guest message with its seat…
-            if (!accepts(msg, msg.from)) { onRefused(msg, id); return; }   // …a spectator only watches (#29)…
+            // …a spectator only watches (#29) and nobody shrinks the room below the people in it (#34)…
+            if (!accepts(msg, msg.from) || !keepsSeats(msg, occupiedSeats())) { onRefused(msg, id); return; }
             if (RELAY.has(msg.t)) Net.sendExcept(id, msg);   // …and passes game messages on to the other guests
         }
         const handler = HANDLERS[msg.t];
         if (handler) handler(msg, id);
     }
 
-    // host: a spectator tried to change something; put its view straight again
+    // host: the sender was not allowed to change that (a spectator, #29, or a player count that
+    // would take somebody's seat, #34); put its view straight again
     function onRefused(msg, id) {
         if (msg.t === "lobby") Net.sendTo(id, { t: "lobby", s: Settings.read(), from: Match.me });
     }
@@ -535,7 +542,7 @@ const Room = (() => {
 
     return {
         init, enter, leave, roomLink, hideCode, codeText, newGame, bump, save, render, renderNetBox, updateBanner, turnHint,
-        presentSeats, missingSeats, allHere, live, who, two, playersNow,
+        presentSeats, missingSeats, occupiedSeats, allHere, live, who, two, playersNow,
         startFromLobby, requestRematch, rematchWaitText, sendMove, sendSync, reseat,
         onIdle: processIncoming,
         onChanged: (kind) => { if (kind === "move") r.syncSentAt = -1; save(); },
@@ -543,7 +550,7 @@ const Room = (() => {
         settingsChanged: (cfg) => { if (Match.spectator) return; netSend({ t: "lobby", s: cfg }); reseat(); },
         say: (text) => netSend({ t: "chat", text }),
         tolobby: () => { if (!Match.spectator) netSend({ t: "tolobby" }); },
-        accepts, PLAYERS_ONLY,
+        accepts, keepsSeats, PLAYERS_ONLY,
         react: (e) => netSend({ t: "react", e }),
         get rev() { return r.rev; }, set rev(v) { r.rev = v; },
         get spectators() { return r.roster.spectators; },

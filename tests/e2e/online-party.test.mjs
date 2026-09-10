@@ -110,3 +110,34 @@ test("rematch needs every seat; then one Back to room brings all three to the lo
     assert.equal(await A.ev("document.getElementById('toast').textContent"), "Lime went back to the room");
     assert.deepEqual(A.errors, []); assert.deepEqual(B.errors, []); assert.deepEqual(C.errors, []);
 });
+
+test("the player count cannot drop below the people in the room (#34): 2 is disabled for everyone, a forged message is refused, leaving frees it", { skip: !ONLINE }, async () => {
+    const btn = (X, n) => X.ev(`(() => { const b = document.querySelector('#set-players button[data-players="${n}"]'); return { disabled: b.disabled, title: b.title }; })()`);
+    const hint = "Someone would lose their seat. They have to leave the room first.";
+    for (const X of [A, B, C]) {
+        await X.waitFor(`document.querySelector('#set-players button[data-players="2"]').disabled`, { what: "2 disabled while three sit in the room" });
+        assert.deepEqual(await btn(X, 3), { disabled: false, title: "" });
+        assert.deepEqual(await btn(X, 4), { disabled: false, title: "" });
+        assert.equal((await btn(X, 2)).title, hint);
+    }
+    await A.click('#set-players button[data-players="2"]');            // a disabled button does nothing
+    assert.equal(await A.ev("Settings.read().players"), 3);
+
+    // a guest with a stale (or forged) view sends the count anyway: the host refuses it and corrects the sender
+    await B.ev("document.getElementById('toast').textContent = ''");
+    await B.ev(`Net.send({ t: "lobby", s: { ...Settings.read(), players: 2 }, from: 1 })`);
+    await B.waitFor("document.getElementById('toast').textContent.startsWith('Settings updated by')", { what: "the host corrects the sender" });
+    for (const X of [A, B, C]) {
+        assert.equal(await X.ev("Settings.read().players"), 3, "still three seats");
+        assert.equal(await X.ev("document.querySelectorAll('.lobby-player').length"), 3);
+    }
+    assert.equal(await C.ev("Match.me"), 2, "nobody lost their seat");
+    assert.equal(await C.ev("Match.spectator"), false);
+
+    // once somebody leaves, the count is free again
+    await C.click("#btn-lobby-back");
+    for (const X of [A, B]) await X.waitFor(`!document.querySelector('#set-players button[data-players="2"]').disabled`, { what: "2 selectable again" });
+    await A.players(2);
+    await B.waitFor("document.querySelector('#set-players button.selected').dataset.players === '2'", { what: "guest mirrors two seats" });
+    assert.deepEqual(A.errors, []); assert.deepEqual(B.errors, []); assert.deepEqual(C.errors, []);
+});

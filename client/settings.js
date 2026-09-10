@@ -11,6 +11,8 @@
    mirrored to the room. Board-size limits come from `size` / `minSize(cfg)`. A game
    declares `players: { min, max }` (default 2–4): the picker grays out games that don't
    take the chosen player count, and the selection moves to one that does (#28).
+   `setMinPlayers(n)` (the lobby says how many seats are taken) disables every smaller count
+   and lifts `read().players` to it, so nobody is pushed out of a seat they sit in (#34).
    Any change calls onChange(config) so the room can mirror it to the friends. */
 
 "use strict";
@@ -18,6 +20,7 @@
 const Settings = (() => {
     const { $, clamp } = Util;
     const KEY = "chainreact.settings";
+    const MIN_PLAYERS_HINT = "Someone would lose their seat. They have to leave the room first.";
     let fields = [];             // every game field: { key, el, type, min, max, def, game }
     let game = null;             // selected game key
     let players = 2;             // seats in the room / on this device (the lobby's players control)
@@ -27,6 +30,7 @@ const Settings = (() => {
     let onSelectGame = () => {}; // a game card was clicked (not a mirrored / restored selection)
     let silent = false;          // true while writing the friend's settings into the form
     let locked = false;          // a spectator: everything read-only (#29)
+    let minPlayers = 2;          // seats already taken in the room: a smaller count would kick somebody (#34)
 
     const def = () => Games.get(game);
     const supports = (key, n = clamp(players, 2, maxPlayers)) => { const p = Games.get(key).players; return n >= p.min && n <= p.max; };
@@ -108,7 +112,7 @@ const Settings = (() => {
         const timerSel = $("set-timer").value;
         const timer = timerSel === "custom" ? Math.round(parseFloat($("set-timer-custom").value || "3") * 60) : parseInt(timerSel, 10);
         return {
-            game, players: clamp(players, 2, maxPlayers),
+            game, players: clamp(players, floor(), maxPlayers),
             n: clamp(parseInt($("set-size").value, 10) || d.size.default, lim.min, lim.max),
             timer: Math.max(0, timer || 0), timerSel, timerCustom: $("set-timer-custom").value,
             ...gameValues(),
@@ -121,7 +125,7 @@ const Settings = (() => {
         silent = true;
         if (s.game && Games.has(s.game)) game = s.game;
         if (s.n) sizeFor[game] = s.n;
-        if (s.players) players = clamp(parseInt(s.players, 10) || 2, 2, 4);
+        if (s.players) players = clamp(parseInt(s.players, 10) || 2, floor(), 4);   // never below the seats in use (#34)
         for (const f of fields) {
             if (f.type === "bool") $(f.el).checked = !!s[f.key];
             else if (s[f.key]) $(f.el).value = String(s[f.key]);
@@ -214,14 +218,28 @@ const Settings = (() => {
 
     /* ---------- players (the lobby's segmented control, #28) ---------- */
     const playersText = (p) => (p.min === p.max ? `${p.min} players` : `${p.min} to ${p.max} players`);
+    // the smallest count this room may be set to: never fewer seats than people sitting in them (#34)
+    const floor = () => clamp(minPlayers, 2, maxPlayers);
     function renderPlayers() {
-        document.querySelectorAll("#set-players button").forEach((b) => { b.classList.toggle("selected", parseInt(b.dataset.players, 10) === players); });
+        document.querySelectorAll("#set-players button").forEach((b) => {
+            const v = parseInt(b.dataset.players, 10);
+            b.classList.toggle("selected", v === players);
+            const kicks = v < floor();
+            b.disabled = locked || kicks;
+            b.title = kicks && !locked ? MIN_PLAYERS_HINT : "";
+        });
     }
     function setPlayers(n) {
-        players = clamp(parseInt(n, 10) || 2, 2, 4);
+        players = clamp(parseInt(n, 10) || 2, floor(), 4);
         renderPlayers();
         selectGame(game, false);                       // grays out games that don't take that many (and moves off one)
         changed();
+    }
+    // how many seats the room already has somebody in (#34); the lobby calls this on every presence change
+    function setMinPlayers(n) {
+        minPlayers = clamp(parseInt(n, 10) || 2, 2, 4);
+        if (players < floor()) players = floor();
+        renderPlayers();
     }
 
     // one picker card per registered game (preview: 9 chars, "." empty, digit = player)
@@ -247,7 +265,7 @@ const Settings = (() => {
     function setLocked(on) {
         locked = !!on;
         document.body.classList.toggle("settings-locked", locked);
-        document.querySelectorAll("#set-players button").forEach((b) => { b.disabled = locked; });
+        renderPlayers();
         document.querySelectorAll("#settings-modal input, #settings-modal select").forEach((el) => { el.disabled = locked; });
         if (!locked) syncDependents();
         $("settings-locked-hint").hidden = !locked;
@@ -258,6 +276,7 @@ const Settings = (() => {
     function setMode(mode) {
         maxPlayers = mode === "bot" ? 2 : 4;
         $("row-players").hidden = mode === "bot";
+        renderPlayers();
         renderSummary();
     }
 
@@ -288,5 +307,5 @@ const Settings = (() => {
         selectGame(game, false);
     }
 
-    return { init, read, write, selectGame, setPlayers, summary, setMode, setLocked, supports, get locked() { return locked; }, get game() { return game; }, get players() { return players; }, get fields() { return fields.map((f) => f.key); } };
+    return { init, read, write, selectGame, setPlayers, setMinPlayers, summary, setMode, setLocked, supports, MIN_PLAYERS_HINT, get locked() { return locked; }, get minPlayers() { return minPlayers; }, get game() { return game; }, get players() { return players; }, get fields() { return fields.map((f) => f.key); } };
 })();
