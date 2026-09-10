@@ -252,49 +252,87 @@
 
 <!-- ===================== PREFERENCES MODAL (look, sound; stored per device) ===================== -->
 <div id="prefs-modal" class="modal" hidden>
-    <div class="menu-card prefs-card">
+    <div class="menu-card prefs-card" id="prefs-card">
         <h1 class="title small">Preferences</h1>
         <p class="tagline small">Only for this device. Never shared with the room.</p>
-        <div class="prefs-rows">
-            <div class="section-title">Look</div>
-            <div class="seg skin-seg">
-                <button data-skin="classic" class="selected">Classic</button>
-                <button data-skin="mcboard">Blocks board</button>
-                <button data-skin="mc">Blocks</button>
+        <!-- two levels (#32): a menu of sections and one panel per section. Phones show one
+             of the two at a time, desktop shows both side by side. A new section = one nav
+             row here and one .prefs-section panel below. -->
+        <div class="prefs-body">
+            <div class="prefs-nav" id="prefs-nav">
+                <button class="settings-summary prefs-nav-row" id="prefs-nav-look" data-section="look">
+                    <span class="gear-icon">🎨</span><span class="prefs-nav-name">Look</span>
+                    <span class="prefs-nav-sum" id="prefs-sum-look"></span><span class="chev">›</span>
+                </button>
+                <button class="settings-summary prefs-nav-row" id="prefs-nav-sound" data-section="sound">
+                    <span class="gear-icon">🔊</span><span class="prefs-nav-name">Sound</span>
+                    <span class="prefs-nav-sum" id="prefs-sum-sound"></span><span class="chev">›</span>
+                </button>
+                <button class="settings-summary prefs-nav-row" id="prefs-nav-streaming" data-section="streaming">
+                    <span class="gear-icon">📺</span><span class="prefs-nav-name">Streaming</span>
+                    <span class="prefs-nav-sum" id="prefs-sum-streaming"></span><span class="chev">›</span>
+                </button>
+                <button class="settings-summary prefs-nav-row" id="prefs-nav-developer" data-section="developer">
+                    <span class="gear-icon">🛠️</span><span class="prefs-nav-name">Developer</span>
+                    <span class="prefs-nav-sum" id="prefs-sum-developer"></span><span class="chev">›</span>
+                </button>
+                <button class="settings-summary prefs-nav-row" id="prefs-nav-feedback" data-section="feedback">
+                    <span class="gear-icon">💬</span><span class="prefs-nav-name">Feedback</span>
+                    <span class="prefs-nav-sum" id="prefs-sum-feedback"></span><span class="chev">›</span>
+                </button>
             </div>
-            <div class="section-title">Sound</div>
-            <label class="row">
-                <span>Volume <small id="pref-volume-val">30 %</small></span>
-                <input type="range" id="pref-volume" min="0" max="100" step="5" value="30" autocomplete="off">
-            </label>
-            <label class="row">
-                <span>Sound set</span>
-                <select id="pref-soundset" autocomplete="off">
-                    <option value="auto" selected>Follow the look</option>
-                    <option value="classic">Classic</option>
-                    <option value="mc">Blocks</option>
-                </select>
-            </label>
-            <div class="pref-toggles" id="pref-toggles">
-                <label><input type="checkbox" id="pref-snd-moves" checked autocomplete="off"> Moves</label>
-                <label><input type="checkbox" id="pref-snd-explosions" checked autocomplete="off"> Explosions</label>
-                <label><input type="checkbox" id="pref-snd-results" checked autocomplete="off"> Win / lose</label>
-                <label><input type="checkbox" id="pref-snd-turn" checked autocomplete="off"> Your turn</label>
-                <label><input type="checkbox" id="pref-snd-reactions" checked autocomplete="off"> Reactions</label>
-                <label><input type="checkbox" id="pref-snd-chat" checked autocomplete="off"> Chat</label>
+            <div class="prefs-panes" id="prefs-panes">
+                <button class="btn small prefs-back" id="btn-prefs-back">‹ Back</button>
+                <div class="prefs-section prefs-rows" data-section="look" hidden>
+                    <div class="section-title">Look</div>
+                    <div class="seg skin-seg">
+                        <button data-skin="classic" class="selected">Classic</button>
+                        <button data-skin="mcboard">Blocks board</button>
+                        <button data-skin="mc">Blocks</button>
+                    </div>
+                </div>
+                <div class="prefs-section prefs-rows" data-section="sound" hidden>
+                    <div class="section-title">Sound</div>
+                    <label class="row">
+                        <span>Volume <small id="pref-volume-val">30 %</small></span>
+                        <input type="range" id="pref-volume" min="0" max="100" step="5" value="30" autocomplete="off">
+                    </label>
+                    <label class="row">
+                        <span>Sound set</span>
+                        <select id="pref-soundset" autocomplete="off">
+                            <option value="auto" selected>Follow the look</option>
+                            <option value="classic">Classic</option>
+                            <option value="mc">Blocks</option>
+                        </select>
+                    </label>
+                    <div class="pref-toggles" id="pref-toggles">
+                        <label><input type="checkbox" id="pref-snd-moves" checked autocomplete="off"> Moves</label>
+                        <label><input type="checkbox" id="pref-snd-explosions" checked autocomplete="off"> Explosions</label>
+                        <label><input type="checkbox" id="pref-snd-results" checked autocomplete="off"> Win / lose</label>
+                        <label><input type="checkbox" id="pref-snd-turn" checked autocomplete="off"> Your turn</label>
+                        <label><input type="checkbox" id="pref-snd-reactions" checked autocomplete="off"> Reactions</label>
+                        <label><input type="checkbox" id="pref-snd-chat" checked autocomplete="off"> Chat</label>
+                    </div>
+                    <button class="btn small" id="pref-test-sound">Play a test sound</button>
+                </div>
+                <div class="prefs-section prefs-rows" data-section="streaming" hidden>
+                    <div class="section-title">Streaming</div>
+                    <label class="pref-check"><input type="checkbox" id="pref-hide-code" autocomplete="off"> Hide the room code when I enter a room</label>
+                    <p class="hint">The code stays hidden in the lobby, the game and the address bar until you show it. Share and copy keep working.</p>
+                    <label class="pref-check"><input type="checkbox" id="pref-private-ip" autocomplete="off"> Keep my IP always private</label>
+                    <p class="hint">Every connection goes through the relay server instead of directly to the others, so nobody in the room learns your IP address. A little more delay. Takes effect when you next enter a room.</p>
+                </div>
+                <div class="prefs-section prefs-rows" data-section="developer" hidden>
+                    <div class="section-title">Developer</div>
+                    <label class="pref-check"><input type="checkbox" id="pref-developer" autocomplete="off"> Show developer info</label>
+                    <p class="hint">A small panel with the connection and its route per player, performance and what the bot is calculating.</p>
+                </div>
+                <div class="prefs-section prefs-rows" data-section="feedback" hidden>
+                    <div class="section-title">Feedback</div>
+                    <button class="btn small" id="pref-feedback">Report a problem or an idea</button>
+                    <p class="hint">Opens a new GitHub issue with details about this screen already filled in.</p>
+                </div>
             </div>
-            <button class="btn small" id="pref-test-sound">Play a test sound</button>
-            <div class="section-title">Streaming</div>
-            <label class="pref-check"><input type="checkbox" id="pref-hide-code" autocomplete="off"> Hide the room code when I enter a room</label>
-            <p class="hint">The code stays hidden in the lobby, the game and the address bar until you show it. Share and copy keep working.</p>
-            <label class="pref-check"><input type="checkbox" id="pref-private-ip" autocomplete="off"> Keep my IP always private</label>
-            <p class="hint">Every connection goes through the relay server instead of directly to the others, so nobody in the room learns your IP address. A little more delay. Takes effect when you next enter a room.</p>
-            <div class="section-title">Developer</div>
-            <label class="pref-check"><input type="checkbox" id="pref-developer" autocomplete="off"> Show developer info</label>
-            <p class="hint">A small panel with the connection and its route per player, performance and what the bot is calculating.</p>
-            <div class="section-title">Feedback</div>
-            <button class="btn small" id="pref-feedback">Report a problem or an idea</button>
-            <p class="hint">Opens a new GitHub issue with details about this screen already filled in.</p>
         </div>
         <button class="btn primary" id="btn-prefs-done">Done</button>
     </div>

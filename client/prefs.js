@@ -4,7 +4,13 @@
    every connection is relayed so nobody learns this device's IP (#30). The
    "⚙ Settings & Feedback" button (#prefs-btn) in the top-left corner of every screen
    opens #prefs-modal. Stored in localStorage["chainreact.prefs"]; app.js and the sound
-   module read Prefs.get(). */
+   module read Prefs.get().
+
+   The modal has two levels (#32): a menu with one row per section (its current state as
+   a one-line summary) and one panel per section. Phones show one of the two at a time
+   (a row opens its panel, "‹ Back" returns to the menu), desktop shows the menu as a
+   left column beside the open panel. A new section is a nav row plus a .prefs-section
+   panel in index.html and one entry in SECTIONS here. */
 
 "use strict";
 
@@ -20,6 +26,11 @@ const Prefs = (() => {
         privateIp: false,                             // relay every connection through TURN: nobody in the room sees my IP (#30)
         developer: false,                             // the developer info panel (#31)
     };
+    // the modal's sections, in the order of the nav rows (#prefs-nav-<key>, .prefs-section[data-section=<key>])
+    const SECTIONS = ["look", "sound", "streaming", "developer", "feedback"];
+    const LOOK_LABELS = { classic: "Classic", mcboard: "Blocks board", mc: "Blocks" };
+    const SET_LABELS = { auto: "Follow the look", classic: "Classic", mc: "Blocks" };
+    let section = null;                               // the open section (null = the menu, phones only)
     let prefs = merge(Util.load(localStorage, KEY));
     let onChange = () => {};
     let context = () => ({});                         // app.js: where the user is right now (for feedback)
@@ -57,7 +68,45 @@ const Prefs = (() => {
         if ($("pref-private-ip")) $("pref-private-ip").checked = prefs.privateIp;
         if ($("pref-developer")) $("pref-developer").checked = prefs.developer;
         $("prefs-modal").classList.toggle("muted", prefs.volume === 0);
+        renderNav();
     }
+
+    /* ---------- the two levels (#32) ---------- */
+    // one line describing a section's current state, for its menu row (pure)
+    function sectionSummary(key) {
+        const p = prefs;
+        if (key === "look") return LOOK_LABELS[typeof Skins !== "undefined" ? Skins.current : "classic"] || LOOK_LABELS.classic;
+        if (key === "sound") return p.volume === 0 ? "off" : `${p.volume} % · ${SET_LABELS[p.soundSet]}`;
+        if (key === "streaming") {
+            const on = [p.hideCode && "Code hidden", p.privateIp && "IP private"].filter(Boolean);
+            return on.length ? on.join(" · ") : "off";
+        }
+        if (key === "developer") return p.developer ? "on" : "off";
+        if (key === "feedback") return "Report a problem";
+        return "";
+    }
+
+    // the menu rows: summary text and which one is open
+    function renderNav() {
+        for (const key of SECTIONS) {
+            const sum = $("prefs-sum-" + key);
+            if (sum) sum.textContent = sectionSummary(key);
+            const row = $("prefs-nav-" + key);
+            if (row) row.classList.toggle("selected", key === section);
+        }
+    }
+
+    // show one section's panel (null = back to the menu; on desktop both panes show anyway)
+    function showSection(key) {
+        section = SECTIONS.includes(key) ? key : null;
+        for (const el of document.querySelectorAll("#prefs-panes .prefs-section")) el.hidden = el.dataset.section !== section;
+        $("prefs-card").classList.toggle("on-section", section !== null);
+        renderNav();
+    }
+
+    // phones show one level at a time; desktop (the two-pane layout) opens a section right away
+    const onePane = () => !!(window.matchMedia && window.matchMedia("(max-width: 899px)").matches);
+
     // prefs <- form
     function readForm() {
         const sounds = {};
@@ -70,7 +119,7 @@ const Prefs = (() => {
         });
     }
 
-    function open() { fill(); $("prefs-modal").hidden = false; }
+    function open() { showSection(onePane() ? null : section || SECTIONS[0]); fill(); $("prefs-modal").hidden = false; }
     function close() { $("prefs-modal").hidden = true; }
 
     // a GitHub "new issue" link with the situation prefilled (no room code, no chat text)
@@ -103,8 +152,15 @@ const Prefs = (() => {
         $("pref-soundset").addEventListener("change", readForm);
         for (const c of CATEGORIES) { const el = $("pref-snd-" + c); if (el) el.addEventListener("change", readForm); }
         for (const id of ["pref-hide-code", "pref-private-ip", "pref-developer"]) if ($(id)) $(id).addEventListener("change", readForm);
+        for (const key of SECTIONS) { const row = $("prefs-nav-" + key); if (row) row.addEventListener("click", () => showSection(key)); }
+        $("btn-prefs-back").addEventListener("click", () => showSection(null));
+        $("prefs-panes").addEventListener("click", renderNav);        // the look buttons are Skins', the row summary is ours
+        showSection(onePane() ? null : SECTIONS[0]);
         fill();
     }
 
-    return { init, get, set, open, close, feedbackUrl, CATEGORIES, get isOpen() { return !$("prefs-modal").hidden; } };
+    return {
+        init, get, set, open, close, feedbackUrl, CATEGORIES, SECTIONS, showSection, sectionSummary,
+        get isOpen() { return !$("prefs-modal").hidden; }, get section() { return section; },
+    };
 })();

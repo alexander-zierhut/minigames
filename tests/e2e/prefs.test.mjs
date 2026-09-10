@@ -30,6 +30,26 @@ test("the button is there on title, lobby and game; the modal opens and closes",
     assert.equal(await B.ev("document.getElementById('prefs-modal').hidden"), true);
 });
 
+test("desktop: the section menu and the open section show side by side (#32)", async () => {
+    await B.click("#prefs-btn");
+    const box = (sel) => B.ev(`JSON.stringify(document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect())`).then(JSON.parse);
+    assert.equal(await B.ev("Prefs.section"), "look", "a section is open right away, nothing needs two taps");
+    const nav = await box("#prefs-nav"), pane = await box('.prefs-section[data-section="look"]');
+    assert.ok(nav.width > 0 && pane.width > 0, "both panes visible");
+    assert.ok(nav.right <= pane.left + 1, `the menu is the left column (${nav.right} <= ${pane.left})`);
+    assert.equal(await B.ev("getComputedStyle(document.getElementById('btn-prefs-back')).display"), "none", "no Back button with both panes");
+    assert.equal(await B.text("prefs-sum-sound"), "30 % · Follow the look", "the row shows the section's state");
+    await B.click("#prefs-nav-streaming");
+    assert.equal(await B.ev("Prefs.section"), "streaming");
+    assert.equal(await B.ev("document.querySelector('.prefs-section[data-section=\"look\"]').hidden"), true);
+    assert.ok(await B.ev("document.getElementById('prefs-nav-streaming').classList.contains('selected')"), "the open section is highlighted");
+    await B.check("pref-hide-code", true);
+    assert.equal(await B.text("prefs-sum-streaming"), "Code hidden");
+    await B.check("pref-hide-code", false);
+    await B.click("#prefs-nav-look");
+    await B.click("#btn-prefs-done");
+});
+
 test("look chosen in the modal is applied and mirrored by the other look controls", async () => {
     await B.click("#prefs-btn");
     await B.click('#prefs-modal .skin-seg button[data-skin="mc"]');
@@ -144,5 +164,44 @@ test("phone in a game: the ⚙ button is actually tappable and lines up with the
         await M.click("#btn-prefs-done");
         assert.equal(await M.ev("getComputedStyle(document.getElementById('screen-game')).userSelect"), "none", "no text selection in the game");
     } finally { await M.close(); }
+});
+
+test("phone: the modal opens on the section menu, a row opens its section, Back returns, nothing scrolls (#32)", async () => {
+    const P = await launchBrowser({ width: 360, height: 780, mobile: true });
+    try {
+        await P.goto(server.url);
+        await P.click("#prefs-btn");
+        assert.equal(await P.ev("Prefs.section"), null, "the menu first");
+        assert.equal(await P.ev("getComputedStyle(document.getElementById('prefs-nav')).display !== 'none'"), true);
+        assert.equal(await P.ev("getComputedStyle(document.getElementById('prefs-panes')).display"), "none", "no panel yet");
+        assert.equal(await P.text("prefs-sum-look"), "Classic");
+        assert.equal(await P.text("prefs-sum-streaming"), "off");
+        const modalFits = () => P.ev("(() => { const c = document.getElementById('prefs-card'); return c.scrollHeight <= c.clientHeight + 1; })()");
+        assert.equal(await modalFits(), true, "the menu fits without scrolling");
+        await P.screenshot("prefs-phone-menu.png");
+        // every section: one tap opens it, it fits the 360×780 phone, Back returns to the menu
+        for (const key of ["look", "sound", "streaming", "developer", "feedback"]) {
+            await P.click("#prefs-nav-" + key);
+            assert.equal(await P.ev("Prefs.section"), key);
+            assert.equal(await P.ev("getComputedStyle(document.getElementById('prefs-nav')).display"), "none", key + ": the menu steps aside");
+            assert.equal(await P.ev(`document.querySelector('.prefs-section[data-section="${key}"]').getBoundingClientRect().width > 0`), true, key + " visible");
+            assert.equal(await modalFits(), true, key + " fits without scrolling");
+            const s = await P.noScroll();
+            assert.ok(s.x && s.y, `${key}: the page does not scroll ${JSON.stringify(s)}`);
+            if (key === "sound") await P.screenshot("prefs-phone-sound.png");
+            await P.click("#btn-prefs-back");
+            assert.equal(await P.ev("Prefs.section"), null, key + ": Back returns to the menu");
+        }
+        // Done closes from inside a section too, and the row summaries follow a change
+        await P.click("#prefs-nav-sound");
+        await P.set("pref-volume", 70);
+        await P.click("#btn-prefs-done");
+        assert.equal(await P.ev("document.getElementById('prefs-modal').hidden"), true);
+        await P.click("#prefs-btn");
+        assert.equal(await P.ev("Prefs.section"), null, "reopening starts at the menu again");
+        assert.equal(await P.text("prefs-sum-sound"), "70 % · Follow the look");
+        await P.click("#btn-prefs-done");
+        assert.deepEqual(P.errors, []);
+    } finally { await P.close(); }
 });
 

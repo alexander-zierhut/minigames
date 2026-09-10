@@ -85,3 +85,51 @@ test("feedback link: a GitHub new-issue URL with the situation prefilled, no roo
     w.close();
 });
 
+test("sections (#32): the menu rows summarise their state, showSection opens one, Back returns", () => {
+    const w = loadDom(); const P = w.eval("Prefs"); const d = w.document;
+    P.init({});
+    assert.equal(JSON.stringify(P.SECTIONS), JSON.stringify(["look", "sound", "streaming", "developer", "feedback"]));
+    for (const key of P.SECTIONS) {
+        assert.ok(d.getElementById("prefs-nav-" + key), "nav row for " + key);
+        assert.ok(d.querySelector(`#prefs-panes .prefs-section[data-section="${key}"]`), "panel for " + key);
+    }
+    // the summaries describe the current state and land in the rows
+    assert.equal(P.sectionSummary("look"), "Classic");
+    assert.equal(P.sectionSummary("sound"), "30 % · Follow the look");
+    assert.equal(P.sectionSummary("streaming"), "off");
+    assert.equal(P.sectionSummary("developer"), "off");
+    assert.equal(P.sectionSummary("feedback"), "Report a problem");
+    assert.equal(d.getElementById("prefs-sum-sound").textContent, "30 % · Follow the look");
+    P.set({ volume: 0 });
+    assert.equal(P.sectionSummary("sound"), "off", "muted");
+    P.set({ volume: 55, soundSet: "mc" });
+    assert.equal(P.sectionSummary("sound"), "55 % · Blocks");
+    assert.equal(d.getElementById("prefs-sum-sound").textContent, "55 % · Blocks", "the row follows a change");
+    P.set({ hideCode: true });
+    assert.equal(P.sectionSummary("streaming"), "Code hidden");
+    P.set({ privateIp: true });
+    assert.equal(P.sectionSummary("streaming"), "Code hidden · IP private");
+    P.set({ developer: true });
+    assert.equal(P.sectionSummary("developer"), "on");
+    w.eval("Skins").set("mc");
+    assert.equal(P.sectionSummary("look"), "Blocks");
+    w.eval("Skins").set("classic");
+    // one panel at a time; the card marks that a section is open (phones hide the menu by it)
+    P.showSection("sound");
+    assert.equal(P.section, "sound");
+    assert.equal(d.querySelector('#prefs-panes .prefs-section[data-section="sound"]').hidden, false);
+    assert.equal(d.querySelector('#prefs-panes .prefs-section[data-section="look"]').hidden, true);
+    assert.ok(d.getElementById("prefs-card").classList.contains("on-section"));
+    assert.ok(d.getElementById("prefs-nav-sound").classList.contains("selected"));
+    d.getElementById("prefs-nav-streaming").click();
+    assert.equal(P.section, "streaming");
+    assert.equal(d.getElementById("prefs-nav-sound").classList.contains("selected"), false);
+    d.getElementById("btn-prefs-back").click();
+    assert.equal(P.section, null, "back to the menu");
+    assert.equal(d.getElementById("prefs-card").classList.contains("on-section"), false);
+    assert.equal(d.querySelectorAll("#prefs-panes .prefs-section:not([hidden])").length, 0);
+    P.showSection("nonsense");
+    assert.equal(P.section, null, "an unknown section is the menu");
+    w.close();
+});
+

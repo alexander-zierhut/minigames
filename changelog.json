@@ -5,6 +5,14 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "improvement",
+          "text": "The settings menu is shorter: it now opens on a short list of sections (Look, Sound, Streaming, Developer, Feedback) that each say what they are set to, and one tap opens the one you want.",
+          "technical": true,
+          "refs": [
+            "#32"
+          ]
+        },
+        {
           "type": "feature",
           "text": "Streaming: a new preference \"Keep my IP always private\" sends every connection through the relay server, so nobody in the room learns your IP address.",
           "refs": [
