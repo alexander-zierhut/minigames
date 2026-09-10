@@ -71,6 +71,13 @@
             $(`lp-${k}`).classList.toggle("absent", online && !present[k]);
             $(`lp-${k}-status`).textContent = !online ? "" : mine ? "ready" : (present[k] ? "connected" : "not here yet");
         }
+        // swap between playing and watching (#39): a spectate-link viewer never sits down
+        const canSwap = online && !watcher;
+        const free = Room.seatFree();
+        $("btn-watch").hidden = !(canSwap && Match.me >= 0);
+        $("btn-take-seat").hidden = !(canSwap && Match.me < 0);
+        $("btn-take-seat").disabled = !free;
+        $("btn-take-seat").title = free ? "" : "Every seat is taken right now.";
         const watching = online ? Room.spectators : 0;
         $("lobby-spectators").textContent = watching > 0 ? `${watching} spectator${watching > 1 ? "s" : ""} watching` : "";
         const start = $("btn-start");
@@ -227,6 +234,8 @@
         catch (e) { prompt("Room code:", Net.code); }
     });
     $("btn-hide-code").addEventListener("click", () => Room.hideCode(!Room.codeHidden));
+    $("btn-watch").addEventListener("click", () => Room.watchInstead());
+    $("btn-take-seat").addEventListener("click", () => Room.takeSeat());
     $("btn-lobby-back").addEventListener("click", leaveRoom);
     $("btn-start").addEventListener("click", startFromLobby);
 

@@ -108,6 +108,11 @@
             </div>
             <!-- one card per seat, from #tpl-lobby-player -->
             <div class="lobby-players" id="lobby-players"></div>
+            <!-- online only: swap between playing and watching in the lobby (#39) -->
+            <div class="seat-actions" id="seat-actions">
+                <button class="btn quiet small" id="btn-watch" hidden>Watch instead</button>
+                <button class="btn quiet small" id="btn-take-seat" hidden>Take a seat</button>
+            </div>
             <div class="lobby-status" id="lobby-status"></div>
             <div class="lobby-status" id="lobby-spectators"></div>
         </div>

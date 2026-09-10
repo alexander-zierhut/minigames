@@ -178,10 +178,10 @@ to try things").
      `#tpl-lobby-player` (online only; as many as the *Players* control says; the name, a
      small `(you)` in `.lp-you`, and `#lp-<k>-status` "connected" / "not here yet" /
      "ready"; an absent seat gets `.absent` = a dashed, muted placeholder card; the card
-     wraps its status onto a second line rather than cutting a long name off), and the
-     notes `#lobby-status` / `#lobby-spectators` ("N spectator(s) watching"). **The coming
-     seat controls go here**: "Watch instead" / "Take this seat" on the seat cards, and
-     "Against a bot instead" while a two-player room waits, both under `#lobby-players`.
+     wraps its status onto a second line rather than cutting a long name off), then the
+     quiet seat controls `#seat-actions` (`#btn-watch` "Watch instead" for a seated player,
+     `#btn-take-seat` "Take a seat" for a spectator, disabled without a free seat, #39) and
+     the notes `#lobby-status` / `#lobby-spectators` ("N spectator(s) watching").
   3. **Group "Game"** (`#group-game`): the picker (one `.game-card[data-game]` per
      registered game, built by `Settings.init`; each card says "2 to 4 players" and a game
      that doesn't take the chosen count is grayed out, `.unsupported` + `disabled`, #28),
@@ -551,6 +551,17 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   number of seats is `config.players` (`playersNow()`: the running game's, else the
   settings'); when the *Players* setting changes the host **reseats** (`reseat`): seats ≥
   `players` are taken away (`state {you: -1}`), people without a seat get a free one.
+- **Swapping seat and spectator role (#39)**, in the lobby only (never under a running
+  game): `Room.watchInstead()` / `Room.takeSeat()` send `seat {want}` (`-1` = watch, a seat
+  number, or `Room`'s `ANY_SEAT`); the host decides in `applySeatWish` (its own switch takes
+  the same path with `id = null`): it frees the seat (`Net.setSeat(id, -1)` +
+  `Net.setSpectate(id, true)`, so a later `reseat` does not hand it straight back and the
+  next dial's metadata says the same) or gives a free one, then answers `state {you}` to
+  that connection and a `roster` to everyone. `Room.setSeat` follows through everywhere:
+  `Match.setSeat`, the URL (`&spectate=1` for a seatless player, so a refresh keeps the
+  role), the net box, the lobby, the Rematch buttons and the session. A spectate-link
+  connection is refused (`spectator` in `Net.peers`), and the *Players* control alone never
+  re-seats somebody who chose to watch — only "Take a seat" does.
 - **Presence** (`presentSeats()`): the host derives it from its connections (an open
   connection with that seat, not in Room's `left` set), guests from the host's `roster
   {present[], spectators, left[]}` message (sent on every change: hello, close, leave,
@@ -633,7 +644,9 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   "Waiting for opponent…" / "Waiting for others… (k/N)" / "Accept rematch"), `review
   {ply, g}` (#38: I am looking at the position after `ply` moves of the finished game;
   relayed; receivers in the same finished game show the same ply and open the replay bar,
-  spectators included), `react
+  spectators included), `seat {want}` (#39: a guest asks the host for a seat (`-1` = to
+  watch instead); not relayed, the host answers `state` + `roster`; a spectate-link
+  connection is always refused), `react
   {e}` (relayed; dot in the sender's colour), `chat {text}` (relayed, see Chat), `leave`
   (sent 250 ms before closing; the app treats that seat as gone at once — Start is
   disabled before the connection actually drops; the host tells the others via
@@ -1043,7 +1056,8 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   on stop and at the end), `persona.test.mjs`, `changelog.test.mjs`, `calibrate.test.mjs`, `puzzles.test.mjs`,
   `party.test.mjs` (3–4 players: `out`/`remaining`/pass in the pure rules, engine
   `eliminate` + `replay(history, outs)` == live play, two-player flag fall, settings
-  players row / bot mode, the min-players floor and `Room.keepsSeats` of #34),
+  players row / bot mode, the min-players floor and `Room.keepsSeats` of #34, the seat
+  request a spectator may send while everything else stays vetoed, #39),
   `build.test.mjs` (`SKIP_MINIFY=1 DIST_DIR=<tmp>`; hashed names, icons, deterministic).
   Cross-realm arrays: compare via `JSON.stringify`, not `deepStrictEqual`.
 - **E2E** (`npm run test:e2e`, `tests/e2e/*.test.mjs`): `harness.mjs` starts a static
@@ -1082,6 +1096,10 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   no share / copy / eye in its lobby, chat as "Spectator", refresh keeps spectating,
   follows a rematch, never gets a seat even with one free or by forging a `hello`, finds
   the room again after the host handed hosting over, leaving drops the count),
+  `online-seats` (**three browsers**, #39: a third joins a full two-seat room and watches,
+  the host steps back with "Watch instead", the spectator takes the free seat and plays a
+  game against the guest while the host watches, back in the lobby the roles swap again, a
+  bigger *Players* count never re-seats a voluntary spectator, refreshes keep every role),
   `online-party` (**three browsers**: players 3, seats 1 and 2, start waits for
   everyone, moves by every seat relayed to everyone, chat/reaction colours, a guest
   refresh restores seat + board, rematch by every seat, one Back to room moves all, the
@@ -1131,7 +1149,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Preload` | `textures()` |
 | `Session` | `save(data)`, `load()`, `clear()` (shape incl. `codeHidden`, `watch`, `spec`) |
 | `Match` | `init(handlers)`, `start(cfg, gameNo)`, `stop()`, `reset(mode, me, spectator)`, `setSeat(me, spectator)`, `record()`, `flagged(p)`, `whenIdle(fn, key)`, `syncClock()`, `startPlayerFor`, `playerColor`, `isLocal/isBot`; getters `engine, state, names, running, mode, me, spectator, seats, config, gameNo, bot, botInfo, premove`; `THINK_MS` |
-| `Room` | `init(handlers)`, `enter(code, { preferHost, seat, spectate, watch, spec, hidden })`, `leave()`, `roomLink(code?)`, `spectateLink()`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `settingsChanged(cfg)`, `say(text)`, `react(e)`, `tolobby()`, `review(ply)`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/occupiedSeats/allHere/live/who/two/playersNow/turnHint`, `accepts(msg, seat)`, `keepsSeats(msg, occupied)`, `PLAYERS_ONLY`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden`, `watching`, `spec` |
+| `Room` | `init(handlers)`, `enter(code, { preferHost, seat, spectate, watch, spec, hidden })`, `leave()`, `roomLink(code?)`, `spectateLink()`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `seatFree()`, `watchInstead()`, `takeSeat(seat?)`, `settingsChanged(cfg)`, `say(text)`, `react(e)`, `tolobby()`, `review(ply)`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/occupiedSeats/allHere/live/who/two/playersNow/turnHint`, `accepts(msg, seat)`, `keepsSeats(msg, occupied)`, `PLAYERS_ONLY`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden`, `watching`, `spec` |
 
 Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM), `puzzles/runner.mjs`
 (`loadPuzzles`, `positionOf`, `evaluateBot`), `benchmark.mjs`, `calibrate.mjs`
@@ -1140,7 +1158,7 @@ Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM), `puzzles
 
 Protocol messages (host relays everything to the other guests): `hello, state, welcome/full
 (transport), lobby, start, start-request, tolobby, sync, move, timeout, rematch, review,
-react, chat, roster, leave, ping/pong` — fields in "Online play".
+seat, react, chat, roster, leave, ping/pong` — fields in "Online play".
 
 ## Lessons learned (keep these in mind before "improving" things)
 

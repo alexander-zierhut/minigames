@@ -5,6 +5,13 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "feature",
+          "text": "In the room you can swap between playing and watching: a player steps back with \"Watch instead\" and a spectator sits down with \"Take a seat\", so three people can take turns at two seats.",
+          "refs": [
+            "#39"
+          ]
+        },
+        {
           "type": "fix",
           "text": "The spectate link now uses a code of its own, so people you invite to watch can never turn themselves into players and never see the room code.",
           "refs": [
