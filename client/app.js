@@ -47,6 +47,7 @@
         Settings.setLocked(online && Match.spectator);              // spectators only watch (#29)
         $("lobby-share").hidden = !online;
         $("lobby-players").hidden = !online;
+        $("group-players").hidden = bot;                            // against a bot the whole group is empty (two seats, no room)
         const box = $("lobby-players");
         if (box.children.length !== players) {
             box.innerHTML = "";
@@ -55,7 +56,8 @@
         const present = Room.presentSeats();
         for (let k = 0; k < players; k++) {
             const mine = Match.me === k;
-            $(`lp-${k}`).querySelector(".lp-name").textContent = nm[k] + (online && mine ? " (you)" : "");
+            $(`lp-${k}`).querySelector(".lp-name").textContent = nm[k];
+            $(`lp-${k}`).querySelector(".lp-you").textContent = online && mine ? "(you)" : "";
             $(`lp-${k}`).classList.toggle("absent", online && !present[k]);
             $(`lp-${k}-status`).textContent = !online ? "" : mine ? "ready" : (present[k] ? "connected" : "not here yet");
         }

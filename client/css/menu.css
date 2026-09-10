@@ -107,17 +107,23 @@
 .seg button + button { border-left: 2px solid var(--line); }
 .seg button.selected { background: var(--accent); color: #fff; }
 
-/* ---- lobby ---- */
-.lobby-card { max-width: 460px; gap: 14px; }
-/* head: kind label, the room code, and (online) one compact row of share buttons under it (#15) */
-.lobby-head { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+/* ---- lobby ----
+   Three calm blocks: the head (kind, code, share), the group "Players" (how many seats,
+   the seat cards, the room's notes) and the group "Game" (picker, opponent, settings),
+   then one primary Start with a quiet Leave under it. A hairline separates the groups,
+   so nothing sits in a box inside a box. */
+.lobby-card { max-width: 460px; gap: 12px; }
+/* head: kind label, the room code, and (online) Share plus two small icon buttons (#15) */
+.lobby-head { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
 .lobby-head .label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); }
 .lobby-head .room-code { font-size: 32px; letter-spacing: 5px; margin-top: 0; line-height: 1.15; }
 .room-code-row { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .code-eye { background: none; color: var(--muted); border: 2px solid var(--line); border-radius: 8px; font-size: 16px; line-height: 1; padding: 4px 6px; cursor: pointer; }
 .code-eye:hover { border-color: #46528a; color: var(--text); }
-.lobby-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+/* one row: the primary share button carries the text, copy code and spectate link are icons */
+.lobby-actions { display: flex; align-items: stretch; justify-content: center; gap: 6px; }
 .lobby-actions .btn { white-space: nowrap; }
+.lobby-actions .btn.icon { padding: 6px 10px; font-size: 14px; line-height: 1; }
 .room-code {
     font-size: 44px;
     font-weight: 900;
@@ -127,37 +133,55 @@
     -webkit-background-clip: text; background-clip: text; color: transparent;
     user-select: all;
 }
-/* the players control (#28): label left, 2 / 3 / 4 segments right */
-.lobby-row { display: flex; align-items: center; gap: 12px; }
+/* a group: a hairline, its label row, then its content */
+.lobby-group { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
+/* label left, the control (the 2 / 3 / 4 segments, #28) right */
+.lobby-row { display: flex; align-items: center; gap: 12px; min-height: 20px; }
 .lobby-row-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); flex: 0 0 auto; }
-.players-seg { flex: 1; }
-.players-seg button { font-size: 14px; padding: 7px 4px; }
+.players-seg { flex: 0 0 auto; width: 150px; margin-left: auto; }
+.players-seg button { font-size: 13px; padding: 5px 4px; }
 .players-seg button:disabled { opacity: .4; cursor: not-allowed; }
 .lobby-players { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .lobby-player {
-    display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; font-size: 13px; font-weight: 700;
     padding: 8px 10px; background: var(--bg2); border: 2px solid var(--pc-dark, var(--line)); border-radius: 10px;
+    min-width: 0;
 }
-.lobby-player.absent { opacity: .55; }
-.lp-status { margin-left: auto; font-size: 11px; font-weight: 400; color: var(--muted); }
-.lobby-player.absent .lp-status { color: #ffcc33; }
-.lobby-status { text-align: center; font-size: 13px; color: var(--muted); min-height: 18px; }
+.lobby-player .lp-name { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lp-you { flex: 0 0 auto; margin-left: -3px; font-size: 10px; font-weight: 400; color: var(--muted); }
+.lp-you:empty { display: none; }
+/* an empty seat reads as a placeholder, not as a warning */
+.lobby-player.absent { background: transparent; border-style: dashed; border-color: var(--line); color: var(--muted); }
+.lobby-player.absent .cube { opacity: .35; }
+.lp-status { margin-left: auto; font-size: 10px; font-weight: 400; color: var(--muted); white-space: nowrap; }
+.lobby-status { text-align: center; font-size: 12px; color: var(--muted); }
 .lobby-status:empty { display: none; }
+/* one primary action; leaving is a quiet text button under it */
+.lobby-foot { display: flex; flex-direction: column; gap: 4px; padding-top: 4px; }
+.btn.quiet { background: none; border-color: transparent; color: var(--muted); font-size: 13px; padding: 8px 12px; }
+.btn.quiet:hover { background: none; border-color: transparent; color: var(--text); }
+/* desktop: a slightly wider card, so the picker texts and the tagline stay on one line */
+@media (min-width: 900px) {
+    #screen-lobby .menu-card { max-width: 520px; padding: 24px 28px; }
+    .lobby-card .game-preview { width: 60px; height: 60px; }
+}
 /* phones: a tighter lobby card so players, picker and buttons fit 360×780 without scrolling */
 @media (max-width: 899px) {
-    .lobby-card { gap: 7px; padding: 16px 16px; }
-    .lobby-head { gap: 4px; }
+    .lobby-card { gap: 8px; padding: 16px 16px; }
+    .lobby-head { gap: 6px; }
     .lobby-head .room-code { font-size: 28px; letter-spacing: 4px; }
     .lobby-actions .btn.small { padding: 5px 9px; font-size: 11px; }
-    .lobby-status { font-size: 12px; min-height: 16px; }
+    .lobby-actions .btn.icon { padding: 5px 8px; font-size: 13px; }
+    .lobby-group { gap: 6px; padding-top: 8px; }
+    .lobby-status { font-size: 12px; }
     .lobby-players { gap: 6px; }
-    .players-seg button { padding: 5px 4px; font-size: 13px; }
     .lobby-card .game-players { display: none; }
-    .lobby-player { padding: 6px 10px; }
+    .lobby-player { padding: 6px 7px; gap: 5px; font-size: 12px; }
     .lobby-card .game-card { padding: 8px 8px 8px; gap: 4px; }
     .lobby-card .game-preview { width: 56px; height: 56px; }
     .lobby-card .settings-summary { padding: 8px 12px; }
     .lobby-card .btn.big { padding: 12px 20px; }
+    .btn.quiet { padding: 6px 12px; }
 }
 
 /* ---- game picker ---- */

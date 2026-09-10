@@ -166,6 +166,11 @@
 .skin-mc #react-bar .react-list, .skin-mc #react-toggle, .skin-mc .corner-btn { border-radius: 0; border-color: #000; background: rgba(0,0,0,.7); }
 .skin-mc .corner-btn:hover { background: #3a3a3a; }
 .skin-mc .code-eye { border-radius: 0; border-color: #000; background: rgba(0,0,0,.62); }
+/* lobby: hairlines between the groups, an empty seat as a dashed placeholder, a quiet Leave */
+.skin-mc .lobby-group { border-top-color: #000; box-shadow: inset 0 1px 0 #3a3a3a; }
+.skin-mc .lobby-player.absent { background: transparent; border-color: #3a3a3a; box-shadow: none; color: #b8b8b8; }
+.skin-mc .btn.quiet { background: transparent; border-color: transparent; box-shadow: none; color: #b8b8b8; }
+.skin-mc .btn.quiet:hover { background: transparent; box-shadow: none; color: #ffffa0; }
 .skin-mc input[type="range"] { accent-color: #55ff55; }
 .skin-mc .pref-toggles input[type="checkbox"] { accent-color: #55ff55; }
 .skin-mc .loader-title { background: none; color: var(--mc-title); text-shadow: var(--mc-title-shadow); }

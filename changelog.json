@@ -5,6 +5,16 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "improvement",
+          "text": "The room lobby is tidier: the room code and its share actions sit in a compact header, the number of players and the seats form one group, the game picker and the settings another, and Start is the one big button.",
+          "technical": true
+        },
+        {
+          "type": "improvement",
+          "text": "The title screen says under the online buttons that one room holds up to 4 players plus spectators.",
+          "technical": true
+        },
+        {
           "type": "feature",
           "text": "Streaming: a new preference \"Keep my IP always private\" sends every connection through the relay server, so nobody in the room learns your IP address.",
           "refs": [
