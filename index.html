@@ -314,15 +314,37 @@
 <!-- ===================== BOT PICKER (offline, "Play against a bot") ===================== -->
 <div id="bot-modal" class="modal" hidden>
     <div class="menu-card bot-card">
-        <h1 class="title small">Choose your opponent</h1>
-        <p class="tagline small" id="bot-modal-game"></p>
-        <!-- one .bot-option per bot that plays the selected game, built by opponent.js -->
-        <div class="bot-list" id="bot-list"></div>
-        <div class="skin-row" id="bot-difficulty-row">
-            <span class="skin-label">Difficulty</span>
-            <div class="seg" id="bot-difficulty"></div>
+        <!-- step 1: the bots that play the selected game (built by opponent.js) -->
+        <div class="bot-step" id="bot-step-list">
+            <h1 class="title small">Choose your opponent</h1>
+            <p class="tagline small" id="bot-modal-game"></p>
+            <div class="bot-list" id="bot-list"></div>
+            <button class="btn ghost" id="btn-bot-cancel">Cancel</button>
         </div>
-        <button class="btn primary" id="btn-bot-done">Play against this bot</button>
+        <!-- step 2: one bot, its scores and parameters -->
+        <div class="bot-step" id="bot-step-detail" hidden>
+            <div class="bot-detail-head">
+                <span class="bot-detail-icon">🤖</span>
+                <div>
+                    <h1 class="title small" id="bot-detail-name">Bot</h1>
+                    <p class="tagline small" id="bot-detail-desc"></p>
+                </div>
+            </div>
+            <div class="bot-badges" id="bot-detail-badges"></div>
+            <p class="hint" id="bot-detail-meta"></p>
+            <div class="bot-params">
+                <div class="section-title">Parameters</div>
+                <div class="skin-row" id="bot-difficulty-row">
+                    <span class="skin-label">Difficulty</span>
+                    <div class="seg" id="bot-difficulty"></div>
+                </div>
+                <p class="hint" id="bot-difficulty-hint"></p>
+            </div>
+            <div class="btn-row">
+                <button class="btn" id="btn-bot-back">‹ Back</button>
+                <button class="btn primary" id="btn-bot-done">Play against this bot</button>
+            </div>
+        </div>
     </div>
 </div>
 

@@ -1,7 +1,11 @@
-/* Opponent picker for "Play against a bot": the #bot-modal lists the bots that play the
-   selected game (name, description, baked-in benchmark score), a difficulty control per
-   bot, and remembers the choice per game in localStorage. app.js asks current(game) when
-   it starts a game with a bot seat. */
+/* Opponent picker for "Against a bot" (#bot-modal), two steps:
+   1. the list: one card per bot that plays the selected game — name, one line, its two
+      scores (win rate vs Random, puzzles solved) — tap a bot to open it;
+   2. the bot: description, scores, the difficulty control (hidden with one level) and
+      whatever parameters a bot gets in the future, with Back and Play.
+   Nothing opens by itself: the lobby's Opponent row shows the current choice and opens
+   the picker (#12). Default per game = the best-rated bot at its middle difficulty.
+   The choice is remembered per game in localStorage["chainreact.bots"]. */
 
 "use strict";
 
@@ -11,16 +15,21 @@ const Opponent = (() => {
     let choices = Util.load(localStorage, KEY) || {};      // game -> { id, difficulty }
     let game = null;                                        // game the modal is open for
     let selected = null;                                    // { id, difficulty } being edited
-    let onChange = () => {};
     let onDone = () => {};
 
-    // the bot + difficulty for a game (first registered bot of that game if nothing was chosen)
+    const score = (id) => { const b = Bots.benchmarkOf(id); return b ? b.score : -1; };
+    const middle = (def) => def.difficulties[Math.floor((def.difficulties.length - 1) / 2)].id;
+    // best-rated bot first (a real bot beats Random's ~50 %), registration order breaks ties
+    const ranked = (g) => Bots.forGame(g).slice().sort((a, b) => score(b.id) - score(a.id));
+    const label = (def, difficulty) => (def.difficulties.find((d) => d.id === difficulty) || def.difficulties[0]).label;
+
+    // the bot + difficulty for a game: the remembered choice if still valid, else the default
     function current(g) {
-        const bots = Bots.forGame(g);
+        const bots = ranked(g);
         if (bots.length === 0) return null;
         const saved = choices[g];
         const def = (saved && Bots.get(saved.id) && Bots.get(saved.id).game === g) ? Bots.get(saved.id) : bots[0];
-        const difficulty = def.difficulties.some((d) => d.id === (saved && saved.difficulty)) ? saved.difficulty : def.difficulties[0].id;
+        const difficulty = def.difficulties.some((d) => d.id === (saved && saved.difficulty)) ? saved.difficulty : middle(def);
         return { id: def.id, difficulty, def };
     }
 
@@ -28,55 +37,69 @@ const Opponent = (() => {
         const c = current(g);
         if (!c) return "No bot plays this game yet";
         const parts = [c.def.name];
-        if (c.def.difficulties.length > 1) parts.push(c.def.difficulties.find((d) => d.id === c.difficulty).label);
+        if (c.def.difficulties.length > 1) parts.push(label(c.def, c.difficulty));
         const b = Bots.benchmarkOf(c.id);
         if (b) parts.push(`${b.score} % vs Random`);
         if (b && b.puzzles) parts.push(`${b.puzzles.pct} % puzzles`);
         return parts.join(" · ");
     }
 
+    /* ---------- step 1: the list ---------- */
+    function scoreBadges(id) {
+        const b = Bots.benchmarkOf(id);
+        if (!b) return `<span class="bot-badge muted">not rated</span>`;
+        return `<span class="bot-badge"><b>${b.score} %</b> vs Random</span>` + (b.puzzles ? `<span class="bot-badge"><b>${b.puzzles.pct} %</b> puzzles</span>` : "");
+    }
     function renderList() {
         const list = $("bot-list");
         list.innerHTML = "";
-        const bots = Bots.forGame(game);
-        if (bots.length === 0) {
-            list.innerHTML = `<div class="bot-empty">No bot plays ${Games.get(game).title} yet.</div>`;
-            $("bot-difficulty-row").hidden = true;
-            $("btn-bot-done").disabled = true;
-            return;
-        }
-        $("btn-bot-done").disabled = false;
+        const bots = ranked(game);
+        if (bots.length === 0) { list.innerHTML = `<div class="bot-empty">No bot plays ${Games.get(game).title} yet.</div>`; return; }
         for (const def of bots) {
             const el = document.createElement("button");
             el.className = "bot-option" + (def.id === selected.id ? " selected" : "");
             el.dataset.bot = def.id;
-            const b = Bots.benchmarkOf(def.id);
-            const badge = b ? `<b>${b.score} %</b>vs Random` + (b.puzzles ? `<i>${b.puzzles.pct} % puzzles</i>` : "") : "not rated";
-            el.innerHTML = `<span class="bot-name"></span><span class="bot-score">${badge}</span><span class="bot-desc"></span>`;
+            el.innerHTML = `<span class="bot-main"><span class="bot-name"></span><span class="bot-desc"></span></span><span class="bot-badges">${scoreBadges(def.id)}</span><span class="chev">›</span>`;
             el.querySelector(".bot-name").textContent = def.name;
             el.querySelector(".bot-desc").textContent = def.description || "";
-            el.title = b
-                ? `Win rate against the Random bot over ${b.games} games (${b.at})` + (b.puzzles ? `; perfect moves found in ${b.puzzles.solved} of ${b.puzzles.total} puzzles (random picking: ${b.puzzles.chance} %)` : "")
-                : "No benchmark yet";
-            el.addEventListener("click", () => { selected = { id: def.id, difficulty: def.difficulties[0].id }; renderList(); });
+            el.addEventListener("click", () => {
+                const keep = def.id === selected.id && def.difficulties.some((d) => d.id === selected.difficulty);
+                selected = { id: def.id, difficulty: keep ? selected.difficulty : middle(def) };
+                showStep("detail");
+            });
             list.appendChild(el);
         }
-        renderDifficulty();
     }
 
-    function renderDifficulty() {
+    /* ---------- step 2: one bot ---------- */
+    function renderDetail() {
         const def = Bots.get(selected.id);
+        $("bot-detail-name").textContent = def.name;
+        $("bot-detail-desc").textContent = def.description || "";
+        $("bot-detail-badges").innerHTML = scoreBadges(def.id);
+        const b = Bots.benchmarkOf(def.id);
+        $("bot-detail-meta").textContent = b
+            ? `Rated over ${b.games} games against Random${b.puzzles ? ` and ${b.puzzles.total} solved puzzles` : ""} (${b.at}).`
+            : "Not rated yet.";
         const seg = $("bot-difficulty");
         seg.innerHTML = "";
         $("bot-difficulty-row").hidden = def.difficulties.length <= 1;
         for (const d of def.difficulties) {
-            const b = document.createElement("button");
-            b.textContent = d.label;
-            b.dataset.difficulty = d.id;
-            b.classList.toggle("selected", d.id === selected.difficulty);
-            b.addEventListener("click", () => { selected.difficulty = d.id; renderDifficulty(); });
-            seg.appendChild(b);
+            const btn = document.createElement("button");
+            btn.textContent = d.label;
+            btn.dataset.difficulty = d.id;
+            btn.classList.toggle("selected", d.id === selected.difficulty);
+            btn.addEventListener("click", () => { selected.difficulty = d.id; renderDetail(); });
+            seg.appendChild(btn);
         }
+        const level = def.difficulties.find((d) => d.id === selected.difficulty) || def.difficulties[0];
+        $("bot-difficulty-hint").textContent = level.thinkMs ? `${level.label}: thinks up to ${level.thinkMs >= 1000 ? `${level.thinkMs / 1000} s` : `${level.thinkMs} ms`} per move.` : "";
+    }
+
+    function showStep(step) {
+        $("bot-step-list").hidden = step !== "list";
+        $("bot-step-detail").hidden = step !== "detail";
+        if (step === "list") renderList(); else renderDetail();
     }
 
     function open(g) {
@@ -84,24 +107,24 @@ const Opponent = (() => {
         const c = current(g);
         selected = c ? { id: c.id, difficulty: c.difficulty } : { id: null, difficulty: null };
         $("bot-modal-game").textContent = Games.get(g).title;
-        renderList();
+        showStep("list");
         $("bot-modal").hidden = false;
     }
     function close(save) {
         if (save && selected && selected.id) {
             choices[game] = { id: selected.id, difficulty: selected.difficulty };
             Util.save(localStorage, KEY, choices);
-            onChange(game);
         }
         $("bot-modal").hidden = true;
         onDone(game);
     }
 
     function init(handlers) {
-        onChange = handlers.onChange || onChange;
         onDone = handlers.onDone || onDone;
         $("btn-bot-done").addEventListener("click", () => close(true));
-        $("bot-modal").addEventListener("click", (e) => { if (e.target === $("bot-modal")) close(true); });
+        $("btn-bot-back").addEventListener("click", () => showStep("list"));
+        $("btn-bot-cancel").addEventListener("click", () => close(false));
+        $("bot-modal").addEventListener("click", (e) => { if (e.target === $("bot-modal")) close(false); });
     }
 
     return { init, open, current, summary };

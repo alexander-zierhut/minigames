@@ -10,17 +10,28 @@ after(async () => { await B?.close(); await server?.close(); });
 
 const myTurn = () => B.waitFor("!ChainGame.state.busy && !FiveGame.state.busy && (document.body.classList.contains('game-five') ? FiveGame : ChainGame).state.current === 0 || (document.body.classList.contains('game-five') ? FiveGame : ChainGame).state.over", { timeout: 20000, what: "my turn or game over" });
 
-test("bot lobby: opponent row, picking a game opens the bot picker with score and difficulty", async () => {
+test("bot lobby: sane default (best bot, middle level), two-step picker with scores, difficulty and Back", async () => {
     await B.click("#btn-bot");
     assert.equal(await B.screen(), "screen-lobby");
     assert.equal(await B.text("lobby-kind"), "Against a bot");
     assert.equal(await B.ev("document.getElementById('btn-opponent').hidden"), false);
     await B.selectGame("five");
-    assert.equal(await B.ev("document.getElementById('bot-modal').hidden"), false, "picking a game asks for the bot");
+    assert.equal(await B.ev("document.getElementById('bot-modal').hidden"), true, "picking a game does not open the picker (#12)");
+    assert.match(await B.text("opponent-summary"), /^Sensei · Normal · 100 % vs Random · 100 % puzzles$/, "default: the best-rated bot at its middle level");
+    await B.click("#btn-opponent");
+    assert.equal(await B.ev("document.getElementById('bot-modal').hidden"), false);
     assert.equal(await B.text("bot-modal-game"), "Five Wins");
-    assert.ok(await B.ev("document.querySelectorAll('.bot-option').length >= 1"));
-    assert.match(await B.ev("document.querySelector('.bot-option .bot-score').textContent"), /\d+(\.\d+)? %vs Random/, "benchmark score baked in");
+    assert.equal(await B.ev("document.getElementById('bot-step-list').hidden"), false);
+    assert.ok(await B.ev("document.querySelectorAll('.bot-option').length >= 2"));
+    assert.equal(await B.ev("document.querySelector('.bot-option').dataset.bot"), "sensei-five", "best-rated first");
+    assert.match(await B.ev("document.querySelector('.bot-option .bot-badge').textContent"), /\d+(\.\d+)? % vs Random/, "benchmark score baked in");
+    await B.click('.bot-option[data-bot="random-five"]');
+    assert.equal(await B.ev("document.getElementById('bot-step-detail').hidden"), false, "a bot opens its detail step");
+    assert.equal(await B.text("bot-detail-name"), "Random");
     assert.equal(await B.ev("document.getElementById('bot-difficulty-row').hidden"), true, "single difficulty: no control");
+    await B.click("#btn-bot-back");
+    assert.equal(await B.ev("document.getElementById('bot-step-list').hidden"), false, "Back returns to the list");
+    await B.click('.bot-option[data-bot="random-five"]');
     await B.click("#btn-bot-done");
     assert.equal(await B.ev("document.getElementById('bot-modal').hidden"), true);
     assert.match(await B.text("opponent-summary"), /^Random · [\d.]+ % vs Random( · [\d.]+ % puzzles)?$/);

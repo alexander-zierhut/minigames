@@ -794,8 +794,8 @@
     Sound.init({ seats: () => app.seats.map((s) => s.kind) });
     Settings.init({
         onChange: (cfg) => { if (online()) { netSend({ t: "lobby", s: cfg }); reseat(); } },
-        // in bot mode picking a game asks which bot to play against
-        onSelectGame: (key) => { if (app.mode === "bot" && app.phase === "lobby") Opponent.open(key); },
+        // picking a game keeps the default opponent (best bot, middle level, #12); the Opponent row opens the picker
+        onSelectGame: () => { if (app.mode === "bot" && app.phase === "lobby") renderLobby(); },
     });
     Opponent.init({ onDone: () => renderLobby() });
     Reactions.init({ onSend: (e) => { if (online()) netSend({ t: "react", e }); } });

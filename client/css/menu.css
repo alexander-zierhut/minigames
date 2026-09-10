@@ -183,27 +183,53 @@
 /* phones: the cards start below the ⚙ button */
 @media (max-width: 899px) { #screen-menu, #screen-lobby { padding-top: 56px; } }
 
-/* ---- bot picker ---- */
+/* ---- bot picker: step 1 list of bots, step 2 one bot with its parameters ---- */
 .bot-card { max-width: 480px; gap: 14px; }
-.bot-list { display: flex; flex-direction: column; gap: 8px; max-height: 40vh; overflow-y: auto; }
+.bot-step { display: flex; flex-direction: column; gap: 14px; }
+.bot-list { display: flex; flex-direction: column; gap: 8px; max-height: 50vh; overflow-y: auto; }
 .bot-option {
-    display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center;
-    padding: 10px 12px; text-align: left;
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; text-align: left;
     background: var(--bg2); color: var(--text);
     border: 2px solid var(--line); border-radius: 12px; cursor: pointer;
     transition: border-color .15s, box-shadow .15s;
 }
 .bot-option:hover { border-color: #46528a; }
-.bot-option.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-.bot-option .bot-name { font-weight: 800; font-size: 15px; }
-.bot-option .bot-desc { grid-column: 1; font-size: 12px; color: var(--muted); }
-.bot-option .bot-score {
-    grid-row: 1 / span 2; font-size: 12px; font-weight: 800; padding: 4px 8px; border-radius: 8px;
-    background: var(--panel); border: 2px solid var(--line); color: var(--muted); white-space: nowrap; text-align: center;
+.bot-option.selected { border-color: var(--accent); }
+.bot-option .bot-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.bot-option .bot-name { font-weight: 800; font-size: 16px; }
+.bot-option .bot-desc { font-size: 12px; color: var(--muted); }
+.bot-option .chev { font-size: 22px; color: var(--muted); }
+.bot-badges { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; flex: 0 0 auto; }
+.bot-option .bot-badges { flex-direction: column; align-items: stretch; }
+.bot-badge {
+    font-size: 11px; color: var(--muted); white-space: nowrap; text-align: center;
+    padding: 3px 8px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line);
 }
-.bot-option .bot-score b { display: block; font-size: 16px; color: var(--text); }
-.bot-option .bot-score i { display: block; font-style: normal; font-size: 11px; margin-top: 2px; border-top: 1px solid var(--line); padding-top: 2px; }
+.bot-badge b { color: var(--text); font-size: 13px; margin-right: 3px; }
+.bot-badge.muted { font-style: italic; }
+.bot-detail-head { display: flex; align-items: center; gap: 14px; }
+.bot-detail-head .title { text-align: left; }
+.bot-detail-head .tagline { text-align: left; margin: 2px 0 0; }
+.bot-detail-icon { font-size: 40px; line-height: 1; }
+#bot-detail-badges { justify-content: flex-start; }
+.bot-params { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: var(--bg2); border: 2px solid var(--line); border-radius: 12px; }
+.bot-params .hint { text-align: left; min-height: 14px; }
 .bot-empty { font-size: 13px; color: var(--muted); text-align: center; padding: 12px; }
-.skin-mc .bot-option { border-radius: 0; background: rgba(0,0,0,.62); border-color: #000; box-shadow: inset 0 0 0 1px #3a3a3a; }
-.skin-mc .bot-option.selected { border-color: #fff; box-shadow: inset 0 0 0 1px #fff, 0 0 0 2px #000; }
-.skin-mc .bot-option .bot-score { border-radius: 0; background: #000; border-color: #3a3a3a; }
+/* phones: badges under the text, difficulty control in two rows, Play above Back */
+@media (max-width: 480px) {
+    .bot-option { flex-wrap: wrap; }
+    .bot-option .bot-main { flex-basis: 100%; }
+    .bot-option .bot-badges { flex-direction: row; width: 100%; justify-content: flex-start; }
+    .bot-option .chev { display: none; }
+    #bot-difficulty-row { flex-direction: column; align-items: stretch; gap: 6px; }
+    #bot-difficulty { flex-wrap: wrap; }
+    #bot-difficulty button { flex: 1 1 45%; }
+    #bot-difficulty button + button { border-left: 0; }
+    #bot-difficulty button:nth-child(even) { border-left: 2px solid var(--line); }
+    #bot-difficulty button:nth-child(n+3) { border-top: 2px solid var(--line); }
+    #bot-step-detail .btn-row { flex-direction: column-reverse; }
+}
+.skin-mc .bot-option, .skin-mc .bot-params { border-radius: 0; background: rgba(0,0,0,.62); border-color: #000; box-shadow: inset 0 0 0 1px #3a3a3a; }
+.skin-mc .bot-option.selected { border-color: #fff; }
+.skin-mc .bot-badge { border-radius: 0; background: #000; border-color: #3a3a3a; }
