@@ -61,6 +61,7 @@ test("back to room, switch to five wins with 6 in a row, scripted win with jumpi
     await B.click("#btn-menu");
     assert.equal(await B.screen(), "screen-lobby");
     await B.selectGame("five");
+    assert.match(await B.text("settings-summary"), /^11 × 11 · 5 in a row/, "five starts at its 11 × 11 default (#16)");
     await B.click("#btn-settings");
     await B.set("set-winlen", 6); await B.set("set-size", 7);
     await B.click("#btn-settings-done");

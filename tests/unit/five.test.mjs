@@ -11,6 +11,13 @@ function fresh(config = {}) {
 }
 async function playAll(G, seq) { for (const i of seq) { assert.equal(await G.play(i), true, `move ${i} legal`); } }
 
+test("registry: 5–25 cells, default 11 × 11 (#16), the win length is the minimum", () => {
+    const { w } = fresh();
+    const def = w.eval("Games.get('five')");
+    assert.equal(def.size.min, 5); assert.equal(def.size.max, 25); assert.equal(def.size.default, 11);
+    assert.equal(def.minSize({ winLen: 7 }), 7); assert.equal(def.minSize({ winLen: 3 }), 5);
+});
+
 test("horizontal five wins with the exact line", async () => {
     const { G, calls } = fresh();
     await playAll(G, [0, 9, 1, 10, 2, 11, 3, 12, 4]);

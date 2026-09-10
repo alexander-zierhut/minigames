@@ -133,7 +133,9 @@ doesn't snap at "1"). Persisted in `localStorage["chainreact.settings"]` togethe
 `sizeFor` (remembered board size per game). Inputs have `autocomplete="off"` (Firefox
 restores form values on reload).
 
-- Shared rows: board size (limits from the game's `size` + optional `minSize(cfg)`),
+- Shared rows: board size (limits and default from the game's `size` + optional
+  `minSize(cfg)`: chain 3–12, default 6; five 5–25, default 11 since #16 — a size
+  remembered in `sizeFor` wins over the default),
   **players** (`#set-players`: 2 default / 3 / 4 — seats in the room and on one device;
   hidden and forced to 2 against a bot), timer per player (Off default / 1 / 3 / 5 / 10
   min / custom minutes).
@@ -266,7 +268,8 @@ approved ("wuchtiger" like TNT).
 
 ## Five Wins rules (`five-rules.js`)
 
-n×n board. Place on any empty cell. `winLen` **or more** in a row (4 directions) wins;
+n×n board (default 11×11). Place on any empty cell. `winLen` **or more** in a row (4
+directions) wins;
 winning stones get `.win` + `--k` and jump in a wave (`stone-jump`, the MC blocks
 jumping). Full board = draw (`winner -1`, overlay "Draw!"). With 3–4 players the turn
 rotates (`Rules.pass`) and the first line wins; when everyone else is `out` the last
