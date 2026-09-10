@@ -670,10 +670,13 @@ every bot folder into a bare VM — script list parsed from `index.html`).
 edge next to ⚙, #7/#13; the expanded list stops 124px short of the left edge). `Reactions.place()` (called after every `fitBoard`) puts `#react-layer` **right
 next to the board** when there is ≥ 66px of space (desktop), else in the free strip
 above the full-width board (or below it if that's bigger) — never over the board, never
-off-screen. Emojis drift right → left while falling the layer's height (~2 s, wobble,
-fade, max 14 on screen). Spam is allowed on purpose (~8/s; the receiver accepts one per
-100 ms and only values from its own button set). Friend's reactions get a dot in their
-colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
+off-screen. Emojis drift right → left while falling the layer's height (wobble, fade,
+max 14 on screen). **Speed follows the rate** (#17): `Reactions.durationFor(recent)` with
+`recent` = reactions shown (own + received alike) in the last `RATE_WINDOW` 3 s before
+this one: 0 → `SLOW_MS` 4000 (a lone reaction can be seen), 1 → `MEDIUM_MS` 2800, ≥ 2 →
+`FAST_MS` 1900 (spam stays quick); no randomness beyond the wobble. Spam is allowed on
+purpose (~8/s; the receiver accepts one per 100 ms and only values from its own button
+set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
 
 ## Tests (`npm test` = unit + e2e; CI runs both before every deploy and on every PR)
 
@@ -688,6 +691,8 @@ colour. `#net-banner` sits at 58px on phones so it stays clear of the toggle.
   `prefs.test.mjs` (defaults, clamping, persistence, form wiring), `sound.test.mjs`
   (event → cue mapping with a fake player, perspective, prefs gate, sound sets),
   `chat.test.mjs` (log boxes, limits, HTML safety, offline, chat survives a new game),
+  `reactions.test.mjs` (float duration from the recent rate with a mocked clock, own +
+  received, rate limits),
   `party.test.mjs` (3–4 players: `out`/`remaining`/pass in the pure rules, engine
   `eliminate` + `replay(history, outs)` == live play, two-player flag fall, settings
   players row / bot mode),

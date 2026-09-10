@@ -49,6 +49,7 @@ test("game: compact HUD, board outline visible, reactions inside the viewport, n
     const layer = JSON.parse(await M.ev("JSON.stringify(document.getElementById('react-layer').getBoundingClientRect())"));
     assert.ok(layer.right <= 360 && layer.left >= 0, `reaction layer inside the viewport (${layer.left}..${layer.right})`);
     assert.ok(layer.bottom <= b.top + 1 || layer.top >= b.bottom - 1, "reactions never over the board");
+    assert.equal(await M.ev("document.querySelector('#react-layer .react-float').getAnimations()[0].effect.getTiming().duration"), 4000, "a lone reaction floats slowly (#17)");
     await M.move(7);
     await assertNoScroll("game after move");
 });
