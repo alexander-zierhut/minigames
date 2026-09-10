@@ -125,6 +125,7 @@ const Room = (() => {
     // spectate: watch only (spectate link, or a refresh of a spectator).
     // hidden: enter with the code hidden (the preference, or the session's state on a refresh).
     function enter(code, preferHost, seat = -1, spectate = false, hidden = Prefs.get().hideCode) {
+        if (goodbye) { clearTimeout(goodbye); goodbye = null; }   // a room left a moment ago: Net.open closes it now, the delayed shutdown must not hit the new room
         Match.reset("online", seat, spectate);
         Object.assign(r, { rev: 0, roster: { present: [], spectators: 0, left: [] }, left: new Set(), votes: new Set(), incoming: [], syncSentAt: -1, rebuiltAt: null, codeHidden: !!hidden });
         Chat.enable(true);
@@ -157,10 +158,12 @@ const Room = (() => {
     }
 
     // say goodbye (the others treat my seat as gone at once) and drop the connection
+    let goodbye = null;                                     // the delayed transport shutdown after a "leave" message
     function leave() {
+        if (goodbye) { clearTimeout(goodbye); goodbye = null; }
         if (online()) {
             const sent = netSend({ t: "leave" });
-            if (sent) setTimeout(Net.leave, 250); else Net.leave();   // let the goodbye go out first
+            if (sent) goodbye = setTimeout(() => { goodbye = null; Net.leave(); }, 250); else Net.leave();   // let the goodbye go out first
         } else Net.leave();
         Session.clear();
         Chat.enable(false);

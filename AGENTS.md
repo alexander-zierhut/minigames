@@ -612,6 +612,9 @@ The old "room is full" answer only remains in net.js for an app that refuses new
 - The host stamps `from` on every guest message before relaying; guests never trust a
   `from` they wrote themselves. A relayed `lobby` change makes the host reseat, so a
   guest reducing *Players* can drop another guest to spectator — by design.
+- `Room.leave` shuts the transport down 250 ms later (so the `leave` message goes out);
+  `Room.enter` cancels that timer — otherwise leaving and creating a room within 250 ms
+  killed the new room (`Net.open` already closes the old one). The hide-code e2e does that.
 - `pkill -f <pattern>` kills your own shell if the pattern is in the command line.
 
 ## Events (`Bus`)
