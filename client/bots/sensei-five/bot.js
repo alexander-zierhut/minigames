@@ -22,6 +22,14 @@
    nodes search the K best candidates by a per-cell potential that is updated incrementally.
    Determinism: no Math.random; tie-breaks are by cell index, Easy's noise uses tools.random.
 
+   Yavalath rule (config.yavalath / state.yavalath): winLen wins, but a stone whose longest
+   line is exactly winLen - 1 loses for its owner. The board then also records the suicide
+   cells per line and player (sm / su: filling makes exactly L - 1 and not L); the move
+   generator drops them, the terminal tests know that a forced block on such a cell loses,
+   and the threat searches use exactly that as the winning idea ("you must block, and the
+   block makes three"). Everything sits behind `yav`, so the standard game plays move for
+   move as before.
+
    Win chance (Evaluator, evaluate(state, tools) in the registration): a raw score from
    player 0's view for the HUD — a short forced-move-aware search on every budget, threat
    searches (VCF / VCT extended by three-makers) on the long ones; see the block at the end.
@@ -41,7 +49,7 @@ const SenseiFive = (() => {
     const WS = [100000, 250, 70, 12, 2, 1];
     const wsOf = (need) => (need < WS.length ? WS[need] : 0);
     // static evaluation terms (see evaluate); an object so tuning scripts can tweak them
-    const EVAL = { threeMine: 3000, threeOne: 1000, threeTwo: 2500, fourPending: 1500 };
+    const EVAL = { threeMine: 3000, threeOne: 1000, threeTwo: 2500, fourPending: 1500, yavTrap: 30 };
 
     /* ---------- difficulty profiles ----------
        depth: iterative-deepening cap; K: candidates per node; vcf / vct: max own fours /
@@ -59,8 +67,8 @@ const SenseiFive = (() => {
        Board: cells, line records, totals, per-cell potential, Zobrist hash, make/unmake stack
        ================================================================ */
     class Board {
-        constructor(n, L) {
-            this.n = n; this.L = L; this.size = n * n;
+        constructor(n, L, yav = false) {
+            this.n = n; this.L = L; this.size = n * n; this.yav = !!yav;
             this.cell = new Int8Array(this.size).fill(-1);
             this.empties = this.size;
             this.ws = new Int32Array(L + 1);
@@ -68,7 +76,9 @@ const SenseiFive = (() => {
             this.buildLines();
             this.rec = new Int32Array(this.lines.length * RECS);
             this.ow = new Int32Array(this.lines.length * 2);    // open windows per line and player (#18: none left for anyone = dead board, a draw)
-            this.F = [0, 0]; this.T = [0, 0]; this.S = [0, 0]; this.OW = [0, 0];
+            this.sm = new Int32Array(this.lines.length * 2);   // Yavalath: mask of cells whose filling makes exactly L-1 on this line
+            this.su = new Int32Array(this.lines.length * 2);   // …and how many they are (static evaluation)
+            this.F = [0, 0]; this.T = [0, 0]; this.S = [0, 0]; this.OW = [0, 0]; this.SU = [0, 0];
             this.TL = [0, 0];                                  // lines with ≥ 1 three-cell
             this.MK = [0, 0];                                  // lines with ≥ 1 four-maker
             this.potD = new Int32Array(4 * this.size * 2);    // potential per direction, cell, player
@@ -87,7 +97,7 @@ const SenseiFive = (() => {
             for (let i = 0; i < 2 * this.size; i++) { this.zlo[i] = (rng32() * 4294967296) >>> 0; this.zhi[i] = (rng32() * 4294967296) >>> 0; }
             this.hashLo = 0; this.hashHi = 0;
             // undo stack: per make a frame of [cell, player, 10 totals, 4 × (line id + record), potential entries…]
-            this.frame = 2 + 12 + 4 * (1 + RECS + 2) + 1 + 4 * (2 * L - 2) * 5;
+            this.frame = 2 + 14 + 4 * (1 + RECS + 6) + 1 + 4 * (2 * L - 2) * 5;
             this.stack = new Int32Array(this.frame * (PLIES + 8));
             this.frames = new Int32Array(PLIES + 8);           // frame start per made stone
             this.sp = 0; this.depth = 0;
@@ -128,18 +138,19 @@ const SenseiFive = (() => {
            runL + runR + 1; that run gains a completion cell at its ends a/b when the stones
            beyond a/b bring it to L. */
         scanLine(id, at) {
-            const cells = this.lines[id], m = cells.length, L = this.L, cell = this.cell, rec = this.rec;
+            const cells = this.lines[id], m = cells.length, L = this.L, cell = this.cell, rec = this.rec, yav = this.yav;
             const runL = this.runL, runR = this.runR;
             for (let p = 0; p < 2; p++) {
                 let run = 0;
                 for (let i = 0; i < m; i++) { runL[i] = run; run = cell[cells[i]] === p ? run + 1 : 0; }
                 run = 0;
                 for (let i = m - 1; i >= 0; i--) { runR[i] = run; run = cell[cells[i]] === p ? run + 1 : 0; }
-                let F = 0, T = 0, FM = 0, TM = 0, MM = 0;
+                let F = 0, T = 0, FM = 0, TM = 0, MM = 0, SM = 0, SU = 0;
                 for (let i = 0; i < m; i++) {
                     if (cell[cells[i]] !== -1) continue;
                     const total = runL[i] + runR[i] + 1;
                     if (total >= L) { F++; FM |= 1 << i; continue; }
+                    if (yav && total === L - 1) { SU++; SM |= 1 << i; }        // Yavalath: filling here makes exactly L-1
                     const a = i - runL[i] - 1, b = i + runR[i] + 1;
                     const ca = a >= 0 && cell[cells[a]] === -1 && runL[a] + 1 + total >= L;
                     const cb = b < m && cell[cells[b]] === -1 && runR[b] + 1 + total >= L;
@@ -147,6 +158,7 @@ const SenseiFive = (() => {
                     if (ca || cb) MM |= 1 << i;
                 }
                 rec[at + R_F + p] = F; rec[at + R_T + p] = T; rec[at + R_FM + p] = FM; rec[at + R_TM + p] = TM; rec[at + R_MM + p] = MM;
+                this.sm[id * 2 + p] = SM; this.su[id * 2 + p] = SU;
             }
             let c0 = 0, c1 = 0, S0 = 0, S1 = 0, O0 = 0, O1 = 0;
             const ws = this.ws;
@@ -168,6 +180,7 @@ const SenseiFive = (() => {
             const rec = this.rec, id = at / RECS;
             for (let p = 0; p < 2; p++) {
                 this.OW[p] += sign * this.ow[id * 2 + p];
+                if (this.yav) this.SU[p] += sign * this.su[id * 2 + p];
                 this.F[p] += sign * rec[at + R_F + p];
                 this.T[p] += sign * rec[at + R_T + p];
                 this.S[p] += sign * rec[at + R_S + p];
@@ -209,7 +222,7 @@ const SenseiFive = (() => {
                 if (v === -1) this.empties++;
                 else { this.hashLo ^= this.zlo[v * size + c]; this.hashHi ^= this.zhi[v * size + c]; for (const o of this.nbList[c]) this.nb[o]++; }
             }
-            this.F[0] = this.F[1] = this.T[0] = this.T[1] = this.S[0] = this.S[1] = this.TL[0] = this.TL[1] = this.MK[0] = this.MK[1] = this.OW[0] = this.OW[1] = 0;
+            this.F[0] = this.F[1] = this.T[0] = this.T[1] = this.S[0] = this.S[1] = this.TL[0] = this.TL[1] = this.MK[0] = this.MK[1] = this.OW[0] = this.OW[1] = this.SU[0] = this.SU[1] = 0;
             for (let id = 0; id < this.lines.length; id++) { this.scanLine(id, id * RECS); this.addRec(id * RECS, 1); }
             this.potD.fill(0); this.pot.fill(0);
             for (let d = 0; d < 4; d++) for (let c = 0; c < size; c++) {
@@ -235,16 +248,18 @@ const SenseiFive = (() => {
             st[sp++] = c; st[sp++] = p;
             st[sp++] = this.F[0]; st[sp++] = this.F[1]; st[sp++] = this.T[0]; st[sp++] = this.T[1]; st[sp++] = this.S[0]; st[sp++] = this.S[1];
             st[sp++] = this.TL[0]; st[sp++] = this.TL[1]; st[sp++] = this.MK[0]; st[sp++] = this.MK[1]; st[sp++] = this.OW[0]; st[sp++] = this.OW[1];
+            st[sp++] = this.SU[0]; st[sp++] = this.SU[1];
             this.cell[c] = p; this.empties--;
             this.hashLo ^= this.zlo[p * size + c]; this.hashHi ^= this.zhi[p * size + c];
             for (const o of this.nbList[c]) this.nb[o]++;
             for (let d = 0; d < 4; d++) {
                 const id = this.lineOf[d * size + c];
                 st[sp++] = id;
-                if (id < 0) { sp += RECS + 2; continue; }
+                if (id < 0) { sp += RECS + 6; continue; }
                 const at = id * RECS;
                 for (let k = 0; k < RECS; k++) st[sp++] = this.rec[at + k];
                 st[sp++] = this.ow[id * 2]; st[sp++] = this.ow[id * 2 + 1];
+                st[sp++] = this.sm[id * 2]; st[sp++] = this.sm[id * 2 + 1]; st[sp++] = this.su[id * 2]; st[sp++] = this.su[id * 2 + 1];
                 this.addRec(at, -1); this.scanLine(id, at); this.addRec(at, 1);
             }
             const countAt = sp++;
@@ -276,12 +291,14 @@ const SenseiFive = (() => {
             const c = st[sp++], p = st[sp++];
             this.F[0] = st[sp++]; this.F[1] = st[sp++]; this.T[0] = st[sp++]; this.T[1] = st[sp++]; this.S[0] = st[sp++]; this.S[1] = st[sp++];
             this.TL[0] = st[sp++]; this.TL[1] = st[sp++]; this.MK[0] = st[sp++]; this.MK[1] = st[sp++]; this.OW[0] = st[sp++]; this.OW[1] = st[sp++];
+            this.SU[0] = st[sp++]; this.SU[1] = st[sp++];
             for (let d = 0; d < 4; d++) {
                 const id = st[sp++];
-                if (id < 0) { sp += RECS + 2; continue; }
+                if (id < 0) { sp += RECS + 6; continue; }
                 const at = id * RECS;
                 for (let k = 0; k < RECS; k++) this.rec[at + k] = st[sp++];
                 this.ow[id * 2] = st[sp++]; this.ow[id * 2 + 1] = st[sp++];
+                this.sm[id * 2] = st[sp++]; this.sm[id * 2 + 1] = st[sp++]; this.su[id * 2] = st[sp++]; this.su[id * 2 + 1] = st[sp++];
             }
             const count = st[sp++];
             for (let e = 0; e < count; e++, sp += 5) {                  // absolute values: order is irrelevant
@@ -309,6 +326,37 @@ const SenseiFive = (() => {
             return count;
         }
 
+        /* ---------- Yavalath (only used when this.yav) ----------
+           A cell is suicidal for p when filling it makes a longest line of exactly L-1: some
+           direction reaches L-1 and none reaches L (a stone that also completes a line wins,
+           so the completion masks beat the suicide masks). O(4) through the line masks. */
+        suicidal(c, p) {
+            const size = this.size;
+            let found = false;
+            for (let d = 0; d < 4; d++) {
+                const id = this.lineOf[d * size + c];
+                if (id < 0) continue;
+                const bit = 1 << this.posOf[d * size + c];
+                if (this.rec[id * RECS + R_FM + p] & bit) return false;
+                if (this.sm[id * 2 + p] & bit) found = true;
+            }
+            return found;
+        }
+        // a three-cell of p that p may actually play (an open four next move); -1 if there is none
+        safeThree(p) {
+            for (let id = 0; id < this.lines.length; id++) {
+                let mask = this.rec[id * RECS + R_TM + p];
+                while (mask) {
+                    const bit = mask & -mask, pos = 31 - Math.clz32(bit);
+                    mask ^= bit;
+                    const c = this.lines[id][pos];
+                    if (!this.suicidal(c, p)) return c;
+                }
+            }
+            return -1;
+        }
+        firstEmpty() { for (let c = 0; c < this.size; c++) if (this.cell[c] === -1) return c; return -1; }
+
         // cells of a mask family (R_MM four-makers, R_TM three-cells) of p, deduplicated by stamp
         collect(field, p, out, count, mark, stamp) {
             for (let id = 0; id < this.lines.length; id++) {
@@ -331,6 +379,7 @@ const SenseiFive = (() => {
             const T0 = this.T[p], pot = this.pot, potD = this.potD, need = this.ws[2], size = this.size, start = count;
             for (let c = 0; c < size; c++) {
                 if (this.cell[c] !== -1 || this.nb[c] === 0 || mark[c] === stamp || pot[c * 2 + p] < need) continue;
+                if (this.yav && this.suicidal(c, p)) continue;
                 // some single direction must carry a window with L-3 own stones
                 const i = c * 2 + p;
                 if (potD[i] < need && potD[size * 2 + i] < need && potD[size * 4 + i] < need && potD[size * 6 + i] < need) continue;
@@ -356,7 +405,7 @@ const SenseiFive = (() => {
                 if (rec[at + R_T + q] === 0) continue;
                 const cells = this.lines[id];
                 sc.set(rec.subarray(at, at + RECS));
-                const o0 = this.ow[id * 2], o1 = this.ow[id * 2 + 1];
+                const o0 = this.ow[id * 2], o1 = this.ow[id * 2 + 1], m0 = this.sm[id * 2], m1 = this.sm[id * 2 + 1], u0 = this.su[id * 2], u1 = this.su[id * 2 + 1];
                 for (let i = 0; i < cells.length; i++) {
                     const x = cells[i];
                     if (this.cell[x] !== -1 || mark[x] === stamp) continue;
@@ -368,6 +417,7 @@ const SenseiFive = (() => {
                 }
                 rec.set(sc, at);
                 this.ow[id * 2] = o0; this.ow[id * 2 + 1] = o1;
+                this.sm[id * 2] = m0; this.sm[id * 2 + 1] = m1; this.su[id * 2] = u0; this.su[id * 2 + 1] = u1;
             }
             return count;
         }
@@ -382,9 +432,10 @@ const SenseiFive = (() => {
     function evaluate(B, p) {
         const q = 1 - p;
         let v = B.S[p] - B.S[q];
-        if (B.T[p] > 0) v += EVAL.threeMine;
+        if (B.T[p] > 0 && (!B.yav || B.safeThree(p) >= 0)) v += EVAL.threeMine;
         if (B.TL[q] >= 2) v -= EVAL.threeTwo; else if (B.TL[q] === 1) v -= EVAL.threeOne;
         if (B.F[q] > 0) v -= EVAL.fourPending;
+        if (B.yav) v += EVAL.yavTrap * (B.SU[q] - B.SU[p]);        // cells the opponent must avoid are pressure
         return v;
     }
 
@@ -402,9 +453,9 @@ const SenseiFive = (() => {
             this.vcfFours = new Int8Array(1 << 14); this.vcfStamp = 0; this.vcfMove = -1;
         }
 
-        board(n, L) {
-            if (!this.B || this.B.n !== n || this.B.L !== L) {
-                this.B = new Board(n, L);
+        board(n, L, yav = false) {
+            if (!this.B || this.B.n !== n || this.B.L !== L || this.B.yav !== !!yav) {
+                this.B = new Board(n, L, yav);
                 this.moves = new Int16Array(PLIES * this.B.size);
                 this.scores = new Int32Array(PLIES * this.B.size);
                 this.mark = new Int32Array(this.B.size); this.stamp = 0;
@@ -412,12 +463,13 @@ const SenseiFive = (() => {
                 this.killers = new Int16Array(PLIES * 2);
                 this.buf2 = new Int16Array(2);
             }
+            this.yav = this.B.yav;
             return this.B;
         }
 
         /* ---------- per-move driver ---------- */
         async move(state) {
-            const B = this.board(state.n, state.winLen);
+            const B = this.board(state.n, state.winLen, state.yavalath);
             B.load(state.cells);
             const me = state.current, opp = 1 - me, tools = this.tools, level = this.level;
             this.me = me;
@@ -430,7 +482,9 @@ const SenseiFive = (() => {
             const buf = this.buf2;
             if (B.completionCells(me, buf) > 0) return buf[0];                       // win now
             const threats = B.completionCells(opp, buf);
-            if (threats > 0 && !(level.noise && tools.random() > 0.75)) return buf[0];  // block (Easy sometimes misses)
+            // block (Easy sometimes misses); with the Yavalath rule a block that makes L-1 loses on
+            // the spot, so the search looks for the least bad move instead
+            if (threats > 0 && !(level.noise && tools.random() > 0.75) && !(this.yav && B.suicidal(buf[0], me))) return buf[0];
             if (level.noise) return this.easyMove(me);
             // a forced win by fours / threats is certain; the search may still know a faster one
             let forced = level.vcf > 0 ? await this.rootVcf(me, level.vcf) : null;
@@ -446,6 +500,7 @@ const SenseiFive = (() => {
         // Easy: greedy by potential with a weighted random pick among the best candidates
         easyMove(me) {
             const count = this.generate(me, 0, -1);
+            if (count === 0) return this.B.firstEmpty();                // Yavalath: nothing safe is left
             const moves = this.moves, r = this.tools.random();
             const k = Math.min(count, r < 0.45 ? 1 : r < 0.7 ? 2 : r < 0.85 ? 3 : count);
             return moves[this.tools.randInt(k)];
@@ -456,6 +511,7 @@ const SenseiFive = (() => {
         async deepen(me, depthCap) {
             const B = this.B, level = this.level, moves = this.moves;
             const count = this.generate(me, 0, -1);
+            if (count === 0) return B.firstEmpty();                     // Yavalath: every move makes L-1
             const root = Array.from(moves.subarray(0, count));
             const rootScore = new Map(root.map((c) => [c, 0]));
             let best = root[0], bestVal = -Infinity;
@@ -504,7 +560,7 @@ const SenseiFive = (() => {
             const moves = this.moves, scores = this.scores, pot = B.pot, hist = this.hist;
             const K = B.empties <= 16 ? B.empties : (ply === 0 ? Math.max(this.level.K, 20) : this.level.K);
             const k0 = this.killers[ply * 2], k1 = this.killers[ply * 2 + 1];
-            const stamp = ++this.stamp, mark = this.mark;
+            const stamp = ++this.stamp, mark = this.mark, yav = this.yav;
             let count = 0;
             const scoreOf = (c) => {
                 let s = pot[c * 2 + p] + pot[c * 2 + q] + (hist[p * size + c] >> 4);
@@ -515,6 +571,7 @@ const SenseiFive = (() => {
                 let n = B.collect(R_MM, p, moves, base, mark, stamp) - base;
                 n = B.collect(R_TM, p, moves, base + n, mark, stamp) - base;
                 n = B.defences(p, q, moves, base + n, mark, stamp) - base;
+                if (yav) { let w = 0; for (let i = 0; i < n; i++) if (!B.suicidal(moves[base + i], p)) moves[base + w++] = moves[base + i]; n = w; }
                 for (let i = 0; i < n; i++) scores[base + i] = scoreOf(moves[base + i]);
                 count = n;
                 // insertion sort (few moves)
@@ -529,6 +586,7 @@ const SenseiFive = (() => {
             // near-stone cells, kept as a sorted top-K list
             for (let c = 0; c < size; c++) {
                 if (B.cell[c] !== -1 || B.nb[c] === 0) continue;
+                if (yav && B.suicidal(c, p)) continue;
                 const s = scoreOf(c);
                 if (count === K && s <= scores[base + count - 1]) continue;
                 let j = count < K ? count : K - 1;
@@ -536,6 +594,9 @@ const SenseiFive = (() => {
                 moves[base + j] = c; scores[base + j] = s;
                 if (count < K) count++;
             }
+            // Yavalath: nothing safe near the stones — a cell without a stone within two can never
+            // make a line, so those are the safe moves that are left (none at all = p is lost)
+            if (yav && count === 0) for (let c = 0; c < size && count < K; c++) if (B.cell[c] === -1 && B.nb[c] === 0) moves[base + count++] = c;
             return count;
         }
 
@@ -547,9 +608,11 @@ const SenseiFive = (() => {
             const B = this.B, p = (ply & 1) ? 1 - this.me : this.me, q = 1 - p;
             if (B.F[p] > 0) return WIN - ply;
             if (B.empties === 0) return 0;
+            if (this.yav && B.OW[0] === 0 && B.OW[1] === 0) return 0;                       // dead board: a draw (#18)
             const buf = this.buf2;
             const forced = B.completionCells(q, buf);
             if (forced >= 2) return -(WIN - ply - 1);
+            if (this.yav && forced === 1 && B.suicidal(buf[0], p)) return -(WIN - ply - 1);   // the only block makes L-1
             if (ply >= MAXPLY) return evaluate(B, p);
             if (forced === 0 && depth <= 0) {
                 // leaf threat search: a forced win by fours / threats for the side to move
@@ -580,7 +643,7 @@ const SenseiFive = (() => {
             let count, next;
             if (forced === 1) { moves[base] = buf[0]; count = 1; next = depth; }          // the block is free
             else { count = this.generate(p, ply, ttMove); next = depth - 1; }
-            if (count === 0) return evaluate(B, p);
+            if (count === 0) return this.yav ? -(WIN - ply - 1) : evaluate(B, p);           // Yavalath: every move makes L-1
             let bestV = -Infinity, bestM = -1, flag = 3;
             for (let i = 0; i < count; i++) {
                 const c = moves[base + i];
@@ -629,10 +692,12 @@ const SenseiFive = (() => {
             for (let i = 0; i < count; i++) {
                 const c = moves[base + i];
                 if (cover >= 0 && c !== cover) continue;
+                if (this.yav && B.suicidal(c, p)) continue;             // that four would make L-1 first
                 B.make(c, p);
                 let plies = -1;
                 if (B.F[q] === 0) {                                    // else the enemy completes first
                     if (B.completionCells(p, buf) >= 2) plies = 2;
+                    else if (this.yav && B.suicidal(buf[0], q)) plies = 2;   // the forced block makes L-1: Yavalath's winning idea
                     else {
                         B.make(buf[0], q);                                // the forced block
                         let nextCover = -1, ok = true;
@@ -689,11 +754,13 @@ const SenseiFive = (() => {
             }
             for (let i = 0; i < count; i++) {
                 const c = moves[base + i];
+                if (this.yav && B.suicidal(c, p)) continue;             // that threat would make L-1 first
                 B.make(c, p);
                 let plies = -1;
                 if (B.F[q] === 0) {                                    // else the enemy completes first
                     const mine = B.completionCells(p, buf);
                     if (mine >= 2) plies = 2;
+                    else if (mine === 1 && this.yav && B.suicidal(buf[0], q)) plies = 2;   // the block makes L-1
                     else if (mine === 1) {
                         B.make(buf[0], q);                                // the forced block
                         let nextCover = -1, ok = true;
@@ -706,6 +773,7 @@ const SenseiFive = (() => {
                         dc = B.defences(q, p, moves, dbase + dc, mark, stamp) - dbase;
                         let worst = dc === 0 ? 4 : 0;                       // no reply at all: open four next, then the win
                         for (let j = 0; j < dc && worst >= 0; j++) {
+                            if (this.yav && B.suicidal(moves[dbase + j], q)) { if (worst < 2) worst = 2; continue; }   // that defence makes L-1
                             B.make(moves[dbase + j], q);
                             let nextCover = -1, ok = true;
                             if (B.F[q] > 0) { if (B.completionCells(q, buf) >= 2) ok = false; else nextCover = buf[0]; }
@@ -766,10 +834,10 @@ const SenseiFive = (() => {
     ];
 
     class Evaluator extends Searcher {
-        constructor(n, L) { super(null, EST_LEVELS[0]); this.board(n, L); this.threeMakers = true; }
+        constructor(n, L, yav) { super(null, EST_LEVELS[0]); this.board(n, L, yav); this.threeMakers = true; }
 
         // quiet leaf value from p's view (no fours, no open threes on the board): material + tempo
-        static(p) { const B = this.B; return B.S[p] - B.S[1 - p] + EST.tempo; }
+        static(p) { const B = this.B; return B.S[p] - B.S[1 - p] + EST.tempo + (B.yav ? EVAL.yavTrap * (B.SU[1 - p] - B.SU[p]) : 0); }
 
         /* synchronous alpha-beta from p's view; forced moves are free, mate scores carry the
            distance. Returns null when the node budget ran out. */
@@ -780,16 +848,17 @@ const SenseiFive = (() => {
             if (B.empties === 0 || (B.OW[0] === 0 && B.OW[1] === 0)) return 0;   // full or dead board: a draw
             const forced = B.completionCells(q, buf);
             if (forced >= 2) return -(WIN - ply - 1);
+            if (this.yav && forced === 1 && B.suicidal(buf[0], p)) return -(WIN - ply - 1);   // the only block makes L-1
             if (ply >= MAXPLY) return this.static(p);
             if (forced === 0) {
-                if (B.T[p] > 0) return WIN - ply - 2;                      // open four next move
+                if (B.T[p] > 0 && (!this.yav || B.safeThree(p) >= 0)) return WIN - ply - 2;   // open four next move
                 if (depth <= 0 && (B.TL[q] === 0 || ext <= 0)) return this.static(p);   // else an enemy three extends: p must answer it
             }
             const size = B.size, base = ply * size, moves = this.moves;
             let count, next;
             if (forced === 1) { moves[base] = buf[0]; count = 1; next = depth; }
             else { count = this.generate(p, ply, -1); next = depth - 1; if (depth <= 0) ext--; }
-            if (count === 0) return this.static(p);
+            if (count === 0) return this.yav ? -(WIN - ply - 1) : this.static(p);
             let best = -Infinity;
             for (let i = 0; i < count; i++) {
                 B.make(moves[base + i], p);
@@ -865,7 +934,7 @@ const SenseiFive = (() => {
             const k = list.indexOf(first);
             if (k > 0) list.splice(k, 1);
             if (k !== 0) list.unshift(first);
-            return list;
+            return this.yav ? list.filter((c) => !B.suicidal(c, p)) : list;   // a defence that makes L-1 is none
         }
 
         // the entry point; synchronous for quick budgets, a Promise for the background stages
@@ -888,12 +957,12 @@ const SenseiFive = (() => {
 
     // pool per board shape: a quick call while a background stage is awaiting a yield gets its own instance
     const evaluators = new Map();                                    // "n/L" -> [Evaluator, …]
-    function acquire(n, L) {
-        const key = `${n}/${L}`;
+    function acquire(n, L, yav) {
+        const key = `${n}/${L}/${yav ? 1 : 0}`;
         if (!evaluators.has(key)) evaluators.set(key, []);
         const pool = evaluators.get(key);
         let e = pool.find((x) => !x.busy);
-        if (!e) { e = new Evaluator(n, L); pool.push(e); }
+        if (!e) { e = new Evaluator(n, L, yav); pool.push(e); }
         return e;
     }
     function estimateRaw(state, tools) {
@@ -902,10 +971,12 @@ const SenseiFive = (() => {
         if (last !== undefined) {                                    // a five already on the board
             const line = tools.rules.lineThrough(state, last);
             if (line.len >= state.winLen) return state.cells[last] === 0 ? Infinity : -Infinity;
+            // Yavalath: the stone that made exactly winLen - 1 lost the game for its owner
+            if (state.yavalath && line.len === state.winLen - 1) return state.cells[last] === 0 ? -Infinity : Infinity;
         }
         if (state.history.length === 0) return 0;                    // the symmetric start
         if (!state.cells.includes(-1)) return 0;                     // full board: a draw (a dead board is the search's terminal)
-        return acquire(state.n, state.winLen).run(state, tools);
+        return acquire(state.n, state.winLen, !!state.yavalath).run(state, tools);
     }
 
     return { Board, Searcher, Evaluator, evaluate, estimateRaw, LEVELS, WS, EVAL, EST };
@@ -915,8 +986,8 @@ Bots.register({
     id: "sensei-five",
     name: "Sensei",
     game: "five",
-    version: 1,
-    description: "Reads the lines: fours, open threes, forcing sequences. Very hard searches for forced wins.",
+    version: 2,
+    description: "Reads the lines: fours, open threes, forcing sequences, and the Yavalath traps that force you into three. Very hard searches for forced wins.",
     difficulties: [
         { id: "easy", label: "Easy", nodes: 2000 },          // node budgets: deterministic strength on every device
         { id: "normal", label: "Normal", nodes: 10000 },     // (depth-2 finishes early; the cap only guards huge boards)
@@ -928,6 +999,7 @@ Bots.register({
         return { move: (state) => s.move(state), searcher: s };     // searcher: test hook (info of the last search)
     },
     evaluate: (state, tools) => SenseiFive.estimateRaw(state, tools),
-    supports: (config) => !config.yavalath,      // the Yavalath rule (one less in a row loses) is not in its search: the Random baseline plays that
+    // rule variants it is benchmarked and calibrated for separately (benchmark.js `variants`)
+    variant: (config) => (config && config.yavalath ? "yavalath" : null),
     internals: SenseiFive,          // test hooks: Board, Searcher, Evaluator, evaluate, estimateRaw, LEVELS, WS, EVAL, EST
 });

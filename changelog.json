@@ -5,6 +5,11 @@
       "date": "2026-09-10",
       "entries": [
         {
+          "type": "improvement",
+          "text": "The bot now plays Five Wins with the Yavalath rule, so \"Against a bot\" and the win chance work with that rule too.",
+          "refs": ["#43"]
+        },
+        {
           "type": "internal",
           "text": "The test pipeline runs in parallel jobs now: the unit tests and four balanced shards of browser tests instead of one long serial run, which takes it from up to ten minutes down to about two.",
           "technical": true

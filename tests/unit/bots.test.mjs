@@ -8,6 +8,8 @@ import { loadHeadless } from "../../scripts/headless.mjs";
 const H = loadHeadless();
 const { Bots, Rules } = H;
 const CONFIGS = { chain: { n: 5, chainRule: false }, five: { n: 7, winLen: 5 } };
+// rule variants every bot that claims to play them must survive too (same conformance)
+const VARIANTS = { five: [{ name: "yavalath", config: { n: 7, winLen: 4, yavalath: true } }] };
 
 test("registry: every bot has valid metadata; bad definitions are rejected", () => {
     assert.ok(Bots.list().length >= 2);
@@ -70,6 +72,29 @@ for (const def of Bots.list()) {
     for (const diff of def.difficulties) {
         const cfg = CONFIGS[def.game];
         const positions = diff === def.difficulties[0] ? 300 : 60;
+        // the same suite for every rule variant the bot says it plays
+        for (const v of (VARIANTS[def.game] || []).filter((v) => Bots.supports(def.id, v.config))) {
+            test(`${def.id} (${diff.id}, ${v.name}): only legal moves in 120 random positions, deterministic per seed`, async () => {
+                const rules = Rules.of(def.game);
+                const scout = Bots.tools(def.game, { seed: 41 });
+                const bot = Bots.create(def.id, { seed: 5, me: 1, difficulty: diff.id, budget: BUDGET });
+                const twin = Bots.create(def.id, { seed: 5, me: 1, difficulty: diff.id, budget: BUDGET });
+                let state = rules.create(v.config, Rules.base(v.config));
+                let games = 0;
+                for (let k = 0; k < 120; k++) {
+                    if (state.over) { state = rules.create(v.config, Rules.base(v.config)); games++; }
+                    if (state.current === 1) {
+                        const i = await bot.move(scout.clone(state));
+                        assert.equal(await twin.move(scout.clone(state)), i, "same seed, same move");
+                        assert.ok(rules.isLegal(state, i, 1), `legal move (got ${i})`);
+                        state = scout.apply(state, i);
+                    } else {
+                        state = scout.apply(state, scout.pick(scout.legalMoves(state)));
+                    }
+                }
+                assert.ok(games >= 1, `${games} games finished under the variant rules`);
+            });
+        }
         test(`${def.id} (${diff.id}): only legal moves in ${positions} random positions, deterministic per seed`, async () => {
             const rules = Rules.of(def.game);
             const scout = Bots.tools(def.game, { seed: 99 });

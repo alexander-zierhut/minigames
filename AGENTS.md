@@ -590,9 +590,13 @@ it also made `winLen` (the losing line is shown as `winLine`); with two players 
 one wins ("3 in a row loses!"), with three or four the loser is `state.dead[p]` (the rules'
 own alive list for `Rules.pass` / `Rules.remaining`, exposed as `FiveRules.alive(state)`;
 eliminations inside the rules, not `outs`) and the last one standing wins. The HUD shows
-"Out · 3 in a row" on a dead seat. Sensei declares `supports: (cfg) => !cfg.yavalath`, so
-`Bots.botFor("five", cfg)` hands the Random baseline out for that rule and the win chance
-uses the rules' `estimate` heuristic (owner: the bot need not play this mode). MC skins: quartz tiles on obsidian, diamond/gold blocks as stones; hover
+"Out · 3 in a row" on a dead seat. **Sensei plays the rule** (#43): its board records the
+"suicide cells" per line and player, the move generator drops them, a forced block on one
+of them is a terminal loss and the VCF/VCT threat searches use exactly that as the winning
+idea ("you must block, and the block makes three"). It is benchmarked and calibrated for
+the rule separately (`variants.yavalath` in its `benchmark.js`, its own proven puzzle set
+`tests/puzzles/five-yavalath`), so `Bots.botFor("five", cfg)` and `Bots.estimator("five",
+cfg)` pick Sensei with the variant's numbers. MC skins: quartz tiles on obsidian, diamond/gold blocks as stones; hover
 keeps the texture (no background transition on textured tiles — a flicker bug once).
 
 ## Board / HUD layout rules
@@ -685,7 +689,7 @@ keeps the texture (no background transition on textured tiles — a flicker bug 
   everybody sees "Bot / ready" on that seat card, the *Opponent* row to change the level and
   an enabled Start. `#btn-room-bot` opens the usual bot modal (Play sets it, with the room's
   settings, so a rule variant picks a bot that knows it), `#btn-room-bot-off` clears it; if the
-  room's rules change under a bot that cannot play them (#35's Yavalath), `Match.setupBot` puts
+  room's rules change under a bot that cannot play them, `Match.setupBot` puts
   the one `Opponent.current(game, config)` names on the seat instead.
   The **transport host runs the seat** (`Match.makeSeats` asks `hostsBot()` =
   `Room.isHost`; for everybody else it is a `remote` seat called "Bot"): `botTurn` relays its
@@ -1084,8 +1088,9 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   create fn, boolean `baseline`). `Bots.get/list/forGame(game)`, `Bots.benchmarkOf(id)`.
   **One bot per game (#21):** `Bots.botFor(game, config)` = the best-rated bot without
   `baseline` that `supports(config)` (an optional predicate on the config for rule variants
-  a bot does not know, e.g. Sensei and the Yavalath rule; `Bots.supports(id, config)`),
-  or — while a game has no real bot for those rules — its Random baseline, so
+  a bot does not know; `Bots.supports(id, config)`. No bot needs it today — Sensei learned
+  the Yavalath rule in #43 — but it stays the way a future game ships a bot for its plain
+  rules first), or — while a game has no real bot for those rules — its Random baseline, so
   "Against a bot" always works. `Bots.estimator(game, config)` filters the same way
   (`WinChance` passes `game:new`'s config, `Match.setupBot` / `Opponent.current(game, cfg)`
   / `Opponent.open(game, cfg)` the lobby's settings). The Random bots are `baseline: true`: the benchmark and
@@ -1094,6 +1099,16 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   `name`s stay for the code, the benchmark output and the docs. Rules modules register themselves
   (`Rules.register("chain", ChainRules)` → `Rules.of(key)`) so bots find them without the
   DOM-bound engine.
+- **Rule variants** (#43): a bot that plays a variant well enough for its own numbers names
+  it with `variant(config) → key | null` (Sensei: `yavalath`). The benchmark then runs a
+  second seeded series and grades a second puzzle set for it and stores both under
+  `variants: { <key>: { score, games, avgMoves, puzzles } }` inside the same
+  `Bots.benchmark(id, result)` statement; `scripts/calibrate.mjs` fits a second logistic
+  under `variants: { <key>: { scale, shift, … } }`. `Bots.benchmarkOf(id, config)` /
+  `Bots.calibrationOf(id, config)` overlay the variant on the base entry (so `version`,
+  `commit` and `at` stay the base's) and `Bots.variantOf(id, config)` names it, which is how
+  the bot modal's badges, `Opponent.summary` and the win chance follow the room's rules. The
+  series live in `VARIANTS` in `scripts/benchmark.mjs` and `scripts/calibrate.mjs`.
 - **Instance**: `Bots.create(id, { me, difficulty, seed, players, budget })` → `{ def,
   tools, difficulty, move(state) }`. `create(tools)` runs once per game and may keep state
   (caches, opening books); `move(state)` returns a cell index or a Promise of one.
@@ -1169,19 +1184,28 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   rng), 0.5–1.4 s delay, posted via `Reactions.receive` in the bot's colour. Tests pass
   `delays`/`cooldownMs` overrides and assert against the pools.
 
-- **Puzzles = perfect-move test sets** (`tests/puzzles/<game>/puzzles.json`): positions whose
+- **Puzzles = perfect-move test sets** (`tests/puzzles/<game>/puzzles.json`, one folder per
+  set; a **rule variant** gets its own folder `tests/puzzles/<game>-<variant>` whose `game`
+  is still the rules key, with `variant` named in the file and the flags in every puzzle's
+  `config` — `five-yavalath`, 124 positions on 6×6 to 9×9 with winLen 4): positions whose
   best move(s) were PROVEN by a solver (`scripts/puzzles/<game>/solver.mjs`, exhaustive
-  minimax / proven threat search), generated deterministically by
-  `scripts/puzzles/<game>/generate.mjs` (`npm run puzzles`) into `puzzles.json` (`{ game, generated, solver, puzzles: [{ id, config, history, toMove, best,
+  minimax / proven threat search; the five solver knows the Yavalath rule and caps its threat
+  proof at 3 plies there, where it is complete without any candidate restriction), generated
+  deterministically by
+  `scripts/puzzles/<game>/generate.mjs` (`npm run puzzles`, the variant as an argument:
+  `node scripts/puzzles/five/generate.mjs yavalath`) into `puzzles.json` (`{ game, variant?, generated, solver, puzzles: [{ id, config, history, toMove, best,
   value, depth, tags, note }] }`; `history` replays from an empty board, `best` = all
   optimal moves, `value` from the mover's view, tags like `win-in-1`, `must-block`,
-  `avoid-loss`, `win-in-2`, `endgame-exhaustive`; note the sets differ slightly: chain's
+  `avoid-loss`, `win-in-2`, `endgame-exhaustive`, and for the Yavalath set `avoid-three`
+  (a move that makes winLen - 1 is on the board) and `forced-three` (after the best move
+  every reply of the opponent loses); note the sets differ slightly: chain's
   `avoid-loss` means "loses to the immediate reply", five's "loses by force"). Each test
   folder has `solver.test.mjs` (the solver on hand-made positions + the set's consistency,
   re-solving every puzzle), each script folder a README with the guarantee and the limits.
   `scripts/puzzles/verify.mjs` (`npm run puzzles:verify`) re-proves the tactical puzzles
   with a solver-independent one-ply check and prints the blind-random baseline. `scripts/puzzles/runner.mjs` replays a puzzle (`positionOf`) and grades a bot
-  (`evaluateBot` → solved/total/pct, per tag, failures); `tests/unit/puzzles.test.mjs`
+  (`evaluateBot` → solved/total/pct, per tag, failures; `runner.mjs`'s `puzzleSets()` lists
+  the folders and `setConfig(data)` the rules a set is graded with); `tests/unit/puzzles.test.mjs`
   checks every set (≥ 100, replayable, legal best moves) and prints every bot's score; the
   benchmark stores it as `puzzles: { solved, total, pct, chance }` in `benchmark.js`
   (`chance` = what random picking scores on that set — small boards have few legal
@@ -1308,7 +1332,9 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
   replay to `toMove` with legal `best`; the generated ones equal the puzzle's proven `best`
   and the committed files equal a fresh `pick()`; the tutorial and scenario runners in
   jsdom incl. the wrong click, Retry and the localStorage progress),
-  `persona.test.mjs`, `changelog.test.mjs`, `calibrate.test.mjs`, `puzzles.test.mjs`,
+  `persona.test.mjs`, `changelog.test.mjs`, `calibrate.test.mjs`, `puzzles.test.mjs`
+  (every folder under `tests/puzzles/`, rule variants included, graded with that set's
+  config for every bot that supports it),
   `party.test.mjs` (3–4 players: `out`/`remaining`/pass in the pure rules, engine
   `eliminate` + `replay(history, outs)` == live play, two-player flag fall, settings
   players row / bot mode, the min-players floor and `Room.keepsSeats` of #34, the seat
@@ -1433,8 +1459,8 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Games` / engine | `register(def)`, `get/has/keys`, `positionAt(record, ply)`; engine `state, config, previewPly, newGame, play, replay, preview, finish, eliminate, abandon, render, isLegal, hash, record` |
 | `Hud` | `build(players, title)`, `render(state, hooks, model)`, `overlay(name, winner, sub)` |
 | `WinChance` | Bus-driven; `display`, `estimator`, `REFINE_MS`, `SMOOTH`, `DECIDED` |
-| `Bots` | `register, get, list, forGame, botFor(game, config), supports(id, config), create(id, {me, difficulty, seed, players, budget}), tools(game, opts), playout, rng, validate, benchmark/benchmarkOf, calibration/calibrationOf, estimator(game, config) → {bot, stages, at(state, nodes), quick}, toProbability(raw, cal), ESTIMATE_STAGES` |
-| bot definition | `id, name, game, version, description, difficulties [{id, label, nodes}], create(tools) → {move(state)}, evaluate?(state, tools) → raw, supports?(config) → bool, baseline?` |
+| `Bots` | `register, get, list, forGame, botFor(game, config), supports(id, config), variantOf(id, config), create(id, {me, difficulty, seed, players, budget}), tools(game, opts), playout, rng, validate, benchmark/benchmarkOf(id, config), calibration/calibrationOf(id, config), estimator(game, config) → {bot, stages, at(state, nodes), quick}, toProbability(raw, cal), ESTIMATE_STAGES` |
+| bot definition | `id, name, game, version, description, difficulties [{id, label, nodes}], create(tools) → {move(state)}, evaluate?(state, tools) → raw, supports?(config) → bool, variant?(config) → key, baseline?` |
 | `BotPersona` | `attach({bot, seat, game, state, estimate, color, post?, delays?, cooldownMs?})`, `detach()`, `POOLS` |
 | `Skins` | `init({onChange})`, `set(key)`, `current` (no `names()` since #35) |
 | `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `setMode(mode)`, `setPlayers(n)`, `setMinPlayers(n)`, `setBot(choice, announce?)`, `setLocked(on)`, `supports(key)`, `MIN_PLAYERS_HINT`, `BOT_SEAT`, `game`, `players`, `minPlayers`, `bot`, `locked`, `fields` |
@@ -1453,7 +1479,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Room` | `init(handlers)`, `enter(code, { preferHost, seat, spectate, watch, spec, hidden })`, `leave()`, `roomLink(code?)`, `spectateLink()`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `seatFree()`, `watchInstead()`, `takeSeat(seat?)`, `enteredLobby()`, `botSeat()`, `settingsChanged(cfg)`, `say(text)`, `react(e, seat?)`, `tolobby()`, `review(ply)`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/occupiedSeats/allHere/live/who/two/playersNow/turnHint`, `names()`, `nameChanged()`, `accepts(msg, seat)`, `keepsSeats(msg, occupied)`, `PLAYERS_ONLY`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden`, `watching`, `spec` |
 
 Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM), `puzzles/runner.mjs`
-(`loadPuzzles`, `positionOf`, `evaluateBot`), `learn/pick-scenarios.mjs` (`pick(data)`,
+(`puzzleSets`, `loadPuzzles`, `setConfig`, `positionOf`, `evaluateBot`), `learn/pick-scenarios.mjs` (`pick(data)`,
 `writeAll()`), `benchmark.mjs`, `calibrate.mjs`
 (`collect`, `fitLogistic`, `metrics`, `calibrate`), `puzzles/<game>/solver.mjs` +
 `generate.mjs`, `puzzles/verify.mjs`, `screenshots.mjs`, `ci/shards.mjs` (`listFiles`,

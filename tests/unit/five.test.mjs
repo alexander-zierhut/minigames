@@ -188,17 +188,26 @@ test("Yavalath rule with three players: the one who makes the losing line is out
     assert.equal(JSON.stringify(R.dead), JSON.stringify(G.state.dead)); assert.equal(R.winner, 1);
 });
 
-test("Yavalath rule: Sensei does not know it, so the Random baseline plays and the win chance falls back to the heuristic", () => {
+test("Yavalath rule: Sensei plays it, with its own benchmark numbers and its own calibration", () => {
     const w = loadDom(); const B = w.eval("Bots"); const O = w.eval("Opponent"); const S = w.eval("Settings");
+    const YAV = { yavalath: true };
     assert.equal(B.botFor("five").id, "sensei-five");
     assert.equal(B.botFor("five", { yavalath: false }).id, "sensei-five");
-    assert.equal(B.botFor("five", { yavalath: true }).id, "random-five");
-    assert.equal(B.supports("sensei-five", { yavalath: true }), false); assert.equal(B.supports("random-five", { yavalath: true }), true);
-    assert.equal(B.estimator("five", { yavalath: true }).bot, null, "heuristic estimate");
+    assert.equal(B.botFor("five", YAV).id, "sensei-five");
+    assert.equal(B.supports("sensei-five", YAV), true); assert.equal(B.supports("random-five", YAV), true);
+    assert.equal(B.estimator("five", YAV).bot, "sensei-five");
     assert.equal(B.estimator("five", {}).bot, "sensei-five");
+    // the rule variant has its own row in benchmark.js, and the plain game keeps the plain one
+    assert.equal(B.variantOf("sensei-five", YAV), "yavalath");
+    assert.equal(B.variantOf("sensei-five", {}), null);
+    const plain = B.benchmarkOf("sensei-five"), variant = B.benchmarkOf("sensei-five", YAV);
+    assert.equal(plain.variant, undefined); assert.equal(variant.variant, "yavalath");
+    assert.equal(variant.commit, plain.commit, "the stamp comes from the base result");
+    assert.ok(variant.puzzles.total >= 100 && variant.puzzles.total !== plain.puzzles.total, "its own puzzle set");
+    assert.notEqual(B.calibrationOf("sensei-five", YAV).scale, B.calibrationOf("sensei-five").scale);
     S.init({}); O.init({});
-    assert.equal(O.current("five", { yavalath: true }).id, "random-five");
-    assert.match(O.summary("five", { yavalath: true }), /^Bot$/, "no level, no rating for the baseline");
+    assert.equal(O.current("five", YAV).id, "sensei-five");
+    assert.match(O.summary("five", YAV), new RegExp(`${variant.score} % vs Random`), "the variant's score in the lobby row");
     S.selectGame("five");
     assert.equal(S.read().yavalath, false);
     w.document.getElementById("set-yavalath").checked = true;

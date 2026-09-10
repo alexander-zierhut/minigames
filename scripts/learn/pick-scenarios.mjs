@@ -101,6 +101,7 @@ export function writeAll() {
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     for (const game of puzzleGames()) {
         const data = loadPuzzles(game);
+        if (data.variant) continue;                  // a rule variant is not a game of its own (tests/puzzles/five-yavalath)
         const list = pick(data);
         const file = `${dir}${game}-scenarios.js`;
         const text = render(game, list, data.solver || "");

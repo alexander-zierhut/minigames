@@ -2,21 +2,27 @@
    puzzles.json, produced by the per-game solver + generate.mjs). This runner replays a
    puzzle into a rules state and grades a bot: how many puzzles it answers with one of
    the `best` moves. Format (binding for the generators):
-     { game, generated, solver, puzzles: [{ id, config, history, toMove, best, value, depth, tags, note }] } */
+     { game, variant?, generated, solver, puzzles: [{ id, config, history, toMove, best, value, depth, tags, note }] }
+   One folder = one set. A folder may hold a RULE VARIANT of a game (tests/puzzles/five-yavalath):
+   `game` is always the rules key the positions are replayed with, `variant` names the variant
+   and every puzzle's `config` carries its flags, so a set is graded with those rules. */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { ROOT } from "../headless.mjs";
 
 export const PUZZLE_DIR = `${ROOT}tests/puzzles/`;
 
-// games that have a puzzle set on disk
-export function puzzleGames() {
+// the puzzle sets on disk, by folder name (one folder = one set; a set's `game` is the rules key)
+export function puzzleSets() {
     if (!existsSync(PUZZLE_DIR)) return [];
-    return readdirSync(PUZZLE_DIR).filter((d) => existsSync(`${PUZZLE_DIR}${d}/puzzles.json`));
+    return readdirSync(PUZZLE_DIR).filter((d) => existsSync(`${PUZZLE_DIR}${d}/puzzles.json`)).sort();
 }
-export function loadPuzzles(game) {
-    const file = `${PUZZLE_DIR}${game}/puzzles.json`;
+export const puzzleGames = puzzleSets;          // the folder is the set's name; kept for older callers
+export function loadPuzzles(dir) {
+    const file = `${PUZZLE_DIR}${dir}/puzzles.json`;
     return existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : null;
 }
+// the rules variant a set is played with (its puzzles all share it), for Bots.supports / benchmarkOf
+export const setConfig = (data) => (data && data.puzzles.length ? data.puzzles[0].config : {});
 
 // the position of a puzzle, rebuilt with the rules; throws when the puzzle is inconsistent
 export function positionOf(H, puzzle) {

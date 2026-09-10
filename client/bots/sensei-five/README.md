@@ -91,6 +91,37 @@ found earlier that the depth-2 bots then did not play), with a side-to-move bias
 The framework calibration (`node scripts/calibrate.mjs sensei-five`, 40 self-play games,
 12 000 nodes) fits scale ≈ 1 166, shift ≈ −62, Brier 0.006, swing 0.9 %.
 
+## The Yavalath rule (`config.yavalath`, #43)
+
+With the rule on, `winLen` still wins but a stone whose longest line is exactly `winLen - 1`
+loses for its owner. Everything about it sits behind the board's `yav` flag, so the plain
+game plays move for move as before (the standard benchmark series reproduces byte for byte).
+
+- **Board**: next to the completion masks each line keeps a **suicide mask** per player
+  (`sm`, plus a count `su`): the positions where filling makes exactly `L - 1` on that line.
+  `suicidal(c, p)` is then four bit tests — some direction reaches `L - 1` and none reaches
+  `L`, because a stone that also completes a line wins. Both are updated by the same
+  incremental `scanLine` / make / unmake path as everything else.
+- **Move generation** drops suicidal cells, in the restricted (enemy open three) branch as
+  well. If nothing near a stone is safe it falls back to cells with no stone within two,
+  which can never make a line; only when even those are gone is the side to move lost.
+- **Terminals**: no safe move at all is a loss; a *forced block* that is suicidal is a loss;
+  a dead board is a draw (the rule cannot save you, but neither can it lose the game for
+  you once no line can be completed).
+- **Threat searches**: VCF and VCT skip suicidal attacking moves, and — the winning idea of
+  the game — count "the defender's only block makes `L - 1`" as a win in two plies. A
+  defence that is suicidal refutes itself. `safeThree(p)` keeps "I have an open four next
+  move" honest when the three-cell would lose.
+- **Evaluation** adds `yavTrap × (SU[opponent] − SU[me])`: cells the opponent has to avoid
+  are pressure, and the own three-cell bonus only counts when that cell is playable.
+
+Rated separately (`variants.yavalath` in `benchmark.js`, `Bots.benchmarkOf(id, config)`):
+its own seeded series against Random and its own proven puzzle set
+(`tests/puzzles/five-yavalath`, 124 positions). The win chance gets its own calibration,
+fitted on 11×11 with `winLen` 5 (what a player gets when ticking the rule); on the small
+benchmark board the engine proves 90 % of the positions outright, which leaves too few
+finite scores to fit a curve on.
+
 ## Numbers (20 000-node budget, see `bot.test.mjs` / `benchmark.js`)
 
 - Win chance (`evaluate`), 10 seeded Normal-vs-Normal games on 9×9, p = σ(raw / 300):
@@ -104,6 +135,13 @@ The framework calibration (`node scripts/calibrate.mjs sensei-five`, 40 self-pla
   Test thresholds: 30 / 70 / 85 / 92 %.
 - Per move at 20 000 nodes on this dev machine: ≈ 150 ms at 9×9, ≈ 200 ms at 15×15
   (≈ 8–10 µs per node).
+- **Yavalath rule** (`variants.yavalath` in `benchmark.js`): 100 % vs Random (9×9, `winLen`
+  4, 100 games, both colours, avg 9 moves). Puzzles (`tests/puzzles/five-yavalath`, 124):
+  Easy 48, Normal 109, Hard 117, Very hard 119 (random picking scores 7). Test thresholds:
+  25 / 55 / 70 / 80 %. Every level from Normal up solves all 59 `forced-three` and all 60
+  `win-in-2` positions. Win chance calibrated on 11×11 / `winLen` 5: scale ≈ 112,
+  shift ≈ −11, Brier 0.129, swing 10.9 % (the rule makes the game sharp: 39 % of the
+  positions in self-play are already proven won or lost).
 
 ## Known weaknesses
 

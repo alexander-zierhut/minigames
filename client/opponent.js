@@ -37,14 +37,14 @@ const Opponent = (() => {
         if (!c) return "No bot plays this game yet";
         const parts = [NAME];
         if (c.def.difficulties.length > 1) parts.push(level(c.def, c.difficulty).label);
-        const b = Bots.benchmarkOf(c.id);
+        const b = Bots.benchmarkOf(c.id, cfg);
         if (b) parts.push(`${b.score} % vs Random`);
         if (b && b.puzzles) parts.push(`${b.puzzles.pct} % puzzles`);
         return parts.join(" · ");
     }
 
-    function badges(id) {
-        const b = Bots.benchmarkOf(id);
+    function badges(id, config) {
+        const b = Bots.benchmarkOf(id, config);
         if (!b) return `<span class="bot-badge muted">not rated</span>`;
         return `<span class="bot-badge"><b>${b.score} %</b> vs Random</span>` + (b.puzzles ? `<span class="bot-badge"><b>${b.puzzles.pct} %</b> puzzles</span>` : "");
     }
@@ -55,7 +55,7 @@ const Opponent = (() => {
         const def = current(game, cfg).def;
         $("bot-name").textContent = NAME;
         $("bot-desc").textContent = def.description || "";
-        $("bot-badges").innerHTML = badges(def.id);
+        $("bot-badges").innerHTML = badges(def.id, cfg);
         const seg = $("bot-difficulty");
         seg.innerHTML = "";
         $("bot-difficulty-row").hidden = def.difficulties.length <= 1;

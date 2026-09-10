@@ -43,6 +43,16 @@
       and "no win within 5 plies" is a proven fact, not a guess. Nothing beyond that is
       claimed: when no win is found the value is "unknown" (never "draw").
 
+   Yavalath rule (`state.yavalath`): winLen still wins, but a stone whose longest line is
+   exactly winLen - 1 loses for the one who played it. Both engines know it: `Board.suicidal`
+   says whether a cell would do that, such moves are never generated (they lose at once and
+   are only ever optimal when nothing else is left), a side with no safe move at all has
+   lost, and a forced block that would make winLen - 1 loses too, which is the winning idea
+   of the game. The threat search is capped at `MAX_PROOF_YAV` = 3 plies there, because at
+   that depth it is complete without the attacker's candidate restriction: the root tries
+   every legal move, the defender every legal reply, and the attacker at ply 2 only needs an
+   immediate completion. Anything deeper is left to the exhaustive engine.
+
    Determinism: no randomness anywhere; move ordering is by static counts with the cell id
    as the tie-break, so the same input always yields the same output. */
 
@@ -74,8 +84,8 @@ export function geometry(n, winLen) {
 
 /* ---------- Board: cells + per-window stone counts, incrementally maintained ---------- */
 export class Board {
-    constructor(n, winLen, cells, current) {
-        this.n = n; this.w = winLen; this.geo = geometry(n, winLen);
+    constructor(n, winLen, cells, current, yavalath = false) {
+        this.n = n; this.w = winLen; this.yav = !!yavalath; this.geo = geometry(n, winLen);
         this.cells = Int8Array.from(cells);
         this.current = current;
         this.cnt = [new Int8Array(this.geo.windows.length), new Int8Array(this.geo.windows.length)];
@@ -90,7 +100,7 @@ export class Board {
             this.keys[(i / 25) | 0] += (p + 1) * POW3[i % 25];
         }
     }
-    static fromState(state) { return new Board(state.n, state.winLen, state.cells, state.current); }
+    static fromState(state) { return new Board(state.n, state.winLen, state.cells, state.current, state.yavalath); }
     place(i, p) {
         this.cells[i] = p; this.empties--;
         for (const w of this.geo.cellWindows[i]) { if (this.cnt[p][w]++ === 0) this.open[1 - p]--; }
@@ -103,6 +113,26 @@ export class Board {
         this.keys[(i / 25) | 0] -= (p + 1) * POW3[i % 25];
         this.current = p;
     }
+    /* ---------- Yavalath ---------- */
+    // longest line through i once p owns it (i may still be empty)
+    run(i, p) {
+        const n = this.n, x0 = i % n, y0 = (i / n) | 0;
+        let best = 1;
+        for (const [dx, dy] of DIRS) {
+            let len = 1;
+            for (const dir of [1, -1]) {
+                let x = x0 + dx * dir, y = y0 + dy * dir;
+                while (x >= 0 && y >= 0 && x < n && y < n && this.cells[y * n + x] === p) { len++; x += dx * dir; y += dy * dir; }
+            }
+            if (len > best) best = len;
+        }
+        return best;
+    }
+    // would p lose the game by playing i? (exactly w-1 in a row and not w)
+    suicidal(i, p) { return this.yav && this.run(i, p) === this.w - 1; }
+    hasSafe(p) { for (let i = 0; i < this.cells.length; i++) if (this.cells[i] < 0 && !this.suicidal(i, p)) return true; return false; }
+    safeMoves(list, p) { return this.yav ? list.filter((m) => !this.suicidal(m, p)) : list; }
+
     // no line can be completed any more by either side: the rules call that a draw (#18)
     dead() { return this.open[0] === 0 && this.open[1] === 0; }
     // terminal draw: full or dead board
@@ -178,7 +208,12 @@ export function solveExhaustive(board, { maxNodes = 2_000_000, classify = true }
             if (e.f === EXACT || (e.f === LOWER && s >= beta) || (e.f === UPPER && s <= alpha)) return s;
             ttMove = e.m;
         }
-        const moves = opT.length === 1 ? opT : b.ordered(me, ttMove);
+        if (b.yav) {
+            if (!b.hasSafe(me)) return -(WIN - (ply + 1));                       // every move makes w-1: lost now
+            // the only block makes w-1, so the best left is to play elsewhere and be completed on
+            if (opT.length === 1 && b.suicidal(opT[0], me)) return -(WIN - (ply + 2));
+        }
+        const moves = opT.length === 1 ? opT : b.safeMoves(b.ordered(me, ttMove), me);
         const a0 = alpha;
         let best = -Infinity, bestMove = -1;
         for (const m of moves) {
@@ -202,9 +237,12 @@ export function solveExhaustive(board, { maxNodes = 2_000_000, classify = true }
             Object.assign(result, { value: "win", best: myT.sort((x, y) => x - y), depth: 1, score: WIN - 1 });
         } else {
             const opT = b.threats(op);
-            const moves = opT.length === 1 ? opT : b.ordered(me);
+            const noSafe = b.yav && !b.hasSafe(me);                              // every move makes w-1
+            const blockLoses = b.yav && !noSafe && opT.length === 1 && b.suicidal(opT[0], me);
+            const moves = opT.length === 1 ? opT : b.safeMoves(b.ordered(me), me);
             let best = -Infinity, bestMoves = [];
-            if (opT.length >= 2) { best = -(WIN - 2); bestMoves = b.empty(); }
+            if (noSafe) { best = -(WIN - 1); bestMoves = b.empty(); }
+            else if (blockLoses || opT.length >= 2) { best = -(WIN - 2); bestMoves = b.safeMoves(b.empty(), me); }
             else for (const m of moves) {
                 // window (best-1, +inf): moves scoring exactly `best` are still seen exactly
                 b.place(m, me);
@@ -224,6 +262,7 @@ export function solveExhaustive(board, { maxNodes = 2_000_000, classify = true }
             const bestSet = new Set(result.best);
             for (const m of b.empty()) {
                 if (bestSet.has(m)) { mv[m] = result.value; continue; }
+                if (b.suicidal(m, me)) { mv[m] = "loss"; continue; }             // Yavalath: makes w-1
                 b.place(m, me);
                 let cls;
                 const opWins = b.threats(op).length;
@@ -249,6 +288,9 @@ export function solveExhaustive(board, { maxNodes = 2_000_000, classify = true }
 
 /* ---------- 2. threat search: proven forced win within ≤ MAX_PROOF plies ---------- */
 export const MAX_PROOF = 5;
+// with the Yavalath rule only ≤ 3 plies are proven without the attacker's candidate
+// restriction (root: every move, defender: every reply, attacker at ply 2: a completion)
+export const MAX_PROOF_YAV = 3;
 
 export function proveWin(board, { maxPlies = MAX_PROOF, maxNodes = 5_000_000 } = {}) {
     const b = board instanceof Board ? board : Board.fromState(board);
@@ -266,7 +308,7 @@ export function proveWin(board, { maxPlies = MAX_PROOF, maxNodes = 5_000_000 } =
         const rel = limit - ply, key = b.key();
         const e = memo.get(key);
         if (e) { if (e.proven <= rel) return true; if (e.failed >= rel) return false; }
-        const moves = defT.length === 1 ? defT : b.candidates(att, minOwn);
+        const moves = b.safeMoves(defT.length === 1 ? defT : b.candidates(att, minOwn), att);
         let ok = false;
         for (const m of moves) {
             b.place(m, att);
@@ -284,10 +326,12 @@ export function proveWin(board, { maxPlies = MAX_PROOF, maxNodes = 5_000_000 } =
         if (++nodes > maxNodes) throw ABORT;
         if (b.threats(def).length) return false;                      // defender completes a line
         if (b.drawn()) return false;                                  // draw (full or dead board)
+        if (b.yav && !b.hasSafe(def)) return ply + 1 <= limit;        // every reply makes w-1: lost on the spot
         const attT = b.threats(att);
         if (attT.length >= 2) return ply + 2 <= limit;                // one block cannot stop two
+        if (b.yav && attT.length === 1 && b.suicidal(attT[0], def)) return ply + 2 <= limit;   // the only block makes w-1
         if (ply + 4 > limit) return false;                            // need def, att, def, att
-        const moves = attT.length === 1 ? attT : b.ordered(def);
+        const moves = b.safeMoves(attT.length === 1 ? attT : b.ordered(def), def);
         for (const m of moves) {
             b.place(m, def);
             const ok = attack(ply + 1, limit);
@@ -302,8 +346,9 @@ export function proveWin(board, { maxPlies = MAX_PROOF, maxNodes = 5_000_000 } =
         if (myT.length) return { method: "threat", value: "win", best: myT.sort((x, y) => x - y), depth: 1, nodes };
         const defT = b.threats(def);
         if (defT.length >= 2) return { method: "threat", value: "unknown", best: [], depth: null, nodes, note: "opponent has two completion cells" };
-        const rootMoves = defT.length === 1 ? defT : b.empty();
-        for (let limit = 3; limit <= maxPlies; limit += 2) {
+        const rootMoves = b.safeMoves(defT.length === 1 ? defT : b.empty(), att);
+        const first = b.yav ? 2 : 3, step = b.yav ? 1 : 2, cap = b.yav ? Math.min(maxPlies, MAX_PROOF_YAV) : maxPlies;
+        for (let limit = first; limit <= cap; limit += step) {
             const best = [];
             for (const m of rootMoves) {
                 b.place(m, att);
