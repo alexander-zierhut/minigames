@@ -68,6 +68,50 @@ const FiveGame = Games.register({
         // Yavalath rule: one stone short of the winning row loses (the classic is 4 wins, 3 loses)
         { key: "yavalath", label: "Yavalath rule", type: "bool", def: false },
     ],
+    // Learn (#41): the rules in one sentence each and a guided tutorial on a 9×9 board.
+    // The scenarios come from the proven puzzle set (client/learn/five-scenarios.js).
+    howto: {
+        rules: [
+            "Players take turns. On your turn you put one stone on any empty cell.",
+            "There is no gravity: the whole board is open from the first move.",
+            "Five stones of your colour in a row win, across, down or on either diagonal.",
+            "More than five in a row counts as well.",
+            "The game is a draw when the board is full, or when no row can be completed any more.",
+            "The board size and the length of the winning row are settings, so four in a row on a small board works too.",
+        ],
+        tutorial: [
+            {
+                config: { n: 9, winLen: 5 },
+                moves: [],
+                text: "Five Wins is five stones in a row. There is no gravity, so you may click any empty cell. Start in the middle.",
+                expect: [40],
+            },
+            {
+                moves: [40, 20],
+                text: "Your opponent answered on the upper left. Grow your row: put your next stone right beside the first one.",
+                expect: [41],
+            },
+            {
+                moves: [40, 20, 41, 21],
+                text: "Two in a row. Your opponent is building a row of their own. Make yours three.",
+                expect: [42],
+            },
+            {
+                moves: [40, 20, 41, 21, 42, 19],
+                text: "Three in a row with a free cell at each end is an open three, and it has to be answered. Your opponent kept building instead. Punish that and play your fourth stone.",
+                expect: [39],
+            },
+            {
+                moves: [40, 20, 41, 21, 42, 19, 39, 43],
+                text: "Four in a row with both ends free cannot be stopped: one block still leaves the other end. Your opponent covered the right side, so finish the row on the left.",
+                expect: [38],
+            },
+            {
+                moves: [40, 20, 41, 21, 42, 19, 39, 43, 38],
+                text: "Five in a row, the game is yours. Remember it works both ways: answer your opponent's open three before it becomes four.",
+            },
+        ],
+    },
     describeRules: (cfg) => [`${cfg.winLen} in a row`],
     describeOptions: (cfg) => (cfg.yavalath ? [`${cfg.winLen - 1} in a row loses`] : []),
     rules: FiveRules,

@@ -167,3 +167,23 @@ test("room: the host refuses a player count below the seats in use (#34)", () =>
     assert.equal(R.keepsSeats({ t: "lobby" }, 3), true, "a lobby message without settings changes nothing");
     w.close();
 });
+
+test("room: asking for a seat is the one thing a spectator may send (#39)", () => {
+    const w = loadDom(); const R = w.eval("Room");
+    // the host's veto (#29) covers everything that changes the game or the settings…
+    for (const t of ["move", "timeout", "rematch", "tolobby", "lobby", "start-request", "review"]) {
+        assert.equal(R.accepts({ t }, -1), false, t + " from a spectator");
+        assert.equal(R.accepts({ t }, 1), true, t + " from a player");
+    }
+    // …but not the request to sit down or to step back to watching
+    assert.equal(R.accepts({ t: "seat", want: 0 }, -1), true, "a spectator may ask for a seat");
+    assert.equal(R.accepts({ t: "seat", want: -1 }, 1), true, "a player may ask to watch");
+    assert.equal(R.accepts({ t: "chat", text: "hi" }, -1), true, "chat stays allowed");
+    // offline there are no seats to swap, so both are no-ops
+    assert.equal(R.seatFree(), false);
+    assert.equal(R.watchInstead(), undefined);
+    assert.equal(R.takeSeat(), undefined);
+    const seatButtons = ["btn-watch", "btn-take-seat"].map((id) => w.document.getElementById(id));
+    assert.ok(seatButtons.every((b) => b && b.hidden), "the seat controls are online-only and start hidden");
+    w.close();
+});

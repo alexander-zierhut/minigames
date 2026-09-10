@@ -42,3 +42,16 @@ test("built site loads only hashed assets, preloads textures, plays", async () =
     assert.deepEqual(B.failedRequests, []);
     await B.selectSkin("classic");
 });
+
+// #40: the built page carries a real stamp and polls the version.json the build wrote
+test("the built site polls its own version.json and stays quiet on the same build", async () => {
+    const current = await B.ev("Update.current");
+    assert.notEqual(current, "dev", "the build stamped a version");
+    for (let k = 0; k < 50 && !B.requests.some((u) => u.endsWith("/version.json")); k++) await sleep(100);
+    const asked = B.requests.filter((u) => u.endsWith("/version.json"));
+    assert.ok(asked.length >= 1, `version.json polled (${B.requests.filter((u) => u.includes("version")).join(", ")})`);
+    const doc = JSON.parse(await B.ev("fetch('version.json').then(r => r.text())"));
+    assert.equal(doc.version, current, "version.json matches the running stamp");
+    assert.equal(await B.ev("Update.available"), false, "no notice for the build that is running");
+    assert.equal(await B.ev("document.getElementById('update-notice').hidden"), true);
+});
