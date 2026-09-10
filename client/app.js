@@ -134,7 +134,6 @@
         if (bot) $("opponent-summary").textContent = Opponent.summary(Settings.game);
         $("lobby-share").hidden = !online();
         $("lobby-players").hidden = !online();
-        $("lobby-chat").hidden = !online();
         const box = $("lobby-players");
         if (box.children.length !== players) {
             box.innerHTML = "";
@@ -212,7 +211,6 @@
         app.roster = { present: [], spectators: 0, left: [] };
         app.rematchVotes = new Set();
         Clock.stop();
-        Log.clear("lobby-log");
         Chat.enable(true);
         Settings.setMode("online");
         show("lobby");
@@ -519,7 +517,6 @@
                 HANDLERS.rematch({ g: app.gameNo + 1, from: seat });
                 Net.sendExcept(id, { t: "rematch", g: app.gameNo + 1, from: seat });
             }
-            Log.room(seat >= 0 ? `${names()[seat]} joined.` : "A spectator joined.");
             rosterChanged();
         },
         // from the host on every (re)connect: take my seat, mirror settings, follow the host's phase
@@ -605,7 +602,6 @@
             const seat = isHost() ? seatOf(id) : (Number.isInteger(msg.from) ? msg.from : -1);
             if (seat >= 0) { app.left.add(seat); if (!isHost()) app.roster.present[seat] = false; }
             Clock.pause();
-            Log.room(seat >= 0 ? `${names()[seat]} left the room.` : "A spectator left.");
             if (isHost()) rosterChanged(); else presenceChanged();
             if (app.phase !== "game" && seat >= 0) $("lobby-status").textContent = `${who(seat)} left the room.`;
         },

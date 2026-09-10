@@ -31,6 +31,28 @@ test("lobby (local) and settings modal fit", async () => {
     await M.click("#btn-settings-done");
 });
 
+// what an online room shows (share row, seat cards, spectator line) with four seats, without the broker
+async function showRoomLobby() {
+    await M.ev("document.getElementById('lobby-code').textContent = 'ABCDE'; document.getElementById('lobby-share').hidden = false; document.getElementById('lobby-players').hidden = false; document.getElementById('lobby-spectators').textContent = '2 spectators watching'; true");
+}
+test("online-shaped lobby with four seats: share buttons in one row under the code, no scroll, every skin (#15)", async () => {
+    await M.click("#btn-settings"); await M.set("set-players", 4); await M.click("#btn-settings-done");
+    for (const skin of ["classic", "mcboard", "mc"]) {
+        await M.selectSkin(skin);                 // re-renders the lobby (builds the four seat cards)
+        await showRoomLobby();
+        assert.equal(await M.ev("document.querySelectorAll('.lobby-player').length"), 4);
+        const btns = JSON.parse(await M.ev("JSON.stringify(['btn-share', 'btn-share-spectate', 'btn-copy-code'].map(id => { const r = document.getElementById(id).getBoundingClientRect(); return { top: Math.round(r.top), left: Math.round(r.left), right: Math.round(r.right) }; }))"));
+        assert.ok(btns.every((b) => b.top === btns[0].top), `${skin}: share buttons on one row (${JSON.stringify(btns)})`);
+        assert.ok(btns.every((b) => b.left >= 16 && b.right <= 344), `${skin}: buttons inside the card (${JSON.stringify(btns)})`);
+        assert.ok(btns[0].top >= await M.ev("document.getElementById('lobby-code').getBoundingClientRect().bottom"), `${skin}: buttons under the room code`);
+        assert.equal(await M.ev("document.getElementById('lobby-chat')"), null, "no lobby chat");
+        await assertNoScroll(`${skin}: online lobby with four seats`);
+        await M.screenshot(`mobile-lobby-${skin}.png`);
+    }
+    await M.selectSkin("classic");
+    await M.click("#btn-settings"); await M.set("set-players", 2); await M.click("#btn-settings-done");
+});
+
 test("game: compact HUD, board outline visible, reactions inside the viewport, no scroll", async () => {
     await M.selectGame("chain"); await M.click("#btn-settings"); await M.set("set-size", 6); await M.set("set-speed", 350); await M.click("#btn-settings-done");
     await M.click("#btn-start");

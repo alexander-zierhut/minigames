@@ -82,10 +82,11 @@
 
 /* ---- lobby ---- */
 .lobby-card { max-width: 460px; gap: 14px; }
-.lobby-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+/* head: kind label, the room code, and (online) one compact row of share buttons under it (#15) */
+.lobby-head { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
 .lobby-head .label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); }
-.lobby-head .room-code { font-size: 32px; letter-spacing: 5px; margin-top: 0; }
-.lobby-actions { display: flex; gap: 6px; flex-direction: column; align-items: stretch; }
+.lobby-head .room-code { font-size: 32px; letter-spacing: 5px; margin-top: 0; line-height: 1.15; }
+.lobby-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
 .lobby-actions .btn { white-space: nowrap; }
 .room-code {
     font-size: 44px;
@@ -106,19 +107,15 @@
 .lobby-player.absent .lp-status { color: #ffcc33; }
 .lobby-status { text-align: center; font-size: 13px; color: var(--muted); min-height: 18px; }
 .lobby-status:empty { display: none; }
-/* room chat: the last lines + an input (online only) */
-.lobby-chat { display: flex; flex-direction: column; gap: 6px; }
-.lobby-chat .log { min-height: 0; max-height: 96px; overflow-y: auto; overscroll-behavior: contain; }
-/* phones: a tighter lobby card so players, chat, picker and buttons fit 360×780 without scrolling */
+/* phones: a tighter lobby card so players, picker and buttons fit 360×780 without scrolling */
 @media (max-width: 899px) {
     .lobby-card { gap: 7px; padding: 16px 16px; }
+    .lobby-head { gap: 4px; }
     .lobby-head .room-code { font-size: 28px; letter-spacing: 4px; }
-    .lobby-actions { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; }
-    .lobby-actions .btn.small { padding: 5px 10px; }
+    .lobby-actions .btn.small { padding: 5px 9px; font-size: 11px; }
     .lobby-status { font-size: 12px; min-height: 16px; }
     .lobby-players { gap: 6px; }
     .lobby-player { padding: 6px 10px; }
-    .lobby-chat .log { max-height: 40px; padding: 3px 8px; font-size: 11px; gap: 1px; }
     .lobby-card .game-card { padding: 8px 8px 8px; gap: 4px; }
     .lobby-card .game-preview { width: 56px; height: 56px; }
     .lobby-card .settings-summary { padding: 8px 12px; }

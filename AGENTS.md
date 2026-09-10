@@ -34,7 +34,7 @@ Scripts, in order (each defines the global named in brackets):
 | `client/vendor/peerjs.min.js` | `Peer` | PeerJS 1.5.4, vendored (no CDN at runtime) |
 | `client/lib/util.js` | `Util` | `$`, `sleep`, `clamp`, `restartClass`, fail-safe storage `load/save/remove`, `fromTemplate`, `toast` |
 | `client/lib/bus.js` | `Bus` | event bus `on/off/emit` (see Events) |
-| `client/lib/log.js` | `Log` | the HUD event log + lobby log (`add`, `chat`, `room`, `clear`, 40 lines) |
+| `client/lib/log.js` | `Log` | the HUD event log (`add`, `chat`, `clear`, 40 lines) |
 | `client/lib/clock.js` | `Clock` | chess clock for N players |
 | `client/lib/net.js` | `Net` | PeerJS room transport |
 | `client/lib/preload.js` | `Preload` | first-visit texture preload with `#loader` bar |
@@ -53,7 +53,7 @@ Scripts, in order (each defines the global named in brackets):
 | `client/opponent.js` | `Opponent` | bot picker modal: step 1 list of bots with both scores, step 2 one bot + parameters; choice per game |
 | `client/bot-persona.js` | `BotPersona` | a bot seat's sparse emoji reactions (wave, GG, EZ, 🚨, 😲, 😔) |
 | `client/reactions.js` | `Reactions` | emoji reactions bar + floating layer |
-| `client/chat.js` | `Chat` | room chat: input rows (HUD, lobby), limits, lines into the logs, Bus `chat` |
+| `client/chat.js` | `Chat` | room chat: the input row under the HUD log, limits, lines into the log, Bus `chat` |
 | `client/app.js` | (none) | flow, room protocol, session restore, wiring, boot |
 
 Stylesheets, in order: `client/css/base.css` (tokens, player colour variables, buttons,
@@ -105,13 +105,15 @@ to try things").
   (`#btn-bot`). No Look control here any more (owner: only in the preferences, #9). Never
   scrolls on a phone. The ⚙ preferences button (see
   Preferences) floats top-left on every screen.
-- **Lobby** (`#screen-lobby`), same screen for local and online (`app.mode`): room code +
-  Share link / Spectate link / Copy code (online only), one `.lobby-player` card per seat from `#tpl-lobby-player`
-  (online only; as many as the *Players* setting says, "connected" / "not here yet" /
-  "ready" per seat, `#lobby-spectators` counts people without a seat), the room chat
-  (online only), the game picker (one `.game-card[data-game]` per registered game, built
-  by `Settings.init`), settings summary button → `#settings-modal`, Look control,
-  `Start game`, `Leave room`/`Back`.
+- **Lobby** (`#screen-lobby`), same screen for local and online (`app.mode`): a centred
+  head with the kind label, the room code and — online only — **one compact row** of
+  `Share link` / `Spectate link` / `Copy code` under it (`#lobby-share`; 11px buttons on
+  phones so the three fit 360px in one row, #15), one `.lobby-player` card per seat from
+  `#tpl-lobby-player` (online only; as many as the *Players* setting says, "connected" /
+  "not here yet" / "ready" per seat, `#lobby-spectators` counts people without a seat),
+  the game picker (one `.game-card[data-game]` per registered game, built by
+  `Settings.init`), settings summary button → `#settings-modal`, `Start game`, `Leave
+  room`/`Back`. No chat in the lobby (#15) — chat lives in the game HUD only.
 - **Game** (`#screen-game`): board + HUD ("hut"). Result overlay: `Rematch`, `Look at
   board` (hides it; `#result-fab` brings it back), `Change game` (→ lobby). The HUD has
   `Rematch` and `Back to room` too.
@@ -638,21 +640,20 @@ every bot folder into a bare VM — script list parsed from `index.html`).
 
 ## Chat (`client/chat.js`) and the logs (`client/lib/log.js`)
 
-- `Log.line(id, text, cls, name?)` prepends one line (newest first in the DOM; the boxes
-  are `column-reverse`, so the newest shows at the bottom), keeps `Log.MAX_LINES` = 40.
-  `Log.add(text, cls)` → `#log` + Bus `log`; `Log.chat(name, text, cls)` → `#log` **and**
-  `#lobby-log` (bold `name: ` + text, class `chat p<k>` / `chat x`); `Log.room(text)` → a
-  room event in the lobby log only. `Log.clear()` (new game) removes everything but
-  `.chat` lines, so the conversation survives a rematch; `Log.clear("lobby-log")` empties
-  the lobby box (done in `enterRoom`). Text goes in via `textContent` only — never HTML.
-- **Rows**: `#chat-row` (`#chat-input` + `#chat-send`) under the HUD log and
-  `#lobby-chat` (`#lobby-log` + `#lobby-chat-input`/`#lobby-chat-send`) in the lobby.
-  `Chat.enable(online)` toggles `body.online` and the inputs' `disabled`; the rows only
-  render while online (`body.online`). Desktop: the HUD log scrolls (`max-height:
-  150px; overflow-y: auto`), the row sits under it. Phones: the log shows its last two
-  lines (40px) and the chat row is behind ☰ (`#hut.show-controls`); the lobby chat log
-  is two lines too. The lobby card is tighter on phones (gap 10, padding 18/16, share
-  buttons in a row) so an online lobby with chat still fits 360×780.
+- `Log.line(id, text, cls, name?)` prepends one line (newest first in the DOM; the box
+  is `column-reverse`, so the newest shows at the bottom), keeps `Log.MAX_LINES` = 40.
+  `Log.add(text, cls)` → `#log` + Bus `log`; `Log.chat(name, text, cls)` → `#log` (bold
+  `name: ` + text, class `chat p<k>` / `chat x`). `Log.clear()` (new game) removes
+  everything but `.chat` lines, so the conversation survives a rematch. Text goes in via
+  `textContent` only — never HTML. The lobby log (`#lobby-log`, `Log.room`) was removed
+  with the lobby chat (#15); join/leave show on the seat cards and in `#lobby-status`.
+- **Row**: `#chat-row` (`#chat-input` + `#chat-send`) under the HUD log — the only chat
+  input (#15). `Chat.enable(online)` toggles `body.online` and the inputs' `disabled`; the
+  row only renders while online (`body.online`). Desktop: the HUD log scrolls
+  (`max-height: 150px; overflow-y: auto`), the row sits under it. Phones: the log shows
+  its last two lines (40px) and the chat row is behind ☰ (`#hut.show-controls`). The
+  lobby card is tighter on phones (gap 7, padding 16) so an online lobby with four seat
+  cards fits 360×780.
 - **Rules**: `Chat.send(text)` trims and collapses whitespace, cuts to `Chat.MAX_LEN` =
   200, allows one line per `Chat.SEND_EVERY` = 300 ms, refuses when not online, shows
   my line at once in my colour, emits Bus `chat {text, from, mine: true}` and calls
@@ -706,9 +707,11 @@ set). Friend's reactions get a dot in their colour. `#net-banner` sits at 58px o
   uploaded as artifact on CI failure), `waitFor`. Specs: `local-flow`, `settings`,
   `prefs` (⚙ on every screen, look sync, persistence, sounds: locked until a gesture,
   cues logged in order, mc files fetched, mute; phone: clear of cards/board/😜,
-  landscape), `skins` (computed styles per skin), `mobile` (360×780), `online` (two browsers through
+  landscape), `skins` (computed styles per skin), `mobile` (360×780: title, local lobby,
+  an online-shaped lobby with four seats in every skin — share row on one line, no
+  scroll, screenshots `mobile-lobby-<skin>.png` — game, overlay), `online` (two browsers through
   the real PeerJS broker: join by link, settings mirror, guest start, move sync,
-  reactions, chat both ways (colour, text only, lobby mirror), guest refresh, tolobby,
+  reactions, chat both ways (colour, text only, HUD input), guest refresh, tolobby,
   switch game, rematch, host refresh, guest leave +
   rejoin, host leave → guest takes over → host returns as guest; `SKIP_ONLINE=1` skips),
   `online-edge` (third player → spectator, players stay connected; both refresh in the lobby; guest closes the

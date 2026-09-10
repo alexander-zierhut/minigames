@@ -1,7 +1,6 @@
 /* The event log in the HUD (#log): newest line first, the last MAX_LINES kept, the box
    scrolls on desktop and shows the last two lines on phones. Line classes: p<k> (player
-   colour), x (highlight), chat (a chat line: bold name + text). The lobby has its own
-   box (#lobby-log) for chat and room events; chat lines go to both (see chat.js). */
+   colour), x (highlight), chat (a chat line: bold name + text, see chat.js). */
 
 "use strict";
 
@@ -30,15 +29,10 @@ const Log = (() => {
         Bus.emit("log", { text, cls });
     }
 
-    // a chat line in the game log and the lobby log
-    function chat(name, text, cls) {
-        line("log", text, cls, name);
-        line("lobby-log", text, cls, name);
-    }
-    // a room event (joined, left…) in the lobby log only
-    const room = (text, cls) => line("lobby-log", text, cls || "x");
+    // a chat line in the game log
+    const chat = (name, text, cls) => line("log", text, cls, name);
 
-    // a new game clears the HUD log but keeps the conversation; the lobby log is cleared per room
+    // a new game clears the HUD log but keeps the conversation
     function clear(id = "log", keepChat = id === "log") {
         const el = Util.$(id);
         if (!el) return;
@@ -46,5 +40,5 @@ const Log = (() => {
         for (const child of [...el.children]) if (!child.classList.contains("chat")) child.remove();
     }
 
-    return { add, chat, room, clear, line, MAX_LINES };
+    return { add, chat, clear, line, MAX_LINES };
 })();
