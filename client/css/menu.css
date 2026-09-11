@@ -161,16 +161,25 @@
    so nothing sits in a box inside a box. */
 .lobby-card { max-width: 460px; gap: 12px; }
 /* head: kind label, the room code, and (online) Share plus two small icon buttons (#15) */
-/* the head is one row: the room (kind, code, Invite) on the left, how many seats on the
-   right, so both share a line and the lobby needs one hairline fewer (owner, 2026-09-11) */
-.lobby-head { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; text-align: left; }
-.lobby-head-main { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-width: 0; }
-.lobby-head #row-players { flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 4px; }
-.lobby-head #row-players .players-seg { margin-left: 0; width: 138px; }
-.lobby-head #row-players .lobby-row-note { margin-left: 0; }
-/* against a bot there is no seat count: the room block has the head to itself and centres */
-.lobby-head:has(#row-players[hidden]) { justify-content: center; text-align: center; }
-.lobby-head:has(#row-players[hidden]) .lobby-head-main { align-items: center; }
+/* the head: the kind centred over one line that holds the room (code, Invite) on the left
+   and, in a room, how many seats on the right, all vertically centred (owner, 2026-09-11) */
+.lobby-head { display: flex; flex-direction: column; align-items: stretch; gap: 8px; text-align: left; }
+.lobby-head .label { text-align: left; }                    /* over the room code, not over the card */
+.lobby-head-row { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; }
+.lobby-head-row #row-players { flex: 0 0 auto; }
+.lobby-head-row #row-players .lobby-row-label { display: none; }   /* the heading over the seat cards says it */
+.lobby-head-row #row-players .players-seg { margin-left: 0; width: 138px; }
+/* Invite is as tall as the seat count beside it */
+.lobby-actions .btn.small { padding: 5px 10px; font-size: 12px; }
+/* no seat count in the head (offline, or against a bot): the room block has the line to
+   itself, and the kind label centres over it */
+.lobby-head:not(:has(#row-players:not([hidden]))) .label { text-align: center; }
+.lobby-head-row:not(:has(#row-players:not([hidden]))) { justify-content: center; text-align: center; }
+/* offline the count is a section of its own, like Game and Options: a heading, then the
+   control at full width under it */
+#group-count { border-top: 0; padding-top: 16px; }
+#group-count #row-players { flex-direction: column; align-items: stretch; gap: 8px; }
+#group-count .players-seg { width: 100%; margin-left: 0; }
 .lobby-head .label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); }
 .lobby-head .room-code { font-size: 32px; letter-spacing: 5px; margin-top: 0; line-height: 1.15; }
 .room-code-row { display: flex; align-items: center; justify-content: center; gap: 12px; }
@@ -191,13 +200,16 @@
     -webkit-background-clip: text; background-clip: text; color: transparent;
     user-select: all;
 }
+/* online the code is a button for the invite link: one tap copies it and it says so */
+#screen-lobby.online .room-code { cursor: pointer; user-select: none; }
+.room-code.copied { background: none; color: #3ddc84; }     /* copied: the colour says so, the text never moves */
 /* a group: a hairline, its label row, then its content */
 .lobby-group { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
 /* label left, the control (the 2 / 3 / 4 segments, #28) right */
 .lobby-row { display: flex; align-items: center; gap: 12px; min-height: 20px; }
 /* the lobby has no hairlines any more: the seat cards follow the head, and a gap the size
    of the one above Options separates the game block (owner, 2026-09-11) */
-#group-players { border-top: 0; padding-top: 0; }
+#group-players { border-top: 0; padding-top: 16px; }        /* a section like Game and Options */
 #group-game { border-top: 0; padding-top: 16px; }
 .lobby-row-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); flex: 0 0 auto; }
 .players-seg { flex: 0 0 auto; width: 150px; margin-left: auto; }
@@ -240,14 +252,21 @@
 @media (max-width: 899px) {
     .lobby-card { gap: 8px; padding: 16px 16px; }
     /* the head wraps: the room on the first line, "Players 2 3 4" right-aligned under it */
-    .lobby-head { gap: 8px; }
-    .lobby-head-main { gap: 6px; }
-    .lobby-head #row-players { flex: 1 0 100%; flex-direction: row; align-items: center; justify-content: flex-end; gap: 10px; }
-    .lobby-head #row-players .players-seg { width: 132px; }
+    .lobby-head { gap: 6px; }
+    .lobby-head-row { gap: 8px; }
+    /* its own line under the code, left-aligned with it and far enough away to tap */
+    .lobby-head-row #row-players { flex: 1 0 100%; justify-content: flex-start; margin-top: 6px; }
+    .lobby-head-row #row-players .players-seg { width: 132px; }
+    /* offline on a phone the section keeps its heading but sits on one line, so the local
+       lobby still fits 360×780 */
+    #group-count { padding-top: 6px; }
+    #group-count #row-players { flex-direction: row; align-items: center; gap: 12px; }
+    #group-count .players-seg { width: 150px; margin-left: auto; }
     .lobby-head .room-code { font-size: 28px; letter-spacing: 4px; }
     .lobby-actions .btn.small { padding: 5px 9px; font-size: 11px; }
     .lobby-actions .btn.icon { padding: 5px 8px; font-size: 13px; }
     .lobby-group { gap: 6px; padding-top: 8px; }
+    #group-game { padding-top: 10px; }
     .lobby-status { font-size: 12px; }
     .lobby-players { gap: 6px; }
     .lobby-card .game-players { display: none; }

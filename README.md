@@ -50,7 +50,8 @@ Online and against the bot you can already click your answer while the other sid
 thinking: the premove is marked on the board and played the moment it is your turn
 (clicking the same cell again takes it back).
 
-The number of players (two, three or four) is picked right in the lobby and can never be
+The number of players (two, three or four) is picked right in the lobby, next to the room
+code online and over the game list offline, and can never be
 set below the people already sitting in the room; the settings
 (board size or boxes per side, animation speed, chess-style timer, chain-win rule, stones in
 a row, the Yavalath rule) are

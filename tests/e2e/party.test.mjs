@@ -13,6 +13,11 @@ after(async () => { await B?.close(); await server?.close(); });
 test("four on one device: settings row, summary, four HUD cards, rotation, no win chance", async () => {
     await B.selectGame("five");
     assert.equal(await B.ev("document.getElementById('row-players').hidden"), false, "the players control sits in the lobby (#28)");
+    // offline it is a section of its own over the game (a room shows it in the head instead)
+    assert.ok(await B.ev("document.getElementById('group-count').contains(document.getElementById('row-players'))"), "its own section offline");
+    assert.equal(await B.ev("document.getElementById('group-count').hidden"), false);
+    assert.ok(await B.ev("document.getElementById('group-count').getBoundingClientRect().bottom <= document.getElementById('group-game').getBoundingClientRect().top + 1"), "above the game");
+    assert.equal(await B.ev("Math.round(document.querySelector('#group-count .players-seg').getBoundingClientRect().width) === Math.round(document.getElementById('game-picker').getBoundingClientRect().width)"), true, "the control is as wide as the section");
     assert.equal(await B.ev("document.querySelector('#settings-modal #set-players, #settings-modal #row-players')"), null, "not in the settings modal any more");
     await B.players(4);
     assert.equal(await B.ev("document.querySelector('#set-players button.selected').dataset.players"), "4");

@@ -90,15 +90,21 @@ to try things").
 - **Lobby** (`#screen-lobby`), same screen for local and online (`Match.mode`), in **three
   calm blocks** separated by a hairline (`.lobby-group`, one `border-top`), then one primary
   action:
-  1. **Head** (`.lobby-head`), one row with two blocks (2026-09-11, which is what removed
-     the lobby's hairlines): on the **left** `.lobby-head-main` with the kind label
-     (`#lobby-kind`: "Room" / "Local game" / "Against a bot"), the room code (`#lobby-code`)
-     and — online only — one primary button `#btn-invite` "Invite" beside it (`#lobby-share`
-     in `.room-code-row`); on the **right** the **Players** row (`#row-players`: the label,
-     the segmented `#set-players` with 2 / 3 / 4 and `#lobby-spectators` "N spectator(s)
-     watching" under it). Against a bot the seat count is hidden (`Settings.setMode`) and
-     the left block has the head to itself, centred. Phones wrap: the room on the first
-     line, "Players 2 3 4" right-aligned under it. Invite opens **`#invite-modal`**: the code
+  1. **Head** (`.lobby-head`, 2026-09-11, which is what removed the lobby's hairlines): the
+     kind label (`#lobby-kind`: "Online room" / "Local game" / "Against a bot"), left over
+     the room code so it lines up with the Players, Game and Options headings below, centred
+     only when nothing sits beside the code; then `.lobby-head-row`, one line whose items
+     are vertically centred:
+     the room code (`#lobby-code`) with — online only — the primary `#btn-invite` "Invite"
+     beside it (`#lobby-share` in `.room-code-row`, as tall as the seat count) on the left, and the seat count
+     (`#row-players`, the segmented `#set-players` with 2 / 3 / 4; its own label is hidden
+     here because the Players heading over the seat cards says it) on the right. **Where the
+     count lives depends on the mode** and `renderLobby` moves the one control: in a room on
+     that line (phones put it on its own line under the code, left-aligned with it),
+     **offline in its own section** `#group-count` over the game (a heading and
+     the control at full width, like Game and Options; phones keep it on one line so 360×780
+     still fits), and against a bot nowhere (`Settings.setMode` hides it, and the room block
+     then has the line to itself, centred). Invite opens **`#invite-modal`**: the code
      again (`#invite-code`, hidden for a spectate-link viewer), and four
      `.settings-summary.invite-row` rows with an icon, a label and a one-line explanation:
      `#btn-share` "Share link", `#btn-copy-code` "Copy room code", `#btn-share-spectate`
@@ -114,11 +120,15 @@ to try things").
      app.js), which replaced the toast at the bottom of the screen. The share sheet on a
      phone and the fallback prompt say it themselves, so those do not flash. The owner's
      brief (2026-09-11): every action carries a word, the room reads like the other
-     lobbies.
-  2. **The seats** (`#group-players`, hidden against a bot because everything in it is;
-     the seat count itself moved into the head, #28 — in the lobby so everyone sees the room
-     takes up to four, and a count below the seats people already sit in is disabled, #34):
-     one `.lobby-player` card per seat from
+     lobbies. **A tap on the room code copies the invite link** (the spectate link for a
+     viewer, who has no room code) and the code **turns green for `DONE_MS`**, nothing else:
+     the text stays put so the lobby never shifts. Selecting the characters was never
+     useful, so online the code is a button (`#screen-lobby.online .room-code`).
+  2. **The seats** (`#group-players`, a room's only: the heading `#row-seats-label`
+     "Players" with `#lobby-spectators` "N spectator(s) watching" as its note, spaced like
+     Game and Options; the count itself is in the head, #28 — in the lobby so everyone sees
+     the room takes up to four, and a count below the seats people already sit in is
+     disabled, #34): one `.lobby-player` card per seat from
      `#tpl-lobby-player` (online only; as many as the *Players* control says; the name, a
      small `(you)` in `.lp-you`, and `#lp-<k>-status` "connected" / "not here yet" /
      "ready"; an absent seat gets `.absent` = a dashed, muted placeholder card; the card

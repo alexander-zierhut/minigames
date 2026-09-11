@@ -66,9 +66,11 @@
         const nm = seatNames();
         Settings.setMinPlayers(online ? Room.occupiedSeats() : 2);  // no count that takes a seat away (#34)
         const players = Settings.read().players;
-        $("lobby-kind").textContent = online ? "Room" : bot ? "Against a bot" : "Local game";
+        $("lobby-kind").textContent = online ? "Online room" : bot ? "Against a bot" : "Local game";
         $("lobby-code").textContent = online ? Room.codeText() : bot ? "You vs bot" : "Same device";
         $("lobby-code").classList.toggle("as-word", online && Room.watching);   // "Watching" is a word, not a code
+        $("screen-lobby").classList.toggle("online", online);       // the code is a copy button in a room
+        $("lobby-code").title = online ? (Room.watching ? "Copy the link for spectators" : "Copy the invite link") : "";
         // the Invite modal: a spectate-link viewer never sees the room code, so it gets no
         // eye and no share or copy row, only the spectate link to invite more viewers (#29)
         const watcher = Room.watching;
@@ -83,11 +85,17 @@
         $("btn-opponent").hidden = !bot && !roomBot;
         if (bot || roomBot) $("opponent-summary").textContent = Opponent.summary(Settings.game, Settings.read(), roomBot);
         Settings.setLocked(online && Match.spectator);              // spectators only watch (#29)
+        /* Where the seat count lives: beside the room code online, where the head is busy,
+           and as its own section over the game offline, where there is room for it (owner,
+           2026-09-11). It is the same control either way, just moved. */
+        const countHome = online ? document.querySelector(".lobby-head-row") : $("group-count");
+        if ($("row-players").parentElement !== countHome) countHome.appendChild($("row-players"));
+        $("group-count").hidden = online || bot;
         $("lobby-share").hidden = !online;
         $("btn-share").hidden = watcher;
         $("btn-copy-code").hidden = watcher;
         $("lobby-players").hidden = !online;
-        $("group-players").hidden = bot;                            // against a bot the whole group is empty (two seats, no room)
+        $("group-players").hidden = !online;                        // seat cards, their heading and the notes are a room's
         const box = $("lobby-players");
         // the seat controls live inside the card they act on; park them before the cards are rebuilt
         const park = $("seat-actions");

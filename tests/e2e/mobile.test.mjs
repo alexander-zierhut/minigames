@@ -39,7 +39,7 @@ test("lobby (local) and settings modal fit", async () => {
 
 // what an online room shows (share row, seat cards, spectator line) with four seats, without the broker
 async function showRoomLobby() {
-    await M.ev("document.getElementById('lobby-code').textContent = 'ABCDE'; document.getElementById('lobby-share').hidden = false; document.getElementById('lobby-players').hidden = false; document.getElementById('lobby-spectators').textContent = '2 spectators watching'; (() => { const w = document.getElementById('btn-watch'); w.hidden = false; document.getElementById('lp-0').appendChild(w); const b = document.getElementById('btn-room-bot'); b.hidden = false; document.getElementById('lp-1').appendChild(b); })(); true");
+    await M.ev("document.getElementById('lobby-code').textContent = 'ABCDE'; document.getElementById('lobby-share').hidden = false; document.getElementById('group-players').hidden = false; document.getElementById('lobby-players').hidden = false; document.getElementById('lobby-spectators').textContent = '2 spectators watching'; (() => { const w = document.getElementById('btn-watch'); w.hidden = false; document.getElementById('lp-0').appendChild(w); const b = document.getElementById('btn-room-bot'); b.hidden = false; document.getElementById('lp-1').appendChild(b); document.querySelector('.lobby-head-row').appendChild(document.getElementById('row-players')); document.getElementById('group-count').hidden = true; document.getElementById('row-seats-label').hidden = false; })(); true");
 }
 test("online-shaped lobby with four seats: one Invite button beside the code, the share actions in a modal, the seat controls on the cards, every skin", async () => {
     await M.players(4);
@@ -64,7 +64,8 @@ test("online-shaped lobby with four seats: one Invite button beside the code, th
         await showRoomLobby();                    // opening Invite re-rendered the (offline) lobby: force the room shape again
         assert.equal(await M.ev("document.getElementById('lobby-chat')"), null, "no lobby chat");
         // the head carries the room and the seat count side by side, then the seat cards, then the game
-        assert.ok(await M.ev("document.querySelector('.lobby-head').contains(document.getElementById('row-players'))"), "the seat count sits in the head");
+        assert.ok(await M.ev("document.querySelector('.lobby-head-row').contains(document.getElementById('row-players'))"), "the seat count sits on the head's line");
+        assert.ok(await M.ev("document.getElementById('group-players').contains(document.getElementById('row-seats-label'))"), "the Players heading belongs to the seat cards");
         assert.ok(await M.ev("document.getElementById('group-players').contains(document.getElementById('lobby-players'))"), "the seat cards follow it");
         assert.equal(await M.ev("[...document.querySelectorAll('#screen-lobby .lobby-group')].filter(g => parseFloat(getComputedStyle(g).borderTopWidth) > 0).length"), 0, "no hairlines in the lobby any more");
         assert.ok(await M.ev("document.getElementById('group-game').contains(document.getElementById('game-picker')) && document.getElementById('group-game').contains(document.getElementById('btn-settings'))"), "picker and settings in one group");
