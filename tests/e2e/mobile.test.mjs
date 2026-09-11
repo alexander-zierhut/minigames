@@ -39,30 +39,41 @@ test("lobby (local) and settings modal fit", async () => {
 
 // what an online room shows (share row, seat cards, spectator line) with four seats, without the broker
 async function showRoomLobby() {
-    await M.ev("document.getElementById('lobby-code').textContent = 'ABCDE'; document.getElementById('lobby-share').hidden = false; document.getElementById('lobby-players').hidden = false; document.getElementById('lobby-spectators').textContent = '2 spectators watching'; document.getElementById('btn-watch').hidden = false; document.getElementById('btn-room-bot').hidden = false; true");
+    await M.ev("document.getElementById('lobby-code').textContent = 'ABCDE'; document.getElementById('lobby-share').hidden = false; document.getElementById('lobby-players').hidden = false; document.getElementById('lobby-spectators').textContent = '2 spectators watching'; (() => { const w = document.getElementById('btn-watch'); w.hidden = false; document.getElementById('lp-0').appendChild(w); const b = document.getElementById('btn-room-bot'); b.hidden = false; document.getElementById('lp-1').appendChild(b); })(); true");
 }
-test("online-shaped lobby with four seats: one Share button plus two icons under the code, no scroll, every skin", async () => {
+test("online-shaped lobby with four seats: one Invite button beside the code, the share actions in a modal, the seat controls on the cards, every skin", async () => {
     await M.players(4);
     for (const skin of ["classic", "mcboard", "mc"]) {
         await M.selectSkin(skin);                 // re-renders the lobby (builds the four seat cards)
         await showRoomLobby();
         assert.equal(await M.ev("document.querySelectorAll('.lobby-player').length"), 4);
-        // the share row: "Share link" carries the text, copy code and spectate link are small icon buttons
-        const btns = JSON.parse(await M.ev("JSON.stringify(['btn-share', 'btn-copy-code', 'btn-share-spectate'].map(id => { const r = document.getElementById(id).getBoundingClientRect(); return { top: Math.round(r.top), left: Math.round(r.left), right: Math.round(r.right), w: Math.round(r.width) }; }))"));
-        assert.ok(btns.every((b) => b.top === btns[0].top), `${skin}: share row on one line (${JSON.stringify(btns)})`);
-        assert.ok(btns.every((b) => b.left >= 16 && b.right <= 344), `${skin}: buttons inside the card (${JSON.stringify(btns)})`);
-        assert.ok(btns[0].w > btns[1].w && btns[0].w > btns[2].w, `${skin}: Share link is the primary, the other two are icons (${JSON.stringify(btns)})`);
-        assert.ok(btns[0].top >= await M.ev("document.getElementById('lobby-code').getBoundingClientRect().bottom"), `${skin}: buttons under the room code`);
+        // the head: one Invite button under the code; the share actions sit in the Invite modal, each with a word on it
+        const inv = JSON.parse(await M.ev("JSON.stringify((() => { const r = document.getElementById('btn-invite').getBoundingClientRect(); return { top: Math.round(r.top), left: Math.round(r.left), right: Math.round(r.right) }; })())"));
+        assert.ok(inv.left >= 16 && inv.right <= 344, `${skin}: Invite inside the card (${JSON.stringify(inv)})`);
+        const codeRect = JSON.parse(await M.ev("JSON.stringify(document.getElementById('lobby-code').getBoundingClientRect())"));
+        assert.ok(inv.left >= codeRect.right && inv.top < codeRect.bottom && inv.right > codeRect.top, `${skin}: Invite beside the room code, to its right (${JSON.stringify(inv)} vs ${Math.round(codeRect.right)})`);
+        assert.equal(await M.ev("document.querySelectorAll('#lobby-share .btn').length"), 1, `${skin}: the head holds one button`);
+        await M.click("#btn-invite");
+        const rows = JSON.parse(await M.ev("JSON.stringify(['btn-share', 'btn-copy-code', 'btn-share-spectate', 'btn-hide-code'].map(id => { const e = document.getElementById(id); const r = e.getBoundingClientRect(); return { text: e.querySelector('b').textContent, top: Math.round(r.top), left: Math.round(r.left), right: Math.round(r.right) }; }))"));
+        assert.deepEqual(rows.map((r) => r.text), ["Share link", "Copy room code", "Copy a link for spectators", "Hide the room code"], `${skin}: every share action carries a word`);
+        const shownRows = rows.filter((r) => r.right > r.left);          // the hide-code row only shows in a real room
+        assert.ok(shownRows.length >= 3 && shownRows.every((r, i) => i === 0 || r.top > shownRows[i - 1].top), `${skin}: the rows are stacked (${JSON.stringify(shownRows)})`);
+        assert.ok(shownRows.every((r) => r.left >= 16 && r.right <= 344), `${skin}: rows inside the modal`);
+        await M.click("#btn-invite-done");
+        assert.equal(await M.ev("document.getElementById('invite-modal').hidden"), true);
+        await showRoomLobby();                    // opening Invite re-rendered the (offline) lobby: force the room shape again
         assert.equal(await M.ev("document.getElementById('lobby-chat')"), null, "no lobby chat");
         // the two groups: the players control and the seat cards, then the picker and the settings
         assert.ok(await M.ev("document.getElementById('group-players').contains(document.getElementById('row-players')) && document.getElementById('group-players').contains(document.getElementById('lobby-players'))"), "players control and seats in one group");
         assert.ok(await M.ev("document.getElementById('group-game').contains(document.getElementById('game-picker')) && document.getElementById('group-game').contains(document.getElementById('btn-settings'))"), "picker and settings in one group");
         // seat names are never cut off (the status wraps inside the card instead)
         assert.ok(await M.ev("[...document.querySelectorAll('.lobby-player .lp-name')].every(e => e.scrollWidth <= e.clientWidth + 1)"), `${skin}: seat names fit`);
-        // the seat controls (#39) sit under the seat cards, inside the card, above the notes
-        const swap = JSON.parse(await M.ev("JSON.stringify(['btn-watch', 'btn-room-bot', 'lobby-players', 'lobby-spectators'].map(id => { const r = document.getElementById(id).getBoundingClientRect(); return { top: Math.round(r.top), left: Math.round(r.left), right: Math.round(r.right) }; }))"));
-        assert.ok(swap[0].top >= swap[2].top && swap[0].top <= swap[3].top, `${skin}: seat controls between the cards and the notes (${JSON.stringify(swap)})`);
+        // the seat controls (#39) sit inside the seat cards they act on, and the spectator count in the Players heading
+        const swap = JSON.parse(await M.ev("JSON.stringify(['btn-watch', 'btn-room-bot', 'lp-0', 'lp-1', 'lobby-spectators', 'row-players'].map(id => { const r = document.getElementById(id).getBoundingClientRect(); return { top: Math.round(r.top), left: Math.round(r.left), right: Math.round(r.right), bottom: Math.round(r.bottom) }; }))"));
+        assert.ok(swap[0].top >= swap[2].top && swap[0].bottom <= swap[2].bottom + 1, `${skin}: Watch instead inside my seat card (${JSON.stringify(swap)})`);
+        assert.ok(swap[1].top >= swap[3].top && swap[1].bottom <= swap[3].bottom + 1, `${skin}: Add a bot inside the empty seat card`);
         assert.ok(swap.slice(0, 2).every((b) => b.left >= 16 && b.right <= 344), `${skin}: seat controls inside the card (${JSON.stringify(swap)})`);
+        assert.ok(swap[4].top >= swap[5].top && swap[4].bottom <= swap[5].bottom + 1, `${skin}: the spectator count sits in the Players heading`);
         // four seats plus every seat control is taller than a 360×780 phone: the page scrolls
         // (owner's rule: a page scroll over a scroll inside the card), the card never does
         const fit = await M.noScroll();

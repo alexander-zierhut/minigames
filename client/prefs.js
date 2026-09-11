@@ -35,8 +35,10 @@ const Prefs = (() => {
         soundSet: "auto",                             // "auto" (follows the look) | "classic" | "mc"
         sounds: Object.fromEntries(CATEGORIES.map((c) => [c, true])),
         hideCode: false,                              // enter rooms with the code hidden (lobby, HUD, address bar)
+        hideCodeAsked: false,                         // the one-time question when the code is first hidden was answered
         winGraph: true,                               // the win-chance line graph in the replay analysis panel (#43)
         privateIp: false,                             // relay every connection through TURN: nobody in the room sees my IP (#30)
+        muteSpectators: false,                        // spectators' chat lines and reactions never show on this device
         developer: false,                             // the developer info panel (#31)
     };
     // the modal's sections, in the order of the nav rows (#prefs-nav-<key>, .prefs-section[data-section=<key>])
@@ -86,8 +88,10 @@ const Prefs = (() => {
         if (!["auto", "classic", "mc"].includes(p.soundSet)) p.soundSet = "auto";
         for (const c of CATEGORIES) p.sounds[c] = !!p.sounds[c];
         p.hideCode = !!p.hideCode;
+        p.hideCodeAsked = !!p.hideCodeAsked;
         p.winGraph = !!p.winGraph;
         p.privateIp = !!p.privateIp;
+        p.muteSpectators = !!p.muteSpectators;
         p.developer = !!p.developer;
         return p;
     }

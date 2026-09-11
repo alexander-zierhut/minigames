@@ -183,7 +183,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `BotPersona` | `attach({bot, seat, game, state, estimate, color, post?, delays?, cooldownMs?})`, `detach()`, `POOLS` |
 | `Skins` | `init({onChange})`, `set(key)`, `current` (no `names()` since #35) |
 | `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `setMode(mode)`, `setPlayers(n)`, `setMinPlayers(n)`, `setBot(choice, announce?)`, `setLocked(on)`, `supports(key)`, `MIN_PLAYERS_HINT`, `BOT_SEAT`, `game`, `players`, `minPlayers`, `bot`, `locked`, `fields` |
-| `Prefs` | `init({onChange, context})`, `get() → {name, defaultName, volume, soundSet, sounds, winGraph, hideCode, privateIp, developer}`, `set(patch)`, `open/close`, `feedbackUrl()`, `cleanName(s)`, `seatNames(count)`, `showSection(key)`, `sectionSummary(key)`, `CATEGORIES`, `SECTIONS`, `DEFAULT_NAMES`, `NAME_MAX`, `isOpen`, `section` |
+| `Prefs` | `init({onChange, context})`, `get() → {name, defaultName, volume, soundSet, sounds, winGraph, hideCode, hideCodeAsked, privateIp, muteSpectators, developer}`, `set(patch)`, `open/close`, `feedbackUrl()`, `cleanName(s)`, `seatNames(count)`, `showSection(key)`, `sectionSummary(key)`, `CATEGORIES`, `SECTIONS`, `DEFAULT_NAMES`, `NAME_MAX`, `isOpen`, `section` |
 | `Opponent` | `init({onDone(game, played)})`, `open(game, config, choice?)`, `current(game, config) → {id, difficulty, def}`, `summary(game, config, choice?)`, `NAME` ("Bot") |
 | `Reactions` | `init({onSend, color})`, `receive(emoji, color)`, `place()`, `durationFor(recent)` |
 | `Chat` | `init(...)`, `send`, `receive(msg)`, `enable(on)` (see chat section) |

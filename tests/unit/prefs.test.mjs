@@ -108,6 +108,7 @@ test("sections (#32): the menu rows summarise their state, showSection opens one
     assert.equal(P.sectionSummary("look"), "Classic");
     assert.equal(P.sectionSummary("sound"), "30 % · Follow the look");
     assert.equal(P.sectionSummary("streaming"), "Best for streaming");
+    assert.equal(P.get().hideCodeAsked, false, "the hide-code question has not been asked on a fresh device");
     assert.equal(P.sectionSummary("developer"), "off");
     assert.equal(P.sectionSummary("feedback"), "Report a problem");
     assert.equal(d.getElementById("prefs-sum-sound").textContent, "30 % · Follow the look");

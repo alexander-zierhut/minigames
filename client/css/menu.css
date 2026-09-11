@@ -160,11 +160,11 @@
 .lobby-head { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
 .lobby-head .label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); }
 .lobby-head .room-code { font-size: 32px; letter-spacing: 5px; margin-top: 0; line-height: 1.15; }
-.room-code-row { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.room-code-row { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.room-code-row .lobby-actions:not([hidden]) { display: flex; }
+.ask-card { max-width: 400px; gap: 14px; }
 /* a spectate-link viewer sees the word "Watching" instead of a code (#29) */
 .lobby-head .room-code.as-word { font-size: 20px; letter-spacing: 2px; font-weight: 800; }
-.code-eye { background: none; color: var(--muted); border: 2px solid var(--line); border-radius: 8px; font-size: 16px; line-height: 1; padding: 4px 6px; cursor: pointer; }
-.code-eye:hover { border-color: #46528a; color: var(--text); }
 /* one row: the primary share button carries the text, copy code and spectate link are icons */
 .lobby-actions { display: flex; align-items: stretch; justify-content: center; gap: 6px; }
 .lobby-actions .btn { white-space: nowrap; }
@@ -182,6 +182,9 @@
 .lobby-group { display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
 /* label left, the control (the 2 / 3 / 4 segments, #28) right */
 .lobby-row { display: flex; align-items: center; gap: 12px; min-height: 20px; }
+/* online: a hairline under the Players heading and its count, above the seat cards */
+#group-players:has(#lobby-players:not([hidden])) #row-players { padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+#row-players .lobby-row-note { margin-left: 0; }
 .lobby-row-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); flex: 0 0 auto; }
 .players-seg { flex: 0 0 auto; width: 150px; margin-left: auto; }
 .players-seg button { font-size: 13px; padding: 5px 4px; }

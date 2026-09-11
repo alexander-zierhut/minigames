@@ -80,7 +80,8 @@ test("two players start a game; a third browser watches through the spectate lin
 
 test("the viewer's lobby offers only the spectate link: no code, no eye, no share or copy", { skip: !ONLINE }, async () => {
     const shown = JSON.parse(await C.ev("JSON.stringify(['btn-share', 'btn-copy-code', 'btn-share-spectate', 'btn-hide-code'].map(id => !document.getElementById(id).hidden))"));
-    assert.deepEqual(shown, [false, false, true, false], "only 👀 is offered");
+    assert.deepEqual(shown, [false, false, true, false], "only the spectator link is offered");
+    assert.equal(await C.ev("document.getElementById('invite-code').hidden"), true, "the Invite modal shows no code to a viewer");
     assert.equal(await C.text("lobby-code"), "Watching");
     assert.ok((await C.ev("Room.spectateLink()")).endsWith(`?watch=${spec}`), "a viewer can pass its own link on");
 });

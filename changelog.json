@@ -6,6 +6,10 @@
       "entries": [
         {
           "type": "improvement",
+          "text": "The room lobby is tidier: one Invite button beside the code opens a panel where sharing the link, copying the code, the spectator link and hiding the code each carry a word, and the seat actions sit on the seat cards they belong to (Watch instead, Sit here, Add a bot, Remove the bot). The spectator count moved into the Players heading."
+        },
+        {
+          "type": "improvement",
           "text": "The title screen greets you by name, and the name can be changed right there. Wide names are cut so they always fit.",
           "technical": true
         },

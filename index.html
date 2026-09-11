@@ -117,13 +117,10 @@
             <div class="label" id="lobby-kind">Room</div>
             <div class="room-code-row">
                 <div class="room-code" id="lobby-code">…</div>
-                <!-- online only: hide the code for streaming (#19); the share / copy buttons keep working -->
-                <button class="code-eye" id="btn-hide-code" hidden title="Hide the room code" aria-label="Hide the room code">👁</button>
-            </div>
-            <div class="lobby-actions" id="lobby-share">
-                <button class="btn small primary" id="btn-share">Share link</button>
-                <button class="btn small icon" id="btn-copy-code" title="Copy the room code" aria-label="Copy the room code">📋</button>
-                <button class="btn small icon" id="btn-share-spectate" title="Copy a link for spectators" aria-label="Copy a link for spectators">👀</button>
+                <!-- online only: one button beside the code; the share actions live in #invite-modal with a word on each -->
+                <div class="lobby-actions" id="lobby-share">
+                    <button class="btn small primary" id="btn-invite"><span data-icon="share"></span> Invite</button>
+                </div>
             </div>
         </div>
 
@@ -134,24 +131,26 @@
             <!-- hidden against a bot (always two) -->
             <div class="lobby-row" id="row-players">
                 <span class="lobby-row-label">Players</span>
+                <!-- "2 spectators watching", in the heading (online) -->
+                <span class="lobby-row-note" id="lobby-spectators"></span>
                 <div class="seg players-seg" id="set-players">
                     <button data-players="2" class="selected">2</button>
                     <button data-players="3">3</button>
                     <button data-players="4">4</button>
                 </div>
             </div>
-            <!-- one card per seat, from #tpl-lobby-player -->
+            <!-- one card per seat, from #tpl-lobby-player; the seat controls below are moved
+                 into the card they act on by renderLobby (app.js) and parked here while hidden -->
             <div class="lobby-players" id="lobby-players"></div>
             <!-- online only: swap between playing and watching in the lobby (#39) -->
             <div class="seat-actions" id="seat-actions">
-                <button class="btn quiet small" id="btn-watch" hidden>Watch instead</button>
-                <button class="btn quiet small" id="btn-take-seat" hidden>Take a seat</button>
+                <button class="btn small lp-act" id="btn-watch" hidden>Watch instead</button>
+                <button class="btn small lp-act" id="btn-take-seat" hidden>Sit here</button>
                 <!-- a two-seat room whose other seat is empty can play a bot instead of waiting (#36) -->
-                <button class="btn quiet small" id="btn-room-bot" hidden>Against a bot instead</button>
-                <button class="btn quiet small" id="btn-room-bot-off" hidden>Wait for a friend instead</button>
+                <button class="btn small lp-act" id="btn-room-bot" hidden>Add a bot</button>
+                <button class="btn small lp-act" id="btn-room-bot-off" hidden>Remove the bot</button>
             </div>
             <div class="lobby-status" id="lobby-status"></div>
-            <div class="lobby-status" id="lobby-spectators"></div>
         </div>
 
         <!-- group "Game": the picker, its tagline, the opponent (bot mode) and the settings -->
@@ -550,6 +549,51 @@
         <ol class="learn-steps" id="howto-steps"></ol>
         <p class="hint">The guided tutorial on a real board is in the Learn section on the title screen.</p>
         <button class="btn primary" id="btn-howto-done">Done</button>
+    </div>
+</div>
+
+<!-- ===================== INVITE (the room's share actions, one word on each) ===================== -->
+<div id="invite-modal" class="modal" hidden>
+    <div class="menu-card invite-card">
+        <h1 class="title small">Invite</h1>
+        <p class="tagline small" id="invite-hint">Friends open the link, or type the code under Join room.</p>
+        <div class="room-code invite-code" id="invite-code">…</div>
+        <div class="invite-rows">
+            <button class="settings-summary invite-row" id="btn-share">
+                <span class="gear-icon" data-icon="share"></span>
+                <span class="invite-text"><b>Share link</b><small>The link opens this room straight away.</small></span>
+                <span class="chev">›</span>
+            </button>
+            <button class="settings-summary invite-row" id="btn-copy-code">
+                <span class="gear-icon" data-icon="copy"></span>
+                <span class="invite-text"><b>Copy room code</b><small>For friends who type it in under Join room.</small></span>
+                <span class="chev">›</span>
+            </button>
+            <!-- the spectate link carries the room's own spectator code, never the room code (#29) -->
+            <button class="settings-summary invite-row" id="btn-share-spectate">
+                <span class="gear-icon" data-icon="monitor"></span>
+                <span class="invite-text"><b>Copy a link for spectators</b><small>They watch and chat, but never get a seat.</small></span>
+                <span class="chev">›</span>
+            </button>
+            <!-- hide the code for streaming (#19); share and copy keep working -->
+            <button class="settings-summary invite-row" id="btn-hide-code">
+                <span class="gear-icon" data-icon="eye"></span>
+                <span class="invite-text"><b id="hide-code-label">Hide the room code</b><small>For streaming: the code shows as dots until you show it again.</small></span>
+                <span class="chev">›</span>
+            </button>
+        </div>
+        <button class="btn primary" id="btn-invite-done">Done</button>
+    </div>
+</div>
+<!-- asked once per device, the first time the code is hidden: make it the default for new rooms? -->
+<div id="hide-code-ask" class="modal" hidden>
+    <div class="menu-card ask-card">
+        <h1 class="title small">Hide the code</h1>
+        <p class="tagline small">Hide the room code in every new room from now on? You can change that any time under Content Creator in the settings.</p>
+        <div class="btn-row">
+            <button class="btn" id="btn-hide-once">Just this room</button>
+            <button class="btn primary" id="btn-hide-always">Always hide it</button>
+        </div>
     </div>
 </div>
 

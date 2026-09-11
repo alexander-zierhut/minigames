@@ -284,10 +284,16 @@ test("hide the room code (#19): bullets in the lobby and the HUD, nothing in the
     await A.click("#btn-menu"); await sleep(300);                                        // both back to the lobby
     await B.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-lobby'", { what: "host in lobby" });
     assert.equal(await A.text("lobby-code"), code);
-    assert.equal(await A.text("btn-hide-code"), "👁");
+    assert.equal(await A.ev("document.querySelector('#btn-hide-code .gear-icon').dataset.icon"), "eye");
     await A.click("#btn-hide-code");
+    assert.equal(await A.ev("document.getElementById('hide-code-ask').hidden"), false, "the first time asks whether new rooms should start hidden");
+    assert.equal(await A.text("lobby-code"), code, "nothing hidden until the question is answered");
+    await A.click("#btn-hide-once");
+    assert.equal(await A.ev("Prefs.get().hideCode"), false, "'Just this room' leaves the preference alone");
+    assert.equal(await A.ev("Prefs.get().hideCodeAsked"), true, "and the question is not asked again");
     assert.equal(await A.text("lobby-code"), "•••••");
-    assert.equal(await A.text("btn-hide-code"), "🙈");
+    assert.equal(await A.ev("document.querySelector('#btn-hide-code .gear-icon').dataset.icon"), "eye-off");
+    assert.equal(await A.text("hide-code-label"), "Show the room code");
     assert.equal(await A.text("net-code"), "Room •••••", "the HUD net box hides it too");
     assert.equal(await A.ev("location.search"), "", "the code left the address bar");
     assert.equal(await A.ev("Net.code"), code, "the room itself is unchanged");

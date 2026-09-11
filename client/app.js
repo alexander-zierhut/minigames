@@ -88,6 +88,10 @@
         $("lobby-players").hidden = !online;
         $("group-players").hidden = bot;                            // against a bot the whole group is empty (two seats, no room)
         const box = $("lobby-players");
+        // the seat controls live inside the card they act on; park them before the cards are rebuilt
+        const park = $("seat-actions");
+        const seatButtons = ["btn-watch", "btn-take-seat", "btn-room-bot", "btn-room-bot-off"].map($);
+        for (const b of seatButtons) park.appendChild(b);
         if (box.children.length !== players) {
             box.innerHTML = "";
             for (let k = 0; k < players; k++) box.appendChild(Util.fromTemplate("tpl-lobby-player", k));
@@ -101,17 +105,25 @@
             $(`lp-${k}`).classList.toggle("absent", online && !present[k]);
             $(`lp-${k}-status`).textContent = !online ? "" : mine || k === botSeat ? "ready" : (present[k] ? "connected" : "not here yet");
         }
-        // swap between playing and watching (#39): a spectate-link viewer never sits down
+        // swap between playing and watching (#39): a spectate-link viewer never sits down.
+        // Each control sits in the card it acts on: "Watch instead" on my own card, "Sit here"
+        // on the first empty card (a spectator), "Add a bot" on the empty card of a two-seat
+        // room, "Remove the bot" on the bot's card.
         const canSwap = online && !watcher;
         const free = Room.seatFree();
-        $("btn-watch").hidden = !(canSwap && Match.me >= 0);
-        $("btn-take-seat").hidden = !(canSwap && Match.me < 0);
+        const firstFree = online ? present.findIndex((p, k) => !p && k < players) : -1;
+        const place = (btn, shown, seat) => {
+            btn.hidden = !shown;
+            if (shown && seat >= 0 && $(`lp-${seat}`)) $(`lp-${seat}`).appendChild(btn);
+        };
+        place($("btn-watch"), canSwap && Match.me >= 0, Match.me);
+        place($("btn-take-seat"), canSwap && Match.me < 0, firstFree);
         $("btn-take-seat").disabled = !free;
         $("btn-take-seat").title = free ? "" : "Every seat is taken right now.";
         // a two-seat room waiting for a friend may play a bot instead (#36)
         const mayAskBot = canSwap && Match.me >= 0 && players === 2 && Opponent.current(Settings.game, Settings.read());
-        $("btn-room-bot").hidden = !(mayAskBot && !roomBot && !Room.allHere());
-        $("btn-room-bot-off").hidden = !(mayAskBot && roomBot);
+        place($("btn-room-bot"), mayAskBot && !roomBot && !Room.allHere(), firstFree);
+        place($("btn-room-bot-off"), mayAskBot && roomBot, botSeat);
         const watching = online ? Room.spectators : 0;
         $("lobby-spectators").textContent = watching > 0 ? `${watching} spectator${watching > 1 ? "s" : ""} watching` : "";
         const start = $("btn-start");
@@ -129,6 +141,7 @@
         } else {
             start.disabled = false;
             start.textContent = Room.isHost ? "Start game" : "Start game (asks the host)";
+            $("lobby-status").textContent = "";       // everyone is back: drop the "X left the room." note
         }
         $("btn-lobby-back").textContent = online ? "Leave room" : "Back";
     }
@@ -422,6 +435,7 @@
 
     function leaveRoom() {
         saveReplay(false);                       // a game left half way is kept too (#42)
+        $("invite-modal").hidden = true;
         Room.leave();
         Match.reset("local");
         $("overlay").hidden = true;
@@ -435,6 +449,7 @@
     // joins later, inside the usual `sync`.
     function startGame(cfg, gameNo, prefix) {
         Learn.closeHowto();                      // "How to play" never stays up over a game (#41)
+        $("invite-modal").hidden = true;         // nor does Invite
         replayDoc = null;                        // a game on the board is never a replay (#42)
         hideReplay();
         Room.newGame();
@@ -517,7 +532,22 @@
         try { await navigator.clipboard.writeText(Net.code); toast("Code copied"); }
         catch (e) { prompt("Room code:", Net.code); }
     });
-    $("btn-hide-code").addEventListener("click", () => Room.hideCode(!Room.codeHidden));
+    // hiding the code the first time on this device asks whether new rooms should start hidden
+    // (the `hideCode` preference); showing it again never asks
+    $("btn-hide-code").addEventListener("click", () => {
+        if (!Room.codeHidden && !Prefs.get().hideCodeAsked) { $("hide-code-ask").hidden = false; return; }
+        Room.hideCode(!Room.codeHidden);
+    });
+    const answerHideAsk = (always) => {
+        $("hide-code-ask").hidden = true;
+        Prefs.set({ hideCodeAsked: true, ...(always ? { hideCode: true } : {}) });
+        Room.hideCode(true);
+    };
+    $("btn-hide-once").addEventListener("click", () => answerHideAsk(false));
+    $("btn-hide-always").addEventListener("click", () => answerHideAsk(true));
+    $("btn-invite").addEventListener("click", () => { renderLobby(); $("invite-modal").hidden = false; });
+    $("btn-invite-done").addEventListener("click", () => { $("invite-modal").hidden = true; });
+    $("invite-modal").addEventListener("click", (e) => { if (e.target === $("invite-modal")) $("invite-modal").hidden = true; });
     $("btn-watch").addEventListener("click", () => Room.watchInstead());
     $("btn-take-seat").addEventListener("click", () => Room.takeSeat());
     $("btn-room-bot").addEventListener("click", () => Opponent.open(Settings.game));
