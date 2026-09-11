@@ -49,7 +49,33 @@ const Prefs = (() => {
     const REPO_ISSUES = "https://github.com/alexander-zierhut/minigames/issues/new";
 
     // a name as it may be shown and sent: no line breaks, no runs of spaces, at most 16 characters
-    const cleanName = (s) => String(s == null ? "" : s).replace(/\s+/g, " ").trim().slice(0, NAME_MAX);
+    /* A name is at most NAME_MAX characters AND no wider than NAME_MAX letters "n" in the
+       greeting field's font (the owner: "AAAAAAAAAAAAAAAA" is much wider than "iiiiiiiiiiiiiiii"
+       and must still fit the UI). `measureName(text)` renders the text in a hidden span and
+       reads its width; where that cannot be measured (jsdom, no DOM) it returns null and only
+       the character limit applies. `fitName(s, measure)` is the pure cut, testable with a fake. */
+    let ruler = null;
+    function measureName(text) {
+        try {
+            if (!ruler) {
+                ruler = document.createElement("span");
+                ruler.setAttribute("aria-hidden", "true");
+                ruler.style.cssText = "position:absolute;left:-9999px;top:0;visibility:hidden;white-space:pre;font-weight:800;font-size:14px;font-family:inherit";
+                document.body.appendChild(ruler);
+            }
+            ruler.textContent = text;
+            const w = ruler.getBoundingClientRect().width;
+            return w > 0 ? w : null;
+        } catch (e) { return null; }
+    }
+    function fitName(s, measure = measureName) {
+        s = s.slice(0, NAME_MAX);
+        const budget = s ? measure("n".repeat(NAME_MAX)) : null;
+        if (!budget) return s;
+        while (s.length > 1 && measure(s) > budget) s = s.slice(0, -1).trimEnd();
+        return s;
+    }
+    const cleanName = (s) => fitName(String(s == null ? "" : s).replace(/\s+/g, " ").trim());
     const randomName = () => DEFAULT_NAMES[Math.floor(Math.random() * DEFAULT_NAMES.length)];
 
     function merge(saved) {
@@ -90,6 +116,11 @@ const Prefs = (() => {
     function fill() {
         if (!$("pref-volume")) return;
         if ($("pref-name")) $("pref-name").value = prefs.name;
+        if ($("menu-name")) {
+            $("menu-name").value = prefs.name;                       // the title screen's greeting shows the same name
+            const budget = measureName("n".repeat(NAME_MAX));        // and is exactly as wide as the widest name allowed
+            if (budget) $("menu-name").style.width = `${Math.ceil(budget) + 22}px`;   // + padding and border
+        }
         $("pref-volume").value = String(prefs.volume);
         $("pref-volume-val").textContent = prefs.volume === 0 ? "off" : `${prefs.volume} %`;
         $("pref-soundset").value = prefs.soundSet;
@@ -193,14 +224,15 @@ const Prefs = (() => {
         $("pref-volume").addEventListener("input", readForm);
         $("pref-soundset").addEventListener("change", readForm);
         for (const c of CATEGORIES) { const el = $("pref-snd-" + c); if (el) el.addEventListener("change", readForm); }
-        for (const id of ["pref-win-graph", "pref-hide-code", "pref-private-ip", "pref-developer"]) if ($(id)) $(id).addEventListener("change", readForm);
+        for (const id of ["pref-win-graph", "pref-hide-code", "pref-private-ip", "pref-mute-spectators", "pref-developer"]) if ($(id)) $(id).addEventListener("change", readForm);
         // content creator mode: every option of that section on or off, in one tap
         if ($("pref-creator-mode")) $("pref-creator-mode").addEventListener("click", () => {
             const on = !creatorMode();
-            set({ hideCode: on, privateIp: on });
+            set(Object.fromEntries(CREATOR.map((k) => [k, on])));
             Util.toast(on ? "Content creator mode is on." : "Content creator mode is off.");
         });
         if ($("pref-name")) $("pref-name").addEventListener("change", readForm);   // on blur / Enter, so typing is never cut mid-word
+        if ($("menu-name")) $("menu-name").addEventListener("change", () => set({ name: $("menu-name").value }));   // the greeting's field, same rules
         for (const key of SECTIONS) { const row = $("prefs-nav-" + key); if (row) row.addEventListener("click", () => showSection(key)); }
         $("btn-prefs-back").addEventListener("click", () => showSection(null));
         $("prefs-panes").addEventListener("click", renderNav);        // the look buttons are Skins', the row summary is ours
@@ -209,7 +241,7 @@ const Prefs = (() => {
     }
 
     return {
-        init, get, set, open, close, feedbackUrl, cleanName, seatNames, CATEGORIES, SECTIONS, DEFAULT_NAMES, NAME_MAX, showSection, sectionSummary,
+        init, get, set, open, close, feedbackUrl, cleanName, fitName, seatNames, CATEGORIES, SECTIONS, DEFAULT_NAMES, NAME_MAX, showSection, sectionSummary,
         get isOpen() { return !$("prefs-modal").hidden; }, get section() { return section; },
     };
 })();

@@ -64,7 +64,9 @@
     </div>
     <div class="menu-card">
         <h1 class="title">ALZlper's Minigames</h1>
-        <p class="tagline">Chain React, Five Wins and Käsekästchen for two to four friends. Create a room once, then play, rematch and switch games together.</p>
+        <!-- the greeting doubles as the name field (#35: the same preference as Profile in ⚙,
+             kept in sync by Prefs); the drawn default name shows from the first visit -->
+        <p class="tagline menu-hello"><span class="hello-name">Hello <input type="text" id="menu-name" class="name-inline" maxlength="16" autocomplete="off" spellcheck="false" aria-label="Your name">!</span> <span class="hello-welcome">Welcome to some fun games.</span></p>
 
         <div class="menu-actions">
             <div class="section">

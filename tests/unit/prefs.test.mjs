@@ -171,6 +171,15 @@ test("name (#35): cleaned and cut to 16, an empty one falls back to the drawn de
     assert.equal(P.NAME_MAX, 16);
     assert.equal(P.cleanName("  Ali   ce \n"), "Ali ce", "trimmed, runs of whitespace collapsed");
     assert.equal(P.cleanName("abcdefghijklmnopqrstuvwxyz").length, 16, "cut to the maximum");
+    // the width limit: with a fake ruler (A = 2 units, n = 1.5, i = 1) a wide name is cut to
+    // what 16 "n" take, a narrow one keeps all 16 characters, and no ruler means the count alone
+    const fake = (t) => [...t].reduce((w, ch) => w + (ch === "A" ? 2 : ch === "n" ? 1.5 : 1), 0);
+    assert.equal(P.fitName("A".repeat(16), fake), "A".repeat(12), "24 units budget: twelve A");
+    assert.equal(P.fitName("i".repeat(16), fake), "i".repeat(16), "narrow: the count is the limit");
+    assert.equal(P.fitName("A".repeat(30), fake), "A".repeat(12), "the count first, then the width");
+    assert.equal(P.fitName("AAAAAAAAAAAA B", fake), "AAAAAAAAAAAA", "a space left at the cut is dropped");
+    assert.equal(P.fitName("A".repeat(16), () => null), "A".repeat(16), "no ruler (jsdom): sixteen characters");
+    assert.equal(P.fitName("", fake), "");
     assert.equal(P.cleanName(null), "");
     const drawn = P.get().defaultName;
     P.set({ name: "  Bo  " });

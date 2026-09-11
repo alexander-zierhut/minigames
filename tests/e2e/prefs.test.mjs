@@ -92,6 +92,7 @@ test("profile (#35): a name is drawn on the first visit, a new one survives a re
     await B.click("#prefs-btn");
     await B.click("#prefs-nav-profile");
     assert.equal(await B.ev("document.getElementById('pref-name').value"), await B.ev("Prefs.get().name"), "the field shows the current name");
+    assert.equal(await B.ev("document.getElementById('menu-name').value"), await B.ev("Prefs.get().name"), "the title screen's greeting shows it too");
     assert.equal(await B.ev("document.getElementById('pref-name').maxLength"), 16);
     await B.set("pref-name", "  Robin  ");
     assert.equal(await B.ev("Prefs.get().name"), "Robin", "trimmed on the way in");
@@ -101,6 +102,18 @@ test("profile (#35): a name is drawn on the first visit, a new one survives a re
     assert.equal(await B.ev("Prefs.get().name"), "Robin", "kept across a reload");
     await B.click("#prefs-btn");
     assert.equal(await B.ev("document.getElementById('pref-name').value"), "Robin");
+    assert.equal(await B.ev("document.getElementById('menu-name').value"), "Robin", "the greeting follows");
+    await B.set("menu-name", " Sam ");
+    assert.equal(await B.ev("Prefs.get().name"), "Sam", "the greeting's field writes the same preference");
+    assert.equal(await B.ev("document.getElementById('pref-name').value"), "Sam");
+    // wide letters are cut by width, narrow ones only by the count, and the name fits its field
+    await B.set("menu-name", "A".repeat(16));
+    const wide = await B.ev("Prefs.get().name");
+    assert.ok(wide.length < 16 && /^A+$/.test(wide), `a name of wide letters is cut shorter (${wide.length})`);
+    assert.ok(await B.ev("document.getElementById('menu-name').scrollWidth <= document.getElementById('menu-name').clientWidth + 1"), "and fits the greeting's field");
+    await B.set("menu-name", "i".repeat(16));
+    assert.equal(await B.ev("Prefs.get().name"), "i".repeat(16), "narrow letters keep all sixteen");
+    await B.set("menu-name", "Robin");
     assert.equal(await B.text("prefs-sum-profile"), "Robin");
     await B.click("#btn-prefs-done");
     // on this device seat 0 is me and the others take the first default names that are not mine

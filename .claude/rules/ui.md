@@ -53,7 +53,14 @@ No service worker (nothing is cached; the deploy's hashed assets handle freshnes
 One room, one link, the whole evening (owner's request after "we sent 3–4 links just
 to try things").
 
-- **Title** (`#screen-menu`): title "ALZlper's Minigames", section *Online* with
+- **Title** (`#screen-menu`): title "ALZlper's Minigames", under it the greeting
+  `.menu-hello` "Hello [name]! Welcome to some fun games." whose `#menu-name` field
+  (`.name-inline`) is the very same name preference as Profile in ⚙ (#35: `Prefs.fill`
+  writes both fields, a `change` on either goes through `Prefs.set`, so the drawn default
+  name shows from the first visit and the two never disagree; the old boilerplate tagline
+  is gone; the field is sized by `Prefs.fill` to exactly the width budget of a name (16
+  letters "n" plus padding, see "The name"), and phones drop the welcome sentence),
+  section *Online* with
   `Create room` + `Join room` (`#join-panel` with the code field appears on Join room) and
   under them the muted hint `#menu-online-hint` ("One room for up to 4 players, plus
   spectators." — the seat count itself is picked in the lobby, #28),
@@ -337,21 +344,26 @@ two-player games only), the **Sound** rows (master volume slider
 Blocks; one checkbox per category `#pref-snd-<cat>`, categories in `Prefs.CATEGORIES` =
 moves, explosions, results, turn, reactions, chat), **Content Creator** (key `streaming`:
 the primary button `#pref-creator-mode` "Turn on content creator mode" sets every option of
-the section at once and, once both are on, reads "Turn off content creator mode" as a plain
+the section at once (`CREATOR` = hideCode, privateIp, muteSpectators) and, once all are on, reads "Turn off content creator mode" as a plain
 secondary button that clears them again (`creatorMode()` in prefs.js, re-rendered by
 `fill()`; the menu row's summary is "Best for streaming", "partly on" or "on");
 `#pref-hide-code`: enter rooms with the code hidden, #19; `#pref-private-ip` "Keep my IP
 always private": every connection is relayed through TURN, #30 — read by `Net` when the
-peer is created, so it takes effect on the next room), **Developer** (`#pref-developer`: the info panel,
+peer is created, so it takes effect on the next room; `#pref-mute-spectators` "Hide chat
+and reactions from spectators": spectators' lines and emojis are never shown on this
+device, see `Room.hides` in `online.md`), **Developer** (`#pref-developer`: the info panel,
 #31) and **Feedback**. Stored in
 `localStorage["chainreact.prefs"]` (`Prefs.get()` → `{ name, defaultName, volume, soundSet,
-sounds: {…}, hideCode, privateIp, developer }`, `Prefs.set(patch)` merges, clamps, persists,
+sounds: {…}, winGraph, hideCode, hideCodeAsked, privateIp, muteSpectators, developer }`, `Prefs.set(patch)` merges, clamps, persists,
 refills the form, re-renders the menu rows and calls `onChange`). The modal is roomier than the
 settings one (`.prefs-rows` gap 14 px, 16 px and 760 px wide on desktop for the two panes,
 #25, #32).
 
 **The name (#35)** is the one preference that leaves the device: `Prefs.cleanName(s)`
-(collapse whitespace, trim, cut to `Prefs.NAME_MAX` = 16) cleans everything on the way in
+(collapse whitespace, trim, cut to `Prefs.NAME_MAX` = 16 characters **and** to the width of
+16 letters "n" in the greeting field's bold 14 px font, measured with a hidden span:
+`Prefs.fitName(s, measure)`; where nothing can be measured, jsdom, only the count applies)
+cleans everything on the way in
 **and** every name that arrives from the room (it is somebody else's text; it only ever goes
 into the DOM as `textContent`). On the **first visit** one of the ~40 short names in
 `Prefs.DEFAULT_NAMES` is drawn at random, stored as `defaultName` **and** as `name`, and
