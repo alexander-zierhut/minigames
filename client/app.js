@@ -532,11 +532,15 @@
     $("btn-howto").addEventListener("click", () => Learn.openHowto(Settings.game));
 
     // lobby
-    /* "It worked" is shown on the row that was clicked, not in a toast at the other end of
-       the screen (owner, 2026-09-11): its icon becomes a check and its border turns green
-       for DONE_MS, then it goes back to what it was. */
+    /* "It worked" is shown on the thing that was clicked, not in a toast at the other end of
+       the screen (owner, 2026-09-11): a row's icon becomes a check and its border turns green
+       for DONE_MS, the room code says "Link copied", then both go back. */
     const DONE_MS = 1400;
     const doneTimers = new Map();
+    async function copyText(text, ask) {
+        try { await navigator.clipboard.writeText(text); return true; }
+        catch (e) { prompt(ask, text); return false; }
+    }
     function flashDone(btn) {
         const icon = btn.querySelector(".gear-icon");
         if (!icon) return;
@@ -559,8 +563,21 @@
     // the spectate link carries the room's own spectator code, never the room code (#29)
     $("btn-share-spectate").addEventListener("click", () => shareFrom($("btn-share-spectate"), Room.spectateLink(), `Watch us play ${Games.get(Settings.game).title}!`));
     $("btn-copy-code").addEventListener("click", async () => {
-        try { await navigator.clipboard.writeText(Net.code); flashDone($("btn-copy-code")); }
-        catch (e) { prompt("Room code:", Net.code); }
+        if (await copyText(Net.code, "Room code:")) flashDone($("btn-copy-code"));
+    });
+    /* The room code itself copies the invite link (owner: a tap on it should do something
+       useful, not select the characters). A spectate-link viewer has no room code and
+       copies its own watch link instead. */
+    $("lobby-code").addEventListener("click", async () => {
+        if (!Room.online) return;
+        const watcher = Room.watching;
+        const link = watcher ? Room.spectateLink() : Room.roomLink();
+        if (!(await copyText(link, watcher ? "Watch link:" : "Invite link:"))) return;
+        // only the colour says it worked: the code keeps its text, so nothing moves
+        const el = $("lobby-code");
+        el.classList.add("copied");
+        clearTimeout(doneTimers.get(el));
+        doneTimers.set(el, setTimeout(() => { el.classList.remove("copied"); doneTimers.delete(el); }, DONE_MS));
     });
     // hiding the code the first time on this device asks whether new rooms should start hidden
     // (the `hideCode` preference); showing it again never asks

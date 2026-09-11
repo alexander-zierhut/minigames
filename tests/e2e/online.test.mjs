@@ -347,6 +347,14 @@ test("hide the room code (#19): bullets in the lobby and the HUD, nothing in the
     assert.equal(await A.ev("(() => { const b = document.getElementById('btn-copy-code'); const hovered = [...document.styleSheets].flatMap(s => [...s.cssRules]).filter(r => r.selectorText && r.selectorText.includes('.settings-summary.done')).some(r => r.selectorText.includes(':hover')); return hovered; })()"), true, "the done state is styled for :hover too");
     await A.waitFor("document.querySelector('#btn-copy-code .gear-icon').dataset.icon === 'copy' && !document.getElementById('btn-copy-code').classList.contains('done')", { timeout: 5000, what: "and goes back" });
     assert.equal(await B.text("lobby-code"), code, "only my own view hides it");
+    // a tap on the code copies the invite link and the code says so for a moment
+    await B.ev("navigator.clipboard.writeText = (t) => { window.__copied = t; return Promise.resolve(); }; true");
+    await B.click("#lobby-code");
+    await B.waitFor(`window.__copied === Room.roomLink()`, { what: "the code copies the invite link" });
+    // only the colour says it worked: the text stays put, so nothing in the lobby moves
+    assert.equal(await B.text("lobby-code"), code, "the code itself never changes");
+    assert.ok(await B.ev("document.getElementById('lobby-code').classList.contains('copied')"), "it turns green");
+    await B.waitFor("!document.getElementById('lobby-code').classList.contains('copied')", { timeout: 5000, what: "and back" });
     // a refresh of the bare page rejoins the room from the session and keeps the code hidden
     await A.goto(server.url);
     await A.waitFor("Net.connected", { timeout: 40000, what: "rejoined without ?room= in the URL" });
