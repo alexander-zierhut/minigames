@@ -456,8 +456,10 @@ config keys (`config.<key>` on both sides of a room, persisted per device) all c
 this entry — no HTML to add. `.game-picker` is a fixed `1fr 1fr` grid, so the four games
 today fill exactly two rows; what buys the room on a phone is the lobby's own media query
 (`max-width: 899px` in `menu.css`: a tighter `.lobby-card`, `.lobby-card .game-card` padding
-8 px, a 56 px preview and the `.game-players` line hidden). A fifth game adds a third row,
-so re-check the phone lobby every time.
+8 px, a 56 px preview and the `.game-players` line hidden) and `.game-name` never wrapping
+(a second line makes the whole row of cards taller; a name too long for a card is cut with
+an ellipsis instead, checked by `mobile.test.mjs`). A fifth game adds a third row, so
+re-check the phone lobby every time.
 
 **Beyond six games the picker has to change shape** (thought through on 2026-09-11, when the
 lobby was rebuilt; nothing to do yet): a grid of cards does not survive eight or more. The

@@ -29,6 +29,9 @@ test("title screen and join panel fit a 360x780 phone", async () => {
 test("lobby (local) and settings modal fit", async () => {
     await M.click("#btn-local");
     await assertNoScroll("lobby");
+    // a game name never wraps: a second line would make its whole row of cards taller and
+    // push the lobby over the fold (it is why "Dots and Boxes" fits next to "Isolation")
+    assert.ok(await M.ev("[...document.querySelectorAll('.game-name')].every(e => e.getBoundingClientRect().height < 24 && e.scrollWidth <= e.clientWidth + 1)"), "every game name on one line, none cut off");
     await M.click("#btn-settings");
     const s = await M.ev("JSON.stringify({sc: document.querySelector('.settings-card').scrollHeight <= document.querySelector('.settings-card').clientHeight + 1, rows: [...document.querySelectorAll('.settings .row:not([hidden]) > :last-child')].map(e => Math.round(e.getBoundingClientRect().right))})");
     const j = JSON.parse(s);
