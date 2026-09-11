@@ -90,6 +90,19 @@ test("spectator chat shows as 'Spectator'; a refresh keeps spectating with the b
     await C.set("chat-input", "go go"); await C.click("#chat-send");
     await A.waitFor("[...document.querySelectorAll('#log .chat')].some(l => l.textContent === 'Spectator: go go' && l.classList.contains('x'))", { what: "host sees the spectator's line" });
     await B.waitFor("[...document.querySelectorAll('#log .chat')].some(l => l.textContent === 'Spectator: go go')", { what: "guest sees it too" });
+    // the streamer's mute: with "Hide chat and reactions from spectators" on, the host's device
+    // shows neither the line nor the emoji, while the guest still gets both (the host relays them)
+    await A.ev("Prefs.set({ muteSpectators: true }); true");
+    const floatsBefore = await A.ev("document.querySelectorAll('#react-layer .react-float').length");
+    await sleep(400);                                                     // Chat.SEND_EVERY: one line per 300 ms
+    await C.set("chat-input", "psst"); await C.click("#chat-send");
+    await C.click('#react-bar button[data-e="👏"]');
+    await B.waitFor("[...document.querySelectorAll('#log .chat')].some(l => l.textContent === 'Spectator: psst')", { what: "the guest sees the muted line" });
+    await B.waitFor("document.querySelectorAll('#react-layer .react-float').length > 0", { what: "the guest sees the reaction" });
+    await sleep(1500);
+    assert.equal(await A.ev("[...document.querySelectorAll('#log .chat')].some(l => l.textContent === 'Spectator: psst')"), false, "the muting host never shows the line");
+    assert.ok(await A.ev("document.querySelectorAll('#react-layer .react-float').length") <= floatsBefore, "nor the reaction");
+    await A.ev("Prefs.set({ muteSpectators: false }); true");
     await C.goto(`${server.url}?watch=${spec}`);
     await C.waitFor("Net.connected", { timeout: 60000, what: "spectator reconnected" });
     await C.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-game' && ChainGame.state.history.length === 4", { what: "board restored" });

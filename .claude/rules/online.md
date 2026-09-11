@@ -270,7 +270,11 @@ Both get everything the host sends (`state`,
 cell `locked` (`makeSeats` → all seats `remote`, `mayPlay` false), "spectating" as the
 turn hint, "Spectating" in the HUD net box, on the lobby's Start button and on both
 Rematch buttons (disabled; a rematch request never shows them the overlay prompt), can
-chat ("Spectator: …", class `chat x`) and react (white dot), and step through a finished
+chat ("Spectator: …", class `chat x`) and react (white dot) — the line goes to the host,
+which stamps `from: -1` and relays it to everyone like any guest message; a device whose
+`muteSpectators` preference is on (Content Creator: "Hide chat and reactions from
+spectators") simply does not show spectators' `chat` / `react` (`Room.hides(msg)`, checked
+in the two handlers; the host still relays them, so the other players see them) — and step through a finished
 game with the replay bar for themselves (their `review` never reaches anyone else). `#lobby-spectators` shows
 "N spectator(s) watching" from `roster.spectators`. The session stores `spectator` and
 `watch`, so a refresh keeps spectating; `metadata {spectate}` goes with every dial. The sound module

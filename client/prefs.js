@@ -132,6 +132,7 @@ const Prefs = (() => {
         if ($("pref-win-graph")) $("pref-win-graph").checked = prefs.winGraph;
         if ($("pref-hide-code")) $("pref-hide-code").checked = prefs.hideCode;
         if ($("pref-private-ip")) $("pref-private-ip").checked = prefs.privateIp;
+        if ($("pref-mute-spectators")) $("pref-mute-spectators").checked = prefs.muteSpectators;
         if ($("pref-developer")) $("pref-developer").checked = prefs.developer;
         $("prefs-modal").classList.toggle("muted", prefs.volume === 0);
         renderCreatorButton();
@@ -139,7 +140,8 @@ const Prefs = (() => {
     }
 
     // content creator mode = every option of that section on; the button toggles all of them
-    const creatorMode = () => !!(prefs.hideCode && prefs.privateIp);
+    const CREATOR = ["hideCode", "privateIp", "muteSpectators"];     // the options the content creator button switches
+    const creatorMode = () => CREATOR.every((k) => prefs[k]);
     function renderCreatorButton() {
         const b = $("pref-creator-mode");
         if (!b) return;
@@ -155,7 +157,7 @@ const Prefs = (() => {
         if (key === "profile") return p.name;
         if (key === "look") return (LOOK_LABELS[typeof Skins !== "undefined" ? Skins.current : "classic"] || LOOK_LABELS.classic) + (p.winGraph ? "" : " · no win graph");
         if (key === "sound") return p.volume === 0 ? "off" : `${p.volume} % · ${SET_LABELS[p.soundSet]}`;
-        if (key === "streaming") return creatorMode() ? "on" : (p.hideCode || p.privateIp) ? "partly on" : "Best for streaming";
+        if (key === "streaming") return creatorMode() ? "on" : CREATOR.some((k) => p[k]) ? "partly on" : "Best for streaming";
         if (key === "developer") return p.developer ? "on" : "off";
         if (key === "feedback") return "Report a problem";
         return "";
@@ -192,6 +194,7 @@ const Prefs = (() => {
             winGraph: !!($("pref-win-graph") && $("pref-win-graph").checked),
             hideCode: !!($("pref-hide-code") && $("pref-hide-code").checked),
             privateIp: !!($("pref-private-ip") && $("pref-private-ip").checked),
+            muteSpectators: !!($("pref-mute-spectators") && $("pref-mute-spectators").checked),
             developer: !!($("pref-developer") && $("pref-developer").checked),
         });
     }

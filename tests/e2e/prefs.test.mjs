@@ -48,7 +48,7 @@ test("desktop: the section menu and the open section show side by side (#32)", a
     await B.check("pref-hide-code", false);
     await B.click("#pref-creator-mode");
     assert.equal(await B.text("prefs-sum-streaming"), "on", "content creator mode turns every option of the section on");
-    assert.equal(await B.ev("document.getElementById('pref-hide-code').checked && document.getElementById('pref-private-ip').checked"), true);
+    assert.equal(await B.ev("document.getElementById('pref-hide-code').checked && document.getElementById('pref-private-ip').checked && document.getElementById('pref-mute-spectators').checked"), true);
     assert.equal(await B.text("pref-creator-mode"), "Turn off content creator mode");
     await B.click("#pref-creator-mode");
     assert.equal(await B.text("prefs-sum-streaming"), "Best for streaming");

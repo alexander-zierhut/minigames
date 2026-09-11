@@ -5,6 +5,10 @@
       "date": "2026-09-11",
       "entries": [
         {
+          "type": "feature",
+          "text": "Content Creator got a third option: hide chat and reactions from spectators on your own screen. The players in the room still see them, and the one-tap content creator mode turns it on with the rest. Hiding the room code for the first time now asks whether new rooms should start hidden."
+        },
+        {
           "type": "improvement",
           "text": "The room lobby is tidier: one Invite button beside the code opens a panel where sharing the link, copying the code, the spectator link and hiding the code each carry a word, and the seat actions sit on the seat cards they belong to (Watch instead, Sit here, Add a bot, Remove the bot). The spectator count moved into the Players heading."
         },

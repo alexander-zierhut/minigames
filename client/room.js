@@ -21,6 +21,11 @@
 const Room = (() => {
     const { $, toast } = Util;
     const RELAY = new Set(["move", "chat", "react", "tolobby", "rematch", "timeout", "lobby", "review"]);
+    /* A spectator's chat line or reaction reaches the host like any guest message, gets
+       `from: -1` and is relayed to everyone. Whether it is SHOWN is this device's business:
+       the `muteSpectators` preference (Content Creator) drops it here and nowhere else, so
+       a streamer never sees it while the other players still do. Pure, for the tests. */
+    const hides = (msg) => (msg.t === "chat" || msg.t === "react") && Number.isInteger(msg.from) && msg.from < 0 && !!Prefs.get().muteSpectators;
     // what only a seated player may do (#29): the host drops these from spectators before relaying
     const PLAYERS_ONLY = new Set(["move", "timeout", "rematch", "tolobby", "lobby", "start-request", "review"]);
     // does the host accept this message from a connection with that seat (-1 = spectator)?
@@ -534,9 +539,11 @@ const Room = (() => {
             h.onReview(msg.ply | 0, !!msg.play);
         },
         react(msg) {
+            if (hides(msg)) return;
             Reactions.receive(msg.e, Match.playerColor(Number.isInteger(msg.from) ? msg.from : otherPlayer(Match.me)));
         },
         chat(msg) {                                   // a chat line; `from` = the sender's seat (-1 spectator)
+            if (hides(msg)) return;
             Chat.receive({ text: msg.text, from: Number.isInteger(msg.from) ? msg.from : otherPlayer(Match.me) });
         },
         leave(msg, id) {                              // somebody says goodbye (their connection closes right after)
@@ -706,8 +713,8 @@ const Room = (() => {
     function init(handlers) { h = { ...h, ...handlers }; }
 
     return {
-        init, enter, leave, roomLink, spectateLink, hideCode, codeText, newGame, bump, save, render, renderNetBox, updateBanner, turnHint,
-        presentSeats, missingSeats, occupiedSeats, allHere, live, who, two, playersNow, names, nameChanged,
+        init, enter, leave, roomLink, spectateLink, hideCode, codeText, hides, newGame, bump, save, render, renderNetBox, updateBanner, turnHint,
+        presentSeats, missingSeats, occupiedSeats, allHere, live, netTrouble, who, two, playersNow, names, nameChanged,
         startFromLobby, requestRematch, rematchWaitText, sendMove, sendSync, reseat, seatFree, enteredLobby, botSeat,
         watchInstead: () => switchSeat(-1), takeSeat: (seat = ANY_SEAT) => switchSeat(seat),
         onIdle: processIncoming,

@@ -179,6 +179,32 @@ test("room: asking for a seat is the one thing a spectator may send (#39)", () =
     assert.equal(R.accepts({ t: "seat", want: 0 }, -1), true, "a spectator may ask for a seat");
     assert.equal(R.accepts({ t: "seat", want: -1 }, 1), true, "a player may ask to watch");
     assert.equal(R.accepts({ t: "chat", text: "hi" }, -1), true, "chat stays allowed");
+    // connection trouble is one sentence for the banner and two words for the Start button,
+    // and is never reported offline, while waiting for friends, or to a host with an empty room
+    const M = w.eval("Match");
+    assert.equal(R.netTrouble("reconnecting"), null, "offline nothing is wrong");
+    M.reset("online", 0);
+    for (const ok of ["connected", "idle", "waiting"]) assert.equal(R.netTrouble(ok), null, `${ok} is fine`);
+    // a blip says nothing: only trouble that lasts is reported (the owner found it too noisy)
+    assert.equal(R.netTrouble("reconnecting", 1000), null, "the first moment stays quiet");
+    assert.equal(R.netTrouble("reconnecting", 4000), null, "and the next few seconds too");
+    assert.equal(R.netTrouble("connected", 4500), null, "it cleared: nothing was ever said");
+    assert.equal(R.netTrouble("reconnecting", 5000), null, "trouble starts again");
+    assert.equal(R.netTrouble("reconnecting", 11000).short, "Reconnecting…", "after six seconds it speaks up");
+    assert.ok(R.netTrouble("reconnecting", 11000).text.length > 0, "the banner gets a sentence");
+    assert.equal(R.netTrouble("connecting", 30000).short, "Connecting…");
+    assert.equal(R.netTrouble("error", 60000).short, "Connection problem");
+    M.reset("local");
+    // the streamer's mute: a spectator's chat line or reaction is not shown on this device, nothing else changes
+    const P = w.eval("Prefs");
+    assert.equal(R.hides({ t: "chat", text: "hi", from: -1 }), false, "heard by default");
+    P.set({ muteSpectators: true });
+    assert.equal(R.hides({ t: "chat", text: "hi", from: -1 }), true, "a spectator's line is hidden");
+    assert.equal(R.hides({ t: "react", e: "👏", from: -1 }), true, "and its reaction");
+    assert.equal(R.hides({ t: "chat", text: "hi", from: 1 }), false, "a player's line is not");
+    assert.equal(R.hides({ t: "move", i: 3, from: -1 }), false, "only chat and reactions are ever hidden");
+    assert.equal(R.accepts({ t: "chat", text: "hi" }, -1), true, "the host still accepts and relays it");
+    P.set({ muteSpectators: false });
     // offline there are no seats to swap, so both are no-ops
     assert.equal(R.seatFree(), false);
     assert.equal(R.watchInstead(), undefined);
