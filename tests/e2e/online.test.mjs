@@ -248,6 +248,39 @@ test("replay after the game (#38): both sides look at the same move", { skip: !O
     assert.deepEqual(A.errors, []); assert.deepEqual(B.errors, []);
 });
 
+test("a timed game hides the board while the clock is paused (nobody thinks for free)", { skip: !ONLINE }, async () => {
+    // a fresh room for this one: the host's tab has to die, which ends the room for good
+    const H = await launchBrowser(); const G = await launchBrowser();
+    try {
+        await H.goto(server.url);
+        const c = await createRoom(H);
+        await joinRoom(G, server.url, c);
+        await H.waitFor("Room.allHere()", { timeout: 30000, what: "both in the room" });
+        await H.selectGame("chain");
+        await H.click("#btn-settings"); await H.set("set-size", 4); await H.set("set-speed", 350); await H.set("set-timer", 180); await H.click("#btn-settings-done");
+        await sleep(400);
+        await H.click("#btn-start");
+        for (const X of [H, G]) await X.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-game'", { what: "the game" });
+        assert.equal(await G.ev("Clock.isEnabled()"), true, "the timer is on");
+        assert.equal(await G.ev("document.body.classList.contains('board-covered')"), false, "the board shows while the game runs");
+        await H.blank();                                        // the friend's tab dies mid-game
+        await G.waitFor("document.body.classList.contains('board-covered')", { timeout: 30000, what: "the board is covered" });
+        assert.match(await G.text("board-cover"), /hidden while the clock is paused/);
+        assert.match(await G.ev("getComputedStyle(document.getElementById('board')).filter"), /blur/, "the position is unreadable");
+        const clock = await G.ev("document.getElementById('clock-1').textContent");
+        await sleep(2500);
+        assert.equal(await G.ev("document.getElementById('clock-1').textContent"), clock, "and the clock stands still");
+        // the friend comes back: the board is there again
+        const H2 = await launchBrowser();
+        try {
+            await joinRoom(H2, server.url, c);
+            await G.waitFor("!document.body.classList.contains('board-covered')", { timeout: 45000, what: "the board comes back" });
+            assert.match(await G.ev("getComputedStyle(document.getElementById('board')).filter"), /none/);
+        } finally { await H2.close(); }
+        assert.deepEqual(G.errors, [], "no exceptions while the board was covered");
+    } finally { await G.close(); await H.close(); }
+});
+
 test("guest leaves the room and comes back by link: same seat, board restored", { skip: !ONLINE }, async () => {
     await B.click("#btn-menu"); await sleep(300);       // guest to lobby (takes the host along)
     await A.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-lobby'", { what: "host in lobby" });

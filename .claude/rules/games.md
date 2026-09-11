@@ -337,6 +337,15 @@ busy, not my turn any more, not `mayPlay` or no longer legal, in which case it i
 It is deferred with `whenIdle(…, "premove")`, and cleared on a new game, `stop()`,
 `reset()`, a seat change and the end of a game. Nothing about it travels to the room.
 
+**Fair play while the clock is paused (#43 follow-up, 2026-09-11):** in a **timed online
+game**, a connection problem stops the clocks for everyone (`live()` → `syncClock`), so the
+position is hidden as long as it lasts — otherwise the player whose connection dropped
+keeps thinking for free. `Match.syncClock()` toggles `body.board-covered` (`covered()`:
+running, not over, online, I hold a seat, `Clock.isEnabled()`, not `live()`); `game.css`
+blurs `#board` and shows `#board-cover` ("The board is hidden while the clock is paused.").
+Without a timer nothing is covered (there is nothing to gain), and a spectator, a replay and
+a lesson never are. Nothing about the state changes: it is one class over the board.
+
 `Match.whenIdle(fn, key?)` runs `fn` now if no move animates, else once the engine is idle
 (a key replaces an older entry with the same key): Room defers a `sync` there, flag falls
 are deferred there, and `onIdle()` (Room drains its move queue) runs after the deferred work.

@@ -207,6 +207,17 @@ const Match = (() => {
     function syncClock() {
         if (!running || Game.state.over) return;
         if (h.live() && !Game.state.busy) Clock.resume(); else Clock.pause();
+        coverBoard();
+    }
+    /* Fair play while the clock is paused (owner, 2026-09-11): a player whose connection
+       drops in a timed game must not keep thinking for free, so the board is covered for
+       everyone who holds a seat until the game may run again. Only with a timer (without
+       one there is nothing to gain), only online and only in a real game: a spectator, a
+       replay and a lesson never cover anything, and the position is never changed — the
+       cover is one body class over `#board`. */
+    const covered = () => running && !Game.state.over && online() && st.me >= 0 && Clock.isEnabled() && !h.live();
+    function coverBoard() {
+        document.body.classList.toggle("board-covered", covered());
     }
 
     /* ---------- bot seat ---------- */
@@ -309,6 +320,7 @@ const Match = (() => {
 
     // stop the running game without a result (back to the room)
     function stop() {
+        document.body.classList.remove("board-covered");
         running = false;
         st.premove = -1;
         BotPersona.detach();

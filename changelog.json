@@ -5,6 +5,10 @@
       "date": "2026-09-11",
       "entries": [
         {
+          "type": "feature",
+          "text": "Fair play with a timer: when the connection drops in a timed game the clocks stop, and now the board is hidden as well, so nobody can keep planning their move for free while the clocks stand still. It comes back the moment everyone is connected again."
+        },
+        {
           "type": "improvement",
           "text": "The room says nothing while the connection is healthy, and a hiccup no longer flashes a warning: a problem has to last a few seconds before anything is said. It then shows as the sticky notice at the top with Retry and Leave, and the Start button says in two words why it cannot start. When the room server turns us away because too many rooms were opened from one network, the notice says so instead of just \"reconnecting\"."
         },

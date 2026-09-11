@@ -110,3 +110,37 @@ test("against a bot: the premove set while it thinks is played right after its m
     assert.equal(M.premove, -1);
     w.eval("Clock.setup(0)"); w.close();
 });
+
+test("a timed online game covers the board while the clock is paused, so nobody thinks for free", async () => {
+    const w = loadDom(); const M = w.eval("Match"); const d = w.document;
+    let live = true;
+    w.eval("window.__live = true; Match.init({ live: () => window.__live, onLocalMove: () => {} });");
+    const setLive = (on) => { live = on; w.eval(`window.__live = ${on}; true`); M.syncClock(); };
+    const covered = () => d.body.classList.contains("board-covered");
+    // no timer: there is nothing to gain by thinking on, so nothing is covered
+    M.reset("online", 0);
+    M.start({ ...CFG, timer: 0 }, 1);
+    setLive(false);
+    assert.equal(covered(), false, "without a clock the board stays visible");
+    setLive(true);
+    // with a timer: the pause hides the position and giving it back shows it again
+    M.start({ ...CFG, timer: 180 }, 2);
+    assert.equal(w.eval("Clock.isEnabled()"), true);
+    assert.equal(covered(), false, "while the game runs");
+    setLive(false);
+    assert.equal(covered(), true, "the clock is paused: the board is covered");
+    assert.equal(d.getElementById("board-cover").textContent.length > 0, true, "and says why");
+    setLive(true);
+    assert.equal(covered(), false, "everyone is back");
+    // a spectator has no clock to gain and never loses the board
+    setLive(false);
+    M.setSeat(-1, true);
+    M.syncClock();
+    assert.equal(covered(), false, "a spectator keeps watching");
+    // leaving the table clears it
+    M.setSeat(0, false); M.syncClock();
+    assert.equal(covered(), true);
+    M.stop();
+    assert.equal(covered(), false, "no cover without a game");
+    w.eval("Clock.setup(0)"); w.close();
+});

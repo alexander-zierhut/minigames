@@ -274,6 +274,9 @@
     <div id="app">
         <div id="board-wrap">
             <div id="board"></div>
+            <!-- a timed game whose clock is paused by a connection problem hides the position,
+                 so nobody can keep thinking for free (body.board-covered, see match.js) -->
+            <p id="board-cover">The board is hidden while the clock is paused.</p>
         </div>
 
         <aside id="hut">
