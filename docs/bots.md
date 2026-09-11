@@ -14,6 +14,7 @@ client/bots.js                Bots.register · Bots.create · Bots.tools · Bots
         ├── client/bots/<id>/bot.js         one folder per bot: definition + create(tools) → { move(state) }
         │   client/bots/<id>/bot.test.mjs   the bot's own proof of strength
         │   client/bots/<id>/benchmark.js   generated: Bots.benchmark(id, { score, puzzles, … }) (real bots only)
+        │   client/bots/<id>/README.md      its search and evaluation, in prose (real bots only)
         │
         ├── client/match.js                 bot seat: hooks.onTurn → botTurn → bot.move(clone) → engine.play(i)
         ├── client/winchance.js             win-chance bars from Bots.estimator (a Bus observer)
@@ -36,7 +37,7 @@ Bots.register({
     id: "blast-chain",                 // folder name: [a-z0-9-], unique
     name: "Blast",                     // for the code, the benchmark output and the docs; players see "Bot" (#21)
     game: "chain",                     // "chain" | "five" | "isolation" | "boxes" — one game per bot
-    version: 1,                        // bump when the play changes (kept in benchmark.js)
+    version: 1,                        // bump when the play or the evaluation changes (kept in benchmark.js)
     description: "One sentence for the bot modal.",
     // baseline: true,                 // only the Random bots: benchmark opponent + fallback, never offered, not benchmarked
     difficulties: [                    // ≥ 1, shown as a segmented control when > 1
@@ -48,8 +49,8 @@ Bots.register({
     create(tools) {                    // once per game; may keep state (caches, books)
         return { move(state) { /* … */ return cellIndex; } };   // or a Promise of it
     },
-    estimate(state, tools) {           // optional: P(player 0 wins), 0..1, cheap, deterministic
-        /* … */
+    evaluate(state, tools) {           // optional: raw score from player 0's view, ±Infinity
+        /* … */                        // when decided; calibrated into the win chance, see §5
     },
     supports(config) { return !config.someRule; },          // optional: rules it does NOT play
     variant(config) { return config.yavalath ? "yavalath" : null; },   // optional: rated separately
@@ -58,20 +59,22 @@ Bots.register({
 
 **Rule variants.** `supports(config)` keeps a bot out of a rule it does not know:
 `Bots.botFor(game, config)` and `Bots.estimator(game, config)` then hand out the game's
-Random baseline instead, so "Against a bot" always works. `variant(config)` is the opposite
-case: the bot plays the variant, but well enough that it deserves its own numbers. The
-benchmark runs a second seeded series and a second puzzle set for it (`VARIANTS` in
+Random baseline instead, so "Against a bot" always works. No bot declares it today.
+`variant(config)` is the opposite case, and the one in use: the bot plays the variant, and
+well enough that it deserves its own numbers. The benchmark runs a second seeded series and a second puzzle set for it (`VARIANTS` in
 `scripts/benchmark.mjs`) and stores them as `variants: { <key>: { score, games, avgMoves,
 puzzles } }` in the same `Bots.benchmark(id, …)` statement; `scripts/calibrate.mjs` fits a
 second logistic under the same key. `Bots.benchmarkOf(id, config)` and
-`Bots.calibrationOf(id, config)` overlay the variant on the base entry, so the bot modal's
-badges, the lobby's Opponent row and the win-chance bars all follow the room's rules.
-Sensei is the example: Five Wins and Five Wins with the Yavalath rule.
+`Bots.calibrationOf(id, config)` overlay the variant on the base entry (so `version`,
+`commit` and `at` stay the base's) and `Bots.variantOf(id, config)` names it, so the bot
+modal's badges, the lobby's Opponent row and the win-chance bars all follow the room's rules.
+Sensei is the one example: Five Wins, and Five Wins with the Yavalath rule, where it is
+graded on its own proven set `tests/puzzles/five-yavalath`.
 
 `Bots.validate(def)` throws with a clear message for a malformed definition. Registration
 order = display order.
 
-## 3. The toolset (`tools` given to `create` and `estimate`)
+## 3. The toolset (`tools` given to `create` and `evaluate`)
 
 | Member | Meaning |
 | --- | --- |
@@ -157,9 +160,11 @@ calmer.
 
 ## 6. Testing a bot
 
-- **Conformance** (`tests/unit/bots.test.mjs`, automatic for every bot and difficulty):
-  only legal moves in seeded random positions, identical move for identical seed, finishes
-  full games as either colour against Random, average move < 250 ms at 2 000 nodes.
+- **Conformance** (`tests/unit/bots.test.mjs`, automatic for every bot and difficulty, all
+  of it at a 2 000-node budget): only legal moves and an identical move for an identical
+  seed in 300 seeded random positions on the first level and 60 on every other, 120 more per
+  rule variant the bot says it plays, and full games finished as either colour against
+  Random at an average under 250 ms per move.
 - **Own tests** (`client/bots/<id>/bot.test.mjs`, `npm run test:unit` picks them up): the
   facts that make the bot good — rules equivalence of its internal engine, hand-made
   tactical positions, `evaluateBot` thresholds on the puzzle sets (per difficulty, per
@@ -168,8 +173,9 @@ calmer.
   100 %** and no test may gate the deploy on a fixed strength number.
 - **Puzzles** (`tests/puzzles/<game>/puzzles.json`, proven by `scripts/puzzles/<game>/solver.mjs`):
   `evaluateBot(H, id, { difficulty, budget })` → `{ solved, total, pct, chance, byTag, failures }`.
-  `chance` is what blind random picking scores on that set (chain 23 %, five 5.7 %,
-  isolation 20.8 %, boxes 29 %).
+  `chance` is what blind random picking scores on that set (chain 23.2 %, five 5.7 %,
+  five-yavalath 5.5 %, isolation 20.8 %, boxes 28.9 %): small boards have few legal moves,
+  so read a bot's score against it and not against 0.
   `npm run puzzles` regenerates the sets, `npm run puzzles:verify` re-proves the tactical
   ones without the solvers.
 - **Benchmark** (`npm run benchmark [id]`): 60 (chain) / 100 (five) / 100 (isolation) / 60 (boxes)
@@ -200,19 +206,23 @@ const r = await H.Bots.playout("chain", { n: 6 }, [a, b], { maxMoves: 600 });
 
 ## 8. Current bots
 
-| id | name | game | difficulties | what it does |
-| --- | --- | --- | --- | --- |
-| `random-chain` | Random | Chain React | Normal | any legal move; `baseline: true` (benchmark opponent, fallback; never offered) |
-| `creeper-chain` | Creeper | Chain React | Easy 30 ms · Normal 150 ms · Hard 600 ms · Very hard 1500 ms | negamax alpha-beta with iterative deepening, Zobrist TT, killers/history, PVS + LMR, quiescence over explosive captures, on an Int8Array engine proven equal to the rules; evaluation = pieces + safe corner/edge bonus − exposure penalty, tuned by self-play. 100 % vs Random, 159/159 puzzles at Very hard (Easy 32 %, Normal 87 %, Hard 95 %). Provides the win chance (evaluate: even-depth iterative deepening with full explosion quiescence, mean of the last completed depths; calibrated scale ≈ 31, swing 2.2 %). See its README. |
-| `random-five` | Random | Five Wins | Normal | any empty cell; `baseline: true` (benchmark opponent, fallback; never offered) |
-| `sensei-five` | Sensei | Five Wins | Easy 30 ms · Normal 150 ms · Hard 600 ms · Very hard 1500 ms | Int8Array board with incremental line-pattern records (fours, threes, four-makers), alpha-beta negamax with iterative deepening, Zobrist TT, killers/history, exact forced-move handling (own four, enemy fours, open threes), VCF/VCT threat searches with exact mate distance; works for any board size and win length. 100 % vs Random, 154/154 puzzles at Very hard (Easy 69 %, Normal 98 %, Hard 100 %). It also plays the **Yavalath rule** (winLen wins, winLen - 1 loses): suicide cells per line, a forced block on one of them is a terminal loss, and the threat searches hunt exactly that; rated separately (`variants.yavalath` in `benchmark.js`, its own puzzle set `tests/puzzles/five-yavalath`). Provides the win chance (evaluate: depth-2 search with forced fours free, open-three extension, VCF/VCT on long budgets; calibrated scale ≈ 1166, swing 0.9 %, a second curve for the variant). 9×9 with sound defence is drawish; its edge grows on bigger boards. See its README. |
-| `random-isolation` | Random | Isolation | Normal | any legal step and any tile to break; `baseline: true` (benchmark opponent, fallback; never offered) |
-| `warden-isolation` | Warden | Isolation | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | Int8Array board with the rules' own "trapped when your turn comes" handling, paranoid alpha-beta (I maximise, everybody else minimises) with iterative deepening; the generator keeps every step but only the broken tiles near an opponent plus the tile just left, capped per level; evaluation = Voronoi territory (one multi-source BFS, king steps) + mobility + tempo, which is also the exact measure once the board falls apart. 100 % vs Random, 198/200 puzzles at Very hard (Easy 68.5 %, Normal 90 %, Hard 97 %). Provides the win chance (evaluate: the same search averaged over "me to move" and "the other seat to move", which removes the tempo artefact; calibrated scale ≈ 693, swing 11.7 %). Plays 2 to 4 seats. See its README. |
-| `random-boxes` | Random | Käsekästchen | Normal | any undrawn line; `baseline: true` (benchmark opponent, fallback; never offered) |
-| `fencer-boxes` | Fencer | Käsekästchen | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | two engines: an **exact endgame** (alpha-beta negamax to the last line with a transposition table keyed by the bitmask of lines drawn since the root, free captures forced) that solves any two-player position with up to 30 undrawn lines, so it plays the whole second half of a 5 × 5 game perfectly including the "all but two" double-dealing sacrifices; and **chain play** for the rest (take every free box, decline the last two of a chain while control is worth more, play the safe line that commits least, and open the shortest chain when everything is loony). 100 % vs Random, 149/170 puzzles at the 20 000-node benchmark budget (162/170 at its own Very hard budget; take-box, sacrifice and double-deal all 100 %). Provides the win chance (evaluate: the exact final box difference once the endgame is solvable, ±Infinity only for proven results, otherwise the box lead against the boxes still open, and nothing else, because nothing else survived an out-of-sample test; one node cap for every HUD stage; calibrated scale 0.118 shift 0, swing 1.2 %). See its README. |
+| id | name | game | v | difficulties | what it does |
+| --- | --- | --- | --- | --- | --- |
+| `random-chain` | Random | Chain React | 1 | Normal | any legal move; `baseline: true` (benchmark opponent, fallback; never offered) |
+| `creeper-chain` | Creeper | Chain React | 1 | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | negamax alpha-beta with iterative deepening, Zobrist TT, killers/history, PVS + LMR, quiescence over explosive captures, on an Int8Array engine proven equal to the rules; evaluation = pieces + safe corner/edge bonus − exposure penalty, tuned by self-play. 100 % vs Random, 159/159 puzzles at Very hard (Easy 32 %, Normal 87 %, Hard 95 %). Provides the win chance (evaluate: even-depth iterative deepening with full explosion quiescence, mean of the last completed depths; calibrated scale ≈ 31, swing 2.2 %). See its README. |
+| `random-five` | Random | Five Wins | 1 | Normal | any empty cell; `baseline: true` (benchmark opponent, fallback; never offered) |
+| `sensei-five` | Sensei | Five Wins | 2 | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 60 000 nodes | Int8Array board with incremental line-pattern records (fours, threes, four-makers), alpha-beta negamax with iterative deepening, Zobrist TT, killers/history, exact forced-move handling (own four, enemy fours, open threes), VCF/VCT threat searches with exact mate distance; works for any board size and win length. 100 % vs Random, 154/154 puzzles at Very hard (Easy 69 %, Normal 98 %, Hard 100 %). It also plays the **Yavalath rule** (winLen wins, winLen - 1 loses): suicide cells per line, a forced block on one of them is a terminal loss, and the threat searches hunt exactly that; rated separately (`variants.yavalath` in `benchmark.js`: 100 % vs Random on 9 × 9 with winLen 4, and 119/124 on its own proven set `tests/puzzles/five-yavalath`). Provides the win chance (evaluate: depth-2 search with forced fours free, open-three extension, VCF/VCT on long budgets; calibrated scale ≈ 1166, swing 0.9 %, and a second curve for the variant at scale ≈ 112, swing 10.9 %). 9×9 with sound defence is drawish; its edge grows on bigger boards. See its README. |
+| `random-isolation` | Random | Isolation | 1 | Normal | any legal step and any tile to break; `baseline: true` (benchmark opponent, fallback; never offered) |
+| `warden-isolation` | Warden | Isolation | 1 | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | Int8Array board with the rules' own "trapped when your turn comes" handling, paranoid alpha-beta (I maximise, everybody else minimises) with iterative deepening; the generator keeps every step but only the broken tiles near an opponent plus the tile just left, capped per level; evaluation = Voronoi territory (one multi-source BFS, king steps) + mobility + tempo, which is also the exact measure once the board falls apart. 100 % vs Random, 198/200 puzzles at Very hard (Easy 68.5 %, Normal 90 %, Hard 97 %). Provides the win chance (evaluate: the same search averaged over "me to move" and "the other seat to move", which removes the tempo artefact; calibrated scale ≈ 693, swing 11.7 %). Plays 2 to 4 seats. See its README. |
+| `random-boxes` | Random | Käsekästchen | 1 | Normal | any undrawn line; `baseline: true` (benchmark opponent, fallback; never offered) |
+| `fencer-boxes` | Fencer | Käsekästchen | 2 | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | two engines: an **exact endgame** (alpha-beta negamax to the last line with a transposition table keyed by the bitmask of lines drawn since the root, free captures forced) that solves any two-player position with up to 30 undrawn lines, so it plays the whole second half of a 5 × 5 game perfectly including the "all but two" double-dealing sacrifices; and **chain play** for the rest (take every free box, decline the last two of a chain while control is worth more, play the safe line that commits least, and open the shortest chain when everything is loony). 100 % vs Random, 149/170 puzzles at the 20 000-node benchmark budget (162/170 at its own Very hard budget; take-box, sacrifice and double-deal all 100 %). Provides the win chance (evaluate: the exact final box difference once the endgame is solvable, ±Infinity only for proven results, otherwise the box lead against the boxes still open, and nothing else, because nothing else survived an out-of-sample test; one node cap for every HUD stage; calibrated scale 0.118 shift 0, swing 1.2 %). See its README. |
 
 Each bot folder's README describes its search and evaluation; `benchmark.js` carries the
-scores shown in the bot modal. Players see Creeper, Sensei, Warden and Fencer as "Bot".
+scores shown in the bot modal. Players see Creeper, Sensei, Warden and Fencer as "Bot". The
+`v` column is the definition's `version`: bump it whenever the play or the evaluation
+changes, because cached replay analyses are stamped with it (#43) and the Learn ladder's
+"play from here" positions are picked by win chance, so `npm run learn:scenarios` has to run
+again too.
 
 ## 9. Persona: the bot's emojis
 
@@ -239,8 +249,9 @@ rules' fallback estimate drives the rest).
 ## 11. Designing an evaluator (what the win-chance work taught us)
 
 The HUD's win chance is the most visible thing a bot does besides playing, and it is easy
-to make it look nervous. The two evaluators went through this cycle; the numbers are from
-seeded self-play at the 12 000-node stage.
+to make it look nervous. All four evaluators went through this cycle, each failing its own
+way; the numbers are from seeded self-play at the 12 000-node stage and the same story is
+told for the project as a whole under "Lessons learned" in `AGENTS.md`.
 
 | | Creeper (Chain React) | Sensei (Five Wins) | Warden (Isolation) | Fencer (Käsekästchen) |
 | --- | --- | --- | --- | --- |

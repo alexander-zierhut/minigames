@@ -62,8 +62,8 @@ Scripts, in order (each defines the global named in brackets):
 | `client/prefs.js` | `Prefs` | per-device preferences ("⚙ Settings & Feedback" top-left): the player's name (#35), look, win-chance graph in replays (#43), sound volume / categories, hide the room code, keep my IP private, feedback link |
 | `client/settings.js` | `Settings` | settings form ↔ config; the game rows are **built from the game definitions**; picker cards, persistence, summary |
 | `client/opponent.js` | `Opponent` | the bot modal: one bot per game, called "Bot" (`Opponent.NAME`), its scores and the difficulty; choice per game |
-| `client/bot-persona.js` | `BotPersona` | a bot seat's sparse emoji reactions, drawn from seeded weighted pools |
 | `client/changelog.js` | `Changelog` | the title screen's changelog modal (`changelog.json`; technical entries behind a toggle) |
+| `client/bot-persona.js` | `BotPersona` | a bot seat's sparse emoji reactions, drawn from seeded weighted pools |
 | `client/reactions.js` | `Reactions` | emoji reactions bar + floating layer |
 | `client/chat.js` | `Chat` | room chat: the input row under the HUD log, limits, lines into the log, Bus `chat` |
 | `client/session.js` | `Session` | the room session in sessionStorage (survives a refresh) |
@@ -71,6 +71,7 @@ Scripts, in order (each defines the global named in brackets):
 | `client/learn.js` | `Learn` | the Learn section (#41): the two Learn screens, the guided tutorial, the scenarios, the progress, the lobby's "How to play" modal |
 | `client/learn/<game>-scenarios.js` | (registers) | **generated** scenario ladder (`scripts/learn/pick-scenarios.mjs`, from the proven puzzle sets and seeded self-play) |
 | `client/room.js` | `Room` | **the online room**: protocol handlers, presence, seat assignment, sync/desync, rematch votes, net box + banner, session save |
+| `client/dev.js` | `Dev` | the developer info panel (#31): a snapshot of network, performance, bot and win chance, rendered by a pure `format` |
 | `client/app.js` | (none) | screens, the lobby, the flow (start / rematch / back / leave), wiring, boot |
 
 Stylesheets, in order: `client/css/base.css` (tokens, player colour variables, buttons,
@@ -114,8 +115,8 @@ in the same commit.** Newest day first: `{ days: [{ date: "YYYY-MM-DD", entries:
 feature | improvement | fix | internal, text, refs: ["#12", "PR #1", "commit abc1234"] }] }] }`.
 Write the text for players (what changed for them, one sentence), and link the issue / PR
 / commit in `refs` — `client/changelog.js` turns them into new-tab GitHub links and renders
-the file into `#changelog-modal` from the title screen's 📜 button (fetched on demand,
-first 7 days open, older days behind "Show older", so any length works). Internal-only
+the file into `#changelog-modal` from the title screen's `Changelog` button (fetched on
+demand, first 7 days open, older days behind "Show older", so any length works). Internal-only
 changes get `type: internal` or no entry. **Two audiences (#27):** the modal's "Show
 technical changes too" toggle (`#changelog-tech`, off by default, remembered in
 `localStorage["chainreact.changelog"]`) is the only way to see `internal` entries and
@@ -197,12 +198,12 @@ to try things").
   under them the muted hint `#menu-online-hint` ("One room for up to 4 players, plus
   spectators." — the seat count itself is picked in the lobby, #28),
   section *Offline* with `Local multiplayer` (`#btn-local`) and `Against a bot`
-  (`#btn-bot`) in one row, the foot (#43) with one row of two equal buttons —
-  `Learn to play` (`#btn-learn`, #41) and `Replays` (`#btn-replays`, #42) — over the quiet
-  pills `#btn-install` (see Install) and `Changelog` (`#btn-changelog`), none of the three
-  with an icon any more, and — **above the card** (#43), as its own banner
-  inside `#screen-menu`, which is therefore the one screen laid out as a column —
-  `#update-notice` (see "Version updates"). No Look
+  (`#btn-bot`) in one row, then the foot (`.menu-foot`, #43): one row of two equal buttons,
+  `Learn to play` (`#btn-learn`, #41) and `Replays` (`#btn-replays`, #42), over the quiet
+  pills `#btn-install` (see Install) and `Changelog` (`#btn-changelog`). Learn, Replays and
+  Changelog carry no icon any more; only the install pill kept its 📲. **Above the card**
+  (#43), as its own banner inside `#screen-menu` — which is therefore the one screen laid
+  out as a column — sits `#update-notice` (see "Version updates"). No Look
   control here (owner: only in the preferences, #9). Never scrolls on a phone. The ⚙
   preferences button floats top-left on every screen.
 - **Version updates** (`client/lib/update.js`, #40): while the title screen shows, `Update`
@@ -211,7 +212,7 @@ to try things").
   `<meta name="version">` (`Update.isNewer(running, latest)`: two different non-empty
   stamps, never "dev", so the unbundled dev page and the tests never poll). A different
   stamp sets `Update.available` and shows `#update-notice` ("A new version is ready." plus
-  `#btn-update-reload`), the banner above the title card (#43). **Only on the title screen**: `app.js`'s `show()` calls
+  `#btn-update-reload`). **Only on the title screen**: `app.js`'s `show()` calls
   `Update.screenChanged()`, which hides the notice in the lobby and in a game and shows it
   again on the way back, so a result that arrives elsewhere simply waits. After
   `Update.AUTO_MS` (20 s) with the notice up and no click or key press the page reloads
@@ -263,23 +264,23 @@ to try things").
   `showReplay(ply, announce, auto)` in app.js → `engine.preview(ply)`; the last ply turns the
   preview off (live position). `←`/`→` step, `Home`/`End` jump to the ends (ignored while
   an input has focus). `hideReplay()` (new game, rematch, back to room, leave, "Show
-  result") drops the preview. Desktop: bottom centre; phones: above the HUD, `fitBoard`
+  result") drops the preview. `▶▶` (`#replay-play`, #43) walks from the shown move to the
+  last one and becomes `❚❚`: pressing it at the last move starts over at move 0, reaching
+  the end stops by itself, and any step by hand pauses. The pace lives in
+  `Replays.playback({ ply, total, seek, ms })`, a pure state machine (`REPLAY_STEP_MS` =
+  `Replays.STEP_MS` 900 ms, timers injectable, unit-tested with fakes).
+  Online, every step sends `review {ply, play}` so the whole room looks at the same move:
+  `{ ply, play: true }` makes the other side start **its own** timer from that move, so
+  playing through a game together costs one message and not one per step, and a plain
+  `review {ply}` (or `play: false`) pauses and jumps.
+  Desktop: bottom centre; phones: above the HUD, `fitBoard`
   publishes `--hut-h` = the strip the HUD takes so the bar never covers its controls.
-  Online, every step sends `review {ply, play}` so the whole room looks at the same move.
-  The bar and the analysis panel above it live in `#replay-dock`, the fixed column that
+  The bar and the analysis panel above it (`#replay-panel`, #43, see "Replay analysis")
+  live in `#replay-dock`, the fixed column that
   carries the position; `fitBoard` publishes its height as `--dock-h` and phones give
   `#board-wrap` that much bottom padding, so the board never disappears behind the panel.
-- **Play / Pause** (`#replay-play`, #43): `▶▶` walks from the shown move to the last one,
-  `❚❚` stops. Pressing it at the last move starts over at move 0, reaching the end stops by
-  itself, and any step by hand pauses. The pace lives in `Replays.playback({ ply, total,
-  seek, ms })`, a pure state machine (`REPLAY_STEP_MS` = `Replays.STEP_MS` 900 ms, timers
-  injectable, unit-tested with fakes). Online it is synced through the same `review`
-  message: `{ ply, play: true }` makes the other side start **its own** timer from that
-  move, so playing through a game together costs one message and not one per step; a plain
-  `review {ply}` (or `play: false`) pauses and jumps.
-- **Analysis panel** (`#replay-panel`, #43): see "Replay analysis" below.
-- **Replays** (`#screen-replays`, #42): the title screen's 🎬 button opens the list of the
-  games this device played (`Replays.store`, newest first). A **dropdown** filter
+- **Replays** (`#screen-replays`, #42): the title screen's `Replays` button opens the list of
+  the games this device played (`Replays.store`, newest first). A **dropdown** filter
   (`#replay-filter`, built by app.js, #43: `.dropdown` = a `.dd-button` showing the picked
   game's small preview tile and its title, and a `.dd-menu` of `.dd-option[data-filter]`
   rows, "All games" first and then one per registered game, each with its tile; a click
@@ -291,7 +292,7 @@ to try things").
   save → watch) and `Back`. `#replays-hint` says "no replays yet" or, when the browser has
   no IndexedDB, that the list only lasts for this visit. The list scrolls inside the card,
   the screen never does (phones: the three buttons sit under the text).
-- **Watching a replay** (`watchReplay(doc)` / `closeReplay()` in app.js): `Match.watch(doc)`
+  **Watching one** (`watchReplay(doc)` / `closeReplay()` in app.js): `Match.watch(doc)`
   puts the record on the normal game screen with `Match.mode === "replay"`, every seat
   `watch` (nobody may play, no clock, no bot, no premove, no room), the names from the file
   (app.js's `seatNames()` returns `replayDoc.players`), and the replay bar opens at move 0
@@ -307,7 +308,10 @@ to try things").
   "Bot" wherever a player sees it (`Opponent.NAME`; `Bots.botFor(game, cfg)` picks it): the
   modal is one step (description, scores, difficulty, Cancel / Play). Picking a game does
   **not** open it (#12): the default is the middle difficulty; the row shows the choice.
-  You are seat 0, the bot seat 1. **A room can play a bot too (#36)**, see "The room's bot".
+  Offline you are seat 0 and the bot sits on seat 1; everywhere else the seat is whatever
+  `config.bot.seat` says (`Settings.BOT_SEAT` 1 is only the default it is filled with), which
+  is how "Play from here" (#43) can seat the bot on 0. **A room can play a bot too (#36)**,
+  see "The room's bot".
 - **Learn** (`#screen-learn`, `#screen-learn-game`, #41): see the "Learn section" chapter.
   Lessons themselves run on `#screen-game`.
 - `phase` (app.js) ∈ `menu | lobby | game | replays | learn | learn-game` (the list
@@ -361,14 +365,17 @@ restores form values on reload).
   `#set-<key>`, key lowercased (`set-winlen`, `set-chainrule`, `set-chainlen`). A row is
   shown when the selected game's list contains its key. `#game-settings` is
   `display: contents`, so the generated rows space exactly like the fixed ones and hidden
-  rows take no gap (#26). Today: five `winLen` (3–25,
-  default 5, also the board's minimum), chain `speed` (Slow 1100 / Normal 750 / Fast 350
-  ms) and `chainRule`/`chainLen` (win on N explosions, off by default, N default 15;
-  owner dislikes the rule but wanted it available).
+  rows take no gap (#26). Today: five `winLen` (3–25, default 5, also the board's minimum)
+  and `yavalath` (the Yavalath rule, off by default, see "Five Wins rules"); chain `speed`
+  (Slow 1100 / Normal 750 / Fast 350 ms) and `chainRule`/`chainLen` (win on N explosions,
+  off by default, N default 15; owner dislikes the rule but wanted it available). Isolation
+  and Käsekästchen declare none: the shared board-size row is all they need.
 - `Settings.read()` returns the **config** a game starts with: `{ game, players, n,
   timer, timerSel, timerCustom, bot, …every game field of every game }` (all fields travel so
   a mirrored settings message is complete for any game the room may pick). `bot` (#36) is
-  `null` or `{ id, difficulty, seat: 1 }`: `Settings.setBot(choice[, announce])` /
+  `null` or `{ id, difficulty, seat }` (`seat` filled from the choice, `Settings.BOT_SEAT` 1
+  when it names none; every reader takes it from `config.bot.seat`, never from the constant):
+  `Settings.setBot(choice[, announce])` /
   `Settings.bot`, cleared by `setMode` for anything but `online` and by `Room.leave`, so it
   belongs to one room and never leaks into offline play. It is deliberately **not** part of
   the summary text: the lobby's *Opponent* row shows it. Engines get it
@@ -936,8 +943,8 @@ a drawn line, the matching stained glass as a closed box.
   `Net.setSpectate(id, true)`, so a later `reseat` does not hand it straight back and the
   next dial's metadata says the same) or gives a free one, then answers `state {you}` to
   that connection and a `roster` to everyone. `Room.setSeat` follows through everywhere:
-  `Match.setSeat`, the URL (`&spectate=1` for a seatless player, so a refresh keeps the
-  role), the net box, the lobby, the Rematch buttons and the session. A spectate-link
+  `Match.setSeat`, the address bar (`&spectate=1` next to `?room=` for a seatless player, so
+  a refresh keeps the role; the 👀 spectate link is a different thing, see below), the net box, the lobby, the Rematch buttons and the session. A spectate-link
   connection is refused (`spectator` in `Net.peers`), and the *Players* control alone never
   re-seats somebody who chose to watch — only "Take a seat" does.
 - **Presence** (`presentSeats()`): the host derives it from its connections (an open
@@ -1010,10 +1017,12 @@ a drawn line, the matching stained glass as a closed box.
   attempt). A second mismatch at the same point → both back to the room with a toast,
   never two different games.
 - Share link = `<page URL without query>?room=CODE` (`Room.roomLink()`); `?room=` on load
-  auto-joins; `history.replaceState` keeps `?room=` (and `&spectate=1` for somebody without
-  a seat) in the URL while in a room. **Spectate link = `?watch=<SPECTATOR CODE>`**
-  (`Room.spectateLink()`, #29): a code of its own, so removing a parameter cannot promote a
-  viewer; a viewer's address bar carries only `?watch=` (see Spectators).
+  auto-joins; `history.replaceState` keeps `?room=` in the address bar while in a room, with
+  `&spectate=1` appended for somebody who is in the room by its **room code** but holds no
+  seat, so a refresh keeps that role. That parameter is **not** the spectate link:
+  **spectate link = `?watch=<SPECTATOR CODE>`** (`Room.spectateLink()`, #29), a code of its
+  own, so removing a parameter can never promote a viewer, and such a viewer's address bar
+  carries only `?watch=` (see Spectators).
 - **Hidden room code** (#19, streamers): `Room.hideCode(on)` / `Room.codeHidden` — the
   lobby code and the HUD net box show `•••••` (`Room.codeText()`), `setUrlRoom` drops
   `?room=` from the address bar, the session stores `codeHidden`, and the boot rejoins a
@@ -1206,7 +1215,7 @@ wave), `boxes:capture {boxes, player, score}` (Käsekästchen: a move closed one
 - "Play a test sound" in the preferences modal plays `turn`. The whole module is
   fail-safe: any player exception is swallowed.
 
-## Learn section (`client/learn.js`, #41)
+## Learn section (`client/learn.js`, #41, #44)
 
 An offline academy per game, and — like the HUD model and the settings rows — **entirely
 data driven**: everything a game teaches lives in its definition under `howto`, so a new
@@ -1386,9 +1395,10 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   create fn, boolean `baseline`). `Bots.get/list/forGame(game)`, `Bots.benchmarkOf(id)`.
   **One bot per game (#21):** `Bots.botFor(game, config)` = the best-rated bot without
   `baseline` that `supports(config)` (an optional predicate on the config for rule variants
-  a bot does not know; `Bots.supports(id, config)`. No bot needs it today — Sensei learned
-  the Yavalath rule — but it stays the way a future game ships a bot for its plain
-  rules first), or — while a game has no real bot for those rules — its Random baseline, so
+  a bot does not know; `Bots.supports(id, config)`. **No bot declares it today**: Sensei
+  learned the Yavalath rule and names it through `variant` instead, see the next point. It
+  stays the way a future game ships a bot for its plain rules first), or — while a game has
+  no real bot for those rules — its Random baseline, so
   "Against a bot" always works. `Bots.estimator(game, config)` filters the same way
   (`WinChance` passes `game:new`'s config, `Match.setupBot` / `Opponent.current(game, cfg)`
   / `Opponent.open(game, cfg)` the lobby's settings). The Random bots are `baseline: true`: the benchmark and
@@ -1427,21 +1437,24 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   `apply(state, i)` (place + settle + conclude on a copy → the position after the move,
   with `over/winner`), `outcome(state)`, `opponents(p)`, `deadline(ms)` for time-boxed
   search, `report(info)` / `last` / `lastDeadline` (what the bot tells about its last
-  move — depth, value, a `forced` note — and the deadline that counted its nodes; both
-  bots report, `Match.botInfo` collects it with the move, the time and the budget for the
+  move — depth, value, a `forced` note — and the deadline that counted its nodes; every
+  real bot reports, `Match.botInfo` collects it with the move, the time and the budget for the
   dev panel, #31). Rules modules are also reachable directly (`tools.rules`: chain `tally`,
   `readyCells`…; five `lineThrough`, `bestRow`). Add generic helpers here, game-specific
   analysis in the rules module — never in a bot.
 - **Playout**: `Bots.playout(game, config, seats, { maxMoves })` runs a full headless game
   (seats = instances or `state → move` functions) → `{ over, winner, moves, history }`.
-- **Tests** (all in `npm run test:unit`): `tests/unit/bots.test.mjs` covers the framework
-  and a **conformance suite every registered bot must pass** for every difficulty: only
-  legal moves in 300 seeded random positions, deterministic per seed, finishes full games
-  as either colour, < 50 ms per move. Each bot folder has its own `bot.test.mjs` (the
-  glob `client/bots/**/*.test.mjs`) for what makes that bot that bot (Random: covers every
-  legal cell, roughly uniform, seed reproduces a whole game). A real bot's tests should
-  prove strength facts: beats Random by a margin, blocks an open four, takes a win in one,
-  never worse than depth-1 greedy, etc. (VM realm: compare arrays via `JSON.stringify`.)
+- **Tests**: `tests/unit/bots.test.mjs` covers the framework (registry and validation, the
+  seeded rng, the toolset, `playout`) and holds a **conformance suite every registered bot
+  must pass** for every difficulty, all of it at the fixed 2 000-node budget: only legal
+  moves and the same move for the same seed in 300 seeded random positions on the first
+  level and 60 on every other (plus 120 per rule variant the bot says it plays), and full
+  games finished as either colour against Random at an average under 250 ms per move. Each
+  bot folder has its own `bot.test.mjs` (the glob `client/bots/**/*.test.mjs`) for what makes
+  that bot that bot (Random: covers every legal cell, roughly uniform, seed reproduces a
+  whole game). A real bot's tests should prove strength facts: beats Random by a margin,
+  blocks an open four, takes a win in one, never worse than depth-1 greedy, etc. (VM realm:
+  compare arrays via `JSON.stringify`.)
 - **Benchmark** (`npm run benchmark` = `scripts/benchmark.mjs [id…]`): every real bot
   (not the baselines) plays a seeded series against the Random bot of its game (chain 6×6,
   five 9×9, isolation 7×7, boxes 4×4,
@@ -1513,7 +1526,8 @@ every bot folder into a bare VM — script list parsed from `index.html`).
   checks every set (≥ 100, replayable, legal best moves) and prints every bot's score; the
   benchmark stores it as `puzzles: { solved, total, pct, chance }` in `benchmark.js`
   (`chance` = what random picking scores on that set — small boards have few legal
-  moves, so Random gets ~22 % on the chain set and ~21 % on the isolation one; read scores
+  moves, so Random gets 23.2 % on the chain set, 20.8 % on the isolation one and 28.9 % on
+  the boxes one, against 5.7 % on five; read scores
   against it). **No test and no
   workflow ever requires 100 % or any fixed puzzle score to pass the build or deploy**
   (owner's rule): the shared test only checks the sets, real bots assert their own
@@ -1608,178 +1622,106 @@ matching `box-shadow`), and a friend's reaction still gets the small dot in thei
 
 ## Tests (`npm test` = unit + e2e; CI runs both before every deploy and on every PR)
 
-- **Unit** (`npm run test:unit`, Node's built-in runner, `tests/unit/*.test.mjs` +
-  `client/bots/**/*.test.mjs`; `bots.test.mjs` = framework + bot conformance, see Bots):
-  `rules.test.mjs` runs the pure rules in a bare `vm` context (no DOM; 2- and 3-player
-  rotation, elimination, legalMoves, draw; for boxes also the line numbering round trip, the
-  extra turn after a closed box, two boxes with one line and the tie). `dom.mjs` loads `index.html` + every client
-  script except `app.js` into jsdom (script list parsed from index.html; `Element.animate`
-  polyfilled) for `framework.test.mjs` (`Rules.step/apply/replay` == engine play, the
-  generic HUD from the model, settings rows generated from the definitions, Match seats /
-  bot seat / `whenIdle` / `record`, the room's bot in the config and its seat kinds per
-  device (#36), the seat names of #35 through `Match.init({ names })` and
-  `Room.names()`, Session), `chain.test.mjs` (caps, waves, board-decided
-  stop, win, chain rule, replay == play, hooks, HUD), `five.test.mjs`, `isolation.test.mjs`
-  (the pure rules in a bare vm: start positions, encoded moves, the trap with 2 and 3 players;
-  then the engine and the view: the two-step click and taking it back, the last marker on the
-  tile stepped onto, HUD rows, replay == play, the win-chance rows, the picker card),
-  `boxes.test.mjs` (the registry and its own size label, the dots / lines / boxes the view
-  builds, a closed box that keeps the turn box on the same player, two boxes with one line,
-  the end and the tie, the HUD model and the game box, the preview, three players, the win
-  chance, `boxes:capture` and the missing `game:turn`), `clock.test.mjs`
-  (call `C.setup(0)` + `w.close()` at the end or the interval keeps the file alive),
-  `net.test.mjs` (codes, the spectator peer id and that no room code can produce it, #29),
-  `prefs.test.mjs` (defaults, clamping, persistence, form wiring,
-  the sections: `showSection` / `section` / `sectionSummary` and the menu rows, #32; the name
-  of #35: a default drawn from `DEFAULT_NAMES` and persisted at once, `cleanName`, the empty
-  fallback, `seatNames`, the field and the Profile row),
-  `sound.test.mjs` (event → cue mapping with a fake player, perspective, prefs gate, sound
-  sets), `chat.test.mjs` (log boxes, limits, HTML safety, offline, chat survives a new
-  game), `reactions.test.mjs` (float duration from the recent rate with a mocked clock,
-  own + received, rate limits, the sender's colour on every float, #33), `winchance.test.mjs` (frozen while animating, stages,
-  smoothing, and Käsekästchen reading the same number at every stage), `replays.test.mjs` (#42: every sample in `tests/replays/` migrates, validates and plays to its
-  recorded result; a sample and a migration exist for every version; refused files;
-  `fromRecord` round trips; file name, date and summary; the store, in memory under jsdom;
-  `Match.watch`), `replay.test.mjs` (#38: the engine's view-only preview — the position after n
-  plies, HUD and board classes, locked cells, no Bus events, the live state / record / hash
-  untouched, `preview(null)`), `analysis.test.mjs` (#43: `analyse` with a fake estimator and a
-  fake bot — the per-ply arrays, the tolerance that makes an equally good move perfect, the
-  blunder, the score formula on hand-made rows, the progress calls, cancelling, three players
-  getting best moves but no win chance, an illegal bot answer left out; the analysis cache
-  and its invalidation by bot / version / budget; `Replays.playback` with fake timers), `premove.test.mjs` (#37: set / switch / take back, fires when the turn comes,
-  an illegal one is dropped, never on one device or as a spectator, cleared on a new game,
-  on stop and at the end), `learn.test.mjs` (#41, #44: the `howto` contract for every registered
-  game — rule bullets, tutorial steps that replay with legal expected clicks, scenarios that
-  replay to `toMove` with legal `best`; the generated ones equal the puzzle's proven `best`
-  and the committed files equal a fresh `select()` on the committed facts; the ladder
-  (known tiers and kinds, difficulty 1..10, easy first inside a tier, a bot for every
-  `level`), `difficultyOf` / `kindOf` on hand-made facts; the tutorial and scenario runners in
-  jsdom incl. the wrong click, Retry, a play-from-here scenario judged by `game:finish`,
-  "Next scenario", the lock rule and the localStorage progress),
-  `persona.test.mjs`, `changelog.test.mjs`, `calibrate.test.mjs`, `puzzles.test.mjs`
-  (every folder under `tests/puzzles/`, rule variants included, graded with that set's
-  config for every bot that supports it),
-  `party.test.mjs` (3–4 players: `out`/`remaining`/pass in the pure rules, engine
-  `eliminate` + `replay(history, outs)` == live play, two-player flag fall, settings
-  players row / bot mode, the min-players floor and `Room.keepsSeats` of #34, the seat
-  request a spectator may send while everything else stays vetoed, #39),
-  `update.test.mjs` (#40: `isNewer`, a fake fetch, the notice on the title screen only, the
-  flag surviving until it shows, the idle reload happening once with an injected `reload`,
-  silence on every failure; each test calls `Update.stop()` + `w.close()` or the poll
-  interval keeps the file alive),
-  `build.test.mjs` (`SKIP_MINIFY=1 DIST_DIR=<tmp>`; hashed names, icons, deterministic,
-  `version.json` matching the meta stamp),
-  `ci.test.mjs` (the e2e shard split — every file in exactly one shard for 1 to 6
-  shards, shards balanced within a factor of 1.5, an unmeasured file placed, the size
-  table only naming files that exist, and `ci.yml`'s matrix / gate job matching the script).
-  Cross-realm arrays: compare via `JSON.stringify`, not `deepStrictEqual`.
-- **E2E** (`npm run test:e2e`, `tests/e2e/*.test.mjs`): `harness.mjs` starts a static
-  server (port 0) and headless Chrome via CDP (no Playwright; Node 22 `WebSocket`/`fetch`;
-  Chrome from `$CHROME` or `google-chrome`). Helpers: `goto` (waits for scripts + the
-  preloader), `ev`, `click/set/check/text`, `move(i)`/`idle()`, `state()`, `randomGame()`
-  (those four are game-agnostic: they drive `Match.engine`, click
-  `#board > .cell, .stone, .edge` by cell index and take the legal moves from
-  `Rules.of(<the body's game- class>)`, so a new game needs no harness change),
-  `noScroll()`, `emulate(w,h)`, `upload(sel, path)` (CDP `DOM.setFileInputFiles`),
-  `screenshot(name)` (to `tests/e2e/shots/`, git-ignored;
-  uploaded as artifact on CI failure), `waitFor`. Specs: `local-flow` (incl. the replay bar: step first / prev / next / last, the label, the
-  last-move marker, a click in a preview plays nothing, "Show result" and a rematch close
-  it), `settings`,
-  `prefs` (⚙ on every screen, look sync, persistence, sounds: locked until a gesture,
-  cues logged in order, mc files fetched, mute; phone: clear of cards/board/😜,
-  landscape; the section menu: desktop two panes, phone menu → section → Back with no
-  scroll for any section, #32; Profile: the drawn name, a new one across a reload, the row
-  summary and the name on the board), `skins` (computed styles per skin, and that switching
-  the look leaves the names alone, #35), `mobile` (360×780: title, local lobby,
-  an online-shaped lobby with four seats in every skin — share row on one line with
-  `Share link` wider than the two icon buttons, the two groups, seat names never cut off,
-  no scroll, screenshots `mobile-lobby-<skin>.png` — game, overlay, replay bar above the HUD,
-  the Isolation board with a step picked), `online` (two browsers through
-  the real PeerJS broker: join by link, both names on the seat cards and the HUD cards and a
-  rename that reaches the other side (#35), settings mirror, guest start, move sync,
-  reactions, chat both ways (colour, text only, HUD input), guest refresh, a guest premove
-  played the moment the host has moved, tolobby,
-  switch game, rematch, host refresh, replay of a finished game stepped from both sides and
-  played through with the synced Play / Pause (#43), guest leave +
-  rejoin, host leave → guest takes over → host returns as guest, hide the room code:
-  bullets + bare URL + copy still works + refresh rejoins hidden + the preference;
-  `SKIP_ONLINE=1` skips),
-  `online-edge` (third player → spectator, players stay connected, a duplicate dial from the
-  same peer replaces the old connection; both refresh in the lobby; guest closes the
-  tab mid-game without goodbye and returns by link; rematch asked while the friend was
-  away; host's tab dies, guest goes back to the room, host returns → both in the lobby;
-  a corrupted guest board is rebuilt from the host; a board that keeps differing sends
-  both back to the room; both type the same new code at once), `party` (offline: four
-  on one device with rotation and alternating starter, three in Chain React with
-  elimination by the rules and the MC textures of seats 2/3, bot mode = 2 players),
-  `isolation` (pick the game, the two-step click incl. taking it back, a whole seeded game to
-  a trap, the overlay, the replay bar, three on one device with a trapped seat, the bot
-  moving by itself),
-  `online-spectate` (**three browsers**: a third watches a running two-player game through
-  the `?watch=` spectate link — locked board, moves arrive, the room code appears nowhere,
-  no share / copy / eye in its lobby, chat as "Spectator", refresh keeps spectating,
-  follows a rematch, never gets a seat even with one free or by forging a `hello`, finds
-  the room again after the host handed hosting over, leaving drops the count),
-  `online-seats` (**three browsers**, #39: a third joins a full two-seat room and watches,
-  the host steps back with "Watch instead", the spectator takes the free seat and plays a
-  game against the guest while the host watches, back in the lobby the roles swap again, a
-  bigger *Players* count never re-seats a voluntary spectator, refreshes keep every role),
-  `online-party` (**three browsers**: players 3, seats 1 and 2, start waits for
-  everyone, moves by every seat relayed to everyone, chat/reaction colours, a guest
-  refresh restores seat + board, rematch by every seat, one Back to room moves all, the
-  players control cannot drop below the people in the room and the host refuses a forged
-  `lobby` that tries it, #34),
-  `boxes` (Käsekästchen: the third picker card and its "Boxes per side" row, the board of dots
-  / lines / boxes, a closed box that keeps the turn, a whole seeded game to the last line with
-  the overlay texts, the replay bar stepping, rematch, three on one device, 360 × 780 without
-  scrolling, and the bot drawing lines and closing boxes on its own),
-  `bot` (offline vs bot: the one-step modal with scores and difficulty, "Bot" in the HUD, bot moves by itself, rematch, a premove clicked while the bot thinks, both games in the replays list),
-  `learn` (#41, #44: Learn from the title, the game list, a details page with its tier
-  headers, progress and lock hint, the tutorial with its
-  highlighted cell / wrong click / right click / Next to the end — for Chain React and for
-  Käsekästchen, whose lesson also proves that a closed box leaves you on turn, a scenario with a wrong
-  move, Retry and the ✓ that survives a reload, an Isolation tutorial step where the first
-  click only picks the tile and the second one completes the expected move, a trap scenario
-  where the greedy move is refused and the proven one solves it, a play-from-here scenario
-  whose goal is explained and whose overlay offers Retry resp. "Next scenario", the lobby's How
-  to play modal closing when
-  a game starts, and 360×780 with no scroll on every new screen),
-  `online-bot` (**three browsers**, #36: alone in a two-seat room "Against a bot instead"
-  puts a bot on the empty seat, it plays and a spectate-link viewer sees its moves and its
-  reactions, a friend joining mid-game watches and gets the seat back in the lobby when the
-  bot steps aside, the bot returns when the friend leaves and keeps playing across a refresh
-  of the host),
-  `replays` (#42: a finished local game is saved and survives a reload in real IndexedDB, the
-  list, watching one from move 0 to the end, saving it as a file and validating that file,
-  opening `tests/replays/v1-chain.json` through the file input, the game filter, a refused
-  file, deleting, and a 360×780 list that scrolls inside the card; #43: the analysis panel
-  runs by itself and judges every move, the verdict / the win-chance line / the per-seat
-  scores, the `.best-move` marker on the board (also on an Isolation replay, where it has to
-  land on the tile a move steps onto and not on the encoded move id), a click on the graph,
-  Play to the end, the
-  panel collapsed on a 360×780 phone (screenshots `mobile-replay-analysis*.png`) and
-  "Play from here" opening a room against the bot from the shown position, with a second
-  browser watching it through the spectate link), `dist` (built bundle: hashed assets only,
-  preloader, playable, hashed sound files fetched after the audio unlock),
-  `update` (#40: the dev page never asks for version.json, a newer version from a `data:`
-  URL shows the notice on the title screen and hides it in the lobby, an idle title screen
-  reloads once with `Update.reload` counted instead, and the notice still fits 360×780).
-  Files run 2 at a time locally; each launches its own Chrome. `B.blank()`
-  navigates to about:blank (a closed tab); outline colours transition for .25s → wait
-  before reading computed styles. Any new join/rejoin behaviour gets a scenario in
-  `online-edge` — the owner wants joining to feel rock solid.
-- **How CI runs them**: not one long serial run any more but four shard jobs, each
-  on its own runner and each running its files one at a time.
-  `scripts/ci/shards.mjs` owns the split: it lists `tests/e2e/*.test.mjs`, sizes each file
-  from a table of **measured seconds on the runner** (`SIZES`; a file that is not in it is
-  guessed, 45 s when its name starts with `online` because those need two or three
-  browsers, else 25 s) and hands them out longest-first to the emptiest shard, so a new
-  e2e file lands somewhere automatically and nothing has to be registered.
-  `node scripts/ci/shards.mjs` prints all shards with their estimate, `node
-  scripts/ci/shards.mjs 2 4` the file list of shard 2 (that is what the workflow runs).
-  Rooms use random codes, so two shards playing online at the same time cannot collide.
-  Refresh `SIZES` when a file grows a lot (`gh run view <id> --log` has a duration per
-  test); the numbers only steer the split, a wrong one costs balance, never correctness.
+### Unit (`npm run test:unit`)
+
+`node --test` over `tests/unit/**/*.test.mjs` + `client/bots/**/*.test.mjs`. Two loaders do
+the heavy lifting: `tests/unit/dom.mjs` puts `index.html` and every client script except
+`app.js` into jsdom (the script list is parsed from index.html, `Element.animate` is
+polyfilled) and hands out fake hooks, and `scripts/headless.mjs` loads util, rules and the
+bots into a bare `vm` with no DOM at all. Cross-realm arrays: compare via `JSON.stringify`,
+not `deepStrictEqual`, and get globals with `w.eval("Name")`. A file that starts a timer
+(`clock`, `update`) must stop it and call `w.close()`, or the runner never exits.
+
+| File | What it covers |
+| --- | --- |
+| `rules.test.mjs` | the pure rules in a bare `vm`: `Rules.base` + `pass` rotation and rounds for 2 and 3 players; chain (legalMoves / place / settle / conclude, a player who lost every cell skipped, the chain rule); five (`lineThrough`, `bestRow`, win, full board and the dead board of #18); boxes (line numbering round trip, a closed box keeps the turn, one line closing two, the end and the tie, safe / capturing lines and `chainFrom`, three players, replay == play) |
+| `framework.test.mjs` | `Rules.step/apply/replay` == engine play at any ply (`Games.positionAt`), the generic HUD built from the view's model, the settings rows generated from the definitions, Match seats per mode / a bot seat that moves by itself / `whenIdle` / `record()`, the room's bot in the config and its seat kinds per device (#36), the seat names of #35 through `Match.init({ names })` and `Room.names()`, the picker's player counts (#28), a spectator's locked settings and `Room.accepts` (#29), `Session` |
+| `chain.test.mjs` | caps, waves, the board-decided stop, the win, the chain rule, replay == play, the hooks' order, the HUD and the last-move marker, the win chance |
+| `five.test.mjs` | the registry (5–25, default 11 × 11 since #16, the win length is the minimum), lines in all 4 directions, `winLen` 6, longer than `winLen`, the full-board draw and the dead board (#18), replay == play, the HUD, the win chance, and the Yavalath rule with two and with three players plus Sensei's own benchmark numbers and calibration for it |
+| `isolation.test.mjs` | first the pure rules in a bare `vm` (start positions, the encoded move, what is legal, the trap with 2 and 3 players, `estimate`), then the engine and the view: the registry (5–12, default 7, `premove: false`), the two-step click and taking it back, `can-place` on the tiles the pawn may step onto, the last marker on the tile stepped onto, the HUD rows, replay == play and the hash, the overlay, the win-chance rows, the picker card |
+| `boxes.test.mjs` | the registry and its own size label, the dots / lines / boxes the view builds in line order, a closed box that keeps the turn box on the same player, two boxes with one line, the end and the tie, replay == play, the replay-bar preview, the HUD model and the game box, three on one device, the win chance (a solved endgame may say 100 %), `boxes:capture` and the `game:turn` that does not fire |
+| `party.test.mjs` | 3–4 players: `out` / `remaining` / pass in the pure rules, engine `eliminate` + `replay(history, outs)` == live play, the two-player flag fall and one that arrives late via `replay([], outs)`, the settings players row and bot mode, the min-players floor and `Room.keepsSeats` (#34), the seat request a spectator may send while everything else stays vetoed (#39) |
+| `replay.test.mjs` | (#38) the engine's view-only preview: the position after n plies, the HUD and board classes, locked cells, no Bus events, the live state / record / hash untouched, `preview(null)`, and a new game dropping it |
+| `replays.test.mjs` | (#42) every sample in `tests/replays/` migrates, validates and plays to its recorded result; a sample and a migration exist for every version that ever was; the `bad-*` files stay refused with a reason; `fromRecord` round trips a finished and an unfinished game; file name, date and summary; the store (newest first, per game, one entry per game, in memory under jsdom); `Match.watch` |
+| `analysis.test.mjs` | (#43) `analyse` with a fake estimator and a fake bot: the per-ply arrays, the tolerance that makes an equally good move perfect, the blunder, the score formula on hand-made rows, the progress calls, cancelling, three players (best moves but no win chance), an illegal bot answer left out, a game where one seat moves twice in a row; the analysis cache and its invalidation by bot / version / budget; `Replays.playback` with fake timers |
+| `premove.test.mjs` | (#37) set / switch / take back, played through the normal path when the turn comes, dropped once it went illegal, never on one device or as a spectator, cleared by a new game / stop / the end, and the one clicked while the bot thinks |
+| `learn.test.mjs` | (#41, #44) the `howto` contract for every registered game (rule bullets, tutorial steps that replay with legal expected clicks, scenarios that replay to `toMove` with legal `best`), the generated scenarios equal the puzzle set's proven `best` and the committed files equal a fresh `select()` on the committed facts, the ladder (known tiers and kinds, difficulty 1..10, easy first inside a tier) and `difficultyOf` / `kindOf` on hand-made facts; then the runners in jsdom: the tutorial's wrong click and Next, a scenario's Retry, a play-from-here scenario judged by `game:finish` with "Next scenario", the tier lock, the folded explanation and the localStorage progress |
+| `winchance.test.mjs` | frozen while a move animates, then refined stage by stage; the smoothing; the estimator's choice (a bot with `evaluate` wins over the rules' `estimate`, calibration applied); Käsekästchen reading the same number at every stage |
+| `bots.test.mjs` | the bot framework and the conformance suite every registered bot and difficulty must pass (see Bots) |
+| `calibrate.test.mjs` | `fitLogistic` recovers scale and shift from synthetic outcomes; `toProbability` keeps infinities exact, applies the calibration and clamps |
+| `puzzles.test.mjs` | every folder under `tests/puzzles/`, rule variants included: at least 100 replayable puzzles with unique ids, legal best moves and some tag variety, plus every bot that supports that set's config graded on it (printed, never a threshold) |
+| `persona.test.mjs` | the wave, GG and detach; praise for a strong human move, EZ and the sad face at the extremes, a teasing face for a blunder, never for its own moves; the cooldown, the per-game cap and the same reactions for the same seed |
+| `prefs.test.mjs` | defaults, clamping, persistence and form wiring; the feedback URL without the room code; the sections of #32 (`showSection` / `section` / `sectionSummary` and the menu rows); the name of #35 (drawn from `DEFAULT_NAMES` and persisted at once, `cleanName`, the empty fallback, `seatNames`, the field and the Profile row) |
+| `sound.test.mjs` | event to cue mapping with a fake player, the perspective (`Sound.me`), the prefs gate and the log, the sound sets and their files, and that the real player never throws without an `AudioContext` |
+| `chat.test.mjs` | the log boxes, the limits, HTML never interpreted, offline nothing is sent, and chat surviving a new game |
+| `reactions.test.mjs` | `durationFor` from the recent rate with a mocked clock, own and received counted together, the rate limits, and the sender's colour on every float (#33) |
+| `clock.test.mjs` | a disabled clock, only the active one running, pause, the flag at zero, restore and the rendered text |
+| `net.test.mjs` | room codes and their normalisation, the spectator peer id of #29 (a code of its own that no room code can produce, and no message carrying the room code), and the relay-only peer config of #30 |
+| `dev.test.mjs` | (#31) `Dev.format` on a hand-made snapshot (network with a route per connection, performance, bot, win chance, and the offline and empty states), `enable()` through the preference, and the bot report and estimator stage that feed it |
+| `update.test.mjs` | (#40) `isNewer`, a fake fetch, the notice on the title screen only, the flag surviving until it shows, the idle reload happening once with an injected `reload`, and silence on every failure |
+| `changelog.test.mjs` | `changelog.json` itself (days newest first, valid dates, known types, resolvable refs) and the modal (days as sections, links in a new tab, "Show older", and the technical toggle of #27) |
+| `build.test.mjs` | `SKIP_MINIFY=1 DIST_DIR=<tmp>`: hashed names, icons, a deterministic rebuild and `version.json` matching the meta stamp |
+| `ci.test.mjs` | the e2e shard split: every file in exactly one shard for 1 to 6 shards, shards balanced within a factor of 1.5, an unmeasured file placed, the size table only naming files that exist, and `ci.yml`'s matrix and gate job matching the script |
+| `client/bots/<id>/bot.test.mjs` | one per bot, the facts that make that bot that bot (see Bots) |
+
+`tests/puzzles/<game>/solver.test.mjs` (one per puzzle folder: the solver on hand-made
+positions, an independent oracle where one is affordable, and the set's consistency by
+re-solving every puzzle) is **not** in that glob and runs by hand:
+`node --test tests/puzzles/<game>/solver.test.mjs`. It is slow (tens of seconds per folder)
+and only matters when a solver or a rule changed.
+
+### E2E (`npm run test:e2e`)
+
+`tests/e2e/harness.mjs` starts a static server (port 0) and headless Chrome over CDP (no
+Playwright; Node 22 `WebSocket` / `fetch`; Chrome from `$CHROME` or `google-chrome`).
+Helpers: `goto` (waits for the scripts and the preloader), `ev`, `click/set/check/text`,
+`move(i)` / `idle()` / `state()` / `randomGame()` (game-agnostic: they drive `Match.engine`,
+click `#board > .cell, .stone, .edge` by cell index and take the legal moves from
+`Rules.of(<the body's game- class>)`, so a new game needs no harness change), `noScroll()`,
+`emulate(w, h)`, `upload(sel, path)` (CDP `DOM.setFileInputFiles`), `screenshot(name)` (into
+`tests/e2e/shots/`, never committed, uploaded as an artifact when CI fails) and `waitFor`.
+`B.blank()` navigates to about:blank (a closed tab). Outline colours transition for .25 s, so
+wait before reading computed styles. Files run 2 at a time locally, each with its own Chrome;
+`SKIP_ONLINE=1` skips the suites that need the broker.
+
+| Spec | What it drives |
+| --- | --- |
+| `local-flow` | the title screen's sections and join panel, a local lobby, Chain React to the end, the overlay, "Look at board" with the replay bar (first / prev / next / last, the `#replay-pos` label, the last-move marker, a click in a preview playing nothing, "Show result" and a rematch closing it), a rematch that alternates the starter, back to room, Five Wins with 6 in a row and its jumping line, "Change game", leaving, the install button and the changelog modal |
+| `settings` | the board size clamped per game, five's minimum following the win length, the Yavalath rule played out in a local game, the custom timer row and the chain rule, everything surviving a reload, and a timer that only runs for the player to move and pauses during animations |
+| `prefs` | the button on title, lobby and game; the look applied and mirrored; volume, sound set and categories persisted and never in the room settings; sounds locked until a gesture, then logged in order (the Blocks files fetched, mute silencing); the feedback issue; the section menu of #32 (desktop two panes, phone menu to section to Back with nothing scrolling); the profile name of #35 drawn, kept across a reload and shown on the board; and the phone layout staying clear of the cards, the board and the reaction toggle (#7, #13) |
+| `skins` | the computed styles per look (Classic dots and turn outline, Blocks board textures with a classic UI, the full Blocks restyle, quartz and the red last marker in Five Wins with no hover flicker) and that switching the look leaves the names alone (#35) |
+| `mobile` | 360 × 780: the title screen and join panel, the local lobby and the settings modal, an online-shaped lobby with four seats in every look (the share row on one line with `Share link` wider than the two icon buttons, the two groups holding the right controls, seat names never cut off, no scroll, screenshots `mobile-lobby-<skin>.png`), the game with its compact HUD and visible board outline, the stacked result overlay, the replay bar above the HUD (#38) and the Isolation board with a step picked |
+| `party` | offline with more than two: four on one device (settings row, summary, four HUD cards, rotation, no win chance), three in Chain React with elimination by the rules and the Blocks textures of seats 2 and 3, and bot mode forcing two players |
+| `isolation` | the lobby listing Isolation and starting its default 7 × 7, the two-step click including taking it back, a whole seeded game to a trap with the overlay and the replay bar, three on one device with a trapped seat, and the bot moving by itself |
+| `boxes` | the Käsekästchen card, its "Boxes per side" row and summary, the board of dots / lines / boxes, a closed box that keeps you on turn, a whole seeded game to the last line with the overlay texts, the replay bar, a rematch, three on one device, 360 × 780 without scrolling, and the bot drawing lines and closing boxes |
+| `bot` | the one-step opponent modal with its scores and difficulty (Cancel keeps the choice, Play changes it), a game won against Easy with "Bot" in the HUD, a rematch that alternates the starter, the premove clicked while the bot thinks (#37), and both games ending up in the replays list |
+| `learn` | (#41, #44) Learn from the title screen, the game list, a details page with its tier headers, progress and lock hint, the tutorial's highlighted cell / wrong click / right click / Next to the end for Chain React and for Käsekästchen (whose lesson also proves that a closed box leaves you on turn), a scenario with a wrong move, Retry and a check mark that survives a reload, a trap scenario where the greedy move is refused, a play-from-here scenario judged on the result with Retry resp. "Next scenario", an Isolation step where the first click only picks the tile, the lobby's How to play modal closing when a game starts, and 360 × 780 with no scroll |
+| `replays` | (#42) a finished local game saved and surviving a reload in real IndexedDB, the list, watching one from move 0 to the end, saving one as a file and validating that file, opening `tests/replays/v1-chain.json` through the file input, the game filter, a refused file, deleting, and a 360 × 780 list that scrolls inside the card; (#43) the analysis panel running by itself and judging every move (the verdict, the win-chance line, the per-seat scores, a click on the graph, Play to the end), the `.best-move` marker including an Isolation replay where it has to land on the tile a move steps onto, the panel collapsed on a phone (screenshots `mobile-replay-analysis*.png`) and "Play from here" opening a room against the bot from the shown position with a second browser watching it |
+| `online` | two browsers through the real PeerJS broker: create and join by link, both names on the seat cards and the HUD and a rename that reaches the other side (#35), the settings mirrored both ways, a guest start, move sync and a wrong-turn move ignored, reactions and chat both ways (colour, text only, into the game log), a guest refresh, a guest premove played the moment the host has moved (#37), back to room and a game switch, the rematch handshake, a host refresh, the replay of a finished game stepped from both sides and played through with the synced Play / Pause (#38, #43), a guest leaving and coming back, a host leaving and returning as guest after the takeover, the hidden room code (#19) and the relay-only room of #30 |
+| `online-edge` | a third person finding every seat taken and becoming a spectator while the players stay connected, a duplicate dial from the same peer replacing the old connection, both refreshing in the lobby, a guest closing its tab mid-game and returning by link, a rematch asked while the friend was away, the host's tab dying and nobody being pulled back into the stale game, a drifted board rebuilt from the host, a board that keeps differing sending both back to the room, and two people typing the same new code at once |
+| `online-party` | **three browsers**: the host sets players 3, two guests take seats 1 and 2, Start waits for everyone, moves by every seat reach everyone, chat and reactions carry the sender's colour, a guest refresh restores seat and board, a rematch needs every seat, one Back to room moves all three, and the player count cannot drop below the people in the room, forged `lobby` included (#34) |
+| `online-spectate` | **three browsers** (#29): a third watches a running game through the `?watch=` spectate link (locked board, every move arriving, the room code nowhere), its lobby offers only the spectate link and its chat says "Spectator", a refresh keeps it watching, a rematch takes it along, it never gets a seat (not with one free, not by forging a `hello`), it finds the room again after the host hands hosting over, and leaving drops the count and clears the link from the URL |
+| `online-seats` | **three browsers** (#39): a third joins a full two-seat room and watches, the host steps back with "Watch instead", the spectator takes the free seat and plays the game against the guest, back in the lobby the roles swap again, and a refresh keeps every role |
+| `online-bot` | **three browsers** (#36): alone in a two-seat room, "Against a bot instead" puts a bot on the empty seat, it plays and a spectate-link viewer sees its moves and reactions, a friend joining mid-game watches and gets the seat when the bot steps aside in the lobby, and the bot comes back when the friend leaves and keeps playing across a refresh of the host |
+| `dist` | the built bundle: only hashed assets, the preloader, a playable game, the hashed sound files fetched after the audio unlock, and the built page polling its own `version.json` and staying quiet on the same build |
+| `update` | (#40) the unbundled dev page never asking for `version.json`, a newer version showing the notice on the title screen and hiding it in the lobby, an idle title screen reloading itself once with `Update.reload` counted instead, and the notice still fitting 360 × 780 |
+
+Any new join or rejoin behaviour gets a scenario in `online-edge`: the owner wants joining to
+feel rock solid.
+
+### How CI runs them
+
+Not one long serial run but four shard jobs, each on its own runner and each running its
+files one at a time. `scripts/ci/shards.mjs` owns the split: it lists
+`tests/e2e/*.test.mjs`, sizes each file from a table of **measured seconds on the runner** (`SIZES`; a file that is not in it is
+guessed, 45 s when its name starts with `online` because those need two or three browsers,
+else 25 s) and hands them out longest-first to the emptiest shard, so a new e2e file lands
+somewhere automatically and nothing has to be registered. `node scripts/ci/shards.mjs` prints
+all shards with their estimate, `node scripts/ci/shards.mjs 2 4` the file list of shard 2
+(that is what the workflow runs). Rooms use random codes, so two shards playing online at the
+same time cannot collide. Refresh `SIZES` when a file grows a lot (`gh run view <id> --log`
+has a duration per test); the numbers only steer the split, a wrong one costs balance, never
+correctness.
 
 ## Folders that are never deployed
 
@@ -1827,6 +1769,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Replays` | `FORMAT`, `VERSION`, `MIGRATIONS`, `migrate(doc)`, `validate(doc) → {ok, error}`, `parse(text) → {ok, doc, error}`, `fromRecord(record, names, mode, opts)`, `idFor`, `fileName`, `when(iso)`, `summary(doc, id)`, `store.{save, list({game}), get, remove, clear, persistent, analysis.{get, put, remove, clear}}` (async, IndexedDB with a memory fallback), `playback({ply, total, seek, ms, setTimer, clearTimer}) → {start, stop, toggle, playing}`, `STEP_MS` |
 | `Analysis` | `init({onSeek, onPlayFrom})`, `open(doc, {canPlayFrom})`, `at(ply) → cell to mark`, `close()`, `run()`, `analyse(doc, {estimator, bot, nodes, onProgress, cancelled, breathe, maxMs}) → result`, `scores(moves, players)`, `verdict(move)`, `positionsOf(record)`, `stampFor(doc)`, `load(id, stamp)`, `store(id, result)`, `NODES/BOT_NODES/TOLERANCE/MISTAKE/BLUNDER/MAX_PLIES`; getters `result`, `busy`, `progress`, `shown` |
 | `Match` | `init(handlers)`, `start(cfg, gameNo)`, `watch(record)`, `stop()`, `reset(mode, me, spectator)`, `setSeat(me, spectator)`, `refreshSeats()`, `record()`, `flagged(p)`, `whenIdle(fn, key)`, `syncClock()`, `startPlayerFor`, `playerColor`, `mark(i)`, `isLocal/isBot`; getters `engine, state, names, running, mode, me, spectator, seats, config, gameNo, bot, botInfo, premove, marked`; `THINK_MS` |
+| `Dev` | `init()`, `enable(on)`, `snapshot()`, `format(snapshot)` (pure), `refresh()`; getter `enabled`; `EVERY_MS` |
 | `Room` | `init(handlers)`, `enter(code, { preferHost, seat, spectate, watch, spec, hidden })`, `leave()`, `roomLink(code?)`, `spectateLink()`, `hideCode(on)`, `codeText()`, `newGame()`, `bump()`, `save()`, `render()`, `startFromLobby(cfg, prefix?)`, `requestRematch()`, `rematchWaitText()`, `sendMove(i)`, `sendSync()`, `reseat()`, `seatFree()`, `watchInstead()`, `takeSeat(seat?)`, `enteredLobby()`, `botSeat()`, `settingsChanged(cfg)`, `say(text)`, `react(e, seat?)`, `tolobby()`, `review(ply, play?)`, `onIdle/onChanged/onFlag` (Match handlers), `presentSeats/missingSeats/occupiedSeats/allHere/live/who/two/playersNow/turnHint`, `names()`, `nameChanged()`, `accepts(msg, seat)`, `keepsSeats(msg, occupied)`, `PLAYERS_ONLY`; getters `rev` (settable), `spectators`, `votes`, `votedMyself`, `online`, `isHost`, `codeHidden`, `watching`, `spec` |
 
 Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM), `puzzles/runner.mjs`
@@ -1846,30 +1789,77 @@ and `roster` are the ones that never get relayed (host to all, or guest to host 
 
 ## Lessons learned (keep these in mind before "improving" things)
 
-- **Win chance / evaluators.** A shallow fixed-depth search in Chain React evaluates
-  "the side to move has the initiative" and flips every turn (odd/even horizon effect).
-  What fixed it: even depths only, counting only fully completed depths, averaging the
-  last completed depths, and full quiescence over forced explosions before any leaf is
-  scored; blending odd and even depths or "last depth only" made it worse. In Five Wins the
-  zigzag came from a static penalty for facing an open three; extending the search through
-  the forced defence instead removed it. Measure the *mover bias* (mean of p − average of
-  neighbours, per side to move) separately from the raw swing: proven wins that the weaker
-  self-play bots then throw away are legitimate 100→0 changes.
-- **A minimax value carries a tempo artefact.** Isolation's win chance flipped 85 → 53 → 90
-  every single move. Two causes: the root maximised even when the *other* seat was to move (a
-  plain bug in an evaluator that is asked about any position, not only its own turn), and
-  `max min` at one ply parity is systematically better for the mover than `min max` at the
-  other. The fix that worked: search the position **and** the same position with the other
-  seat to move, at the same depth, and average the two — symmetric by construction — plus a
-  narrower move generator for the estimator to buy a ply. Swing 32 % → 11.7 %, shift 464 → 271.
-- **Calibrate, don't guess.** Both bots' own logistic scales were 3–4× too steep compared
-  with what self-play outcomes support (Creeper 10 → 31, Sensei 300 → 1166). The flatter,
-  data-fitted curve is what makes the number calm and honest; it lives in benchmark.js and
-  is regenerated by the benchmark. Brier scores: chain 0.21, five 0.006 (deterministic
-  self-play is very predictable — don't read that as "perfect").
-- **Never evaluate mid-animation**; freeze the display while `state.busy`, refresh once
-  per settled move, refine in the background with node budgets (deterministic across
-  devices; wall-clock budgets would make two online clients disagree).
+- **Win chance and evaluators: budget a measurement pass into every new game.** It is never
+  right the first time and every game failed differently, so plan for swing, mover bias and
+  Brier from seeded self-play before calling a bar done. Measure the *mover bias* (mean of
+  p − the average of its neighbours, per side to move) separately from the raw swing: proven
+  wins that the weaker self-play bots then throw away are legitimate 100→0 changes. What the
+  four games taught, in order:
+  - **Chain React: parity.** A shallow fixed-depth search evaluates "the side to move has the
+    initiative" and flips every turn (odd/even horizon effect, side-to-move bias ±0.039).
+    What fixed it: even depths only, counting only fully completed depths, averaging the last
+    completed depths, and full quiescence over forced explosions before any leaf is scored;
+    blending odd and even depths or "last depth only" made it worse. Bias ±0.008, swing 0.05.
+  - **Five Wins: a static threat penalty.** The zigzag came from a ±1000 penalty for facing an
+    open three. Extending the search through the forced defence instead (forced fours cost no
+    depth, an open-three extension through the restricted defence set, VCF/VCT on long
+    budgets) removed it: move-to-move change 0.166 → 0.031, bias ±0.006.
+  - **Isolation: a minimax value carries a tempo artefact.** The bar flipped 85 → 53 → 90
+    every single move. Two causes: the root maximised even when the *other* seat was to move
+    (a plain bug in an evaluator that is asked about any position, not only its own turn), and
+    `max min` at one ply parity is systematically better for the mover than `min max` at the
+    other. The fix that worked: search the position **and** the same position with the other
+    seat to move, at the same depth, and average the two — symmetric by construction — plus a
+    narrower move generator for the estimator to buy a ply. Swing 32 % → 11.7 %, shift
+    464 → 271.
+  - **Käsekästchen: a budget-dependent proof is a jump generator.** The bar jumped between
+    43 % and 72 % on quiet moves and then between a proven 100 % and an unproven 60 % on the
+    next one. The endgame proof ran on *the caller's* node budget, and whether a 30-line
+    search finishes is not monotone in the lines left, so the same position read 43 % at the
+    HUD's 2 000-node stage and 100 % at the 60 000-node one. Fix: one cap of its own
+    (`EVAL_NODES`) for every stage, plus a null-window probe that only proves the *sign* of
+    the final box difference (`exactWinner`, two probes sharing one table), which lifted the
+    share of 5 × 5 endgames proven at 30 000 nodes from 91 % to 95 % and 7 × 7 to 100 %, so
+    the proof arrives once and stays. Ask the proof the cheapest question you can.
+  - **Käsekästchen: test the term, don't assume it.** The score also added a tempo term (who
+    has to open first, from the parity of the safe lines) worth up to four boxes, which
+    flipped whenever a move made several lines unsafe. Textbook dots-and-boxes theory, and
+    measured against seeded self-play, self-play with 12 % random moves and games against
+    Random, always with a symmetric fit, it predicted **no better than the plain box lead**
+    out of sample; neither did Monte-Carlo rollouts of the rest of the game with the bot's own
+    chain policy (they only look convincing on the games their own policy played). So it is
+    gone: until the endgame is proven, Käsekästchen has no honest signal beyond the boxes on
+    the table, and `evaluate` returns `(boxes 0 - boxes 1) / (boxes still open + 1)`,
+    symmetric and independent of who is to move. Undecided move-to-move change 4.9 % → 0.18 %,
+    undecided flips over 15 points 45 of 253 → 0 of 234, mover bias −0.009 → 0.000, stage
+    disagreements 12 of 120 → 0 (5 × 5; 7 × 7 went 5.6 % → 0.8 % and 100 of 567 → 0). Being
+    right about *nothing* beats being nervous about everything.
+  - **Calibrate, don't guess.** Every bot's own logistic scale was 3–4× too steep compared
+    with what self-play outcomes support (Creeper 10 → 31.3, Sensei 300 → 1166). The flatter,
+    data-fitted curve is what makes the number calm and honest; it lives in `benchmark.js`
+    and is regenerated by the benchmark. Brier scores: chain 0.21, five 0.006, isolation
+    0.206, boxes 0.177 (deterministic self-play is very predictable — don't read the 0.006 as
+    "perfect").
+  - **A calibration needs undecided positions *with different scores*, and a symmetric
+    evaluator needs a symmetric fit.** Fencer solves 4 × 4 endgames exactly, so nearly every
+    self-play sample came back ±Infinity, the logistic had fewer than 20 finite points and
+    `calibrate` silently returned null (no `Bots.calibration` line in `benchmark.js`). A 5 × 5
+    series fixed the count but not the content: 95 % of its finite samples were a plain raw 0,
+    because on that board every position in which a box has already been won is proven anyway,
+    and the fit collapsed to a step (scale 0.002). The series runs on 7 × 7 now. Mirroring the
+    seats negates a symmetric score, so raw 0 must be 50 %, but the series is not neutral
+    (every fifth game is played against Random, always on seat 1) and the fit happily leans a
+    couple of points toward that seat: `symmetric: true` on the series in
+    `scripts/calibrate.mjs` fits the samples together with their mirrors and pins the shift at
+    0. Check the benchmark output for the "win chance: scale …" part after adding a bot, and
+    look at the scale itself: a value orders of magnitude away from your raws means the fit
+    found no spread, not a confident bot.
+  - **Never evaluate mid-animation**; freeze the display while `state.busy`, refresh once per
+    settled move, refine in the background with node budgets (deterministic across devices;
+    wall-clock budgets would make two online clients disagree).
+  - **Rewriting an evaluator means bumping the bot's `version`** (cached replay analyses are
+    stamped with it, #43) and re-running `npm run learn:scenarios`, because the ladder's
+    "play it out" positions are picked by win chance.
 - **Determinism is a feature of the tests, not a hope.** Seeded RNG everywhere (bots,
   personas, e2e random play via `Bots.rng`, pinned bot seed through sessionStorage),
   node budgets instead of time, generous timing margins, `waitFor` over `sleep`. Cross-realm
@@ -1897,46 +1887,15 @@ and `roster` are the ones that never get relayed (host to all, or guest to host 
   persona), and an optional `sizeLabel` on the definition. Everything else — rooms, sync,
   replay, premoves, clocks, spectators, the HUD — worked unchanged, including a board whose
   `cells.length` is 2n(n+1) rather than n².
-- **Käsekästchen's win chance: two artefacts and one honest answer.** The bar jumped
-  between 43 % and 72 % on quiet moves and then between a proven 100 % and an unproven 60 % on
-  the next one. Cause one: the endgame proof ran on *the caller's* node budget, and whether a
-  30-line search finishes is not monotone in the lines left, so the same position read 43 % at
-  the HUD's 2 000-node stage and 100 % at the 60 000-node one, and the next position was
-  unproven again. Fix: one cap of its own (`EVAL_NODES`) for every stage, plus a null-window
-  probe that only proves the *sign* of the final box difference (`exactWinner`, two probes
-  sharing one table), which lifted the share of 5 × 5 endgames proven at 30 000 nodes from
-  91 % to 95 % and 7 × 7 to 100 %, so the proof arrives once and stays. Cause two: the score
-  added a tempo term (who has to open first, from the parity of the safe lines) worth up to
-  four boxes, which flipped whenever a move made several lines unsafe. Measured against seeded
-  self-play, self-play with 12 % random moves and games against Random, always with a
-  symmetric fit, that term predicted **no better than the plain box lead** out of sample, and
-  neither did Monte-Carlo rollouts of the rest of the game with the bot's own chain policy
-  (they only look convincing on the games their own policy played). So it is gone: until the
-  endgame is proven, Käsekästchen has no honest signal beyond the boxes on the table, and
-  `evaluate` returns `(boxes 0 - boxes 1) / (boxes still open + 1)`, symmetric and independent
-  of who is to move. Undecided move-to-move change 4.9 % → 0.18 %, undecided flips over 15
-  points 45 of 253 → 0 of 234, mover bias −0.009 → 0.000, stage disagreements 12 of 120 → 0
-  (5 × 5; 7 × 7 went 5.6 % → 0.8 % and 100 of 567 → 0). Being right about *nothing* beats
-  being nervous about everything. Rewriting an evaluator also means **bumping the bot's
-  `version`** (cached replay analyses are stamped with it, #43) and re-running `npm run
-  learn:scenarios`, because the ladder's "play it out" positions are picked by win chance.
 - **Prove a search reduction, don't reason about it.** "If a capture is available, take it"
   looks obviously right in dots and boxes and is **wrong**: eating a chain to the end hands
   control away, which is the whole point of the "all but two" sacrifice. Only a capture that
   leaves no new three-sided box behind is provably free. The boxes solver ships a
   reduction-free brute force next to the fast engine and the test compares the two on 80
   positions — that is what turned "I think this is safe" into a checked fact.
-- **A calibration needs undecided positions *with different scores*.** Fencer solves 4 × 4
-  endgames exactly, so nearly every self-play sample came back ±Infinity, the logistic had
-  fewer than 20 finite points and `calibrate` silently returned null (no `Bots.calibration`
-  line in benchmark.js). A 5 × 5 series fixed the count but not the content: 95 % of its finite
-  samples were a plain raw 0, because on that board every position in which a box has already
-  been won is proven anyway, and the fit collapsed to a step (scale 0.002). The series runs on
-  7 × 7 now. Check the benchmark output for the "win chance: scale …" part after adding a bot,
-  and look at the scale itself: a value orders of magnitude away from your raws means the fit
-  found no spread, not a confident bot.
-- **Puzzle sets are only as good as their solver's guarantee.** Both solvers are exhaustive
-  or threat-proven and re-solve every puzzle in their tests; `puzzles/verify.mjs` re-proves
+- **Puzzle sets are only as good as their solver's guarantee.** Every solver (chain, five
+  with and without the Yavalath rule, isolation, boxes) is exhaustive or threat-proven and
+  re-solves every puzzle in its own test; `puzzles/verify.mjs` re-proves
   the tactical ones with an independent one-ply check. When a rule changes (the dead-board
   draw), the solver must learn it and the set must be regenerated.
 - **Agents.** Parallel agents work well when each owns a folder (bot folders, puzzle
@@ -1956,13 +1915,13 @@ and `roster` are the ones that never get relayed (host to all, or guest to host 
   --force --force`). Two agents independently reported "pre-existing" e2e failures that
   were real bugs in a sibling's regexes — a test that waits on a regex written inside a JS
   string loses its escapes (`"\d"`); double them. The one flake seen in this batch:
-  `replays` "a replay can be saved as a file" (download name null) on a loaded machine.
-- **Win chance for a new game** is never right the first time (chain: parity flip; five:
-  static threat penalty; isolation: root maximised for the wrong seat; boxes: see below).
-  Budget a measurement pass (swing, mover bias, Brier via self-play) into every new game.
+  `replays` "a replay can be saved as a file" (download name null) on a loaded machine —
+  and that was a real race, not the machine: the list's row buttons read the record from
+  IndexedDB before they act, so an assertion on the next line runs before the click's
+  handler has finished. **Wait for the outcome with `waitFor`** after any click whose
+  handler awaits IndexedDB (fixed in commit 2af2eed).
 - **Mobile layout bugs are usually stacking/overlap**, not events: an invisible flex
   container (the collapsed reaction list) swallowed taps on the ⚙ button.
-
 - **Refactor lessons (2026-09-10, the big one).** The e2e suite made a full restructure safe:
   850-line app.js → Match (table) + Room (protocol) + a 230-line app.js, the chain-only
   HUD box and settings rows out of index.html into the game definitions, win chance out of
@@ -2074,10 +2033,12 @@ const <Name>Game = Games.register({
 
 The picker card, the settings rows (`#row-<key>` / `#set-<key>`, lowercased) and the
 config keys (`config.<key>` on both sides of a room, persisted per device) all come from
-this entry — no HTML to add. The picker is a `1fr 1fr` grid, so the three games today make
-two rows and the 360×780 lobby still fits (checked by `mobile.test.mjs`); a fourth game will
-need the cards to get smaller (`repeat(auto-fit, minmax(150px, 1fr))` plus a shorter card on
-phones), so re-check that lobby every time.
+this entry — no HTML to add. `.game-picker` is a fixed `1fr 1fr` grid, so the four games
+today fill exactly two rows; what buys the room on a phone is the lobby's own media query
+(`max-width: 899px` in `menu.css`: a tighter `.lobby-card`, `.lobby-card .game-card` padding
+8 px, a 56 px preview and the `.game-players` line hidden), and that is what keeps the
+360×780 lobby from scrolling (checked by `mobile.test.mjs`). A fifth game adds a third row,
+so re-check that lobby every time, and shrink the cards further before adding one.
 
 ## 3. CSS `client/games/<key>.css`
 

@@ -2,7 +2,8 @@
 
 Four nostalgic minigames for two to four players in one static page: **Chain React** (fill a
 cell, it explodes into its neighbours, take the whole board), **Five Wins** (five in a row, no
-gravity), **Isolation** (step one tile, then break one away until nobody else can move) and
+gravity, with the optional Yavalath rule: one less than the winning length in a row loses
+instead of winning), **Isolation** (step one tile, then break one away until nobody else can move) and
 **Käsekästchen** (draw a line between two dots, close a box and it is yours and
 you go again, most boxes wins). Live at https://minigames.alzlper.com/.
 
@@ -42,7 +43,7 @@ personal-use assets and are not licensed at all.
   in a room? "Against a bot instead" puts a bot on the empty seat, and your friends can
   watch that game or take the seat over when they arrive.
   A page refresh, leaving and coming back by the same link, even the room creator
-  leaving — the room survives as long as one player is in it, and everybody keeps
+  leaving: the room survives as long as one player is in it, and everybody keeps
   their seat, their colour and their name.
 
 Online and against the bot you can already click your answer while the other side is
@@ -51,7 +52,8 @@ thinking: the premove is marked on the board and played the moment it is your tu
 
 The number of players (two, three or four) is picked right in the lobby and can never be
 set below the people already sitting in the room; the settings
-(board size or boxes per side, animation speed, chess-style timer, chain-win rule, stones in a row) are
+(board size or boxes per side, animation speed, chess-style timer, chain-win rule, stones in
+a row, the Yavalath rule) are
 shared live in the room lobby; anyone can change them. The ⚙ button in
 the top-left corner holds the per-device preferences: your name (a short one is picked for
 you on the first visit, change it under Profile; up to 16 characters, everyone in the room
@@ -76,7 +78,7 @@ On Android the title screen offers "Add to home screen" so it runs like an insta
 
 ```
 npm install        # dev tools only (jsdom, esbuild)
-npm run dev        # http://localhost:8000 (needs php) — or any static file server
+npm run dev        # http://localhost:8000 (needs php), or any static file server
 npm test           # unit tests (jsdom + pure rules) and end-to-end tests (headless Chrome)
 npm run build      # hashed bundle in dist/
 ```
@@ -87,17 +89,17 @@ room protocol and how to add a game.
 
 ## Layout
 
-- `index.html` — markup, templates, and the ordered list of stylesheets and scripts
-- `client/lib/` — `util`, `bus` (events), `log`, `clock`, `net` (PeerJS rooms), `preload`, `sound`, `install`, `replays` (replay files + the IndexedDB store), `analysis` (replay analysis + its panel), `update` (a new build is offered on the title screen)
-- `client/games/rules.js` — the pure game loop (`Rules.create / step / eliminate / apply / replay`) every headless path shares
-- `client/games.js` — game registry, the engine shell every game shares, the generic HUD (rendered from a model the game returns)
-- `client/games/` — per game: pure `<key>-rules.js`, `<key>.js` (view + registration incl. its settings rows), `<key>.css`
-- `client/bots.js`, `client/bots/<id>/` — bot registry + toolset; one folder per bot with its tests and benchmark score; `client/winchance.js` shows the bars
-- `client/learn.js`, `client/learn/` — the Learn section: rules, tutorial and scenarios per game (the data lives in the game definitions; `client/learn/<game>-scenarios.js` is generated from the proven puzzle sets)
-- `scripts/` — `headless.mjs` (rules + bots in Node), `benchmark.mjs` (`npm run benchmark`), puzzle solvers, verify, `learn/pick-scenarios.mjs` (`npm run learn:scenarios`), screenshots
+- `index.html`: markup, templates, and the ordered list of stylesheets and scripts
+- `client/lib/`: `util`, `bus` (events), `log`, `clock`, `net` (PeerJS rooms), `preload`, `sound`, `install`, `replays` (replay files + the IndexedDB store), `analysis` (replay analysis + its panel), `update` (a new build is offered on the title screen)
+- `client/games/rules.js`: the pure game loop (`Rules.create / step / eliminate / apply / replay`) every headless path shares
+- `client/games.js`: game registry, the engine shell every game shares, the generic HUD (rendered from a model the game returns)
+- `client/games/`: per game: pure `<key>-rules.js`, `<key>.js` (view + registration incl. its settings rows), `<key>.css`
+- `client/bots.js`, `client/bots/<id>/`: bot registry + toolset; one folder per bot with its tests and benchmark score; `client/winchance.js` shows the bars
+- `client/learn.js`, `client/learn/`: the Learn section: rules, tutorial and scenarios per game (the data lives in the game definitions; `client/learn/<game>-scenarios.js` is generated from the proven puzzle sets)
+- `scripts/`: `headless.mjs` (rules + bots in Node), `benchmark.mjs` (`npm run benchmark`), puzzle solvers, verify, `learn/pick-scenarios.mjs` (`npm run learn:scenarios`), screenshots
 - `client/match.js` (the table: seats, engine, clock, bot seat), `client/room.js` (online protocol, presence, sync), `client/session.js`, `client/app.js` (screens, lobby, flow)
 - `client/skins.js` (the look), `client/prefs.js` (⚙ per-device preferences incl. your name), `client/settings.js`, `client/opponent.js`, `client/reactions.js`, `client/chat.js`, `client/changelog.js`
-- `client/lib/sound.js`, `client/sounds/` — sound cues (synthesized Classic set, the Blocks .ogg files)
-- `client/css/` — base tokens, menu/lobby, game screen, the Blocks skins
-- `client/textures/` — 16×16 block textures used by the Blocks skins
+- `client/lib/sound.js`, `client/sounds/`: sound cues (synthesized Classic set, the Blocks .ogg files)
+- `client/css/`: base tokens, menu/lobby, game screen, the Blocks skins
+- `client/textures/`: 16×16 block textures used by the Blocks skins
 - `tests/unit`, `tests/e2e`, `build.mjs`, `.github/workflows/ci.yml`
