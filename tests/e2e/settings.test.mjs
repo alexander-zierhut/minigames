@@ -26,6 +26,11 @@ test("board size clamps per game; five's minimum follows the win length", async 
     await B.set("set-winlen", 5); await B.set("set-size", 11);
     // the Yavalath rule: one less than the win length loses; shown in the summary
     assert.equal(await B.ev("document.getElementById('row-yavalath').hidden"), false);
+    // the row is named after what it does and follows the win length
+    assert.equal(await B.ev("document.querySelector('#row-yavalath .row-label').textContent"), "Lose when 4 in a row", "5 in a row to win: 4 loses");
+    await B.set("set-winlen", 6);
+    assert.equal(await B.ev("document.querySelector('#row-yavalath .row-label').textContent"), "Lose when 5 in a row", "the label follows the win length");
+    await B.set("set-winlen", 5);
     await B.check("set-yavalath", true);
     await B.click("#btn-settings-done");
     assert.match(await B.text("settings-summary"), /5 in a row · no timer · 4 in a row loses$/);

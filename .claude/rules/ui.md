@@ -277,6 +277,9 @@ restores form values on reload).
 - **Game rows are generated** into `#game-settings` from every registered game's
   `settings` list (`Settings.init` → `buildRows`). A setting is
   `{ key, label, type: "int" | "select" | "bool", def, min?, max?, unit?, options?, with? }`;
+  `label` may be a **function of the current config**, re-read on every change and on a game
+  switch (`syncLabels`), which is how five's Yavalath row says "Lose when 4 in a row" and
+  follows the win length;
   `options` = `[[value, label], …]` for a select, `with` = a second `int` field in the same
   row that is enabled only while the checkbox is on (chain's `chainRule` + `chainLen`).
   The row is `<label class="row" id="row-<key>" data-setting="<key>">`, the input
@@ -284,7 +287,8 @@ restores form values on reload).
   shown when the selected game's list contains its key. `#game-settings` is
   `display: contents`, so the generated rows space exactly like the fixed ones and hidden
   rows take no gap (#26). Today: five `winLen` (3–25, default 5, also the board's minimum)
-  and `yavalath` (the Yavalath rule, off by default, see "Five Wins rules" in `games.md`); chain `speed`
+  and `yavalath` (the Yavalath rule, off by default, its row named after what it does:
+  "Lose when 4 in a row", see "Five Wins rules" in `games.md`); chain `speed`
   (Slow 1100 / Normal 750 / Fast 350 ms) and `chainRule`/`chainLen` (win on N explosions,
   off by default, N default 15; owner dislikes the rule but wanted it available). Isolation
   and Käsekästchen declare none: the shared board-size row is all they need.

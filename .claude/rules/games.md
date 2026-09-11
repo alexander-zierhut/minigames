@@ -135,7 +135,7 @@ deterministic, so online clients and `replay` agree; the puzzle solver mirrors i
 `Board.dead()`). With 3–4 players the turn
 rotates (`Rules.pass`) and the first line wins; when everyone else is `out` the last
 player wins ("Everyone else is out."). HUD: stones placed, best row
-as the bar. **Yavalath rule** (`config.yavalath`, setting "Yavalath rule", summary "N in a
+as the bar. **Yavalath rule** (`config.yavalath`, its settings row named after what it does, "Lose when N-1 in a row", summary "N in a
 row loses"): a stone whose longest line is exactly `winLen - 1` loses for its owner unless
 it also made `winLen` (the losing line is shown as `winLine`); with two players the other
 one wins ("3 in a row loses!"), with three or four the loser is `state.dead[p]` (the rules'

@@ -72,7 +72,8 @@ const Settings = (() => {
         label.id = "row-" + s.key.toLowerCase();
         label.dataset.setting = s.key;
         const name = document.createElement("span");
-        name.textContent = s.label;
+        name.className = "row-label";
+        name.textContent = typeof s.label === "function" ? s.label(read()) : s.label;
         label.appendChild(name);
         const main = input(gameKey, s);
         if (s.unit || s.with) {
@@ -188,6 +189,7 @@ const Settings = (() => {
         });
         document.querySelectorAll("#settings-modal [data-setting]").forEach((r) => { r.hidden = !shown.includes(r.dataset.setting); });
         fillSize();
+        syncLabels();                                   // a setting that names itself from the others
         if (announce) changed(); else renderSummary();
     }
 
@@ -200,9 +202,23 @@ const Settings = (() => {
         syncDependents();
         changed();
     }
+    /* A setting may name itself from the others (`label` as a function of the config), so
+       Five Wins can say "Lose when 4 in a row" and follow the win length. */
+    function syncLabels() {
+        const cfg = read();
+        for (const key of Games.keys()) {
+            for (const s of Games.get(key).settings) {
+                if (typeof s.label !== "function") continue;
+                const el = $("row-" + s.key.toLowerCase());
+                const name = el && el.querySelector(".row-label");
+                if (name) name.textContent = s.label(cfg);
+            }
+        }
+    }
 
-    // any local change: persist, refresh the summary, tell the app (which tells the friends)
+    // any local change: persist, refresh the labels and the summary, tell the app (which tells the friends)
     function changed() {
+        syncLabels();
         save();
         renderSummary();
         if (!silent) onChange(read());

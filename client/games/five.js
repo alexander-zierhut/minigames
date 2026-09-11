@@ -65,8 +65,10 @@ const FiveGame = Games.register({
     minSize: (cfg) => Math.max(5, cfg.winLen),     // the board can't be smaller than the row to win
     settings: [
         { key: "winLen", label: "In a row to win", type: "int", min: 3, max: 25, def: 5, unit: "stones" },
-        // Yavalath rule: one stone short of the winning row loses (the classic is 4 wins, 3 loses)
-        { key: "yavalath", label: "Yavalath rule", type: "bool", def: false },
+        /* The Yavalath rule: one stone short of the winning row loses (the classic is 4 wins,
+           3 loses). The row is named after what it does and follows the win length, because
+           "Yavalath rule" told a player nothing (owner, 2026-09-11). */
+        { key: "yavalath", label: (cfg) => `Lose when ${Math.max(2, (cfg.winLen || 5) - 1)} in a row`, type: "bool", def: false },
     ],
     // Learn (#41): the rules in one sentence each and a guided tutorial on a 9×9 board.
     // The scenarios come from the proven puzzle set (client/learn/five-scenarios.js).

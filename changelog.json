@@ -5,6 +5,10 @@
       "date": "2026-09-11",
       "entries": [
         {
+          "type": "improvement",
+          "text": "The Yavalath setting in Five Wins says what it does: \"Lose when 4 in a row\", and the number follows the row length you need to win."
+        },
+        {
           "type": "feature",
           "text": "Fair play with a timer: when the connection drops in a timed game the clocks stop, and now the board is hidden as well, so nobody can keep planning their move for free while the clocks stand still. It comes back the moment everyone is connected again."
         },
