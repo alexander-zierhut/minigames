@@ -1,6 +1,6 @@
-# Käsekästchen puzzles
+# Dots and Boxes puzzles
 
-Test positions for **Käsekästchen** (dots and boxes: n × n boxes, a move draws one of the
+Test positions for **Dots and Boxes** (dots and boxes: n × n boxes, a move draws one of the
 2n(n+1) lines, closing a box wins it and gives you another turn, the game runs until every
 line is drawn and the most boxes wins) whose perfect move(s) are **proven** by an exhaustive
 solver, so bots can be graded on how many perfect moves they find.

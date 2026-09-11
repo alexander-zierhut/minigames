@@ -12,7 +12,7 @@ import { loadHeadless } from "./headless.mjs";
    boxes note below) and, for an evaluator that is symmetric by construction, say so:
    `symmetric` fits the samples together with their mirrors, which pins the 50 % point at raw
    0 and takes the series' own seat prior out of the curve (every fifth game is played against
-   Random, always on seat 1). Käsekästchen runs on 7 × 7: Fencer proves 5 × 5 endgames
+   Random, always on seat 1). Dots and Boxes runs on 7 × 7: Fencer proves 5 × 5 endgames
    exactly, and on that board nearly every position in which a box has already been won is
    proven, so 95 % of the finite samples were a plain raw 0 and the fit collapsed. */
 export const SERIES = { chain: { games: 30, config: { n: 6, chainRule: false }, maxMoves: 400 }, five: { games: 40, config: { n: 9, winLen: 5 }, maxMoves: 200 }, isolation: { games: 40, config: { n: 7 }, maxMoves: 200 }, boxes: { games: 24, config: { n: 7 }, maxMoves: 200, symmetric: true } };

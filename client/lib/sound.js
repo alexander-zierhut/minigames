@@ -60,7 +60,7 @@ const Sound = (() => {
                 if (kinds[p] !== "local" || !kinds.some((k) => k !== "local")) return null;   // only when a friend or bot just moved
                 return { name: "turn" };
             }
-            // Käsekästchen: a closed box gets a second, brighter click right after the line
+            // Dots and Boxes: a closed box gets a second, brighter click right after the line
             case "boxes:capture": return { name: "place", rate: 1.5, gain: 1.1 };
             case "reaction": return { name: "reaction", rate: d.theirs ? 0.9 : 1.05 };
             case "chat": return d.mine ? null : { name: "chat" };

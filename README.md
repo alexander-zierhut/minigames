@@ -4,7 +4,7 @@ Four nostalgic minigames for two to four players in one static page: **Chain Rea
 cell, it explodes into its neighbours, take the whole board), **Five Wins** (five in a row, no
 gravity, with the optional Yavalath rule: one less than the winning length in a row loses
 instead of winning), **Isolation** (step one tile, then break one away until nobody else can move) and
-**Käsekästchen** (draw a line between two dots, close a box and it is yours and
+**Dots and Boxes** (draw a line between two dots, close a box and it is yours and
 you go again, most boxes wins). Live at https://minigames.alzlper.com/.
 
 Static site, no backend, no framework. Create a room once, share the link, then pick

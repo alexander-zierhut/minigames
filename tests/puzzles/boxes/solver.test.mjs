@@ -1,4 +1,4 @@
-/* Käsekästchen puzzle solver: the fast engine proved against a plain brute force, a few
+/* Dots and Boxes puzzle solver: the fast engine proved against a plain brute force, a few
    hand-made positions, and the integrity of puzzles.json (replays legally, not over, legal
    best moves, ≥ 100, unique ids, every puzzle re-solves to the same answer).
    node --test tests/puzzles/boxes/solver.test.mjs */

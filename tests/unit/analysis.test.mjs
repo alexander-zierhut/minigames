@@ -156,7 +156,7 @@ test("an illegal or missing bot answer is left out of the score", async () => {
     w.close();
 });
 
-/* Käsekästchen closes a box and moves again, so a seat can play several plies in a row:
+/* Dots and Boxes closes a box and moves again, so a seat can play several plies in a row:
    the seat of a ply is the `current` of the position before it, never the ply's parity. */
 test("a game where one seat moves twice in a row keeps the seats straight", async () => {
     const w = loadDom();

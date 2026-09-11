@@ -9,7 +9,7 @@ import { join, extname } from "node:path";
 
 export const ROOT = new URL("../../", import.meta.url).pathname;
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-// every board's cells in cell order (chain tiles, five stones, Käsekästchen lines) and
+// every board's cells in cell order (chain tiles, five stones, Dots and Boxes lines) and
 // the key of the running game, read off the body class
 const CELLS = JSON.stringify("#board > .cell, #board > .stone, #board > .slab, #board > .edge");
 const GAME_KEY = "String(document.body.className.split(' ').find(c => c.startsWith('game-'))).slice(5)";

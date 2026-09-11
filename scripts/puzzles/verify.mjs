@@ -60,7 +60,7 @@ for (const dir of dirs) {
                 for (const m of legal) if (!p.best.includes(m)) { const t = tools.apply(s, m); if (!lostAtOnce(s, t) && !opponentWinsNext(s, t)) bad.push(`${p.id}: non-best ${m} does not lose at once`); }
             }
         }
-        /* Käsekästchen: the structural tags say what the position looks like, and that is
+        /* Dots and Boxes: the structural tags say what the position looks like, and that is
            checkable with the rules alone, without any solver. */
         if (game === "boxes") {
             const captures = (i) => rules.captures(s, i);

@@ -1,4 +1,4 @@
-/* Käsekästchen — board view (dots, edges, boxes), HUD model; registers the game.
+/* Dots and Boxes — board view (dots, edges, boxes), HUD model; registers the game.
 
    The board is one CSS grid of (2n+1) × (2n+1) tracks: thin "line" tracks for the dot rows
    and columns, wide tracks for the boxes. Dots go in first, then the boxes, then the edges,
@@ -105,7 +105,7 @@ const BoxesView = (() => {
 
 const BoxesGame = Games.register({
     key: "boxes",
-    title: "Käsekästchen",
+    title: "Dots and Boxes",
     tagline: "Draw a line between two dots. Close a box and it is yours, and you go again. Most boxes wins.",
     desc: "Close boxes, most wins",
     preview: "01.1.0.01",
@@ -129,7 +129,7 @@ const BoxesGame = Games.register({
             {
                 config: { n: 2 },
                 moves: [],
-                text: "Käsekästchen is played on the lines between the dots, not on the boxes. Draw the top line of the box in the top left corner.",
+                text: "Dots and Boxes is played on the lines between the dots, not on the boxes. Draw the top line of the box in the top left corner.",
                 expect: [0],
             },
             {

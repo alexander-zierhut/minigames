@@ -1,4 +1,4 @@
-/* Fencer (Käsekästchen): the facts that make it a real bot. Everything runs under node
+/* Fencer (Dots and Boxes): the facts that make it a real bot. Everything runs under node
    budgets (ms: Infinity) so the numbers are the same on every machine. */
 import { test } from "node:test";
 import assert from "node:assert/strict";

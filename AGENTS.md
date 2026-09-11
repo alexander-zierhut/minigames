@@ -21,8 +21,8 @@ update the matching section in the matching file.
 
 A static site with nostalgic minigames: **Chain React** and **Five Wins** (gomoku without
 gravity), which the owner played on a Minecraft server in 2015, **Isolation** (the
-pen-and-paper Isola: step, then break a tile) and **Käsekästchen** (dots
-and boxes, the German school game), for two to four
+pen-and-paper Isola: step, then break a tile) and **Dots and Boxes** (dots
+and boxes, the school-exercise-book game), for two to four
 players (plus spectators) in one room. Hosted as
 plain files on Scaleway Object Storage at `https://minigames.alzlper.com/` (GitHub
 `alexander-zierhut/minigames`, git remote `github`; the old `origin` points at the
@@ -66,8 +66,8 @@ Scripts, in order (each defines the global named in brackets):
 | `client/games/five.js` | `FiveView`, `FiveGame` | Five Wins view + registration (smallest game: the template) |
 | `client/games/isolation-rules.js` | `IsolationRules` | Isolation rules, pure (a move is one encoded integer) |
 | `client/games/isolation.js` | `IsolationView`, `IsolationGame` | Isolation view (the two-step click) + registration |
-| `client/games/boxes-rules.js` | `BoxesRules` | Käsekästchen rules, pure (lines as cells; the analysis helpers bots use) |
-| `client/games/boxes.js` | `BoxesView`, `BoxesGame` | Käsekästchen view (dots / lines / boxes, `renderBoard`) + registration |
+| `client/games/boxes-rules.js` | `BoxesRules` | Dots and Boxes rules, pure (lines as cells; the analysis helpers bots use) |
+| `client/games/boxes.js` | `BoxesView`, `BoxesGame` | Dots and Boxes view (dots / lines / boxes, `renderBoard`) + registration |
 | `client/bots.js` | `Bots` | bot registry, the toolset bots play with, headless playout, win-chance estimator |
 | `client/winchance.js` | `WinChance` | win-chance bars: a Bus observer of `game:new` / `game:position` (no engine or game knows it) |
 | `client/bots/<id>/bot.js` | (registers) | one folder per bot: `bot.js`, generated `benchmark.js`, `bot.test.mjs` |

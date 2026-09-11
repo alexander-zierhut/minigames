@@ -6,7 +6,11 @@
       "entries": [
         {
           "type": "improvement",
-          "text": "Every setting is a dropdown now, like the timer always was: a few values that work well, Off where it applies, and \"Custom…\" when you want your own number. The checkboxes are gone, the number fields fill the row, and Käsekästchen calls its setting \"Board size\" like the other games."
+          "text": "Käsekästchen is called Dots and Boxes now, its English name. Nothing about the game changed, and saved replays of it still open."
+        },
+        {
+          "type": "improvement",
+          "text": "Every setting is a dropdown now, like the timer always was: a few values that work well, Off where it applies, and \"Custom…\" when you want your own number. The checkboxes are gone, the number fields fill the row, and Dots and Boxes calls its setting \"Board size\" like the other games."
         },
         {
           "type": "fix",
@@ -31,7 +35,7 @@
         },
         {
           "type": "improvement",
-          "text": "The room lobby is tidier: one Invite button beside the code opens a panel where sharing the link, copying the code, the spectator link and hiding the code each carry a word, and the seat actions sit on the seat cards they belong to (Watch instead, Sit here, Add a bot, Remove the bot). How many players sit in the room is picked at the top right, beside the code, and the dividing lines are gone. Copying a link or the code is confirmed on the row you tapped instead of a message at the bottom of the screen."
+          "text": "The room lobby is tidier: one Invite button beside the code opens a panel where sharing the link, copying the code, the spectator link and hiding the code each carry a word, and the seat actions sit on the seat cards they belong to (Watch instead, Sit here, Add a bot, Remove the bot). How many players sit in the room is picked at the top right, beside the code, with a Players heading over the seat cards, and the dividing lines are gone. Local multiplayer picks the count in its own section over the game instead. Copying a link or the code is confirmed on the row you tapped instead of a message at the bottom of the screen. A tap on the room code copies the invite link."
         },
         {
           "type": "improvement",
@@ -50,7 +54,7 @@
         },
         {
           "type": "improvement",
-          "text": "The game picker's tiles show the games themselves: Chain React with its lamp dots, Isolation with broken tiles, Käsekästchen as dots and boxes. Replay rows carry the tile too. The lobby got an Options heading, and the tagline under the picker is gone.",
+          "text": "The game picker's tiles show the games themselves: Chain React with its lamp dots, Isolation with broken tiles, Dots and Boxes as dots and boxes. Replay rows carry the tile too. The lobby got an Options heading, and the tagline under the picker is gone.",
           "technical": true
         },
         {
@@ -88,7 +92,7 @@
       "entries": [
         {
           "type": "fix",
-          "text": "The win chance in Käsekästchen no longer jumps around: it stays calm while the game is still open and only snaps to 100 % once the bot has really proven the ending."
+          "text": "The win chance in Dots and Boxes no longer jumps around: it stays calm while the game is still open and only snaps to 100 % once the bot has really proven the ending."
         },
         {
           "type": "feature",
@@ -182,7 +186,7 @@
         },
         {
           "type": "feature",
-          "text": "A new game: Käsekästchen. Draw a line between two dots, close a box and it is yours and you draw again, and whoever owns the most boxes when the last line is drawn wins. Two to four players, 2 to 10 boxes per side, with a bot that solves the endgame exactly, a lesson in Learn and eight training positions."
+          "text": "A new game: Dots and Boxes. Draw a line between two dots, close a box and it is yours and you draw again, and whoever owns the most boxes when the last line is drawn wins. Two to four players, 2 to 10 boxes per side, with a bot that solves the endgame exactly, a lesson in Learn and eight training positions."
         },
         {
           "type": "feature",

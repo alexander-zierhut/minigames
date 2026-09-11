@@ -18,7 +18,7 @@ paths:
 
 # Games: engine, rules, records, adding a game
 
-The engine contract every game plugs into, the HUD model, the game record, the rules of Chain React, Five Wins, Isolation and Käsekästchen, the board / HUD layout rules, the Bus events, the table (`match.js`: seats, bots, premoves) and the step-by-step guide for a new game. The core context is `AGENTS.md`.
+The engine contract every game plugs into, the HUD model, the game record, the rules of Chain React, Five Wins, Isolation and Dots and Boxes, the board / HUD layout rules, the Bus events, the table (`match.js`: seats, bots, premoves) and the step-by-step guide for a new game. The core context is `AGENTS.md`.
 
 ## Game engine interface (`client/games.js`)
 
@@ -32,14 +32,14 @@ holds the active engine (`Match.engine`) and, like everything else, only uses:
 | `state` (getter) | Current state object: `n, players, current, round, history, movesBy, out, outs, busy, over, winner (-1 = draw/none), finishWhy, cells` + game keys (chain: `chainNow, chainBest, explosions, chainRule, chainLen`; five: `winLen, winLine`). `out[p]` = eliminated from outside the rules (flag fall), `outs` = those eliminations in order `{ p, at: history length then, why }`. |
 | `config` (getter) | The config the running game was started with (incl. `startPlayer`). |
 | `newGame(config, hooks)` | Builds state via `Rules.create`, board DOM via `view.build`, sets `body.game-<key>`, the sign title and `#board`'s class, HUD cards via `Hud.build(players, title)`, clears the log, hides the overlay, logs "New game. X starts.", emits `game:new` + `game:position`, renders, calls `hooks.onTurn`. |
-| `play(i) → Promise<bool>` | A move by the current player (own click, relayed friend move, bot). `false` if busy/illegal. Sets busy, `rules.place`, emits `game:move`, `hooks.onMoveApplied`, `await view.animateMove(ctx, i, me)`, `rules.conclude` → `finish` or next turn (`game:position`, `game:turn` **only when the turn really changed hands** — Käsekästchen keeps the mover on turn after a closed box, and then no `game:turn` is emitted, so sounds and observers do not fire twice — then `hooks.onTurn`, which always runs). Bails out if `state.over` became true during the animation. |
+| `play(i) → Promise<bool>` | A move by the current player (own click, relayed friend move, bot). `false` if busy/illegal. Sets busy, `rules.place`, emits `game:move`, `hooks.onMoveApplied`, `await view.animateMove(ctx, i, me)`, `rules.conclude` → `finish` or next turn (`game:position`, `game:turn` **only when the turn really changed hands** — Dots and Boxes keeps the mover on turn after a closed box, and then no `game:turn` is emitted, so sounds and observers do not fire twice — then `hooks.onTurn`, which always runs). Bails out if `state.over` became true during the animation. |
 | `replay(history, outs = [])` | `Rules.apply` on the live state — the same `step`/`eliminate` the instant path uses — then renders and finishes or emits `game:position` + calls `onTurn`. Determinism here keeps every client in sync; `replay([], outs)` applies a flag fall one missed. |
 | `finish(winner, why)` | Ends the game (also called for flag falls / remote timeouts): logs, renders, `Hud.overlay(...)` (title, `why` + `view.summary(state)`), emits `game:position` + `game:finish`, calls `onBusy(false)`, `onFinish`. |
 | `eliminate(p, why)` | `Rules.eliminate` + "X is out." in the log (3+ players); the turn passes if it was theirs, the last one standing wins — with two players that simply ends the game ("X wins! Out of time!"). Returns false when nothing changed. |
 | `abandon()` | Marks a running game over without a result (Back to room). |
 | `hash()` | 32-bit fingerprint of cells/current/over/winner/movesBy/out; equal on clients that are in sync (used by `move`/`sync`). |
 | `record()` | The game as data: `{ game, config, history, outs, over, winner, why }` — see "Game records". |
-| `render()` | No-op until a board exists. Renders the shown position (the preview if there is one, else the live state): every cell (shared classes `p<k>`, `taken`, `last` (the cell of `cellOf(last move)`), `can-place`/`locked` (from the optional rules function `canPlay(state, i, player)` when the game has one, else `isLegal` — Isolation's move needs two clicks, so `canPlay` says which tiles *start* a move), then the one class `hooks.cellClass(i)` asks for, then `view.renderCell`), then **`view.renderBoard(state)` if the view has one** (a board part that is not a cell: Käsekästchen paints its boxes there), and the HUD from `view.hud(...)`. |
+| `render()` | No-op until a board exists. Renders the shown position (the preview if there is one, else the live state): every cell (shared classes `p<k>`, `taken`, `last` (the cell of `cellOf(last move)`), `can-place`/`locked` (from the optional rules function `canPlay(state, i, player)` when the game has one, else `isLegal` — Isolation's move needs two clicks, so `canPlay` says which tiles *start* a move), then the one class `hooks.cellClass(i)` asks for, then `view.renderCell`), then **`view.renderBoard(state)` if the view has one** (a board part that is not a cell: Dots and Boxes paints its boxes there), and the HUD from `view.hud(...)`. |
 | `isLegal(i, player)` | Pure check via the rules. |
 | `cellOf(move)` | The board cell a move belongs to. Games whose move is not a plain cell id say so through the optional rules function `cellOf(state, move)` (Isolation: a move is `to * cells + removed`, and the cell is `to`); everything else keeps the identity. Used for the `last` marker and by `Match` for the premove marker. |
 | `preview(ply)` | **View only** (#38, the replay bar): show the position after `ply` moves (`Rules.replay(record(), ply)`) instead of the live one and re-render; `null` (or a `ply` at / past the end) goes back to the live position. Returns the new `previewPly`. It never touches the live state, the record, `hash()`, the session or the Bus, and while it is on every cell is `locked` and clicks are dropped, so a preview can never leak into play or into what the friends receive. |
@@ -190,9 +190,10 @@ right edge (3), so 2, 3 and 4 players all start symmetrically.
   encoded moves and every step names its own `highlight` cells. The scenarios come from the
   puzzle set through `npm run learn:scenarios`.
 
-## Käsekästchen rules (`boxes-rules.js`)
+## Dots and Boxes rules (`boxes-rules.js`)
 
-The German school game, dots and boxes. n × n boxes (the shared *Board size* row, 2–10,
+The school-exercise-book game (Käsekästchen in German, renamed for the UI on 2026-09-11;
+the key stays `boxes`). n × n boxes (the shared *Board size* row, 2–10,
 default 5), so (n+1)² dots and **2n(n+1) lines** — and the lines are the cells:
 `state.cells` is one entry per line (the owner who drew it, -1 = not drawn, so `ownerOf`
 colours it), while `state.n` is the boxes per side. Nothing in the framework assumes
@@ -300,7 +301,7 @@ new game, a move settled, replay, elimination, end — the one event a position 
 needs), `game:turn {game, player, state}` (after a move settled and the turn **passed to somebody
 else**; not on replay, and not when a game leaves the mover on turn), `game:finish {game, winner, why, state}`, `chain:prime {cells, player, ms}`
 (full cells start blinking; `ms` = how long), `chain:explode {cells, player, chain}` (one
-wave), `boxes:capture {boxes, player, score}` (Käsekästchen: a move closed one or two boxes),
+wave), `boxes:capture {boxes, player, score}` (Dots and Boxes: a move closed one or two boxes),
 `reaction {emoji, theirs}`, `chat {text, from, mine}` (a chat line was shown),
 `log {text, cls}`. A game may add its own events (`<key>:…`) for sounds and observers.
 
@@ -357,7 +358,7 @@ off, no bot, the record replayed instantly onto the board.
 ## Lessons learned
 
 - **A move that keeps the mover on turn changes framework assumptions, not the framework.**
-  Käsekästchen (a closed box means another turn) needed exactly three small things: a
+  Dots and Boxes (a closed box means another turn) needed exactly three small things: a
   `view.renderBoard` hook for board parts that are not cells, `game:turn` only when the turn
   really changed hands (otherwise every captured box played the "your turn" ping and woke the
   persona), and its own board sizes in `size.presets`. Everything else — rooms, sync,
@@ -406,7 +407,7 @@ runner, calibration, a future replay viewer), so keep the three functions pure a
 deterministic and never resolve anything outside them. A move must be a single integer
 (encode from/to as `from * n*n + to` if needed): `move`, `sync`, the session and the
 record assume `history` is an array of numbers. The cells need not be an n × n grid at all —
-Käsekästchen's cells are the 2n(n+1) lines between the dots while `state.n` stays the boxes
+Dots and Boxes's cells are the 2n(n+1) lines between the dots while `state.n` stays the boxes
 per side — as long as `state.cells` is one entry per playable move. Player numbers are 0…players-1;
 names come from the players (Prefs / the room), colours from the seat number. **Must work for 2, 3 and 4 players** (rotation via
 `Rules.pass`, eliminations via `state.out`) — the *Players* setting applies to every game.
@@ -419,7 +420,7 @@ Expose `<Name>View` with:
 | --- | --- |
 | `build(board, state, config, onClick)` | Create one element per cell inside `board` (append a `<div class="last-marker">` child to each), wire `click → onClick(i)`, return the element array. Set CSS vars you need (chain sets `--speed`). |
 | `renderCell(el, state, i)` | Game-specific classes only (the engine already set `p<k>`, `taken`, `last`, `can-place`, `locked`). |
-| `renderBoard(state)` | **Optional.** Called once per render, after every cell: paint the parts of the board that are not cells (Käsekästchen's boxes; its cells are the lines). It gets the *shown* position, so a replay-bar preview is painted too. |
+| `renderBoard(state)` | **Optional.** Called once per render, after every cell: paint the parts of the board that are not cells (Dots and Boxes's boxes; its cells are the lines). It gets the *shown* position, so a replay-bar preview is painted too. |
 | `hud(state)` | **Data only** — return the HUD model, the framework renders it: `{ round: "Move 3", players: [{ stats: [[label, value], …], bar: 0..1, barText, leading }], box?: { stats: [[label, value], …], hot? }, line2?: "text" | [[label, value], …], drawHint? }`. One `players` entry per seat (`state.players`, 2–4). `box` is an extra info box on desktop (chain's chain counters); `line2` the phone turn box's second line. Never write DOM here. |
 | `summary(state)` | Second line of the result overlay ("12 moves"). |
 | `animateMove(ctx, i, player) → Promise` | Show the move. `ctx` gives `state`, `cells`, `board()`, `names()`, `renderCell(i)`, `renderHud()`, `render()`. Use the rules' own step functions for anything that changes state so the instant path (`settle`) stays identical. Return early if `state.over` after an `await`. Emit your own `Bus` events (`<key>:…`) for sounds / observers. |
@@ -455,9 +456,28 @@ config keys (`config.<key>` on both sides of a room, persisted per device) all c
 this entry — no HTML to add. `.game-picker` is a fixed `1fr 1fr` grid, so the four games
 today fill exactly two rows; what buys the room on a phone is the lobby's own media query
 (`max-width: 899px` in `menu.css`: a tighter `.lobby-card`, `.lobby-card .game-card` padding
-8 px, a 56 px preview and the `.game-players` line hidden), and that is what keeps the
-360×780 lobby from scrolling (checked by `mobile.test.mjs`). A fifth game adds a third row,
-so re-check that lobby every time, and shrink the cards further before adding one.
+8 px, a 56 px preview and the `.game-players` line hidden). A fifth game adds a third row,
+so re-check the phone lobby every time.
+
+**Beyond six games the picker has to change shape** (thought through on 2026-09-11, when the
+lobby was rebuilt; nothing to do yet): a grid of cards does not survive eight or more. The
+plan, in the order it should happen:
+1. **The lobby stops being the picker.** The Game section shows the *chosen* game as one row
+   (its tile, its name, a chevron) like How to play and Settings; tapping it opens a picker
+   modal. The lobby then has a constant height whatever the catalogue does, and the modal is
+   free to be as long as it likes and to scroll.
+2. **The picker modal sorts itself**: the games this device played most recently first (the
+   replay store already knows), then the rest. A search field once the list passes a screen.
+   The player-count filter stays what it is (a game that does not take the chosen count is
+   grayed out, #28).
+3. **Sections, not one flat list**, if the catalogue grows in kinds rather than in number:
+   "Place and line up" (Five Wins), "Take the board" (Chain React), "Trap and block"
+   (Isolation, Dots and Boxes). A game names its own section in its definition, exactly the way
+   it names its settings rows today, so nothing above the definition learns about games.
+4. **The learn list and the replays filter follow for free**: both build themselves from
+   `Games.keys()` and `Games.previewTile`, so they only need the same sort and search.
+What must not happen: game-specific code above the definition (`if (game === "chain")`), a
+second place that lists games, or a lobby whose height depends on the catalogue.
 
 ## 3. CSS `client/games/<key>.css`
 

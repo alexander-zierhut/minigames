@@ -1,4 +1,4 @@
-/* Käsekästchen through the engine: the board the view builds, closing a box and going
+/* Dots and Boxes through the engine: the board the view builds, closing a box and going
    again, the end, the HUD model and that replay equals play. */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -21,7 +21,7 @@ test("registry: 2 to 10 boxes per side, default 5, the shared board size row and
     assert.equal(def.size.min, 2); assert.equal(def.size.max, 10); assert.equal(def.size.default, 5);
     assert.equal(JSON.stringify(def.size.presets), "[3,4,5,6,8]", "the sizes its dropdown offers");
     assert.equal(def.sizeLabel, undefined, "no label of its own any more: every game says Board size (2026-09-11)");
-    assert.equal(def.title, "Käsekästchen");
+    assert.equal(def.title, "Dots and Boxes");
     assert.equal(JSON.stringify(def.players), '{"min":2,"max":4}');
     assert.equal(JSON.stringify(def.settings), "[]", "no rows of its own: the board size is the only setting");
     assert.equal(JSON.stringify(def.describeRules({ n: 5 })), '["25 boxes"]');
@@ -45,7 +45,7 @@ test("the board: dots, boxes and one clickable line per cell, in line order", ()
     assert.equal(d.querySelectorAll("#board > .dot").length, 16, "(n+1)² dots");
     assert.equal(d.getElementById("board").className, "boxes turn-p0");
     assert.ok(d.body.classList.contains("game-boxes"));
-    assert.equal(d.getElementById("sign-title").textContent, "KÄSEKÄSTCHEN");
+    assert.equal(d.getElementById("sign-title").textContent, "DOTS AND BOXES");
     // horizontal lines come first and every line carries a last-move marker
     const edges = d.querySelectorAll("#board > .edge");
     assert.equal(edges[0].classList.contains("h"), true);

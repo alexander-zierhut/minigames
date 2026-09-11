@@ -1,4 +1,4 @@
-/* Random — Käsekästchen. Draws any undrawn line. The name says it all.
+/* Random — Dots and Boxes. Draws any undrawn line. The name says it all.
    Serves as the baseline every real bot is benchmarked against. */
 
 "use strict";

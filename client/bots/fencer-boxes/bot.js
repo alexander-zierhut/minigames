@@ -1,4 +1,4 @@
-/* Fencer — Käsekästchen (dots and boxes).
+/* Fencer — Dots and Boxes (dots and boxes).
 
    Two engines in one bot:
 
@@ -372,7 +372,7 @@
              was worth nothing: in seeded self-play with 12 % random moves it predicted no
              better than the plain box count, and neither did chain-play rollouts of the rest
              of the game (they only looked convincing on the games their own policy played).
-             Until the endgame is proven, Käsekästchen simply has no honest signal beyond the
+             Until the endgame is proven, Dots and Boxes simply has no honest signal beyond the
              boxes on the table, and pretending otherwise is what made the bar jump.
 
            Symmetric by construction: swapping the seats negates the score, and nothing here

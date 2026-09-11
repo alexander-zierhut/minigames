@@ -58,7 +58,7 @@ const Replays = (() => {
         if (!Number.isInteger(cfg.n) || cfg.n < 2 || cfg.n > 50) return bad("This replay has a board size that cannot be right.");
         const players = cfg.players || 2;
         if (!Number.isInteger(players) || players < 2 || players > 4) return bad("This replay has a number of players that cannot be right.");
-        // how many cells this game's board has for that config (never n * n: Käsekästchen's
+        // how many cells this game's board has for that config (never n * n: Dots and Boxes's
         // cells are the 2n(n+1) lines between the dots)
         let cells = 0;
         try { cells = Rules.create({ ...cfg, game: doc.game, players }, doc.game).cells.length; } catch (e) { /* an impossible board */ }

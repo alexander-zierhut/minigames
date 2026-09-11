@@ -1,4 +1,4 @@
-# Fencer — Käsekästchen
+# Fencer — Dots and Boxes
 
 Two engines in one bot. Which one answers depends only on how many lines are still undrawn,
 never on the clock, so a level plays exactly the same on every device.
@@ -74,7 +74,7 @@ the next one):
   random moves and games against Random, always with a symmetric fit: it predicted no better
   than the plain box count, and neither did Monte-Carlo rollouts of the rest of the game with
   the chain policy above (those only look convincing on the games their own policy played, and
-  were worse out of sample). Until the endgame is proven, Käsekästchen has no honest signal
+  were worse out of sample). Until the endgame is proven, Dots and Boxes has no honest signal
   beyond the boxes on the table.
 
 The score is symmetric by construction (mirroring the seats negates it) and, while nothing is

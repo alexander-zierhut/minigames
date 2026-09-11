@@ -1,5 +1,5 @@
-/* Käsekästchen rules (pure, no DOM) — the German school game, also known as dots and
-   boxes. n × n boxes, so (n+1) × (n+1) dots and 2n(n+1) edges between them. A move draws
+/* Dots and Boxes rules (pure, no DOM) — the school-exercise-book game, Käsekästchen in
+   German. n × n boxes, so (n+1) × (n+1) dots and 2n(n+1) edges between them. A move draws
    one undrawn edge; every box whose fourth edge it draws goes to the mover, and closing
    at least one box gives the mover another turn. The game runs until every edge is drawn:
    most boxes wins, a tie for the most is a draw.

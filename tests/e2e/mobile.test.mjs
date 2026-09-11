@@ -76,7 +76,8 @@ test("online-shaped lobby with four seats: one Invite button beside the code, th
         assert.ok(swap[0].top >= swap[2].top && swap[0].bottom <= swap[2].bottom + 1, `${skin}: Watch instead inside my seat card (${JSON.stringify(swap)})`);
         assert.ok(swap[1].top >= swap[3].top && swap[1].bottom <= swap[3].bottom + 1, `${skin}: Add a bot inside the empty seat card`);
         assert.ok(swap.slice(0, 2).every((b) => b.left >= 16 && b.right <= 344), `${skin}: seat controls inside the card (${JSON.stringify(swap)})`);
-        assert.ok(swap[4].top >= swap[5].top && swap[4].bottom <= swap[5].bottom + 1, `${skin}: the spectator count sits in the Players heading`);
+        const head = JSON.parse(await M.ev("JSON.stringify(['lobby-spectators', 'row-seats-label'].map(id => { const r = document.getElementById(id).getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom) }; }))"));
+        assert.ok(head[0].top >= head[1].top && head[0].bottom <= head[1].bottom + 1, `${skin}: the spectator count sits in the Players heading`);
         // four seats plus every seat control is taller than a 360×780 phone: the page scrolls
         // (owner's rule: a page scroll over a scroll inside the card), the card never does
         const fit = await M.noScroll();

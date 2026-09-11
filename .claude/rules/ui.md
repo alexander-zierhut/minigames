@@ -311,7 +311,7 @@ restores form values on reload).
   does: "Lose when 4 in a row", see "Five Wins rules" in `games.md`); chain `speed`
   (Slow 1100 / Normal 750 / Fast 350 ms) and the `chainLen` preset with the `chainRule`
   flag (Off, or 10 / 15 / 20 / 30 explosions, or a custom number; owner dislikes the rule
-  but wanted it available). Isolation and Käsekästchen declare none: the shared board-size
+  but wanted it available). Isolation and Dots and Boxes declare none: the shared board-size
   row is all they need.
 - `Settings.read()` returns the **config** a game starts with: `{ game, players, n,
   timer, timerSel, timerCustom, bot, …every game field of every game }` (all fields travel so
@@ -531,7 +531,7 @@ the best move from `Bots.botFor(game, config)` at its strongest level up to
 clock**, so the same game always gets the same numbers. `loss` = the win-chance points a move
 gave away against the bot's move (`estimator.at` on both resulting positions, from the
 mover's own view; 0 when the bot would have played it); the seat a ply belongs to is the
-`current` of the position **before** it, never the ply's parity, so Käsekästchen (where
+`current` of the position **before** it, never the ply's parity, so Dots and Boxes (where
 closing a box means moving again) counts every move for the right player; `perfect` = the
 bot's move **or**
 `loss <= Analysis.TOLERANCE` (3 points), which is what keeps a second good move from looking
@@ -689,7 +689,7 @@ howto: {
      (`rules.estimate`). Plus 3 **play-from-here** positions from seeded self-play at the
      Hard level (a seeded random 6-ply opening makes each seed a different game; the first
      position in the 40–70 % window where **the state says seat 0 is to move** — never the
-     ply's parity, Käsekästchen lets a seat move twice — and your chance is 45–70 %).
+     ply's parity, Dots and Boxes lets a seat move twice — and your chance is 45–70 %).
      Written to `scripts/learn/facts/<game>.json` (never deployed) and committed.
   2. **Select** (pure, and that is what the unit test re-runs): `difficultyOf(f)` =
      1 + proof depth (`(depth-1)/2`, capped at 4; a proof without a ply count reads as 6)

@@ -134,7 +134,7 @@ test("five: draw as soon as no line can be completed any more (#18)", () => {
     assert.equal(h.R.canWin(h.s, 0), false, "Cyan has no window left");
 });
 
-/* ---------- Käsekästchen (boxes) ---------- */
+/* ---------- Dots and Boxes (boxes) ---------- */
 test("boxes: line numbering round-trips, a box knows its four lines and a line its one or two boxes", () => {
     const { R } = boxes({ n: 3 });
     for (const n of [2, 3, 4, 5, 10]) {

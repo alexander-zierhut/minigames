@@ -1,4 +1,4 @@
-/* Käsekästchen (dots and boxes) solver — exhaustive and exact, written independently of
+/* Dots and Boxes (dots and boxes) solver — exhaustive and exact, written independently of
    the bot so the puzzle sets are not "what the bot thinks".
 
    A position is fully described by the set of undrawn lines plus the boxes already won.

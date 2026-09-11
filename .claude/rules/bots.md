@@ -233,7 +233,7 @@ route respectively.
     seat to move, at the same depth, and average the two — symmetric by construction — plus a
     narrower move generator for the estimator to buy a ply. Swing 32 % → 11.7 %, shift
     464 → 271.
-  - **Käsekästchen: a budget-dependent proof is a jump generator.** The bar jumped between
+  - **Dots and Boxes: a budget-dependent proof is a jump generator.** The bar jumped between
     43 % and 72 % on quiet moves and then between a proven 100 % and an unproven 60 % on the
     next one. The endgame proof ran on *the caller's* node budget, and whether a 30-line
     search finishes is not monotone in the lines left, so the same position read 43 % at the
@@ -242,14 +242,14 @@ route respectively.
     the final box difference (`exactWinner`, two probes sharing one table), which lifted the
     share of 5 × 5 endgames proven at 30 000 nodes from 91 % to 95 % and 7 × 7 to 100 %, so
     the proof arrives once and stays. Ask the proof the cheapest question you can.
-  - **Käsekästchen: test the term, don't assume it.** The score also added a tempo term (who
+  - **Dots and Boxes: test the term, don't assume it.** The score also added a tempo term (who
     has to open first, from the parity of the safe lines) worth up to four boxes, which
     flipped whenever a move made several lines unsafe. Textbook dots-and-boxes theory, and
     measured against seeded self-play, self-play with 12 % random moves and games against
     Random, always with a symmetric fit, it predicted **no better than the plain box lead**
     out of sample; neither did Monte-Carlo rollouts of the rest of the game with the bot's own
     chain policy (they only look convincing on the games their own policy played). So it is
-    gone: until the endgame is proven, Käsekästchen has no honest signal beyond the boxes on
+    gone: until the endgame is proven, Dots and Boxes has no honest signal beyond the boxes on
     the table, and `evaluate` returns `(boxes 0 - boxes 1) / (boxes still open + 1)`,
     symmetric and independent of who is to move. Undecided move-to-move change 4.9 % → 0.18 %,
     undecided flips over 15 points 45 of 253 → 0 of 234, mover bias −0.009 → 0.000, stage

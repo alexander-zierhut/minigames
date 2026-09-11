@@ -341,7 +341,7 @@ async function playPositions(H, game, data, def, est) {
         let hit = null;
         for (let ply = 0; ply < total && !hit; ply++) {
             // you are seat 0, so the position has to be one where seat 0 is to move — asked of
-            // the state, never of the ply's parity (Käsekästchen lets a seat move twice)
+            // the state, never of the ply's parity (Dots and Boxes lets a seat move twice)
             if (ply >= from && ply <= to && state.current === 0 && !state.over) {
                 const chance = Number(await est.at(state, CHANCE_NODES));
                 if (chance >= PLAY_CHANCE[0] && chance <= PLAY_CHANCE[1]) {

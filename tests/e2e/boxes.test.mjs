@@ -1,4 +1,4 @@
-/* Käsekästchen end to end: the lobby picks it, the board is dots / lines / boxes, closing a
+/* Dots and Boxes end to end: the lobby picks it, the board is dots / lines / boxes, closing a
    box keeps the turn, a whole seeded game ends with the overlay, rematch, the replay bar,
    three on one device, and a game against the bot. */
 import { test, before, after } from "node:test";
@@ -30,7 +30,7 @@ test("lobby: its own game card, board size and summary", async () => {
 test("the board: dots, boxes and one line per move; drawing a line colours it", async () => {
     await B.click("#btn-start");
     assert.equal(await B.screen(), "screen-game");
-    assert.equal(await B.text("sign-title"), "KÄSEKÄSTCHEN");
+    assert.equal(await B.text("sign-title"), "DOTS AND BOXES");
     assert.equal(await edges(), 24, "2n(n+1) lines");
     assert.equal(await B.ev("document.querySelectorAll('#board > .box').length"), 9);
     assert.equal(await B.ev("document.querySelectorAll('#board > .dot').length"), 16);

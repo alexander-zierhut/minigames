@@ -1,4 +1,4 @@
-/* Regenerates puzzles.json for Käsekästchen:  node scripts/puzzles/boxes/generate.mjs
+/* Regenerates puzzles.json for Dots and Boxes:  node scripts/puzzles/boxes/generate.mjs
    Deterministic: seeded playouts (Bots.rng, mulberry32) whose policy takes free boxes and
    plays safe lines, so real chains and loony endgames arise; every sampled position is
    solved exhaustively by solver.mjs (game-theoretic value and the exact value of every

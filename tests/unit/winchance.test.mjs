@@ -74,8 +74,8 @@ test("the estimator itself: bot with evaluate() is preferred, calibration applie
     w.close();
 });
 
-// the Käsekästchen bar used to read 43 % at the first stage and 100 % at the third one
-test("Käsekästchen: the same number at every stage, and an even board is even", () => {
+// the Dots and Boxes bar used to read 43 % at the first stage and 100 % at the third one
+test("Dots and Boxes: the same number at every stage, and an even board is even", () => {
     const w = loadDom(); const Bots = w.eval("Bots"); const Rules = w.eval("Rules");
     const cfg = { n: 5, players: 2 };
     const state = Rules.of("boxes").create(cfg, Rules.base(cfg));

@@ -109,10 +109,10 @@ test("the tutorial: the highlighted cell, a wrong click hints, the right one adv
     assert.match(await B.text("learn-tutorial-hint"), /finished this tutorial/);
 });
 
-test("Käsekästchen tutorial: the highlighted line, and closing a box keeps you on turn", async () => {
+test("Dots and Boxes tutorial: the highlighted line, and closing a box keeps you on turn", async () => {
     await B.click("#btn-learn-back");
     await B.click("#learn-games .game-card[data-game=boxes]");
-    assert.equal(await B.text("learn-title"), "Käsekästchen");
+    assert.equal(await B.text("learn-title"), "Dots and Boxes");
     await B.click("#btn-learn-tutorial");
     assert.equal(await B.screen(), "screen-game");
     const steps = await B.ev("Learn.howto('boxes').tutorial.length");
