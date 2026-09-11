@@ -98,6 +98,16 @@ const Net = (() => {
     let wantConnection = false;
     let openGen = 0;            // increments per open(); async peer creation checks it
     let everConnected = false;  // had a data connection at least once in this room
+    /* The broker turns us away: its socket keeps closing without ever opening. The usual
+       cause is a rate limit in front of the public PeerJS broker (too many rooms from one
+       network; it answers the WebSocket upgrade with 429 and a Retry-After of up to an
+       hour). A browser cannot read that status or that header — a failed WebSocket reports
+       nothing but "closed", and the 429 page carries no CORS headers — so the pattern is
+       what we go by: several failures in a row over REFUSED_MS, with no broker socket in
+       between. `refused` only changes the wording; every retry keeps running. */
+    const REFUSED_TRIES = 3, REFUSED_MS = 15000;
+    let brokerFails = 0, brokerBadSince = 0, refused = false;
+    function brokerAlive() { brokerFails = 0; brokerBadSince = 0; refused = false; }
     let hostClaimTries = 0;
     let dialAttempts = 0;
     let hostMissing = 0;        // consecutive dials that found no host at the broker
@@ -212,6 +222,7 @@ const Net = (() => {
         createPeer(PREFIX + code, (peer) => {
         bindPeer(peer, claimHost);
         peer.on("open", () => {
+            brokerAlive();                           // the broker took us: it is not turning us away
             if (isOpen()) setStatus("connected", "Connected");
             else setStatus("waiting", waitingText());
             if (handlers.onRole) handlers.onRole("host");
@@ -238,6 +249,7 @@ const Net = (() => {
         createPeer(undefined, (peer) => {
         bindPeer(peer, joinAsGuest);
         peer.on("open", () => {
+            brokerAlive();                           // the broker took us: it is not turning us away
             if (handlers.onRole) handlers.onRole("guest");
             if (isOpen()) setStatus("connected", "Connected");
             else dial();
@@ -249,10 +261,15 @@ const Net = (() => {
     // the socket to the PeerJS broker dropped (tab suspended, network hiccup). An
     // established game connection keeps working without it; only the lobby cares.
     function onSignalingLost() {
+        brokerFails++;
+        if (!brokerBadSince) brokerBadSince = Date.now();
+        if (brokerFails >= REFUSED_TRIES && Date.now() - brokerBadSince >= REFUSED_MS) refused = true;
         if (!isOpen()) {
-            setStatus("signaling", everConnected
-                ? "Lost the room server. Reconnecting…"
-                : "Lost the room server. Reconnecting so your friend can join…");
+            setStatus("signaling", refused
+                ? "The room server is turning us away, usually because too many rooms were opened from your network. It can take up to an hour to clear. Playing on this device still works."
+                : everConnected
+                    ? "Lost the room server. Reconnecting…"
+                    : "Lost the room server. Reconnecting so your friend can join…");
         }
         after("signaling", 800, () => {
             if (!wantConnection || !peer || peer.destroyed) return;
@@ -535,7 +552,8 @@ const Net = (() => {
         get iceInfo() { return { ...iceInfo }; },
         get watching() { return watchOnly; },         // this device dialled the spectator peer (#29)
         // the transport's inner state for the dev panel (#31)
-        get transport() { return { broker: !peer ? "none" : peer.destroyed ? "destroyed" : peer.disconnected ? "disconnected" : peer.open ? "open" : "opening", dialAttempts, channelFailures, everConnected }; },
+        get transport() { return { broker: !peer ? "none" : peer.destroyed ? "destroyed" : peer.disconnected ? "disconnected" : peer.open ? "open" : "opening", dialAttempts, channelFailures, everConnected, refused }; },
+        get refused() { return refused; },           // the broker keeps turning us away (a rate limit, see above)
         get code() { return code; },
         get role() { return role; },
         get status() { return status; },

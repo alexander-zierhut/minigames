@@ -228,6 +228,33 @@ The PeerJS transport, the room protocol and its every message, seats and presenc
 - **Guest dial handshake**: the guest listens for data from the start (under load the
   host's first message can arrive before the guest's own `open` event) and attaches once
   the channel is open *and* the host sent `welcome` (a host `ping` counts too).
+- **Where a status is shown** (the lobby had a stray "Connected" line until 2026-09-11):
+  `Room.netTrouble(status)` is the one judge, `null` while everything is fine (`connected`,
+  `idle`, `waiting` for friends to arrive, `signaling` with the data channel up, and a
+  **host** that is `reconnecting` because its room is simply empty), else
+  `{ text, short }` — **only once the trouble has lasted `TROUBLE_MS` (6 s)**, because
+  PeerJS drops and reopens its broker socket constantly and a dial often needs a second try
+  (the owner saw the popup "way too often even when there is nothing really wrong");
+  `scheduleTrouble()` re-renders when the delay passes and `netTrouble(status, now)` takes
+  an injectable clock so the delay is unit-tested. The value is the whole sentence for the
+  sticky banner and two words
+  ("Connecting…", "Reconnecting…", "Connection problem") for the Start button. `#net-banner`
+  lives outside the screens now and `updateBanner` shows it in the **lobby** (connection
+  trouble only: waiting for players is normal there and the Start button says so) and in a
+  **game** (trouble or a missing seat, as before); it publishes its height as
+  `--banner-bottom` so the lobby card starts below it. `#lobby-status` keeps only the
+  transient "X left the room." note and is cleared once everyone is back.
+- **The broker turning us away** (`Net.refused`, also in `Net.transport` for the dev panel):
+  the public PeerJS broker sits behind a rate limit, and a network that opened many rooms
+  gets **429 with a `Retry-After` of up to an hour** on the WebSocket upgrade. A browser can
+  read neither (a failed WebSocket reports only "closed", and the 429 page carries no CORS
+  headers), so `net.js` goes by the pattern: `REFUSED_TRIES` (3) broker losses spanning
+  `REFUSED_MS` (15 s) with no socket in between. Then the wording changes to "The room
+  server is turning us away, usually because too many rooms were opened from your network.
+  It can take up to an hour to clear. Playing on this device still works.", and the lobby's
+  Start button says "Room server busy". Every retry keeps running, and one open socket
+  (`brokerAlive()`) clears it. So a player sees: nothing for 6 s, then "Lost the room
+  server. Reconnecting…", then the rate-limit sentence.
 - Statuses: `idle, connecting, waiting, connected, reconnecting, signaling, error`.
   `signaling` = broker socket dropped (tab suspended); an established DataConnection
   keeps working without the broker → no in-game banner for it. The host is `connected`

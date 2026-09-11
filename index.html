@@ -365,12 +365,15 @@
         <button id="react-toggle" aria-label="Reactions">😜</button>
     </div>
 
-    <div id="net-banner" hidden>
-        <span id="net-banner-text">Connection lost. Reconnecting…</span>
-        <button class="btn small" id="btn-net-retry" hidden>Retry</button>
-        <button class="btn small ghost" id="btn-net-leave">Leave</button>
-    </div>
 </section>
+
+<!-- the sticky connection banner: fixed at the top of the lobby and of a game (never inside
+     a screen, so both can show it); Room.updateBanner owns its text and its buttons -->
+<div id="net-banner" hidden>
+    <span id="net-banner-text">Connection lost. Reconnecting…</span>
+    <button class="btn small" id="btn-net-retry" hidden>Retry</button>
+    <button class="btn small ghost" id="btn-net-leave">Leave</button>
+</div>
 
 <!-- ===================== SETTINGS ===================== -->
 <!-- shared rows here; a game's own rows land in #game-settings and show for that game only -->

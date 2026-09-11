@@ -160,6 +160,17 @@ correctness.
   personas, e2e random play via `Bots.rng`, pinned bot seed through sessionStorage),
   node budgets instead of time, generous timing margins, `waitFor` over `sleep`. Cross-realm
   objects from jsdom/vm: compare via `JSON.stringify`, get globals with `w.eval("Name")`.
+- **The public PeerJS broker rate-limits an IP that runs the online suites too often.**
+  On 2026-09-11 a long afternoon of local `online*` runs earned a Cloudflare **429** in
+  front of `0.peerjs.com` with `retry-after: 3209` (53 minutes): every room failed to open,
+  in the app and in the tests, while HTTPS to the same host still answered 200. Recognise it
+  without guessing: `curl -i -H "Connection: Upgrade" -H "Upgrade: websocket" -H
+  "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ=="
+  "https://0.peerjs.com/peerjs?key=peerjs&id=probe&token=t"` prints the 429 and the
+  retry-after, and a WebSocket to any other host still opens, which proves the network is
+  fine. So: run `SKIP_ONLINE=1 npm run test:e2e` while iterating locally, keep full online
+  runs rare, and let CI (its own IPs) carry them. Wait the retry-after out; nothing in the
+  code can shorten it.
 - **CI runner is a 2-core box.** Random debugging ports collided between parallel e2e
   files and a third Chrome didn't come up under load: Chrome now picks its own port
   (`DevToolsActivePort`), launches retry once, and CI runs e2e files one at a time.

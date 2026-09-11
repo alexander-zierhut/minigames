@@ -37,6 +37,13 @@ test("create room, join by link, lobby shows both players", { skip: !ONLINE }, a
     await B.waitFor("document.querySelector('#lp-0 .lp-name').textContent === 'Alex'", { what: "guest sees the host's name" });
     assert.equal(await cardName(B, 1), "Bo");
     assert.equal(await A.ev("document.querySelector('#lp-0 .lp-you').textContent"), "(you)");
+    // a healthy connection says nothing: no status line under the seats, no banner (#43 cleanup)
+    for (const X of [A, B]) {
+        assert.equal(await X.text("lobby-status"), "", "no stray connection line");
+        assert.equal(await X.ev("document.getElementById('net-banner').hidden"), true, "no banner while everything is fine");
+        assert.equal(await X.ev("Room.netTrouble()"), null);
+    }
+    assert.equal(await A.text("btn-start"), "Start game");
 });
 
 test("a new name in the preferences reaches the others (#35)", { skip: !ONLINE }, async () => {

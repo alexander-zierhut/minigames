@@ -219,10 +219,12 @@ const Room = (() => {
         const finalCode = Net.open(code, {
             preferHost,
             onStatus: (status, detail) => {
-                r.netDetail = detail;
-                if (h.phase() === "lobby") { $("lobby-status").textContent = detail; h.renderLobby(); }
+                r.netDetail = detail;                  // the lobby shows it on Start and in the banner, never as a stray line
+                if (h.phase() === "lobby") h.renderLobby();
                 renderNetBox();
                 updateBanner(status);
+                scheduleTrouble();                     // a blip stays quiet, trouble that lasts speaks up
+                Match.syncClock();                     // the status decides whether the game may run (clock, covered board)
             },
             onRole: (role) => {
                 if (role === "host") {
@@ -260,7 +262,7 @@ const Room = (() => {
         Settings.setBot(null, false);                       // the next room starts without a bot (#36)
         Chat.enable(false);
         setUrlRoom(null);
-        $("net-banner").hidden = true;
+        bannerShown($("net-banner"), false);
     }
 
     /* ---------- phase changes ---------- */
@@ -665,12 +667,69 @@ const Room = (() => {
         Game().render();                              // cell locks depend on the connection
     }
     // the in-game banner: my connection is in trouble, or a seat is empty (the game waits)
+    /* Connection trouble worth telling the player about: `null` while everything is fine
+       (idle, connected, or waiting for friends to arrive, which the Start button says),
+       else `{ text, short }` — the whole sentence for the sticky banner and a label of two
+       words for the Start button. One source, so the banner and the button never disagree.
+
+       **Nothing is said for the first `TROUBLE_MS`** (owner, 2026-09-11: "the popup shows way
+       too often even when there is nothing really wrong"). PeerJS drops and reopens its broker
+       socket all the time and a dial often needs a second attempt; only trouble that lasts is
+       worth a word. `troubleSince` is the moment the current trouble began, cleared the moment
+       it clears, and `now` is injectable so the delay can be tested without waiting. */
+    const TROUBLE_MS = 6000;
+    const SHORT_TROUBLE = { connecting: "Connecting…", reconnecting: "Reconnecting…", signaling: "Reconnecting…", error: "Connection problem" };
+    let troubleSince = 0, troubleTimer = null;
+    function troubleOf(status) {
+        if (!online()) return null;
+        if (["connected", "idle", "waiting"].includes(status)) return null;
+        if (status === "signaling" && Net.connected) return null;   // the broker dropped, the game connection is fine
+        if (status === "reconnecting" && isHost()) return null;     // the room is up, it is only empty: the seats and Start say so
+        return { text: r.netDetail || "Reconnecting…", short: Net.refused ? "Room server busy" : (SHORT_TROUBLE[status] || "Reconnecting…") };
+    }
+    function netTrouble(status = Net.status, now = Date.now()) {
+        const raw = troubleOf(status);
+        if (!raw) { troubleSince = 0; return null; }
+        if (!troubleSince) troubleSince = now;
+        return now - troubleSince >= TROUBLE_MS ? raw : null;
+    }
+    // say it once the trouble has lasted long enough, without waiting for the next status change
+    function scheduleTrouble() {
+        if (troubleTimer) { clearTimeout(troubleTimer); troubleTimer = null; }
+        if (!troubleSince) return;
+        const left = TROUBLE_MS - (Date.now() - troubleSince);
+        if (left <= 0) return;
+        troubleTimer = setTimeout(() => {
+            troubleTimer = null;
+            if (h.phase() === "lobby") h.renderLobby();
+            updateBanner();
+        }, left + 50);
+    }
+    // the lobby card starts below the banner while it is up (the banner is fixed, so its
+    // height is published as `--banner-bottom` and the lobby's padding follows)
+    function bannerShown(banner, on) {
+        banner.hidden = !on;
+        const px = on ? Math.round(banner.getBoundingClientRect().bottom) : 0;
+        document.documentElement.style.setProperty("--banner-bottom", `${px}px`);
+    }
     function updateBanner(status = Net.status) {
         const banner = $("net-banner");
-        if (!inGame() || !online()) { banner.hidden = true; return; }
+        const inLobby = h.phase() === "lobby";
+        if ((!inGame() && !inLobby) || !online()) { bannerShown(banner, false); return; }
+        const retryable = ["reconnecting", "error", "signaling"].includes(status);
+        // the lobby shows the banner for real connection trouble only: waiting for players is
+        // normal there and the Start button says so
+        if (inLobby) {
+            const trouble = netTrouble(status);
+            if (!trouble) { bannerShown(banner, false); return; }
+            $("net-banner-text").textContent = trouble.text;
+            $("btn-net-retry").hidden = !retryable;
+            bannerShown(banner, true);
+            return;
+        }
         const missing = missingSeats();
         const connectionFine = status === "connected" || status === "idle" || (status === "signaling" && Net.connected);
-        if (connectionFine && missing.length === 0) { banner.hidden = true; return; }
+        if (connectionFine && missing.length === 0) { bannerShown(banner, false); return; }
         let text;
         if (Net.connected && missing.length) {
             const gone = someoneLeft(missing);
@@ -681,8 +740,8 @@ const Room = (() => {
             ? (two() ? "Your friend left the room. The game resumes if they come back." : `${[...r.left].map((k) => names()[k]).join(", ")} left the room. The game resumes if they come back.`)
             : r.netDetail || "Reconnecting…";
         $("net-banner-text").textContent = text;
-        $("btn-net-retry").hidden = !["reconnecting", "error", "signaling"].includes(status);
-        banner.hidden = false;
+        $("btn-net-retry").hidden = !retryable;
+        bannerShown(banner, true);
     }
     // after a phase change: net box, banner, session
     function render() {

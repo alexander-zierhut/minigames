@@ -55,3 +55,11 @@ test("keep my IP private (#30): the peer config demands relay candidates only; T
     assert.equal(JSON.stringify(N.iceInfo), JSON.stringify({ relayOnly: false, turn: false, servers: 0 }), "nothing created yet");
     w.close();
 });
+
+test("the broker turning us away is told apart from a hiccup (a rate limit in front of the public broker)", () => {
+    const w = loadDom(); const Net = w.eval("Net");
+    // nothing happened yet: no such claim, and the dev panel's snapshot carries the flag
+    assert.equal(Net.refused, false);
+    assert.equal(Net.transport.refused, false, "the developer panel sees it too");
+    w.close();
+});

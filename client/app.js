@@ -36,6 +36,7 @@
         $("screen-" + name).scrollTop = 0;            // a screen that scrolls (Learn, #43) opens at its top
         phase = name;
         Update.screenChanged();                      // the "new version" notice lives on the title screen only (#40)
+        Room.updateBanner();                         // the connection banner shows in the lobby and in a game only
         if (name === "game") requestAnimationFrame(() => { fitBoard(); requestAnimationFrame(fitBoard); });
         if (name === "lobby") renderLobby();
     }
@@ -134,6 +135,11 @@
         } else if (Match.spectator) {
             start.disabled = true;
             start.textContent = "Spectating";
+        } else if (Room.netTrouble()) {
+            // a connection problem says so on the button in two words (the banner at the top
+            // carries the whole sentence), never as a stray line under the seats
+            start.disabled = true;
+            start.textContent = Room.netTrouble().short;
         } else if (!Room.allHere()) {
             const missing = Room.missingSeats().length;
             start.disabled = true;
@@ -638,6 +644,7 @@
     $("btn-net-leave").addEventListener("click", leaveRoom);
 
     window.addEventListener("resize", fitBoard);
+    window.addEventListener("resize", () => Room.updateBanner());   // the banner's height feeds the lobby's top padding
     new ResizeObserver(fitBoard).observe($("hut"));
     new ResizeObserver(fitBoard).observe($("replay-dock"));   // the panel opens: the board makes room (#43)
     window.addEventListener("beforeunload", () => Room.save());

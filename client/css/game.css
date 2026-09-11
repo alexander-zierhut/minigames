@@ -167,12 +167,17 @@ body.online #hut.show-controls .chat-row { display: flex; }
 
 #net-banner {
     position: fixed; left: 50%; top: 12px; transform: translateX(-50%);
-    display: flex; align-items: center; gap: 10px;
+    display: flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 8px 10px;
     background: #2a1a1a; border: 2px solid #ff5d5d; border-radius: 10px;
     padding: 8px 14px; font-size: 13px; z-index: 40; max-width: 92vw;
     box-shadow: 0 10px 30px rgba(0,0,0,.6);
 }
-@media (max-width: 899px) { #net-banner { top: 58px; } }  /* keep clear of the reaction toggle */
+#net-banner-text { flex: 1 1 auto; min-width: 0; }
+/* phones: keep clear of the corner buttons, and give the sentence its own line above the buttons */
+@media (max-width: 899px) {
+    #net-banner { top: 58px; width: 92vw; }
+    #net-banner-text { flex: 1 1 100%; text-align: center; }
+}
 
 /* ---- result overlay + "Show result" floating button ---- */
 #overlay {

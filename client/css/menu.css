@@ -351,6 +351,10 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
 #prefs-modal.muted .pref-toggles { opacity: .5; }
 /* phones: the cards start below the ⚙ button */
 @media (max-width: 899px) { #screen-menu, #screen-lobby, #screen-replays { padding-top: 56px; } }
+/* while the connection banner is up it must not cover the lobby card: the card starts under it
+   (`--banner-bottom` is published by Room.updateBanner, 0 while the banner is hidden) */
+#screen-lobby { padding-top: max(16px, calc(var(--banner-bottom, 0px) + 12px)); }
+@media (max-width: 899px) { #screen-lobby { padding-top: max(56px, calc(var(--banner-bottom, 0px) + 10px)); } }
 
 /* ---- bot modal: the game's one bot, its scores and parameters (#21) ---- */
 .bot-card { max-width: 480px; gap: 14px; }

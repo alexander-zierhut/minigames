@@ -5,6 +5,10 @@
       "date": "2026-09-11",
       "entries": [
         {
+          "type": "improvement",
+          "text": "The room says nothing while the connection is healthy, and a hiccup no longer flashes a warning: a problem has to last a few seconds before anything is said. It then shows as the sticky notice at the top with Retry and Leave, and the Start button says in two words why it cannot start. When the room server turns us away because too many rooms were opened from one network, the notice says so instead of just \"reconnecting\"."
+        },
+        {
           "type": "feature",
           "text": "Content Creator got a third option: hide chat and reactions from spectators on your own screen. The players in the room still see them, and the one-tap content creator mode turns it on with the rest. Hiding the room code for the first time now asks whether new rooms should start hidden."
         },
