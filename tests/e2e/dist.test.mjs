@@ -28,7 +28,7 @@ test("built site loads only hashed assets, preloads textures, plays", async () =
     assert.equal(await B.ev("document.getElementById('loader').hidden"), true);
     await B.selectSkin("mc");
     await B.click("#btn-local"); await B.selectGame("chain");
-    await B.click("#btn-settings"); await B.set("set-size", 3); await B.set("set-speed", 350); await B.click("#btn-settings-done");
+    await B.click("#btn-settings"); await B.setting("size", 3); await B.set("set-speed", 350); await B.click("#btn-settings-done");
     await B.click("#btn-start");
     await B.ev("window.dispatchEvent(new PointerEvent('pointerdown')); true");   // unlock audio: the mc set fetches its sound files
     const r = await B.randomGame();

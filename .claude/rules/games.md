@@ -192,7 +192,7 @@ right edge (3), so 2, 3 and 4 players all start symmetrically.
 
 ## Käsekästchen rules (`boxes-rules.js`)
 
-The German school game, dots and boxes. n × n boxes (setting *Boxes per side*, 2–10,
+The German school game, dots and boxes. n × n boxes (the shared *Board size* row, 2–10,
 default 5), so (n+1)² dots and **2n(n+1) lines** — and the lines are the cells:
 `state.cells` is one entry per line (the owner who drew it, -1 = not drawn, so `ownerOf`
 colours it), while `state.n` is the boxes per side. Nothing in the framework assumes
@@ -360,7 +360,7 @@ off, no bot, the record replayed instantly onto the board.
   Käsekästchen (a closed box means another turn) needed exactly three small things: a
   `view.renderBoard` hook for board parts that are not cells, `game:turn` only when the turn
   really changed hands (otherwise every captured box played the "your turn" ping and woke the
-  persona), and an optional `sizeLabel` on the definition. Everything else — rooms, sync,
+  persona), and its own board sizes in `size.presets`. Everything else — rooms, sync,
   replay, premoves, clocks, spectators, the HUD — worked unchanged, including a board whose
   `cells.length` is 2n(n+1) rather than n².
 
@@ -432,14 +432,16 @@ const <Name>Game = Games.register({
     tagline: "One sentence under the picker.", desc: "Short card subtitle",
     preview: "...01....",                   // 9 chars: "." empty, digit = player, "#" hole, a/b/c (A/B/C) = 1..3 pieces of player 0 (1); Games.previewClass / previewTile draw it everywhere
     size: { min: 5, max: 19, default: 9 },  // board-size input limits
-    sizeLabel: "Boxes per side",            // optional: the shared size row's label (default "Board size")
+    size: { min: 5, max: 19, default: 9, presets: [5, 7, 9, 11] },   // `presets` fills the board-size dropdown
     minSize: (cfg) => 5,                    // optional, may depend on the game fields (five: winLen)
     players: { min: 2, max: 4 },            // optional (default 2–4): the picker grays the card out otherwise (#28)
     premove: false,                         // optional (default true): off when one click is not a whole move (#37)
     settings: [                             // the game's rows in #settings-modal, built by settings.js
-        { key: "winLen", label: "In a row to win", type: "int", min: 3, max: 25, def: 5, unit: "stones" },
+        // every control is a dropdown: presets, "Off" where it applies, and "Custom…" with a number row
+        { key: "winLen", label: "In a row to win", type: "preset", presets: [3, 4, 5, 6], def: 5, min: 3, max: 25, customLabel: "Custom stones (3–25)" },
         { key: "speed", label: "Animation speed", type: "select", def: 750, options: [[1100, "Slow"], [750, "Normal"]] },
-        { key: "rule", label: "Optional rule", type: "bool", def: false, with: { key: "ruleN", type: "int", min: 1, max: 9, def: 3, unit: "x" } },
+        { key: "rule", label: "Optional rule", type: "bool", def: false },                 // an Off / On dropdown
+        { key: "ruleN", flag: "rule", label: "Win on N", type: "preset", off: "Off", startOff: true, presets: [10, 15], suffix: " x", def: 15, min: 1, max: 99 },
     ],
     describeRules: (cfg) => [],             // optional summary parts before the timer ("5 in a row")
     describeOptions: (cfg) => [],           // optional summary parts after the timer ("15-chain wins")

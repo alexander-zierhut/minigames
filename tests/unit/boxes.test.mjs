@@ -15,11 +15,12 @@ async function playAll(G, seq) { for (const i of seq) assert.equal(await G.play(
 // 2 × 2 lines: h(r,c) = r*2+c (0…5), v(r,c) = 6 + r*3 + c (6…11)
 const BOX0 = [0, 2, 6, 7];
 
-test("registry: 2 to 10 boxes per side, default 5, its own size label and summary", () => {
+test("registry: 2 to 10 boxes per side, default 5, the shared board size row and its summary", () => {
     const { w } = fresh();
     const def = w.eval("Games.get('boxes')");
     assert.equal(def.size.min, 2); assert.equal(def.size.max, 10); assert.equal(def.size.default, 5);
-    assert.equal(def.sizeLabel, "Boxes per side");
+    assert.equal(JSON.stringify(def.size.presets), "[3,4,5,6,8]", "the sizes its dropdown offers");
+    assert.equal(def.sizeLabel, undefined, "no label of its own any more: every game says Board size (2026-09-11)");
     assert.equal(def.title, "Käsekästchen");
     assert.equal(JSON.stringify(def.players), '{"min":2,"max":4}');
     assert.equal(JSON.stringify(def.settings), "[]", "no rows of its own: the board size is the only setting");
@@ -27,7 +28,8 @@ test("registry: 2 to 10 boxes per side, default 5, its own size label and summar
     const S = w.eval("Settings");
     S.init({});
     S.selectGame("boxes");
-    assert.equal(w.document.getElementById("size-label").textContent, "Boxes per side");
+    assert.equal(w.document.getElementById("size-label").textContent, "Board size");
+    assert.equal(w.document.getElementById("set-size").tagName, "SELECT", "a dropdown of the sizes this game offers");
     assert.match(S.summary(), /^5 × 5 · 25 boxes · no timer$/);
     assert.equal(S.read().game, "boxes");
     assert.equal(w.document.getElementById("size-hint").textContent, "(2–10)");

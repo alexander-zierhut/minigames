@@ -66,26 +66,34 @@ test("HUD: player stat rows and the game box come from the view's model (chain h
 test("settings rows are generated from the game definitions and read into the config", () => {
     const w = loadDom(); const d = w.document; const S = w.eval("Settings");
     S.init({});
-    assert.equal(JSON.stringify(S.fields), JSON.stringify(["speed", "chainRule", "chainLen", "winLen", "yavalath"]), "every field of every game, in registration order");
-    for (const id of ["row-speed", "row-chainrule", "row-winlen", "set-speed", "set-chainrule", "set-chainlen", "set-winlen"]) assert.ok(d.getElementById(id), id);
-    assert.equal(d.getElementById("row-chainrule").dataset.setting, "chainRule");
-    assert.equal(d.getElementById("set-speed").tagName, "SELECT");
+    assert.equal(JSON.stringify(S.fields), JSON.stringify(["speed", "chainLen", "winLen", "yavalath"]), "every field of every game, in registration order");
+    for (const id of ["row-speed", "row-chainlen", "row-chainlen-custom", "row-winlen", "set-speed", "set-chainlen", "set-chainlen-custom", "set-winlen"]) assert.ok(d.getElementById(id), id);
+    // every control is a dropdown (2026-09-11), and a preset carries its own Custom row
+    for (const id of ["set-speed", "set-chainlen", "set-winlen", "set-yavalath", "set-size", "set-timer"]) assert.equal(d.getElementById(id).tagName, "SELECT", id);
+    assert.equal(d.querySelectorAll(".settings input[type=checkbox]").length, 0, "no checkboxes any more");
     assert.equal(d.getElementById("set-speed").value, "750");
-    assert.equal(d.getElementById("set-chainlen").disabled, true, "the number counts only with the checkbox on");
+    assert.equal(d.getElementById("set-chainlen").value, "off", "the chain rule starts off");
+    assert.equal(d.getElementById("row-chainlen-custom").hidden, true, "and its custom row is closed");
     S.selectGame("chain");
     assert.equal(d.getElementById("row-winlen").hidden, true); assert.equal(d.getElementById("row-speed").hidden, false);
     S.selectGame("five");
-    assert.equal(d.getElementById("row-winlen").hidden, false); assert.equal(d.getElementById("row-chainrule").hidden, true);
-    d.getElementById("set-chainrule").checked = true;
-    d.getElementById("set-chainrule").dispatchEvent(new w.Event("change"));
-    assert.equal(d.getElementById("set-chainlen").disabled, false);
-    d.getElementById("set-chainlen").value = "200";
-    d.getElementById("set-chainlen").dispatchEvent(new w.Event("change"));
-    assert.equal(d.getElementById("set-chainlen").value, "99", "clamped on change");
+    assert.equal(d.getElementById("row-winlen").hidden, false); assert.equal(d.getElementById("row-chainlen").hidden, true);
+    // one control, two config keys: Off, a value from the list, or Custom (clamped).
+    // A custom row belongs to its setting, so ask chain's about it while chain is picked.
+    const pick = (id, v) => { d.getElementById(id).value = v; d.getElementById(id).dispatchEvent(new w.Event("change")); };
+    S.selectGame("chain");
+    pick("set-chainlen", "20");
+    assert.equal(S.read().chainRule, true); assert.equal(S.read().chainLen, 20);
+    pick("set-chainlen", "custom");
+    assert.equal(d.getElementById("row-chainlen-custom").hidden, false, "Custom opens its row");
+    pick("set-chainlen-custom", "200");
+    assert.equal(d.getElementById("set-chainlen-custom").value, "99", "clamped on change");
+    S.selectGame("five");
     const cfg = S.read();
     assert.equal(cfg.game, "five"); assert.equal(cfg.winLen, 5); assert.equal(cfg.speed, 750); assert.equal(cfg.chainRule, true); assert.equal(cfg.chainLen, 99);
     S.write({ game: "chain", speed: 350, chainRule: false, chainLen: 20, winLen: 6 });    // the friend's settings
-    assert.equal(d.getElementById("set-speed").value, "350"); assert.equal(d.getElementById("set-chainlen").disabled, true);
+    assert.equal(d.getElementById("set-speed").value, "350");
+    assert.equal(d.getElementById("set-chainlen").value, "off", "their chain rule is off");
     assert.equal(S.read().winLen, 6);
     assert.equal(S.summary({ game: "chain", n: 5, players: 2, timer: 0, chainRule: true, chainLen: 20 }), "5 × 5 · no timer · 20-chain wins");
     w.close();
@@ -253,7 +261,7 @@ test("spectators only watch (#29): Settings.setLocked disables the picker, the p
     assert.ok([...d.querySelectorAll(".game-card")].every((c) => !c.disabled));
     assert.ok([...d.querySelectorAll("#set-players button")].every((b) => !b.disabled));
     assert.equal(d.getElementById("set-size").disabled, false);
-    assert.equal(d.getElementById("set-chainlen").disabled, true, "the dependent number is disabled by its checkbox again, not by the lock");
+    assert.equal(d.getElementById("set-chainlen").disabled, false, "and every control is usable again");
     assert.equal(d.getElementById("settings-locked-hint").hidden, true);
     for (const t of R.PLAYERS_ONLY) { assert.equal(R.accepts({ t }, -1), false, t); assert.equal(R.accepts({ t }, 0), true); }
     for (const t of ["chat", "react", "hello", "leave", "sync"]) assert.equal(R.accepts({ t }, -1), true, t);

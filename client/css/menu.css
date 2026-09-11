@@ -113,8 +113,9 @@
 .invite-rows { display: flex; flex-direction: column; gap: 8px; }
 .invite-row .invite-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .invite-row .invite-text b { font-size: 13px; }
-/* the row says it worked: a check and a green edge for a moment, instead of a toast */
-.settings-summary.done { border-color: #3ddc84; }
+/* the row says it worked: a check and a green edge for a moment, instead of a toast
+   (also while the pointer rests on it, which is exactly when it is clicked) */
+.settings-summary.done, .settings-summary.done:hover { border-color: #3ddc84; }
 .settings-summary.done .gear-icon { color: #3ddc84; }
 .invite-row .invite-text small { font-size: 11px; font-weight: 400; color: var(--muted); }
 /* ---- changelog ---- */
@@ -341,9 +342,9 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
 @media (min-width: 900px) {
     .prefs-card { max-width: 760px; padding: 32px 36px; gap: 20px; }
     .prefs-rows { gap: 16px; }
-    .prefs-body { grid-template-columns: 226px 1fr; gap: 22px; align-items: stretch; }   /* both columns end on the same line */
+    .prefs-body { grid-template-columns: 226px 1fr; gap: 22px; align-items: stretch; }
     .prefs-section { flex: 1; }                                   /* a short section grows to the menu's height */
-    .prefs-nav-row { flex: 1 0 auto; }                            /* and the menu rows share a taller section's height */
+    .prefs-nav { align-self: start; }                             /* but a tall one never stretches the menu rows */
     .prefs-back { display: none; }                                /* both panes are visible: nothing to go back to */
     /* the open section sits in a card of its own beside the menu (a bare form next to the
        boxed rows looked as if it floated) with a real heading; phones keep the plain form */

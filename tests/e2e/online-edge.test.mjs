@@ -50,8 +50,8 @@ test("both refresh in the lobby: seats and roles come back, start still works", 
     await A.waitFor("document.getElementById('lp-0').textContent.includes('(you)')", { what: "host seat 0" });
     await B.waitFor("document.getElementById('lp-1').textContent.includes('(you)')", { what: "guest seat 1" });
     assert.equal(await A.ev("Net.role"), "host");
-    await A.selectGame("chain"); await A.click("#btn-settings"); await A.set("set-size", 4); await A.set("set-speed", 350); await A.click("#btn-settings-done");
-    await B.waitFor("document.getElementById('set-size').value === '4'", { what: "settings mirrored after refresh" });
+    await A.selectGame("chain"); await A.click("#btn-settings"); await A.setting("size", 4); await A.set("set-speed", 350); await A.click("#btn-settings-done");
+    await B.waitFor("Settings.read().n === 4", { what: "settings mirrored after refresh" });
     await B.click("#btn-start");
     await inGame(A); await inGame(B);
     assert.equal((await A.state()).current, 0);
@@ -118,7 +118,7 @@ test("host's tab dies mid-game, the guest goes back to the room, the host return
 });
 
 test("boards drifted apart: the guest is rebuilt from the host and play continues", { skip: !ONLINE }, async () => {
-    await A.selectGame("chain"); await A.click("#btn-settings"); await A.set("set-size", 4); await A.set("set-speed", 350); await A.click("#btn-settings-done");
+    await A.selectGame("chain"); await A.click("#btn-settings"); await A.setting("size", 4); await A.set("set-speed", 350); await A.click("#btn-settings-done");
     const host = (await A.ev("Net.role")) === "host" ? A : B, guest = host === A ? B : A;
     await host.click("#btn-start");
     await inGame(A); await inGame(B); await sleep(300);

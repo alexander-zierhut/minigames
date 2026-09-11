@@ -27,7 +27,7 @@ test("alone in a two-seat room: 'Against a bot instead' puts a bot on the empty 
     code = await createRoom(A);
     spec = await A.ev("Room.spec");
     await A.selectGame("five"); await A.players(2);
-    await A.click("#btn-settings"); await A.set("set-size", 6); await A.set("set-winlen", 4); await A.set("set-timer", 0); await A.click("#btn-settings-done");
+    await A.click("#btn-settings"); await A.setting("size", 6); await A.setting("winlen", 4); await A.setting("timer", 0); await A.click("#btn-settings-done");
     assert.match(await A.text("btn-start"), /Waiting for your friend/);
     assert.equal(await A.ev("document.getElementById('btn-room-bot').hidden"), false, "the offer is there while a seat is empty");
     assert.equal(await A.ev("document.getElementById('btn-room-bot-off').hidden"), true);

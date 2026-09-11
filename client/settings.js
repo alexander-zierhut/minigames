@@ -4,12 +4,19 @@
    Shared rows (board size, timer) are in index.html; the players control is the lobby's
    segmented row (#set-players, #28) so everyone sees the room takes two to four; the game-specific rows are
    BUILT here from every registered game's `settings` list (see Games / .claude/rules/ui.md "Settings"):
-     { key, label, type: "int" | "select" | "bool", def, min?, max?, unit?, options?, with? }
+     { key, label, type: "select" | "bool" | "preset", def, min?, max?, options?, presets?,
+       off?, startOff?, suffix?, customLabel?, flag? }
    into #game-settings, as `<label class="row" id="row-<key>" data-setting="<key>">` with the
-   input `#set-<key>` (key lowercased). A row shows when the selected game lists that key.
+   control `#set-<key>` (key lowercased). A row shows when the selected game lists that key.
+   **Every control is a dropdown** (owner, 2026-09-11): a `select` picks from `options`, a
+   `bool` is Off / On, and a `preset` offers a few values that work well, "Off" when the
+   setting can be off, and "Custom…", which reveals the number row `#row-<key>-custom`.
+   `label` may be a function of the current config (five: "Lose when 4 in a row"), and a
+   preset may name a `flag`, so one control writes two config keys (chain: `chainRule` plus
+   `chainLen`) and the config shape never changes.
    Every field of every game is read into the config (`config.<key>`), persisted and
    mirrored to the room. Board-size limits come from `size` / `minSize(cfg)`, and its label
-   from `sizeLabel` when a game wants its own ("Boxes per side"). A game
+   the same for every game. A game
    declares `players: { min, max }` (default 2–4): the picker grays out games that don't
    take the chosen player count, and the selection moves to one that does (#28).
    `setMinPlayers(n)` (the lobby says how many seats are taken) disables every smaller count
@@ -44,27 +51,49 @@ const Settings = (() => {
         box.innerHTML = "";
         fields = [];
         for (const key of Games.keys()) {
-            for (const s of Games.get(key).settings) box.appendChild(row(key, s));
+            for (const s of Games.get(key).settings) {
+                box.appendChild(row(key, s));
+                if (s.type === "preset") box.appendChild(customRow(s));
+            }
         }
     }
-    function input(gameKey, s) {
-        let el;
-        if (s.type === "select") {
-            el = document.createElement("select");
-            for (const [value, label] of s.options) {
-                const o = document.createElement("option");
-                o.value = String(value); o.textContent = label; o.selected = value === s.def;
-                el.appendChild(o);
-            }
-        } else {
-            el = document.createElement("input");
-            if (s.type === "bool") { el.type = "checkbox"; el.checked = !!s.def; }
-            else { el.type = "number"; el.min = String(s.min); el.max = String(s.max); el.step = "1"; el.value = String(s.def); }
-        }
+    /* Every control is a dropdown (owner, 2026-09-11: no checkboxes, no bare number fields,
+       everything reads like the timer): a few values that work well, "Off" where the setting
+       can be off, and "Custom…", which reveals a number row under it. `option(...)` builds
+       one, `presetSelect` the dropdown, `customRow` the number that belongs to it. */
+    const option = (value, text, selected) => {
+        const o = document.createElement("option");
+        o.value = String(value); o.textContent = text; o.selected = !!selected;
+        return o;
+    };
+    function presetSelect(s) {
+        const el = document.createElement("select");
         el.id = idFor(s.key);
         el.autocomplete = "off";
-        fields.push({ key: s.key, el: el.id, type: s.type, min: s.min, max: s.max, def: s.def, options: s.options, game: gameKey, with: s.with ? s.with.key : null });
+        if (s.type === "select") for (const [value, label] of s.options) el.appendChild(option(value, label, value === s.def));
+        else if (s.type === "bool") { el.appendChild(option("off", "Off", !s.def)); el.appendChild(option("on", "On", !!s.def)); }
+        else {                                              // "preset": Off?, the presets, Custom…
+            if (s.off) el.appendChild(option("off", s.off, !!s.startOff));        // `startOff`: the rule is off until it is picked
+            for (const v of s.presets || []) el.appendChild(option(v, presetText(s, v), !s.startOff && v === s.def));
+            el.appendChild(option("custom", "Custom…"));
+        }
         return el;
+    }
+    const presetText = (s, v) => `${v}${s.suffix || ""}`;
+    // the number that "Custom…" reveals, as its own row right under the setting
+    function customRow(s) {
+        const label = document.createElement("label");
+        label.className = "row row-custom";
+        label.id = "row-" + s.key.toLowerCase() + "-custom";
+        label.dataset.setting = s.key;
+        label.hidden = true;
+        const name = document.createElement("span");
+        name.textContent = s.customLabel || `Custom (${s.min}–${s.max})`;
+        const el = document.createElement("input");
+        el.type = "number"; el.id = idFor(s.key) + "-custom"; el.autocomplete = "off";
+        el.min = String(s.min); el.max = String(s.max); el.step = "1"; el.value = String(s.def || s.min);
+        label.append(name, el);
+        return label;
     }
     function row(gameKey, s) {
         const label = document.createElement("label");
@@ -74,34 +103,36 @@ const Settings = (() => {
         const name = document.createElement("span");
         name.className = "row-label";
         name.textContent = typeof s.label === "function" ? s.label(read()) : s.label;
-        label.appendChild(name);
-        const main = input(gameKey, s);
-        if (s.unit || s.with) {
-            const inline = document.createElement("span");
-            inline.className = "inline";
-            inline.appendChild(main);
-            if (s.with) {                                   // a number that only counts while the checkbox is on
-                const sub = input(gameKey, s.with);
-                sub.disabled = !s.def;
-                inline.appendChild(sub);
-                if (s.with.unit) inline.appendChild(small(s.with.unit));
-            }
-            if (s.unit) inline.appendChild(small(s.unit));
-            label.appendChild(inline);
-        } else label.appendChild(main);
+        label.append(name, presetSelect(s));
+        fields.push({ key: s.key, el: idFor(s.key), type: s.type, min: s.min, max: s.max, def: s.def,
+            options: s.options, presets: s.presets, off: s.off, flag: s.flag, game: gameKey });
         return label;
     }
-    function small(text) { const el = document.createElement("small"); el.textContent = text; return el; }
 
     /* ---------- read / write ---------- */
+    /* A field's value. A "preset" reads its dropdown, or the custom number when that is
+       picked, and `null` when it is Off; a `flag` setting then writes two config keys (chain:
+       chainRule off/on plus chainLen). */
     function readField(f) {
         const el = $(f.el);
-        if (f.type === "bool") return el.checked;
+        if (f.type === "bool") return el.value === "on";
         if (f.type === "select") { const o = f.options.find(([v]) => String(v) === el.value); return o ? o[0] : f.def; }
-        const v = parseInt(el.value, 10) || f.def;
+        if (el.value === "off") return null;
+        const raw = el.value === "custom" ? parseInt(($(f.el + "-custom") || {}).value, 10) : parseInt(el.value, 10);
+        const v = Number.isFinite(raw) ? raw : (f.def || f.min);
         return f.min !== undefined ? clamp(v, f.min, f.max) : v;
     }
-    const gameValues = () => Object.fromEntries(fields.map((f) => [f.key, readField(f)]));
+    const gameValues = () => Object.fromEntries(fields.flatMap((f) => {
+        const v = readField(f);
+        if (!f.flag) return [[f.key, v]];
+        return [[f.flag, v !== null], [f.key, v === null ? f.def : v]];
+    }));
+    // the board size is a preset control too: the dropdown, or its custom number
+    function sizeValue() {
+        const el = $("set-size");
+        const raw = el.value === "custom" ? parseInt($("set-size-custom").value, 10) : parseInt(el.value, 10);
+        return Number.isFinite(raw) ? raw : 0;
+    }
     function sizeLimits() {
         const d = def();
         const min = d.minSize ? Math.max(d.size.min, d.minSize(gameValues())) : d.size.min;
@@ -116,7 +147,7 @@ const Settings = (() => {
         const timer = timerSel === "custom" ? Math.round(parseFloat($("set-timer-custom").value || "3") * 60) : parseInt(timerSel, 10);
         return {
             game, players: clamp(players, floor(), maxPlayers),
-            n: clamp(parseInt($("set-size").value, 10) || d.size.default, lim.min, lim.max),
+            n: clamp(sizeValue() || d.size.default, lim.min, lim.max),
             timer: Math.max(0, timer || 0), timerSel, timerCustom: $("set-timer-custom").value,
             bot: bot ? { ...bot } : null,
             ...gameValues(),
@@ -132,19 +163,43 @@ const Settings = (() => {
         if ("bot" in s) bot = normalizeBot(s.bot);      // the room's bot travels with the settings (#36)
         if (s.players) players = clamp(parseInt(s.players, 10) || 2, floor(), 4);   // never below the seats in use (#34)
         for (const f of fields) {
-            if (f.type === "bool") $(f.el).checked = !!s[f.key];
-            else if (s[f.key]) $(f.el).value = String(s[f.key]);
+            if (f.type === "bool") $(f.el).value = s[f.key] ? "on" : "off";
+            else if (f.type === "select") { if (s[f.key] !== undefined) $(f.el).value = String(s[f.key]); }
+            else if (f.flag ? f.flag in s : s[f.key] !== undefined) writePreset(f, f.flag && !s[f.flag] ? null : s[f.key]);
         }
         if (s.timerSel) $("set-timer").value = s.timerSel;
         if (s.timerCustom) $("set-timer-custom").value = s.timerCustom;
         syncDependents();
         renderPlayers();
-        selectGame(game, false);
+        selectGame(game, false, true);                  // their size, not the one picked here
         silent = false;
     }
 
+    /* Put a number into a preset control: the dropdown when it is one of the offered values,
+       else "Custom…" with the number in its row (`null` = Off). */
+    function writePreset(f, value) {
+        const el = $(f.el);
+        const custom = $(f.el + "-custom");
+        if (value === null || value === undefined) { el.value = "off"; return; }
+        const v = clamp(parseInt(value, 10) || f.def || f.min, f.min, f.max);
+        const known = [...el.options].some((o) => o.value === String(v));
+        el.value = known ? String(v) : "custom";
+        if (custom) custom.value = String(v);
+    }
+    /* Every "Custom…" row shows while its dropdown says custom AND the setting it belongs to
+       is on screen (the chain rule's number must not linger after a switch to Five Wins). */
+    function syncCustomRows() {
+        for (const f of fields) {
+            const rowEl = $("row-" + f.key.toLowerCase() + "-custom");
+            const owner = $("row-" + f.key.toLowerCase());
+            if (rowEl) rowEl.hidden = (owner && owner.hidden) || $(f.el).value !== "custom";
+        }
+        $("row-size-custom").hidden = $("set-size").value !== "custom";
+        $("row-timer-custom").hidden = $("set-timer").value !== "custom";
+    }
+
     function save() {
-        sizeFor[game] = parseInt($("set-size").value, 10);
+        sizeFor[game] = sizeValue();
         Util.save(localStorage, KEY, { ...read(), sizeFor });
     }
     function load() {
@@ -154,28 +209,48 @@ const Settings = (() => {
         write(s);
     }
 
-    function fillSize() {
+    /* The board size dropdown is built per game: the sizes that game offers (`size.presets`,
+       inside its limits, five's minimum follows the win length) plus Custom…. */
+    function fillSize(reset = false) {
+        const d = def();
         const lim = sizeLimits();
-        const inp = $("set-size");
-        inp.min = String(lim.min);
-        inp.max = String(lim.max);
-        inp.value = String(clamp(sizeFor[game] || def().size.default, lim.min, lim.max));
+        const el = $("set-size");
+        const custom = $("set-size-custom");
+        // `reset` (another game, a config from the room) takes the size that game remembers;
+        // otherwise the list is only rebuilt around what is picked, so "Custom…" stays picked
+        const chosenCustom = !reset && el.value === "custom";
+        const want = clamp((reset ? 0 : sizeValue()) || sizeFor[game] || d.size.default, lim.min, lim.max);
+        el.innerHTML = "";
+        for (const v of (d.size.presets || []).filter((v) => v >= lim.min && v <= lim.max)) el.appendChild(option(v, `${v} × ${v}`, v === want));
+        el.appendChild(option("custom", "Custom…"));
+        const known = !chosenCustom && [...el.options].some((o) => o.value === String(want));
+        el.value = known ? String(want) : "custom";
+        custom.min = String(lim.min); custom.max = String(lim.max); custom.value = String(want);
         $("size-hint").textContent = `(${lim.min}–${lim.max})`;
-        $("size-label").textContent = def().sizeLabel || "Board size";   // boxes: "Boxes per side"
+        $("size-label").textContent = "Board size";
+        syncCustomRows();
     }
 
     // clamp typed numbers once a field is left (typing "1" on the way to "12" must not snap)
     function clampInputs() {
-        for (const f of fields) if (f.type === "int" && $(f.el).value !== "") $(f.el).value = String(readField(f));
+        for (const f of fields) {
+            const custom = $(f.el + "-custom");
+            if (custom && custom.value !== "") { const v = readField(f); if (v !== null) custom.value = String(v); }
+        }
         const lim = sizeLimits();
-        const inp = $("set-size");
-        inp.min = String(lim.min);
-        if (inp.value !== "") inp.value = String(clamp(parseInt(inp.value, 10) || def().size.default, lim.min, lim.max));
+        const custom = $("set-size-custom");
+        custom.min = String(lim.min); custom.max = String(lim.max);
+        if (custom.value !== "") custom.value = String(clamp(parseInt(custom.value, 10) || def().size.default, lim.min, lim.max));
         $("size-hint").textContent = `(${lim.min}–${lim.max})`;
         changed();
     }
 
-    function selectGame(key, announce = true) {
+    /* `resetSize`: take the size this game remembers instead of what is picked. True when the
+       game really changes and when a config arrives (`write`), false for the many re-renders
+       that only gray out cards (`setLocked`, `setMinPlayers`), which used to throw away a
+       "Custom…" size the moment anything else changed. */
+    function selectGame(key, announce = true, resetSize = false) {
+        const before = game;
         game = Games.has(key) ? key : Games.keys()[0];
         if (!supports(game)) game = Games.keys().find((k) => supports(k)) || game;   // this game doesn't take that many: the first that does
         const d = def();
@@ -188,18 +263,14 @@ const Settings = (() => {
             c.title = ok ? "" : `Not for ${players} players`;
         });
         document.querySelectorAll("#settings-modal [data-setting]").forEach((r) => { r.hidden = !shown.includes(r.dataset.setting); });
-        fillSize();
+        fillSize(resetSize || game !== before);          // another game: its own sizes, its own remembered one
         syncLabels();                                   // a setting that names itself from the others
         if (announce) changed(); else renderSummary();
     }
 
-    // a number attached to a checkbox only counts while the box is checked
-    function syncDependents() {
-        for (const f of fields) if (f.with) $(idFor(f.with)).disabled = !$(f.el).checked;
-    }
+    function syncDependents() { syncCustomRows(); }
     function syncUi() {
-        $("row-timer-custom").hidden = $("set-timer").value !== "custom";
-        syncDependents();
+        syncCustomRows();
         changed();
     }
     /* A setting may name itself from the others (`label` as a function of the config), so
@@ -339,10 +410,12 @@ const Settings = (() => {
             $(id).addEventListener("input", syncUi);
         }
         for (const f of fields) {
-            if (f.type === "int") $(f.el).addEventListener("change", clampInputs);
-            else { $(f.el).addEventListener("change", syncUi); $(f.el).addEventListener("input", syncUi); }
+            $(f.el).addEventListener("change", () => { fillSize(); syncUi(); });     // five: the size list follows the win length
+            const custom = $(f.el + "-custom");
+            if (custom) custom.addEventListener("change", () => { fillSize(); clampInputs(); });
         }
-        $("set-size").addEventListener("change", clampInputs);
+        $("set-size").addEventListener("change", syncUi);
+        $("set-size-custom").addEventListener("change", clampInputs);
         game = Games.keys()[0];
         load();
         renderPlayers();

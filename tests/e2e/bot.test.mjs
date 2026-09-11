@@ -41,7 +41,7 @@ test("bot lobby: sane default (middle level), the one-step modal with scores and
 });
 
 test("five wins against the bot (Easy): it moves by itself, the HUD calls it Bot, the game ends", async () => {
-    await B.click("#btn-settings"); await B.set("set-size", 6); await B.set("set-winlen", 4); await B.click("#btn-settings-done");
+    await B.click("#btn-settings"); await B.setting("size", 6); await B.setting("winlen", 4); await B.click("#btn-settings-done");
     await B.click("#btn-start");
     assert.equal(await B.text("p1-name"), "Bot");
     assert.equal(await B.text("p0-name"), "Alex", "my own name on my seat (#35)");

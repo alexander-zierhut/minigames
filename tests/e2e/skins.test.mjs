@@ -8,7 +8,7 @@ after(async () => { await B?.close(); await server?.close(); });
 
 async function startChain() {
     if (await B.screen() !== "screen-lobby") { if (await B.screen() === "screen-game") await B.click("#btn-menu"); else await B.click("#btn-local"); }
-    await B.selectGame("chain"); await B.click("#btn-settings"); await B.set("set-size", 4); await B.set("set-speed", 350); await B.click("#btn-settings-done");
+    await B.selectGame("chain"); await B.click("#btn-settings"); await B.setting("size", 4); await B.set("set-speed", 350); await B.click("#btn-settings-done");
     await B.click("#btn-start");
 }
 
@@ -46,7 +46,7 @@ test("Minecraft: full UI restyle, no rounded corners, unified dark panels", asyn
 });
 
 test("five wins on MC: quartz tiles, red last marker, hover keeps the texture", async () => {
-    await B.selectGame("five"); await B.click("#btn-settings"); await B.set("set-size", 9); await B.set("set-winlen", 5); await B.click("#btn-settings-done");
+    await B.selectGame("five"); await B.click("#btn-settings"); await B.setting("size", 9); await B.setting("winlen", 5); await B.click("#btn-settings-done");
     await B.click("#btn-start");
     assert.match(await B.ev("getComputedStyle(document.querySelector('.stone')).backgroundImage"), /quartz_block_side/);
     await B.move(40);

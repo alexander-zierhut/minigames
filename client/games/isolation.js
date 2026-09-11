@@ -138,7 +138,7 @@ const IsolationGame = Games.register({
     tagline: "Step one tile, then break one away. Whoever cannot move is trapped.",
     desc: "Break the floor, trap the rest",
     preview: "0.#.#.#.1",                  // two pawns, three tiles already broken (# = hole)
-    size: { min: 5, max: 12, default: 7 },
+    size: { min: 5, max: 12, default: 7, presets: [5, 7, 9, 11] },
     players: { min: 2, max: 4 },
     premove: false,                       // a move is two clicks: a premove would need both of them
     settings: [],

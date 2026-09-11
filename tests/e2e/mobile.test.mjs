@@ -91,7 +91,7 @@ test("online-shaped lobby with four seats: one Invite button beside the code, th
 });
 
 test("game: compact HUD, board outline visible, reactions inside the viewport, no scroll", async () => {
-    await M.selectGame("chain"); await M.click("#btn-settings"); await M.set("set-size", 6); await M.set("set-speed", 350); await M.click("#btn-settings-done");
+    await M.selectGame("chain"); await M.click("#btn-settings"); await M.setting("size", 6); await M.set("set-speed", 350); await M.click("#btn-settings-done");
     await M.click("#btn-start");
     await assertNoScroll("game");
     const b = JSON.parse(await M.ev("JSON.stringify(document.getElementById('board').getBoundingClientRect())"));
@@ -120,7 +120,7 @@ test("game: compact HUD, board outline visible, reactions inside the viewport, n
 
 test("result overlay stacks its buttons vertically on phones", async () => {
     await M.click("#btn-menu");
-    await M.selectGame("five"); await M.click("#btn-settings"); await M.set("set-size", 5); await M.set("set-winlen", 5); await M.click("#btn-settings-done");
+    await M.selectGame("five"); await M.click("#btn-settings"); await M.setting("size", 5); await M.setting("winlen", 5); await M.click("#btn-settings-done");
     await M.click("#btn-start");
     const start = (await M.state()).current;
     // starter fills row 0, the other row 4 (needs 5 stones -> 9 moves)
@@ -163,7 +163,7 @@ test("isolation: the board and the two-step highlights fit the phone, no scroll"
     await M.click("#result-fab");
     await M.click("#overlay-menu");
     await M.selectGame("isolation");
-    await M.click("#btn-settings"); await M.set("set-size", 7); await M.click("#btn-settings-done");
+    await M.click("#btn-settings"); await M.setting("size", 7); await M.click("#btn-settings-done");
     await assertNoScroll("isolation lobby");
     await M.click("#btn-start");
     await assertNoScroll("isolation game");

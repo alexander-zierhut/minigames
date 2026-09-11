@@ -26,7 +26,7 @@ test("local lobby: game picker, settings summary, start", async () => {
     assert.equal(await B.ev("document.getElementById('lobby-players').hidden"), true);
     await B.selectGame("chain");
     await B.click("#btn-settings");
-    await B.set("set-size", 4); await B.set("set-speed", 350);
+    await B.setting("size", 4); await B.set("set-speed", 350);
     await B.click("#btn-settings-done");
     assert.match(await B.text("settings-summary"), /^4 × 4/);
     await B.click("#btn-start");
@@ -95,7 +95,7 @@ test("back to room, switch to five wins with 6 in a row, scripted win with jumpi
     await B.selectGame("five");
     assert.match(await B.text("settings-summary"), /^11 × 11 · 5 in a row/, "five starts at its 11 × 11 default (#16)");
     await B.click("#btn-settings");
-    await B.set("set-winlen", 6); await B.set("set-size", 7);
+    await B.setting("winlen", 6); await B.setting("size", 7);
     await B.click("#btn-settings-done");
     assert.match(await B.text("settings-summary"), /7 × 7 · 6 in a row/);
     await B.click("#btn-start");

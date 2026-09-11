@@ -12,17 +12,17 @@ after(async () => { await B?.close(); await server?.close(); });
 // 3 × 3 lines: h(r, c) = r * 3 + c (0…11), v(r, c) = 12 + r * 4 + c (12…23); box 0 = 0, 3, 12, 13
 const edges = () => B.ev("document.querySelectorAll('#board > .edge').length");
 
-test("lobby: its own game card, size label and summary", async () => {
+test("lobby: its own game card, board size and summary", async () => {
     await B.click("#btn-local");
     assert.equal(await B.ev("document.querySelectorAll('.game-card').length"), await B.ev("Games.keys().length"), "one picker card per registered game");
     await B.selectGame("boxes");
     assert.equal(await B.ev("document.querySelector('.game-card[data-game=boxes]').classList.contains('selected')"), true);
     assert.equal(await B.text("menu-tagline"), "", "no tagline under the picker (an empty line)");
     await B.click("#btn-settings");
-    assert.equal(await B.text("size-label"), "Boxes per side");
+    assert.equal(await B.text("size-label"), "Board size", "the same label as every game (2026-09-11)");
     assert.equal(await B.text("size-hint"), "(2–10)");
     assert.equal(await B.ev("document.getElementById('game-settings').children.length ? [...document.querySelectorAll('#game-settings .row')].filter(r => !r.hidden).length : 0"), 0, "no rows of its own");
-    await B.set("set-size", 3);
+    await B.setting("size", 3);
     await B.click("#btn-settings-done");
     assert.match(await B.text("settings-summary"), /^3 × 3 · 9 boxes · no timer$/);
 });
@@ -118,7 +118,7 @@ test("rematch starts a fresh board with the next player to start", async () => {
 
 test("three on one device: the rotation runs over three seats and a closed box still gives another turn", async () => {
     await B.players(3);
-    await B.click("#btn-settings"); await B.set("set-size", 2); await B.click("#btn-settings-done");
+    await B.click("#btn-settings"); await B.setting("size", 2); await B.click("#btn-settings-done");
     assert.match(await B.text("settings-summary"), /^2 × 2 · 3 players · 4 boxes · no timer$/);
     await B.click("#btn-start");
     assert.equal(await B.ev("document.querySelectorAll('#players .player').length"), 3);
@@ -141,7 +141,7 @@ test("three on one device: the rotation runs over three seats and a closed box s
 
 test("phone: the board and the HUD fit 360 × 780 without scrolling", async () => {
     await B.emulate(360, 780);
-    await B.click("#btn-settings"); await B.set("set-size", 5); await B.click("#btn-settings-done");
+    await B.click("#btn-settings"); await B.setting("size", 5); await B.click("#btn-settings-done");
     await B.click("#btn-start");
     // the viewport changed while the game screen was hidden: nudge the layout the way a real
     // rotation would, then wait until the board has been fitted to the phone
@@ -166,7 +166,7 @@ test("against a bot: it draws lines by itself and closes boxes", async () => {
     await B.click("#btn-bot");
     await B.selectGame("boxes");
     assert.match(await B.text("opponent-summary"), /^Bot · Normal · 100 % vs Random · [\d.]+ % puzzles$/);
-    await B.click("#btn-settings"); await B.set("set-size", 3); await B.click("#btn-settings-done");
+    await B.click("#btn-settings"); await B.setting("size", 3); await B.click("#btn-settings-done");
     await B.click("#btn-start");
     assert.equal(await B.text("p1-name"), "Bot");
     assert.equal(await B.text("p0-name"), "Alex");

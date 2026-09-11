@@ -61,10 +61,11 @@ const FiveGame = Games.register({
     tagline: "Place a stone anywhere, no gravity. First to get five in a row wins.",
     desc: "Five in a row, no gravity",
     preview: "0.110...0",
-    size: { min: 5, max: 25, default: 11 },
+    size: { min: 5, max: 25, default: 11, presets: [9, 11, 13, 15, 19] },
     minSize: (cfg) => Math.max(5, cfg.winLen),     // the board can't be smaller than the row to win
     settings: [
-        { key: "winLen", label: "In a row to win", type: "int", min: 3, max: 25, def: 5, unit: "stones" },
+        { key: "winLen", label: "In a row to win", type: "preset", presets: [3, 4, 5, 6, 7], def: 5, min: 3, max: 25,
+          customLabel: "Custom stones (3–25)" },
         /* The Yavalath rule: one stone short of the winning row loses (the classic is 4 wins,
            3 loses). The row is named after what it does and follows the win length, because
            "Yavalath rule" told a player nothing (owner, 2026-09-11). */

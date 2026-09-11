@@ -257,12 +257,17 @@ doesn't snap at "1"). Persisted in `localStorage["chainreact.settings"]` togethe
 `sizeFor` (remembered board size per game). Inputs have `autocomplete="off"` (Firefox
 restores form values on reload).
 
-- Shared rows (in index.html): board size (limits and default from the game's `size` +
-  optional `minSize(cfg)`: chain 3–12, default 6; five 5–25, default 11 since #16; boxes
-  2–10, default 5 — a size
+- **Every control is a dropdown** (owner, 2026-09-11: no checkboxes, no bare number
+  fields). One shape for all of them, the timer's: a few values that work well, "Off" where
+  the setting can be off, and "Custom…", which reveals a number row (`.row-custom`,
+  `#row-<key>-custom` with `#set-<key>-custom`) right under it. Units are gone from the
+  rows: they are part of the option text ("15 explosions") or of the custom row's label.
+- Shared rows (in index.html): board size (`#set-size`, options built per game by
+  `fillSize` from `size.presets` inside the limits, `size` + optional `minSize(cfg)`:
+  chain 3–12 default 6, five 5–25 default 11 since #16, isolation 5–12 default 7, boxes
+  2–10 default 5, whose row is "Board size" like everyone else's since 2026-09-11; a size
   remembered in `sizeFor` wins over the default; `cfg` holds every game field's current
-  value; the row's label is `#size-label`, "Board size" unless the game declares its own
-  `sizeLabel`, e.g. boxes "Boxes per side"), timer per player (Off default / 1 / 3 / 5 / 10 min / custom minutes). **Players**
+  value), timer per player (Off default / 1 / 3 / 5 / 10 min / custom minutes). **Players**
   is not in the modal: it is the lobby's segmented control (`#set-players`, 2 default / 3 /
   4, `Settings.setPlayers(n)` / `Settings.players`; hidden and forced to 2 against a bot,
   #28). Every game declares `players: { min, max }` (default 2–4, `Games.register` fills
@@ -276,22 +281,28 @@ restores form values on reload).
   control (`setLocked`, #29) stays fully disabled; both paths share `renderPlayers()`.
 - **Game rows are generated** into `#game-settings` from every registered game's
   `settings` list (`Settings.init` → `buildRows`). A setting is
-  `{ key, label, type: "int" | "select" | "bool", def, min?, max?, unit?, options?, with? }`;
+  `{ key, label, type: "select" | "bool" | "preset", def, min?, max?, options?, presets?,
+  off?, startOff?, suffix?, customLabel?, flag? }`;
   `label` may be a **function of the current config**, re-read on every change and on a game
   switch (`syncLabels`), which is how five's Yavalath row says "Lose when 4 in a row" and
-  follows the win length;
-  `options` = `[[value, label], …]` for a select, `with` = a second `int` field in the same
-  row that is enabled only while the checkbox is on (chain's `chainRule` + `chainLen`).
+  follows the win length. The types: `select` (`options` = `[[value, label], …]`, chain's
+  speed), `bool` (rendered as an Off / On dropdown, five's `yavalath`) and **`preset`**
+  (`presets: [numbers]`, optional `off` label with `startOff`, `suffix` for the option text,
+  `min` / `max` / `def` and `customLabel` for the Custom row; five's `winLen`). A preset may
+  name a **`flag`**: one control then writes two config keys, which is how chain's single
+  "Win on a long chain" row sets `chainRule` on or off and `chainLen` to the number, leaving
+  the config shape (and every replay) exactly as it was.
   The row is `<label class="row" id="row-<key>" data-setting="<key>">`, the input
   `#set-<key>`, key lowercased (`set-winlen`, `set-chainrule`, `set-chainlen`). A row is
   shown when the selected game's list contains its key. `#game-settings` is
   `display: contents`, so the generated rows space exactly like the fixed ones and hidden
-  rows take no gap (#26). Today: five `winLen` (3–25, default 5, also the board's minimum)
-  and `yavalath` (the Yavalath rule, off by default, its row named after what it does:
-  "Lose when 4 in a row", see "Five Wins rules" in `games.md`); chain `speed`
-  (Slow 1100 / Normal 750 / Fast 350 ms) and `chainRule`/`chainLen` (win on N explosions,
-  off by default, N default 15; owner dislikes the rule but wanted it available). Isolation
-  and Käsekästchen declare none: the shared board-size row is all they need.
+  rows take no gap (#26). Today: five `winLen` (a preset 3/4/5/6/7, default 5, also the
+  board's minimum) and `yavalath` (Off / On, off by default, its row named after what it
+  does: "Lose when 4 in a row", see "Five Wins rules" in `games.md`); chain `speed`
+  (Slow 1100 / Normal 750 / Fast 350 ms) and the `chainLen` preset with the `chainRule`
+  flag (Off, or 10 / 15 / 20 / 30 explosions, or a custom number; owner dislikes the rule
+  but wanted it available). Isolation and Käsekästchen declare none: the shared board-size
+  row is all they need.
 - `Settings.read()` returns the **config** a game starts with: `{ game, players, n,
   timer, timerSel, timerCustom, bot, …every game field of every game }` (all fields travel so
   a mirrored settings message is complete for any game the room may pick). `bot` (#36) is
@@ -347,8 +358,9 @@ the open row `selected`, no chevron) and the open section sits beside it **in a 
 own** (`.prefs-section`: `--bg2` background, border, its `.section-title` a 17 px bold
 heading with a hairline under it), so nothing is ever two taps away; `open()` selects the
 first section right away. Both columns end on the same line (`align-items: stretch`, the
-section `flex: 1`, the menu rows `flex: 1 0 auto`). A too tall modal scrolls as a whole
-(the `.modal` backdrop), never `.prefs-body`. Phones keep the plain form without the card.
+section `flex: 1`, while the menu keeps its own height, `align-self: start`: a tall section
+must never stretch the menu rows). A too tall modal scrolls as a whole (the `.modal`
+backdrop), never `.prefs-body`. Phones keep the plain form without the card.
 **Adding a section = one nav row + one `.prefs-section` panel in index.html + one entry in
 `SECTIONS`** (and a `sectionSummary` case); nothing else knows about them.
 

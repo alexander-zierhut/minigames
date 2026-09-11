@@ -34,8 +34,8 @@ test("two players start a game; a third browser watches through the spectate lin
     await B.waitFor(`Room.spec === ${JSON.stringify(spec)}`, { what: "the players share the spectator code" });
     assert.ok((await A.ev("Room.spectateLink()")).endsWith(`?watch=${spec}`), "the 👀 link carries the spectator code");
     assert.ok(!(await A.ev("Room.spectateLink()")).includes(code), "and never the room code");
-    await A.selectGame("chain"); await A.players(2); await A.click("#btn-settings"); await A.set("set-size", 4); await A.set("set-speed", 350); await A.set("set-timer", 0); await A.click("#btn-settings-done");
-    await B.waitFor("document.getElementById('set-size').value === '4'", { what: "guest mirrors" });
+    await A.selectGame("chain"); await A.players(2); await A.click("#btn-settings"); await A.setting("size", 4); await A.set("set-speed", 350); await A.setting("timer", 0); await A.click("#btn-settings-done");
+    await B.waitFor("Settings.read().n === 4", { what: "guest mirrors" });
     await A.click("#btn-start");
     await inGame(A); await inGame(B);
     await A.move(5);

@@ -49,7 +49,7 @@ test("the lobby lists Isolation and starts it with the default 7 × 7 board", as
     assert.match(await B.text("settings-summary"), /^7 × 7 · no timer$/);
     assert.equal(await B.ev("[...document.querySelectorAll('#game-settings .row')].every(r => r.hidden)"), true, "no game rows of its own");
     await B.click("#btn-settings");
-    await B.set("set-size", 6);
+    await B.setting("size", 6);
     await B.click("#btn-settings-done");
     await B.click("#btn-start");
     assert.equal(await B.screen(), "screen-game");
@@ -126,7 +126,7 @@ test("a whole game ends in a trap, with the overlay and the replay bar", async (
 test("three players on one device: a trapped seat is out and the rest play on", async () => {
     await B.click("#btn-menu");
     await B.players(3);
-    await B.click("#btn-settings"); await B.set("set-size", 5); await B.click("#btn-settings-done");
+    await B.click("#btn-settings"); await B.setting("size", 5); await B.click("#btn-settings-done");
     await B.click("#btn-start");
     assert.equal(await B.ev("document.querySelectorAll('#players .player').length"), 3);
     const st = await B.state();
@@ -148,7 +148,7 @@ test("against a bot: the bot plays Isolation by itself", async () => {
     assert.equal(await B.text("lobby-kind"), "Against a bot");
     await B.selectGame("isolation");
     assert.match(await B.text("btn-opponent"), /Bot/);
-    await B.click("#btn-settings"); await B.set("set-size", 6); await B.click("#btn-settings-done");
+    await B.click("#btn-settings"); await B.setting("size", 6); await B.click("#btn-settings-done");
     await B.click("#btn-start");
     assert.equal(await B.text("p1-name"), "Bot");
     const [to] = await steps();

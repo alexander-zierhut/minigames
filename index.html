@@ -386,9 +386,15 @@
         <!-- spectators only watch (#29) -->
         <p class="hint" id="settings-locked-hint" hidden>You are spectating. Only the players change the settings.</p>
         <div class="settings">
+            <!-- every control is a dropdown: values that work well plus "Custom…", which
+                 reveals the number row under it (settings.js builds the options per game) -->
             <label class="row">
-                <span><span id="size-label">Board size</span> <small id="size-hint"></small></span>
-                <span class="inline"><input type="number" id="set-size" min="3" max="25" step="1" value="6" autocomplete="off"><small>× same</small></span>
+                <span id="size-label">Board size</span>
+                <select id="set-size" autocomplete="off"></select>
+            </label>
+            <label class="row row-custom" id="row-size-custom" hidden>
+                <span>Custom size <small id="size-hint"></small></span>
+                <input type="number" id="set-size-custom" min="3" max="25" step="1" value="6" autocomplete="off">
             </label>
             <!-- one row per game setting, built by settings.js from each game's `settings` list -->
             <div class="game-settings" id="game-settings"></div>
@@ -403,7 +409,7 @@
                     <option value="custom">Custom…</option>
                 </select>
             </label>
-            <label class="row" id="row-timer-custom" hidden>
+            <label class="row row-custom" id="row-timer-custom" hidden>
                 <span>Custom minutes</span>
                 <input type="number" id="set-timer-custom" min="0.5" max="120" step="0.5" value="3" autocomplete="off">
             </label>

@@ -158,6 +158,26 @@ export async function launchBrowser({ width = 1400, height = 900, mobile = false
         // ---- game helpers ----
         click: (sel) => B.ev(`(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) throw new Error("no element " + ${JSON.stringify(sel)}); e.click(); return true; })()`),
         set: (id, value) => B.ev(`(() => { const e = document.getElementById(${JSON.stringify(id)}); e.value = ${JSON.stringify(String(value))}; e.dispatchEvent(new Event("input")); e.dispatchEvent(new Event("change")); return e.value; })()`),
+        /* One settings control (every one is a dropdown since 2026-09-11): picks the value
+           when it is offered, else "Custom…" and fills the number row under it. `true` /
+           `false` drive the Off / On dropdowns. `key` is the id without "set-". */
+        setting: (key, value) => {
+            const want = value === true ? "on" : value === false ? "off" : String(value);
+            // the timer's options are seconds, its Custom row minutes: pass seconds either way
+            const customWant = key === "timer" && Number.isFinite(+value) ? String(+value / 60) : want;
+            return B.ev(`(() => {
+                const k = ${JSON.stringify(key)}, want = ${JSON.stringify(want)};
+                const sel = document.getElementById("set-" + k);
+                if (!sel) throw new Error("no setting " + k);
+                const custom = document.getElementById("set-" + k + "-custom");
+                const fire = (el) => { el.dispatchEvent(new Event("input")); el.dispatchEvent(new Event("change")); };
+                if ([...sel.options].some((o) => o.value === want)) { sel.value = want; fire(sel); return sel.value; }
+                if (!custom) throw new Error("no custom value for " + k + " (" + want + ")");
+                sel.value = "custom"; fire(sel);
+                custom.value = ${JSON.stringify(customWant)}; fire(custom);
+                return custom.value;
+            })()`);
+        },
         check: (id, on) => B.ev(`(() => { const e = document.getElementById(${JSON.stringify(id)}); e.checked = ${!!on}; e.dispatchEvent(new Event("change")); return e.checked; })()`),
         text: (id) => B.ev(`document.getElementById(${JSON.stringify(id)}).textContent`),
         screen: () => B.ev("document.querySelector('.screen:not([hidden])')?.id"),

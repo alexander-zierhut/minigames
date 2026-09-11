@@ -49,8 +49,8 @@ test("three seats: the host sets players 3, two guests join and get seats 1 and 
 });
 
 test("the last guest starts; moves by every seat reach everyone; nobody moves out of turn", { skip: !ONLINE }, async () => {
-    await A.selectGame("chain"); await A.click("#btn-settings"); await A.set("set-size", 4); await A.set("set-speed", 350); await A.set("set-timer", 0); await A.click("#btn-settings-done");
-    await C.waitFor("document.querySelector('.game-card.selected').dataset.game === 'chain' && document.getElementById('set-size').value === '4'", { what: "guest 2 mirrors settings" });
+    await A.selectGame("chain"); await A.click("#btn-settings"); await A.setting("size", 4); await A.set("set-speed", 350); await A.setting("timer", 0); await A.click("#btn-settings-done");
+    await C.waitFor("document.querySelector('.game-card.selected').dataset.game === 'chain' && Settings.read().n === 4", { what: "guest 2 mirrors settings" });
     await C.click("#btn-start");
     await inGame(A); await inGame(B); await inGame(C);
     await sleep(400);

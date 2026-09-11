@@ -167,12 +167,16 @@ const ChainGame = Games.register({
     tagline: "Fill a cell, it explodes into its neighbours. Take the whole board.",
     desc: "Explosions & chain reactions",
     preview: ".A.bcA.a.",                  // 3×3 picker preview: a full cyan cell about to burst, its neighbours (see Games.previewClass)
-    size: { min: 3, max: 12, default: 6 },
+    size: { min: 3, max: 12, default: 6, presets: [4, 5, 6, 8, 10] },
     // rows of #settings-modal for this game (built by settings.js, read into config.<key>)
     settings: [
         { key: "speed", label: "Animation speed", type: "select", def: 750, options: [[1100, "Slow"], [750, "Normal"], [350, "Fast"]] },
-        { key: "chainRule", label: "Win on a long chain", type: "bool", def: false,
-          with: { key: "chainLen", type: "int", min: 5, max: 99, def: 15, unit: "explosions" } },   // the number next to the checkbox
+        /* One dropdown for the optional chain win: Off, or how many explosions win outright.
+           It writes both config keys (`chainRule` on/off, `chainLen` the number), so the rules
+           and every replay keep the shape they always had. */
+        { key: "chainLen", flag: "chainRule", label: "Win on a long chain", type: "preset",
+          off: "Off", startOff: true, presets: [10, 15, 20, 30], suffix: " explosions", def: 15, min: 5, max: 99,
+          customLabel: "Custom explosions (5–99)" },
     ],
     // Learn (#41): the rules in one sentence each and a guided tutorial on a 4×4 board.
     // The scenarios come from the proven puzzle set (client/learn/chain-scenarios.js).

@@ -21,8 +21,8 @@ test("a finished local game is saved and survives a reload", async () => {
     await B.click("#btn-local");
     await B.selectGame("five");
     await B.click("#btn-settings");
-    await B.set("set-size", 5);
-    await B.set("set-winlen", 4);
+    await B.setting("size", 5);
+    await B.setting("winlen", 4);
     await B.click("#btn-settings-done");
     await B.click("#btn-start");
     for (const i of FIVE_WIN) await B.move(i);

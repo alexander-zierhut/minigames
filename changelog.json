@@ -6,6 +6,15 @@
       "entries": [
         {
           "type": "improvement",
+          "text": "Every setting is a dropdown now, like the timer always was: a few values that work well, Off where it applies, and \"Custom…\" when you want your own number. The checkboxes are gone, the number fields fill the row, and Käsekästchen calls its setting \"Board size\" like the other games."
+        },
+        {
+          "type": "fix",
+          "technical": true,
+          "text": "Fixes on the same day's work: the preferences menu keeps its size when a section is taller, a row that copied something stays green while the pointer rests on it, a custom board size is not thrown away by the next change, and a custom explosion count disappears with the game it belongs to."
+        },
+        {
+          "type": "improvement",
           "text": "The Yavalath setting in Five Wins says what it does: \"Lose when 4 in a row\", and the number follows the row length you need to win."
         },
         {

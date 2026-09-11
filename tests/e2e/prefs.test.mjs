@@ -20,7 +20,7 @@ test("the button is there on title, lobby and game; the modal opens and closes",
     assert.equal(await B.ev("document.getElementById('prefs-modal').hidden"), true);
     await B.click("#btn-local");
     assert.equal(await visible(B), true, "lobby");
-    await B.selectGame("chain"); await B.click("#btn-settings"); await B.set("set-size", 4); await B.set("set-speed", 350); await B.click("#btn-settings-done");
+    await B.selectGame("chain"); await B.click("#btn-settings"); await B.setting("size", 4); await B.set("set-speed", 350); await B.click("#btn-settings-done");
     await B.click("#btn-start");
     assert.equal(await visible(B), true, "game");
     await B.click("#prefs-btn");
@@ -118,7 +118,7 @@ test("profile (#35): a name is drawn on the first visit, a new one survives a re
     await B.click("#btn-prefs-done");
     // on this device seat 0 is me and the others take the first default names that are not mine
     await B.click("#btn-local"); await B.selectGame("five");
-    await B.click("#btn-settings"); await B.set("set-size", 5); await B.set("set-winlen", 4); await B.click("#btn-settings-done");
+    await B.click("#btn-settings"); await B.setting("size", 5); await B.setting("winlen", 4); await B.click("#btn-settings-done");
     await B.click("#btn-start");
     const seats = JSON.parse(await B.ev("JSON.stringify(Prefs.seatNames(2))"));
     assert.equal(seats[0], "Robin");
@@ -131,7 +131,7 @@ test("profile (#35): a name is drawn on the first visit, a new one survives a re
 
 test("sounds: locked until a gesture, cues follow the game, mute silences, nothing throws in any set", async () => {
     await B.click("#btn-local"); await B.selectGame("chain");
-    await B.click("#btn-settings"); await B.set("set-size", 4); await B.set("set-speed", 350); await B.click("#btn-settings-done");
+    await B.click("#btn-settings"); await B.setting("size", 4); await B.set("set-speed", 350); await B.click("#btn-settings-done");
     await B.click("#btn-start");
     assert.equal(await B.ev("Sound.unlocked"), false, "no audio before the first gesture");
     await B.move(5);
@@ -171,7 +171,7 @@ test("phone: the button stays clear of the cards, the board and the reaction tog
     const lobby = JSON.parse(await M.ev("JSON.stringify(document.querySelector('#screen-lobby .menu-card').getBoundingClientRect())"));
     assert.ok(lobby.top >= btn.bottom, "lobby card starts below the button");
     assert.ok((await M.noScroll()).screen, "lobby still does not scroll");
-    await M.selectGame("chain"); await M.click("#btn-settings"); await M.set("set-size", 6); await M.set("set-speed", 350); await M.click("#btn-settings-done");
+    await M.selectGame("chain"); await M.click("#btn-settings"); await M.setting("size", 6); await M.set("set-speed", 350); await M.click("#btn-settings-done");
     await M.click("#btn-start");
     const board = JSON.parse(await M.ev("JSON.stringify(document.getElementById('board').getBoundingClientRect())"));
     const react = JSON.parse(await M.ev("JSON.stringify(document.getElementById('react-toggle').getBoundingClientRect())"));
@@ -201,7 +201,7 @@ test("phone in a game: the ⚙ button is actually tappable and lines up with the
     try {
         await M.goto(server.url);
         await M.click("#btn-local"); await M.selectGame("chain");
-        await M.click("#btn-settings"); await M.set("set-size", 4); await M.set("set-speed", 350); await M.click("#btn-settings-done");
+        await M.click("#btn-settings"); await M.setting("size", 4); await M.set("set-speed", 350); await M.click("#btn-settings-done");
         await M.click("#btn-start");
         const r = JSON.parse(await M.ev("JSON.stringify({ g: document.getElementById('prefs-btn').getBoundingClientRect(), t: document.getElementById('react-toggle').getBoundingClientRect() })"));
         assert.ok(Math.abs(r.g.top - r.t.top) <= 1, `⚙ and 😜 share the top edge (${r.g.top} vs ${r.t.top})`);

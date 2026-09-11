@@ -109,8 +109,7 @@ const BoxesGame = Games.register({
     tagline: "Draw a line between two dots. Close a box and it is yours, and you go again. Most boxes wins.",
     desc: "Close boxes, most wins",
     preview: "01.1.0.01",
-    size: { min: 2, max: 10, default: 5 },
-    sizeLabel: "Boxes per side",
+    size: { min: 2, max: 10, default: 5, presets: [3, 4, 5, 6, 8] },
     settings: [],
     describeRules: (cfg) => [`${cfg.n * cfg.n} boxes`],
     /* Learn (#41): the rule bullets, and a hand-written lesson on a 2 × 2 board that walks

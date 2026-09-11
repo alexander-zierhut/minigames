@@ -210,7 +210,7 @@ test("Yavalath rule: Sensei plays it, with its own benchmark numbers and its own
     assert.match(O.summary("five", YAV), new RegExp(`${variant.score} % vs Random`), "the variant's score in the lobby row");
     S.selectGame("five");
     assert.equal(S.read().yavalath, false);
-    w.document.getElementById("set-yavalath").checked = true;
+    w.document.getElementById("set-yavalath").value = "on";
     w.document.getElementById("set-yavalath").dispatchEvent(new w.Event("change"));
     assert.equal(S.read().yavalath, true);
     assert.match(S.summary(), /5 in a row · no timer · 4 in a row loses$/);

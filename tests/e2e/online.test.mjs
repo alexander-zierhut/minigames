@@ -66,9 +66,9 @@ test("a new name in the preferences reaches the others (#35)", { skip: !ONLINE }
 });
 
 test("lobby settings mirror both ways", { skip: !ONLINE }, async () => {
-    await A.selectGame("five"); await A.click("#btn-settings"); await A.set("set-size", 7); await A.set("set-winlen", 5); await A.click("#btn-settings-done");
-    await B.waitFor("document.querySelector('.game-card.selected').dataset.game === 'five' && document.getElementById('set-size').value === '7'", { what: "guest mirrors host settings" });
-    await B.click("#btn-settings"); await B.set("set-timer", 180); await B.click("#btn-settings-done");
+    await A.selectGame("five"); await A.click("#btn-settings"); await A.setting("size", 7); await A.setting("winlen", 5); await A.click("#btn-settings-done");
+    await B.waitFor("document.querySelector('.game-card.selected').dataset.game === 'five' && Settings.read().n === 7", { what: "guest mirrors host settings" });
+    await B.click("#btn-settings"); await B.setting("timer", 180); await B.click("#btn-settings-done");
     await A.waitFor("document.getElementById('set-timer').value === '180'", { what: "host mirrors guest timer" });
     assert.match(await A.text("settings-summary"), /7 × 7 · 5 in a row · 3 min timer/);
 });
@@ -160,7 +160,7 @@ test("premove (#37): the guest clicks while the host is to move, it is played th
 test("back to room from one side moves both; host switches game; guest follows", { skip: !ONLINE }, async () => {
     await B.click("#btn-menu");
     await A.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-lobby'", { what: "host back in lobby" });
-    await A.selectGame("chain"); await A.click("#btn-settings"); await A.set("set-size", 4); await A.set("set-speed", 350); await A.set("set-timer", 0); await A.click("#btn-settings-done");
+    await A.selectGame("chain"); await A.click("#btn-settings"); await A.setting("size", 4); await A.set("set-speed", 350); await A.setting("timer", 0); await A.click("#btn-settings-done");
     await B.waitFor("document.querySelector('.game-card.selected').dataset.game === 'chain'", { what: "guest mirrors chain" });
     await A.click("#btn-start");
     await B.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-game' && document.getElementById('board').classList.contains('chain')", { what: "guest in chain game" });
@@ -257,7 +257,7 @@ test("a timed game hides the board while the clock is paused (nobody thinks for 
         await joinRoom(G, server.url, c);
         await H.waitFor("Room.allHere()", { timeout: 30000, what: "both in the room" });
         await H.selectGame("chain");
-        await H.click("#btn-settings"); await H.set("set-size", 4); await H.set("set-speed", 350); await H.set("set-timer", 180); await H.click("#btn-settings-done");
+        await H.click("#btn-settings"); await H.setting("size", 4); await H.set("set-speed", 350); await H.setting("timer", 180); await H.click("#btn-settings-done");
         await sleep(400);
         await H.click("#btn-start");
         for (const X of [H, G]) await X.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-game'", { what: "the game" });
@@ -343,6 +343,8 @@ test("hide the room code (#19): bullets in the lobby and the HUD, nothing in the
     await A.waitFor(`window.__copied === ${JSON.stringify(code)}`, { what: "copy code copies the real code" });
     // the row says it worked on itself: a check and a green edge, then back (no toast)
     await A.waitFor("document.querySelector('#btn-copy-code .gear-icon').dataset.icon === 'check' && document.getElementById('btn-copy-code').classList.contains('done')", { what: "the row confirms" });
+    // the pointer rests on the row that was just clicked: hover must not paint over the green edge
+    assert.equal(await A.ev("(() => { const b = document.getElementById('btn-copy-code'); const hovered = [...document.styleSheets].flatMap(s => [...s.cssRules]).filter(r => r.selectorText && r.selectorText.includes('.settings-summary.done')).some(r => r.selectorText.includes(':hover')); return hovered; })()"), true, "the done state is styled for :hover too");
     await A.waitFor("document.querySelector('#btn-copy-code .gear-icon').dataset.icon === 'copy' && !document.getElementById('btn-copy-code').classList.contains('done')", { timeout: 5000, what: "and goes back" });
     assert.equal(await B.text("lobby-code"), code, "only my own view hides it");
     // a refresh of the bare page rejoins the room from the session and keeps the code hidden

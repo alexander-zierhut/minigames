@@ -16,7 +16,7 @@ test("four on one device: settings row, summary, four HUD cards, rotation, no wi
     assert.equal(await B.ev("document.querySelector('#settings-modal #set-players, #settings-modal #row-players')"), null, "not in the settings modal any more");
     await B.players(4);
     assert.equal(await B.ev("document.querySelector('#set-players button.selected').dataset.players"), "4");
-    await B.click("#btn-settings"); await B.set("set-size", 7); await B.set("set-winlen", 4);
+    await B.click("#btn-settings"); await B.setting("size", 7); await B.setting("winlen", 4);
     await B.click("#btn-settings-done");
     assert.match(await B.text("settings-summary"), /^7 × 7 · 4 players · 4 in a row/);
     await B.click("#btn-start");
@@ -42,7 +42,7 @@ test("four on one device: settings row, summary, four HUD cards, rotation, no wi
 
 test("three on one device in Chain React: elimination by the rules, MC skin blocks for seats 2 and 3", async () => {
     await B.selectGame("chain");
-    await B.players(3); await B.click("#btn-settings"); await B.set("set-size", 3); await B.set("set-speed", 350); await B.click("#btn-settings-done");
+    await B.players(3); await B.click("#btn-settings"); await B.setting("size", 3); await B.set("set-speed", 350); await B.click("#btn-settings-done");
     await B.click("#btn-start");
     assert.equal((await B.state()).players, 3);
     assert.equal(await B.ev("document.querySelectorAll('#players .player').length"), 3);

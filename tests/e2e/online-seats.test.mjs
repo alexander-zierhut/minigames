@@ -29,7 +29,7 @@ test("three in a two-seat room: the third watches", { skip: !ONLINE }, async () 
     await joinRoom(B, server.url, code);
     await bothConnected(A, B);
     await A.selectGame("chain"); await A.players(2);
-    await A.click("#btn-settings"); await A.set("set-size", 4); await A.set("set-speed", 350); await A.set("set-timer", 0); await A.click("#btn-settings-done");
+    await A.click("#btn-settings"); await A.setting("size", 4); await A.set("set-speed", 350); await A.setting("timer", 0); await A.click("#btn-settings-done");
     await joinRoom(C, server.url, code);
     await seat(C, -1);
     await A.waitFor("document.getElementById('lobby-spectators').textContent === '1 spectator watching'", { what: "one watching" });
