@@ -443,6 +443,7 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
     display: flex; align-items: center; gap: 10px; text-align: left;
     padding: 8px 10px; background: var(--bg2); border: 2px solid var(--line); border-radius: 12px;
 }
+.replay-item > .game-preview.tiny { flex: 0 0 auto; }
 .replay-info { min-width: 0; flex: 1 1 auto; }
 .replay-title { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .replay-sub { font-size: 11px; color: var(--muted); line-height: 1.35; }
@@ -459,7 +460,7 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
     .replay-count { flex: 1 1 100%; margin-left: 0; text-align: right; }
     .replay-body { min-height: 220px; }
     .replay-item { flex-wrap: wrap; gap: 6px; }
-    .replay-info { flex: 1 1 100%; }
+    .replay-info { flex: 1 1 calc(100% - 32px); }                /* next to the tile, the buttons under both */
     .replay-buttons { flex: 1 1 100%; justify-content: flex-end; }
     .replay-buttons .btn.small { padding: 5px 10px; font-size: 11px; }
 }
