@@ -20,8 +20,9 @@
      best-move / trap / turnaround   the FIRST move is judged against `best` (the proven
                                      optimal moves); the game then simply plays on
      play-from-here (goal: "win")    only the OUTCOME counts: you have to win the game
-   Retry sets the position up again, and a solved scenario offers the next one. A tier shows
-   a lock hint until the one before it is UNLOCK-solved, but nothing is ever blocked.
+   Retry sets the position up again, and a solved scenario offers the next one. A tier is
+   marked locked (its header muted) until the one before it is UNLOCK-solved, but nothing is
+   ever blocked.
    Generated scenario sets (scripts/learn/pick-scenarios.mjs, from the proven puzzle sets)
    register themselves through Learn.scenarios(game, list) and are appended to the game's own.
 
@@ -49,11 +50,12 @@ const Learn = (() => {
 
     /* The ladder (#44): three tiers, four kinds of scenario. A tier opens up once UNLOCK of
        the one before it is solved, but a locked row still starts when it is tapped: the lock
-       is a nudge, never a wall. */
+       is a muted header, never a wall or a note. */
+    // id, label and the one line under the label on the details page
     const TIERS = [
-        { id: "basics", label: "Basics" },
-        { id: "tactics", label: "Tactics" },
-        { id: "mastery", label: "Mastery" },
+        { id: "basics", label: "Basics", text: "Wins in one move and the first traps. Start here." },
+        { id: "tactics", label: "Tactics", text: "Ideas a move or two deep, and positions that look lost." },
+        { id: "mastery", label: "Mastery", text: "Long proofs and games you have to win against the bot." },
     ];
     const UNLOCK = 0.6;
     const KINDS = {
@@ -68,10 +70,6 @@ const Learn = (() => {
     const dots = (difficulty) => {
         const filled = Math.max(1, Math.min(DOTS, Math.ceil(difficulty / 2)));
         return "●".repeat(filled) + "○".repeat(DOTS - filled);
-    };
-    const lockHint = (tier) => {
-        const before = TIERS[Math.max(0, TIERS.findIndex((t) => t.id === tier) - 1)];
-        return `Solve most of ${before.label} first. You can still try these.`;
     };
 
     const PANEL_KEY = "chainreact.learnpanel";   // "explanation folded away", this visit only (#43)
@@ -121,6 +119,21 @@ const Learn = (() => {
         const before = tierProgress(game, TIERS[k - 1].id);
         return before.total > 0 && before.solved / before.total < UNLOCK;
     }
+    /* Which tier is open on the details page: by default the first one that is not solved
+       yet, and none before the tutorial is done (a game without a tutorial counts as done);
+       a click on a header toggles it for this visit (`opened`, per game and tier, cleared
+       whenever progress is made so the default rule decides again). */
+    function tierOpen(game, tier) {
+        const o = opened[game] || {};
+        if (tier in o) return o[tier];
+        if (howto(game).tutorial.length && !tutorialDone(game)) return false;
+        const first = TIERS.find((t) => { const p = tierProgress(game, t.id); return p.total > 0 && p.solved < p.total; });
+        return !!first && first.id === tier;
+    }
+    function toggleTier(game, tier) {
+        opened[game] = opened[game] || {};
+        opened[game][tier] = !tierOpen(game, tier);
+    }
     // the scenario after this one (same game, ladder order), or null at the end
     function nextScenario(game, id) {
         const list = howto(game).scenarios;
@@ -145,17 +158,22 @@ const Learn = (() => {
     }
 
     /* ---------- progress (this device only) ---------- */
+    const opened = {};             // tiers opened or closed by hand on the details page, per game
     const solvedIds = (game) => (progress.solved && progress.solved[game]) || [];
     const isSolved = (game, id) => solvedIds(game).includes(id);
     const tutorialDone = (game) => !!(progress.tutorials && progress.tutorials[game]);
     function store(next) { progress = next; Util.save(localStorage, KEY, progress); }
+    // progress forgets the tiers opened or closed by hand (`opened`, see tierOpen), so the
+    // details page opens the tier to work on next when the player comes back to it
     function markSolved(game, id) {
         if (isSolved(game, id)) return;
         store({ ...progress, solved: { ...(progress.solved || {}), [game]: [...solvedIds(game), id] } });
+        delete opened[game];
     }
     function markTutorial(game) {
         if (tutorialDone(game)) return;
         store({ ...progress, tutorials: { ...(progress.tutorials || {}), [game]: true } });
+        delete opened[game];
     }
 
     /* ---------- the board of a lesson ---------- */
@@ -446,16 +464,26 @@ const Learn = (() => {
             if (!list.length) continue;
             const done = tierProgress(page, tier.id);
             const locked = tierLocked(page, tier.id);
-            const head = document.createElement("div");
-            head.className = "learn-tier" + (locked ? " locked" : "");
+            const open = tierOpen(page, tier.id);
+            // one card per tier; its header is a button that folds the tier's rows away
+            // (collapsed by default, see tierOpen), so the ladder reads as three cards until
+            // one is opened
+            const card = document.createElement("div");
+            card.className = "learn-tier-box" + (open ? " open" : "");
+            card.dataset.tier = tier.id;
+            const head = document.createElement("button");
+            head.type = "button";
+            head.className = "learn-tier" + (locked ? " locked" : "") + (open ? " open" : "");
             head.dataset.tier = tier.id;
-            head.innerHTML = `<b></b><span class="learn-tier-count"></span><small class="learn-lock"></small>`;
+            head.setAttribute("aria-expanded", open ? "true" : "false");
+            head.innerHTML = `<span class="learn-chev">›</span><b></b><span class="learn-tier-count"></span><small class="learn-tier-text"></small>`;
             head.querySelector("b").textContent = tier.label;
             head.querySelector(".learn-tier-count").textContent = `${done.solved} / ${done.total}`;
-            head.querySelector(".learn-lock").textContent = locked ? lockHint(tier.id) : "";
-            head.querySelector(".learn-lock").hidden = !locked;
-            box.appendChild(head);
-            for (const sc of list) box.appendChild(scenarioRow(sc));
+            head.querySelector(".learn-tier-text").textContent = tier.text;      // every tier says what it holds
+            head.addEventListener("click", () => { toggleTier(page, tier.id); renderGame(); });
+            card.appendChild(head);
+            for (const sc of list) { const row = scenarioRow(sc); row.hidden = !open; card.appendChild(row); }
+            box.appendChild(card);
         }
     }
     function scenarioRow(sc) {
@@ -519,7 +547,7 @@ const Learn = (() => {
     return {
         init, open, openGame, startTutorial, startScenario, restart, exit, names,
         howto, scenarios, games, configFor, beforeMove, cellClass, onLocalMove, openHowto, closeHowto,
-        isSolved, tutorialDone, fold, tierProgress, tierLocked, nextScenario, again, againText, canAdvance,
+        isSolved, markSolved, tutorialDone, fold, tierProgress, tierLocked, tierOpen, toggleTier, nextScenario, again, againText, canAdvance,
         get active() { return active; }, get page() { return page; }, get folded() { return folded; },
         STEP_MS, MISS, TIERS, KINDS, UNLOCK, dots,
     };

@@ -374,10 +374,41 @@ test("the details page and the lobby's How to play modal render from the same da
     assert.equal(heads[0].querySelector(".learn-tier-count").textContent, `0 / ${Learn.tierProgress("chain", "basics").total}`);
     assert.equal(heads[0].classList.contains("locked"), false);
     assert.equal(heads[1].classList.contains("locked"), true);
-    assert.match(heads[1].querySelector(".learn-lock").textContent, /Solve most of Basics/);
+    assert.equal(heads[1].querySelector(".learn-lock"), null, "a locked tier is only muted, there is no note about it");
     const row = w.document.querySelector("#learn-scenarios .learn-scenario");
     assert.equal(row.querySelector(".learn-dots").textContent.length, 5, "difficulty as five dots");
     assert.ok(row.querySelector("small").textContent.length > 0, "the kind is named on the row");
+    // the tiers fold: Basics is open once the tutorial is done (an earlier test walked it) and
+    // every tier is collapsed before that; the header toggles a tier
+    const basicsOpen = Learn.tutorialDone("chain");
+    assert.equal(Learn.tierOpen("chain", "basics"), basicsOpen);
+    assert.equal(Learn.tierOpen("chain", "tactics"), false, "only the first unfinished tier opens by itself");
+    const allRows = () => [...w.document.querySelectorAll("#learn-scenarios .learn-scenario")];
+    const nBasics = Learn.tierProgress("chain", "basics").total;
+    assert.ok(allRows().slice(nBasics).every((r) => r.hidden), "Tactics and Mastery are folded away");
+    assert.equal(allRows().slice(0, nBasics).every((r) => !r.hidden), basicsOpen);
+    assert.equal(heads[0].getAttribute("aria-expanded"), String(basicsOpen));
+    heads[0].click();
+    assert.equal(Learn.tierOpen("chain", "basics"), !basicsOpen, "the header toggles the tier");
+    assert.equal(allRows().slice(0, nBasics).every((r) => !r.hidden), !basicsOpen);
+    assert.equal(w.document.querySelector("#learn-scenarios .learn-tier").classList.contains("open"), !basicsOpen);
+    w.document.querySelector("#learn-scenarios .learn-tier").click();
+    assert.equal(Learn.tierOpen("chain", "basics"), basicsOpen, "a second click puts it back");
+    // a hand-made choice is forgotten once progress is made: the next tier to work on opens
+    // by itself when the player comes back (fold Tactics by hand, then solve the last Basics rows)
+    Learn.toggleTier("chain", "tactics");
+    assert.equal(Learn.tierOpen("chain", "tactics"), true, "opened by hand");
+    Learn.toggleTier("chain", "tactics");
+    assert.equal(Learn.tierOpen("chain", "tactics"), false, "closed by hand");
+    for (const sc of ho.scenarios.filter((s) => s.tier === "basics")) Learn.markSolved("chain", sc.id);
+    assert.equal(Learn.tierProgress("chain", "basics").solved, Learn.tierProgress("chain", "basics").total);
+    assert.equal(Learn.tierOpen("chain", "tactics"), Learn.tutorialDone("chain"), "Tactics opens by itself once Basics is done (after the tutorial)");
+    assert.equal(Learn.tierOpen("chain", "basics"), false, "and Basics folds");
+    // another game follows the same rule from its own tutorial state
+    assert.equal(Learn.tierOpen("five", "basics"), Learn.tutorialDone("five"));
+    assert.equal(Learn.tierOpen("five", "tactics"), false);
+    assert.equal(w.document.querySelectorAll("#learn-scenarios .learn-tier-box").length, Learn.TIERS.length, "one card per tier");
+    assert.ok(heads.every((h) => h.querySelector(".learn-tier-text").textContent.length > 10), "every tier has a line saying what it holds");
 
     Learn.openHowto("five");
     assert.equal(w.document.getElementById("howto-modal").hidden, false);

@@ -143,7 +143,7 @@
 .skin-mc .seg button.selected { background: #6f6f6f; color: #fff; box-shadow: inset 2px 2px 0 #a8a8a8, inset -2px -2px 0 #3d3d3d; }
 
 /* MC text fields: black with a light gray outline */
-.skin-mc select, .skin-mc input[type="number"], .skin-mc input[type="text"], .skin-mc #join-code, .skin-mc .chat-row input {
+.skin-mc select, .skin-mc input[type="number"], .skin-mc input[type="text"], .skin-mc input[type="search"], .skin-mc input[type="date"], .skin-mc #join-code, .skin-mc .chat-row input {
     background: #000; color: #fff; border: 2px solid #a0a0a0; border-radius: 0;
 }
 .skin-mc .chat-row input::placeholder { color: #707070; }
@@ -181,6 +181,10 @@
 .skin-mc .prefs-nav-row { border-radius: 0; background: rgba(0,0,0,.62); border-color: #000; box-shadow: inset 0 0 0 1px #3a3a3a; color: #fff; }
 .skin-mc .prefs-nav-row:hover { border-color: #a0a0a0; box-shadow: inset 0 0 0 1px #a0a0a0; }
 .skin-mc .prefs-nav-row.selected { border-color: #fff; box-shadow: inset 0 0 0 1px #fff; }
+@media (min-width: 900px) {
+    .skin-mc .prefs-section { border-radius: 0; background: rgba(0,0,0,.62); border-color: #000; box-shadow: inset 0 0 0 1px #3a3a3a; }
+    .skin-mc .prefs-section > .section-title { color: #ffff55; border-bottom-color: #3a3a3a; }
+}
 /* the replay bar and its analysis panel (#38, #43): square, near-black boxes like the HUD */
 .skin-mc #replay-bar, .skin-mc #replay-panel, .skin-mc #an-graph, .skin-mc .an-progress-track { border-radius: 0; }
 .skin-mc #replay-bar, .skin-mc #replay-panel { background: rgba(0,0,0,.72); border-color: #000; box-shadow: inset 0 0 0 1px #3a3a3a, 0 10px 30px rgba(0,0,0,.6); }

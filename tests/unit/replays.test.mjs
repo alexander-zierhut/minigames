@@ -119,7 +119,8 @@ test("file name, date and summary read like the list shows them", () => {
     const doc = JSON.parse(read("v1-five.json"));
     const d = new Date(doc.meta.playedAt);
     const pad = (v) => String(v).padStart(2, "0");
-    assert.equal(R.fileName(doc), `five-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.json`);
+    assert.equal(R.fileName(doc), `five-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.minigames.replay`);
+    assert.equal(R.EXT, ".minigames.replay");
     assert.match(R.when(doc.meta.playedAt), /2026/);
     const s = R.summary(doc);
     assert.equal(s.title, "Five Wins");
@@ -131,6 +132,35 @@ test("file name, date and summary read like the list shows them", () => {
     // a draw and a three-player game read the same way
     const draw = { ...doc, result: { over: true, winner: -1, why: "The board is full." } };
     assert.equal(R.summary(draw).resultText, "Draw");
+    // the bot flag: the offline bot table, or a room whose config seats a bot (Play from here)
+    assert.equal(s.bot, true, "played against the bot");
+    const chain = JSON.parse(read("v1-chain.json"));
+    assert.equal(R.summary(chain).bot, false, "two people");
+    const roomBot = { ...chain, meta: { ...chain.meta, mode: "online" }, config: { ...chain.config, bot: { id: "creeper-chain", difficulty: "normal", seat: 0 } } };
+    assert.equal(R.summary(roomBot).bot, true, "a room with a bot on a seat counts as a bot game");
+    // the list filters (pure): bot or not, and part of a player's name, case-insensitive
+    const items = [s, R.summary(chain), R.summary(roomBot)];
+    assert.equal(R.filter(items).length, 3);
+    assert.equal(R.filter(items, { kind: "bot" }).length, 2);
+    assert.equal(R.filter(items, { kind: "nobot" }).length, 1);
+    assert.equal(R.filter(items, { search: "sam" }).length, 2);
+    assert.equal(R.filter(items, { search: "  ROB " }).length, 3);
+    assert.equal(R.filter(items, { kind: "nobot", search: "bot" }).length, 0);
+    assert.equal(R.filter(items, { kind: "bot", search: "sam" }).length, 1);
+    // by game, and by the local day it was played (inclusive, either end open)
+    assert.equal(R.filter(items, { game: "five" }).length, 1);
+    assert.equal(R.filter(items, { game: "chain" }).length, 2);
+    assert.equal(R.filter(items, { game: "all" }).length, 3);
+    const day = R.dayOf(doc.meta.playedAt);
+    assert.match(day, /^\d{4}-\d{2}-\d{2}$/);
+    assert.equal(R.dayOf("garbage"), "");
+    const before = (d) => { const x = new Date(d + "T12:00"); x.setDate(x.getDate() - 1); return R.dayOf(x.toISOString()); };
+    const after = (d) => { const x = new Date(d + "T12:00"); x.setDate(x.getDate() + 1); return R.dayOf(x.toISOString()); };
+    assert.equal(R.filter([s], { from: day }).length, 1, "from the same day: in");
+    assert.equal(R.filter([s], { to: day }).length, 1, "to the same day: in");
+    assert.equal(R.filter([s], { from: after(day) }).length, 0);
+    assert.equal(R.filter([s], { to: before(day) }).length, 0);
+    assert.equal(R.filter([s], { from: before(day), to: after(day) }).length, 1);
     w.close();
 });
 

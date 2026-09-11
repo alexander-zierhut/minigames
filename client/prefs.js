@@ -99,7 +99,18 @@ const Prefs = (() => {
         if ($("pref-private-ip")) $("pref-private-ip").checked = prefs.privateIp;
         if ($("pref-developer")) $("pref-developer").checked = prefs.developer;
         $("prefs-modal").classList.toggle("muted", prefs.volume === 0);
+        renderCreatorButton();
         renderNav();
+    }
+
+    // content creator mode = every option of that section on; the button toggles all of them
+    const creatorMode = () => !!(prefs.hideCode && prefs.privateIp);
+    function renderCreatorButton() {
+        const b = $("pref-creator-mode");
+        if (!b) return;
+        const on = creatorMode();
+        b.textContent = on ? "Turn off content creator mode" : "Turn on content creator mode";
+        b.classList.toggle("primary", !on);
     }
 
     /* ---------- the two levels (#32) ---------- */
@@ -109,10 +120,7 @@ const Prefs = (() => {
         if (key === "profile") return p.name;
         if (key === "look") return (LOOK_LABELS[typeof Skins !== "undefined" ? Skins.current : "classic"] || LOOK_LABELS.classic) + (p.winGraph ? "" : " · no win graph");
         if (key === "sound") return p.volume === 0 ? "off" : `${p.volume} % · ${SET_LABELS[p.soundSet]}`;
-        if (key === "streaming") {
-            const on = [p.hideCode && "Code hidden", p.privateIp && "IP private"].filter(Boolean);
-            return on.length ? on.join(" · ") : "off";
-        }
+        if (key === "streaming") return creatorMode() ? "on" : (p.hideCode || p.privateIp) ? "partly on" : "Best for streaming";
         if (key === "developer") return p.developer ? "on" : "off";
         if (key === "feedback") return "Report a problem";
         return "";
@@ -186,6 +194,12 @@ const Prefs = (() => {
         $("pref-soundset").addEventListener("change", readForm);
         for (const c of CATEGORIES) { const el = $("pref-snd-" + c); if (el) el.addEventListener("change", readForm); }
         for (const id of ["pref-win-graph", "pref-hide-code", "pref-private-ip", "pref-developer"]) if ($(id)) $(id).addEventListener("change", readForm);
+        // content creator mode: every option of that section on or off, in one tap
+        if ($("pref-creator-mode")) $("pref-creator-mode").addEventListener("click", () => {
+            const on = !creatorMode();
+            set({ hideCode: on, privateIp: on });
+            Util.toast(on ? "Content creator mode is on." : "Content creator mode is off.");
+        });
         if ($("pref-name")) $("pref-name").addEventListener("change", readForm);   // on blur / Enter, so typing is never cut mid-word
         for (const key of SECTIONS) { const row = $("prefs-nav-" + key); if (row) row.addEventListener("click", () => showSection(key)); }
         $("btn-prefs-back").addEventListener("click", () => showSection(null));

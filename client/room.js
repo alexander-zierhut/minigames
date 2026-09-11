@@ -7,7 +7,7 @@
    Room.init({ phase(), show(name), startGame(config, gameNo, prefix), backToLobby(announce),
                renderLobby(), onVotes(), onReview(ply, play) })
 
-   Protocol summary (details in AGENTS.md "Online play"): guest → hello {seat, spectate, name,
+   Protocol summary (details in .claude/rules/online.md "Online play"): guest → hello {seat, spectate, name,
    rev, phase, config, g, rematch}; host → state {you, settings, names, …} to that guest (+ sync
    in a game) and roster {present, spectators, left, names} to everyone; the host stamps every
    guest message with `from` = the sender's seat and relays the RELAY types to the other guests.

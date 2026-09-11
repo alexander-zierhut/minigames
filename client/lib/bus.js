@@ -1,6 +1,6 @@
 /* Tiny event bus. Modules announce what happened; anyone may listen without the
    announcer knowing (the future sound module subscribes here, so does a chat log).
-   Events in use are listed in AGENTS.md ("Events"). */
+   Events in use are listed in .claude/rules/games.md ("Events"). */
 
 "use strict";
 

@@ -17,7 +17,7 @@
       replay bar and calls open / at / close; the panel never steps the board itself, it
       asks through the onSeek handler.
 
-   The score of a seat (0..100, documented in AGENTS.md):
+   The score of a seat (0..100, documented in .claude/rules/ui.md "Replay analysis"):
        accuracy = perfect moves / moves of that seat
        loss     = win-chance points a move gave away against the bot's move (0 when the bot
                   would have played it, mistake from 10 points, blunder from 20)

@@ -3,7 +3,7 @@
 
    Shared rows (board size, timer) are in index.html; the players control is the lobby's
    segmented row (#set-players, #28) so everyone sees the room takes two to four; the game-specific rows are
-   BUILT here from every registered game's `settings` list (see Games / AGENTS.md):
+   BUILT here from every registered game's `settings` list (see Games / .claude/rules/ui.md "Settings"):
      { key, label, type: "int" | "select" | "bool", def, min?, max?, unit?, options?, with? }
    into #game-settings, as `<label class="row" id="row-<key>" data-setting="<key>">` with the
    input `#set-<key>` (key lowercased). A row shows when the selected game lists that key.

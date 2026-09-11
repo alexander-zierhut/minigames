@@ -1,6 +1,6 @@
 /* Replays (#42): a played game as a file, and the games this device has played.
 
-   A replay is the game record (see AGENTS.md "Game records") plus who played it and when,
+   A replay is the game record (see .claude/rules/games.md "Game records") plus who played it and when,
    wrapped in a document with a format version:
 
      { format: "alzlper-minigames-replay", version: 1, game, config, history, outs,
@@ -137,11 +137,13 @@ const Replays = (() => {
         return h.toString(36) + "-" + str.length.toString(36);
     }
 
-    // "chain-2026-09-10-2130.json" (local time, the way the player saw it)
+    // "chain-2026-09-10-2130.minigames.replay" (local time, the way the player saw it); the
+    // extension names the site, the content is still JSON (older ".json" files open too)
+    const EXT = ".minigames.replay";
     function fileName(doc) {
         const d = new Date(doc.meta && doc.meta.playedAt ? doc.meta.playedAt : Date.now());
         const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
-        return `${doc.game}-${stamp}.json`;
+        return `${doc.game}-${stamp}${EXT}`;
     }
 
     // "10 Sep 2026, 21:30" in the device's own format
@@ -168,9 +170,36 @@ const Replays = (() => {
             moves: doc.history.length,
             playedAt: doc.meta.playedAt,
             mode: doc.meta.mode,
+            // played against a bot: the offline bot table, or a room with a bot on a seat
+            // (#36, and "Play from here" opens such a room)
+            bot: doc.meta.mode === "bot" || !!(doc.config && doc.config.bot),
             over: !!doc.result.over,
             resultText: !doc.result.over ? "Unfinished" : winner >= 0 ? `${players[winner] || `Player ${winner + 1}`} won` : "Draw",
         };
+    }
+
+    // the calendar day of a moment in local time, "2026-09-11" (the day the player saw)
+    function dayOf(iso) {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return "";
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+    /* the list's filters (pure): `game` = a game key or "all", `kind` = all | bot | nobot,
+       `search` = part of a player's name, `from` / `to` = local days "YYYY-MM-DD" (inclusive,
+       either may be empty) */
+    function filter(items, { game = "all", kind = "all", search = "", from = "", to = "" } = {}) {
+        const q = String(search || "").trim().toLowerCase();
+        return items.filter((r) => {
+            if (game !== "all" && r.game !== game) return false;
+            if (kind !== "all" && (kind === "bot") !== !!r.bot) return false;
+            if (q && !r.players.some((name) => String(name).toLowerCase().includes(q))) return false;
+            if (from || to) {
+                const day = dayOf(r.playedAt);
+                if (from && day < from) return false;
+                if (to && day > to) return false;
+            }
+            return true;
+        });
     }
 
     /* ---------- Play / Pause of the replay bar (#43) ----------
@@ -323,5 +352,5 @@ const Replays = (() => {
         return { save, list, get, remove, clear, persistent, analysis, DB_NAME, STORE_NAME, ANALYSIS_STORE, DB_VERSION };
     })();
 
-    return { FORMAT, VERSION, MIGRATIONS, migrate, validate, parse, fromRecord, idFor, fileName, when, summary, store, playback, STEP_MS };
+    return { FORMAT, VERSION, MIGRATIONS, EXT, migrate, validate, parse, fromRecord, idFor, fileName, when, dayOf, summary, filter, store, playback, STEP_MS };
 })();

@@ -42,9 +42,14 @@ test("a game's details page shows the rules, the tutorial and the scenarios", as
     assert.equal(await B.ev("document.querySelector('#learn-scenarios .learn-tier .learn-tier-count').textContent"),
         `0 / ${await B.ev("Learn.tierProgress('chain', 'basics').total")}`);
     assert.equal(await B.ev("document.querySelectorAll('#learn-scenarios .learn-tier.locked').length"), 2, "Tactics and Mastery wait");
-    assert.match(await B.ev("[...document.querySelectorAll('#learn-scenarios .learn-tier')][1].querySelector('.learn-lock').textContent"),
-        /Solve most of Basics/);
+    assert.equal(await B.ev("document.querySelectorAll('#learn-scenarios .learn-lock').length"), 0, "no note about solving the tier before");
     assert.equal(await B.ev("document.querySelector('#learn-scenarios .learn-scenario .learn-dots').textContent.length"), 5, "difficulty dots");
+    // the tiers are folded until the tutorial is done; a header opens its tier
+    assert.ok(await B.ev("[...document.querySelectorAll('#learn-scenarios .learn-scenario')].every(r => r.hidden)"), "every tier collapsed before the tutorial");
+    await B.click("#learn-scenarios .learn-tier[data-tier='basics']");
+    assert.equal(await B.ev("document.querySelectorAll('#learn-scenarios .learn-scenario:not([hidden])').length"), await B.ev("Learn.tierProgress('chain', 'basics').total"), "Basics opened");
+    await B.click("#learn-scenarios .learn-tier[data-tier='basics']");
+    assert.ok(await B.ev("[...document.querySelectorAll('#learn-scenarios .learn-scenario')].every(r => r.hidden)"), "and folded again");
     // the details page scrolls as a whole (#43), never sideways and never in inner boxes
     const fit = await B.noScroll();
     assert.equal(fit.x, true, "the details page never scrolls sideways");

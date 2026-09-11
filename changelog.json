@@ -2,6 +2,39 @@
   "_format": "Newest day first. Each day: { date: YYYY-MM-DD, entries: [ { type: feature | improvement | fix | internal, text, refs?: [ '#12', 'PR #1', 'commit abc1234' ] } ] }. Refs become new-tab GitHub links. Update this file in the same commit as every user-visible change (see AGENTS.md).",
   "days": [
     {
+      "date": "2026-09-11",
+      "entries": [
+        {
+          "type": "feature",
+          "text": "The replays list grew into a tool: filter by game, by bot or not, by a player's name and by a date range, see how many replays matched, and page through them ten at a time. On desktop it is wider, on phones the page scrolls through the list instead of a small box."
+        },
+        {
+          "type": "improvement",
+          "text": "A game's Learn page shows the rules and the tutorial on the left and the scenarios on the right on desktop. Basics, Tactics and Mastery are cards that fold away: the tier to work on next is open, the others show only their name and progress.",
+          "technical": true
+        },
+        {
+          "type": "improvement",
+          "text": "The preferences section for streamers is called Content Creator now and has one button that turns everything in it on or off. On desktop the open section sits in a card of its own with a proper heading.",
+          "technical": true
+        },
+        {
+          "type": "improvement",
+          "text": "Saved replay files end in .minigames.replay (older .json files still open).",
+          "technical": true
+        },
+        {
+          "type": "improvement",
+          "text": "Title screen polish: Learn to play and Replays are as tall as the buttons above them, and the Changelog pill has more air.",
+          "technical": true
+        },
+        {
+          "type": "internal",
+          "text": "The agent context was split: AGENTS.md keeps the core, the topic chapters live in .claude/rules and are loaded only when their files are touched."
+        }
+      ]
+    },
+    {
       "date": "2026-09-10",
       "entries": [
         {

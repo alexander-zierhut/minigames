@@ -94,8 +94,8 @@
         <div class="menu-foot">
             <!-- the academy (#41) and the saved games (#42): two equal buttons in one row -->
             <div class="btn-row">
-                <button class="btn" id="btn-learn">Learn to play</button>
-                <button class="btn" id="btn-replays">Replays</button>
+                <button class="btn big" id="btn-learn">Learn to play</button>
+                <button class="btn big" id="btn-replays">Replays</button>
             </div>
             <div class="foot-quiet">
                 <!-- shown only when the browser offers to install the page as an app (Android Chrome) -->
@@ -190,19 +190,46 @@
 <!-- ===================== REPLAYS (#42: every game played on this device) ===================== -->
 <section id="screen-replays" class="screen" hidden>
     <div class="menu-card replays-card">
-        <h1 class="title small">Replays</h1>
+        <div class="replays-head">
+            <h1 class="title small">Replays</h1>
+            <button class="btn small" id="btn-replay-upload">Open a replay file</button>
+        </div>
         <p class="tagline small">Every game you play is saved on this device. Watch it again, save it as a file or open a file somebody sent you.</p>
         <!-- the game filter (#43): a dropdown showing the game's preview tile, built by app.js
              ("All games" first, then one row per registered game) -->
-        <div class="dropdown replay-filter" id="replay-filter"></div>
-        <p class="hint" id="replays-hint" hidden></p>
-        <!-- one .replay-item per saved game, from #tpl-replay -->
-        <div class="replay-list" id="replay-list"></div>
+        <div class="replay-tools">
+            <div class="dropdown replay-filter" id="replay-filter"></div>
+            <!-- against a bot or not (a room with a bot counts as a bot game) -->
+            <div class="seg replay-kind" id="replay-kind">
+                <button data-kind="all" class="selected">All</button>
+                <button data-kind="bot">Bot</button>
+                <button data-kind="nobot">No bot</button>
+            </div>
+            <input type="search" id="replay-search" class="replay-search" placeholder="Player name" autocomplete="off" spellcheck="false" aria-label="Search by player name">
+        </div>
+        <div class="replay-tools replay-dates">
+            <label class="replay-date"><span>From</span><input type="date" id="replay-from" autocomplete="off" aria-label="Played on or after"></label>
+            <label class="replay-date"><span>To</span><input type="date" id="replay-to" autocomplete="off" aria-label="Played on or before"></label>
+            <!-- "12 of 48 replays": found by the filters, of all on this device -->
+            <span class="replay-count" id="replay-count"></span>
+        </div>
+        <!-- the browser cannot keep replays (private mode): a small warning above the list -->
+        <p class="hint" id="replays-note" hidden></p>
+        <div class="replay-body">
+            <!-- the empty state: no replays at all, or nothing matches the filters -->
+            <p class="replay-empty" id="replays-hint" hidden></p>
+            <!-- one .replay-item per saved game on the shown page, from #tpl-replay -->
+            <div class="replay-list" id="replay-list"></div>
+        </div>
+        <div class="replay-pager" id="replay-pager" hidden>
+            <button class="btn small" id="replay-page-prev">‹ Newer</button>
+            <span id="replay-page"></span>
+            <button class="btn small" id="replay-page-next">Older ›</button>
+        </div>
         <div class="lobby-foot">
-            <button class="btn" id="btn-replay-upload">Open a replay file</button>
             <button class="btn quiet" id="btn-replays-back">Back</button>
         </div>
-        <input type="file" id="replay-file" accept="application/json,.json" hidden>
+        <input type="file" id="replay-file" accept=".replay,.json,application/json" hidden>
     </div>
 </section>
 
@@ -397,7 +424,7 @@
                     <span class="prefs-nav-sum" id="prefs-sum-sound"></span><span class="chev">›</span>
                 </button>
                 <button class="settings-summary prefs-nav-row" id="prefs-nav-streaming" data-section="streaming">
-                    <span class="gear-icon">📺</span><span class="prefs-nav-name">Streaming</span>
+                    <span class="gear-icon">📺</span><span class="prefs-nav-name">Content Creator</span>
                     <span class="prefs-nav-sum" id="prefs-sum-streaming"></span><span class="chev">›</span>
                 </button>
                 <button class="settings-summary prefs-nav-row" id="prefs-nav-developer" data-section="developer">
@@ -454,7 +481,10 @@
                     <button class="btn small" id="pref-test-sound">Play a test sound</button>
                 </div>
                 <div class="prefs-section prefs-rows" data-section="streaming" hidden>
-                    <div class="section-title">Streaming</div>
+                    <div class="section-title">Content Creator</div>
+                    <!-- one tap turns every option in this section on -->
+                    <button class="btn primary" id="pref-creator-mode">Turn on content creator mode</button>
+                    <p class="hint">Turns everything below on or off at once, for streaming or recording.</p>
                     <label class="pref-check"><input type="checkbox" id="pref-hide-code" autocomplete="off"> Hide the room code when I enter a room</label>
                     <p class="hint">The code stays hidden in the lobby, the game and the address bar until you show it. Share and copy keep working.</p>
                     <label class="pref-check"><input type="checkbox" id="pref-private-ip" autocomplete="off"> Keep my IP always private</label>

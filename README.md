@@ -66,8 +66,9 @@ through it move by move (or let Play walk through it), in step with everyone els
 room, while the analysis panel shows the win chance of every move as a graph, what the bot
 would have played instead and a score out of 100 per player, with "Play from here" to carry
 the position on against the bot. Every game you play is
-also kept on your device: the title screen's **Replays** button lists them, plays any of
-them back with that same bar, saves one as a file and opens a replay file somebody sent
+also kept on your device: the title screen's **Replays** button lists them (filter by game,
+by bot or not, by a player's name and by date, ten per page), plays any of them back with
+that same bar, saves one as a `.minigames.replay` file and opens a replay file somebody sent
 you.
 
 The title screen has a Changelog (from `changelog.json`, kept current with every change).
@@ -84,8 +85,9 @@ npm run build      # hashed bundle in dist/
 ```
 
 CI runs the whole suite on every push and pull request; `main` deploys only after a
-green run and requires the check to merge. `AGENTS.md` documents the architecture, the
-room protocol and how to add a game.
+green run and requires the check to merge. `AGENTS.md` is the core agent context (files,
+contracts, rules); the detail per topic, incl. the room protocol and how to add a game,
+lives in `.claude/rules/`.
 
 ## Layout
 

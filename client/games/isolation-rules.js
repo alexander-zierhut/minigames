@@ -171,7 +171,7 @@ const IsolationRules = (() => {
         return 1 / (1 + Math.exp(-2.4 * edge));
     }
 
-    /* Framework hooks for games whose move is not a plain cell (see AGENTS.md):
+    /* Framework hooks for games whose move is not a plain cell (see .claude/rules/games.md):
        cellOf  — the board cell a move belongs to (the last-move marker, a premove marker)
        canPlay — may this player start a move on cell i (the `can-place` highlight) */
     const cellOf = (state, move) => Math.floor(move / state.cells.length);

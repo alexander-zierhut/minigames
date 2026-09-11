@@ -127,7 +127,7 @@ test("a replay can be saved as a file, and the file is a valid replay", async ()
     await B.click("#replay-list .replay-item button[data-act='download']");
     await B.waitFor("window.__dl !== null", { what: "the download" });    // the record is read from IndexedDB first
     const name = await B.ev("window.__dl && window.__dl.name");
-    assert.match(name, /^five-\d{4}-\d{2}-\d{2}-\d{4}\.json$/);
+    assert.match(name, /^five-\d{4}-\d{2}-\d{2}-\d{4}\.minigames\.replay$/);
     const text = await B.ev("fetch(window.__dl.href).then(r => r.text())");
     const doc = JSON.parse(text);
     assert.equal(doc.format, "alzlper-minigames-replay");
@@ -172,6 +172,34 @@ test("a replay file is opened, watched and filtered by game", async () => {
     assert.equal(await B.ev("document.getElementById('replay-filter').classList.contains('open')"), false, "a click outside closes the menu");
     await pick("all");
     assert.equal(await entries(), 2);
+
+    // bot or not: both games so far were played by two people, so "Bot" finds nothing; a
+    // bot game saved for this step shows up there (the list is re-read from IndexedDB on
+    // every change, so wait for the row count)
+    const untilEntries = (n) => B.waitFor(`document.querySelectorAll('#replay-list .replay-item').length === ${n}`, { what: `${n} replay rows` });
+    await B.click("#replay-kind button[data-kind='bot']");
+    await untilEntries(0);
+    assert.match(await B.text("replays-hint"), /No replay matches/);
+    await B.ev(`(async () => { const d = await (await fetch("tests/replays/v1-five.json")).json(); await Replays.store.save(d); return true; })()`);
+    await B.click("#replay-kind button[data-kind='bot']");
+    await untilEntries(1);
+    assert.match(await firstSub(), /vs Bot/, "the game against the bot");
+    await B.ev(`(async () => { const d = await (await fetch("tests/replays/v1-five.json")).json(); await Replays.store.remove(Replays.idFor(d)); return true; })()`);
+    await B.click("#replay-kind button[data-kind='nobot']");
+    await untilEntries(2);
+    assert.ok(await B.ev("document.querySelector('#replay-kind button[data-kind=\"nobot\"]').classList.contains('selected')"), "the picked kind is highlighted");
+    await B.click("#replay-kind button[data-kind='all']");
+    await untilEntries(2);
+    // search by a player's name, case-insensitive, part of the name is enough
+    await B.set("replay-search", "sa");
+    await untilEntries(1);
+    assert.match(await firstSub(), /Robin vs Sam/);
+    await B.set("replay-search", "nobody");
+    await untilEntries(0);
+    assert.match(await B.text("replays-hint"), /No replay matches/);
+    await B.set("replay-search", "");
+    await untilEntries(2);
+    assert.equal(await B.text("replays-hint"), "");
 
     // the same file again does not double the list
     await B.upload("#replay-file", ROOT + "tests/replays/v1-chain.json");
@@ -230,25 +258,71 @@ test("an Isolation replay is analysed too: the graph, and the marker on the tile
     assert.deepEqual(B.errors, [], "no exceptions while analysing Isolation");
 });
 
-test("phone 360×780: a full list scrolls inside the card, the screen does not", async () => {
-    await B.emulate(360, 780);
-    // a handful of games, saved the way the app saves them
+test("pages of ten, the count of found replays and the date range", async () => {
+    // twelve games, saved the way the app saves them, one per day in September 2026
     await B.ev(`(async () => {
         const base = await (await fetch("tests/replays/v1-five.json")).json();
-        for (let k = 0; k < 8; k++) {
+        for (let k = 0; k < 12; k++) {
             await Replays.store.save({ ...base, players: ["Player " + k, "Guest " + k],
-                meta: { ...base.meta, playedAt: new Date(Date.UTC(2026, 8, 1 + k, 12, 0)).toISOString() } });
+                meta: { ...base.meta, playedAt: new Date(2026, 8, 1 + k, 12, 0).toISOString() } });
         }
         return true;
     })()`);
     await B.click("#btn-replays-back");
     await B.click("#btn-replays");
-    await B.waitFor("document.querySelectorAll('#replay-list .replay-item').length === 8", { what: "eight entries" });
+    const rows = (n) => B.waitFor(`document.querySelectorAll('#replay-list .replay-item').length === ${n}`, { what: `${n} rows` });
+    await rows(10);
+    assert.equal(await B.text("replay-count"), "12 replays");
+    assert.equal(await B.ev("document.getElementById('replay-pager').hidden"), false, "more than one page: the pager shows");
+    assert.equal(await B.text("replay-page"), "Page 1 of 2");
+    assert.equal(await B.ev("document.getElementById('replay-page-prev').disabled"), true);
+    assert.match(await firstSub(), /Player 11 vs Guest 11/, "newest first");
+    await B.click("#replay-page-next");
+    await rows(2);
+    assert.equal(await B.text("replay-page"), "Page 2 of 2");
+    assert.equal(await B.ev("document.getElementById('replay-page-next').disabled"), true);
+    assert.match(await firstSub(), /Player 1 vs Guest 1/);
+    await B.click("#replay-page-prev");
+    await rows(10);
+    // a search says how many were found of all, and goes back to the first page
+    await B.set("replay-search", "Player 1");
+    await rows(3);                                                    // Player 1, 10, 11
+    assert.equal(await B.text("replay-count"), "3 of 12 replays");
+    assert.equal(await B.ev("document.getElementById('replay-pager').hidden"), true, "one page: no pager");
+    await B.set("replay-search", "");
+    await rows(10);
+    // the date range is inclusive on both ends, in local days
+    await B.set("replay-from", "2026-09-03");
+    await B.set("replay-to", "2026-09-06");
+    await rows(4);
+    assert.equal(await B.text("replay-count"), "4 of 12 replays");
+    assert.match(await firstSub(), /Player 5 vs Guest 5/);
+    await B.set("replay-to", "");
+    await rows(10);
+    assert.equal(await B.text("replay-count"), "10 of 12 replays");
+    await B.set("replay-from", "2026-12-01");
+    await rows(0);
+    assert.match(await B.text("replays-hint"), /No replay matches/);
+    assert.equal(await B.ev("document.getElementById('replays-hint').hidden"), false);
+    await B.set("replay-from", "");
+    await rows(10);
+    assert.equal(await B.text("replay-count"), "12 replays");
+    assert.deepEqual(B.errors, [], "no exceptions while filtering");
+});
+
+test("phone 360×780: the page scrolls through a long list, nothing scrolls inside the card", async () => {
+    await B.emulate(360, 780);
+    await B.click("#btn-replays-back");
+    await B.click("#btn-replays");
+    await B.waitFor("document.querySelectorAll('#replay-list .replay-item').length === 10", { what: "a page of ten" });
     const fit = await B.noScroll();
-    assert.equal(fit.y, true, "the replays screen never scrolls the page");
-    assert.equal(fit.x, true);
-    assert.ok(await B.ev("document.getElementById('replay-list').scrollHeight > document.getElementById('replay-list').clientHeight"), "the list itself scrolls");
-    assert.ok(await B.ev("document.getElementById('btn-replays-back').getBoundingClientRect().bottom <= innerHeight"), "Back stays reachable");
+    assert.equal(fit.x, true, "never sideways");
+    assert.ok(await B.ev("document.getElementById('replay-list').scrollHeight <= document.getElementById('replay-list').clientHeight + 1"), "the list is shown whole, no box inside the card scrolls");
+    assert.ok(await B.ev("document.getElementById('btn-replay-upload').getBoundingClientRect().top < 200"), "Open a replay file sits at the top");
+    // the screen carries the list: scroll it down and Back comes into view
+    await B.ev("(() => { const s = document.getElementById('screen-replays'); s.scrollTop = s.scrollHeight; return true; })()");
+    assert.ok(await B.ev("document.getElementById('btn-replays-back').getBoundingClientRect().bottom <= innerHeight + 1"), "Back is reachable by scrolling the page");
+    await B.ev("(() => { document.getElementById('screen-replays').scrollTop = 0; return true; })()");
     await B.screenshot("mobile-replays.png");
     assert.deepEqual(B.errors, [], "no exceptions on the replays screen");
 });

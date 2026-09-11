@@ -10,7 +10,7 @@
      finish(winner, why)   eliminate(p, why)   abandon()   render()   isLegal(i, player)
      hash()   record()   preview(ply)   previewPly (getter)   cellOf(move)
 
-   Bus events the engine emits (payloads in AGENTS.md "Events"): game:new, game:move,
+   Bus events the engine emits (payloads in .claude/rules/games.md "Events"): game:new, game:move,
    game:turn, game:finish and game:position (the settled position changed — observers
    such as the win chance listen to this one only). */
 

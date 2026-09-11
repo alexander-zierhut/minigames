@@ -44,8 +44,14 @@ test("desktop: the section menu and the open section show side by side (#32)", a
     assert.equal(await B.ev("document.querySelector('.prefs-section[data-section=\"profile\"]').hidden"), true);
     assert.ok(await B.ev("document.getElementById('prefs-nav-streaming').classList.contains('selected')"), "the open section is highlighted");
     await B.check("pref-hide-code", true);
-    assert.equal(await B.text("prefs-sum-streaming"), "Code hidden");
+    assert.equal(await B.text("prefs-sum-streaming"), "partly on");
     await B.check("pref-hide-code", false);
+    await B.click("#pref-creator-mode");
+    assert.equal(await B.text("prefs-sum-streaming"), "on", "content creator mode turns every option of the section on");
+    assert.equal(await B.ev("document.getElementById('pref-hide-code').checked && document.getElementById('pref-private-ip').checked"), true);
+    assert.equal(await B.text("pref-creator-mode"), "Turn off content creator mode");
+    await B.click("#pref-creator-mode");
+    assert.equal(await B.text("prefs-sum-streaming"), "Best for streaming");
     await B.click("#prefs-nav-look");
     await B.click("#btn-prefs-done");
 });
@@ -213,7 +219,7 @@ test("phone: the modal opens on the section menu, a row opens its section, Back 
         assert.equal(await P.ev("getComputedStyle(document.getElementById('prefs-nav')).display !== 'none'"), true);
         assert.equal(await P.ev("getComputedStyle(document.getElementById('prefs-panes')).display"), "none", "no panel yet");
         assert.equal(await P.text("prefs-sum-look"), "Classic");
-        assert.equal(await P.text("prefs-sum-streaming"), "off");
+        assert.equal(await P.text("prefs-sum-streaming"), "Best for streaming");
         const modalFits = () => P.ev("(() => { const c = document.getElementById('prefs-card'); return c.scrollHeight <= c.clientHeight + 1; })()");
         assert.equal(await modalFits(), true, "the menu fits without scrolling");
         await P.screenshot("prefs-phone-menu.png");

@@ -49,7 +49,7 @@
 @media (max-width: 420px) { .btn-row .btn.big { font-size: 14px; padding: 14px 4px; } }
 /* desktop: the title card gets more room and air (#10) */
 @media (min-width: 900px) {
-    #screen-menu .menu-card { max-width: 560px; padding: 40px 44px; gap: 26px; }
+    #screen-menu .menu-card { max-width: 560px; padding: 40px 44px 22px; gap: 26px; }
     #screen-menu .menu-actions { gap: 20px; }
     #screen-menu .btn-row .btn.big { font-size: 17px; padding: 16px 14px; }
     #screen-menu .tagline { font-size: 15px; }
@@ -68,11 +68,13 @@
 }
 .hint { margin: 0; font-size: 12px; color: var(--muted); text-align: center; }
 
-/* the foot (#43): Learn and Replays as two equal buttons in one row, the quiet pills
-   (install, changelog) centred under them */
+/* the foot (#43): Learn and Replays as two equal buttons in one row, the same height as the
+   offline row above them (both are .btn-row .btn.big), the quiet pills (install, changelog)
+   centred under them with a little air */
 .menu-foot { display: flex; flex-direction: column; gap: 8px; }
-.menu-foot .btn-row .btn { flex: 1; font-size: 14px; padding: 11px 8px; white-space: nowrap; min-width: 0; }
-.foot-quiet { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.foot-quiet { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+/* the space under the pills equals the space above them (gap 8 + margin 14) */
+#screen-menu .menu-card { padding-bottom: 22px; }
 .install-btn { font-size: 13px; padding: 10px 14px; }
 
 /* a new version is deployed (#40): a banner above the title card (#43), title screen only.
@@ -296,14 +298,23 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
 @media (min-width: 900px) {
     .prefs-card { max-width: 760px; padding: 32px 36px; gap: 20px; }
     .prefs-rows { gap: 16px; }
-    .prefs-body { grid-template-columns: 226px 1fr; gap: 22px; }
+    .prefs-body { grid-template-columns: 226px 1fr; gap: 22px; align-items: stretch; }   /* both columns end on the same line */
+    .prefs-section { flex: 1; }                                   /* a short section grows to the menu's height */
+    .prefs-nav-row { flex: 1 0 auto; }                            /* and the menu rows share a taller section's height */
     .prefs-back { display: none; }                                /* both panes are visible: nothing to go back to */
+    /* the open section sits in a card of its own beside the menu (a bare form next to the
+       boxed rows looked as if it floated) with a real heading; phones keep the plain form */
+    .prefs-section { background: var(--bg2); border: 2px solid var(--line); border-radius: 12px; padding: 16px 18px 18px; }
+    .prefs-section > .section-title { font-size: 17px; font-weight: 800; letter-spacing: 0; text-transform: none; color: var(--text); padding: 0 0 4px; border-bottom: 1px solid var(--line); }
     /* the narrow column puts the summary on its own line under the name; the panel is
-       already open beside it, so the row needs no chevron */
-    .prefs-nav-row { flex-wrap: wrap; padding: 8px 12px; row-gap: 1px; }
+       already open beside it, so the row needs no chevron. A grid, so the name and the
+       summary start at the same x whatever the emoji's width, and the icon is centred
+       against both lines */
+    .prefs-nav-row { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; row-gap: 1px; padding: 8px 12px; align-items: center; }
+    .prefs-nav-row .gear-icon { grid-row: 1 / span 2; align-self: center; }
     .prefs-nav-row .chev { display: none; }
-    .prefs-nav-name { flex: 1; }
-    .prefs-nav-sum { flex: 1 0 100%; padding-left: 24px; text-align: left; font-size: 11px; }
+    .prefs-nav-name { grid-column: 2; }
+    .prefs-nav-sum { grid-column: 2; min-width: 0; text-align: left; font-size: 11px; }
 }
 /* phones: one level at a time, so a single section always fits without scrolling */
 @media (max-width: 899px) {
@@ -343,10 +354,17 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
 .skin-mc .bot-params { border-radius: 0; background: rgba(0,0,0,.62); border-color: #000; box-shadow: inset 0 0 0 1px #3a3a3a; }
 .skin-mc .bot-badge { border-radius: 0; background: #000; border-color: #3a3a3a; }
 
-/* ---- replays (#42): the games this device played, one row each ---- */
+/* ---- replays (#42): the games this device played, one row each. A tool rather than a
+   card: regular players collect a lot of games, so it is wide on desktop, the list comes
+   in pages and the page scrolls (never a box inside the card). ---- */
 .replays-card { max-width: 560px; gap: 12px; }
-/* desktop: wide enough that date, players and result stay on one line */
-@media (min-width: 900px) { #screen-replays .menu-card { max-width: 680px; padding: 24px 28px; } }
+#screen-replays { align-items: flex-start; }
+#screen-replays .menu-card { max-height: none; overflow: visible; margin: auto; }
+/* desktop: wide enough that the whole filter row and a row's date, players and result stay on one line */
+@media (min-width: 900px) { #screen-replays .menu-card { max-width: 860px; padding: 24px 28px; } }
+.replays-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.replays-head .title { text-align: left; }
+.replays-card > .tagline { text-align: left; }
 /* the game filter (#43): a small dropdown that can show a game's preview tile, which a
    plain <select> cannot. Only the replays screen uses it. */
 .dropdown { position: relative; }
@@ -371,12 +389,29 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
 /* the card clips its content (it may scroll), so it lets the open menu out */
 .menu-card:has(.dropdown.open) { overflow: visible; }
 .dd-option.selected { border-color: var(--accent); }
-.replay-filter { align-self: flex-start; width: 100%; max-width: 280px; }
+.replay-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.replay-filter { flex: 1 1 180px; min-width: 0; max-width: 280px; }
+.replay-kind { flex: 0 0 auto; }
+.replay-kind button { flex: 0 0 auto; padding: 8px 12px; }
+.replay-search { flex: 1 1 140px; min-width: 0; }
+.replay-dates { align-items: center; }
+.replay-date { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.replay-date input { padding: 6px 8px; font-size: 13px; color-scheme: dark; }
+.replay-count { margin-left: auto; font-size: 12px; color: var(--muted); white-space: nowrap; }
+/* the list area keeps a height even when it is empty, so the card never collapses to a strip */
+.replay-body { display: flex; flex-direction: column; min-height: 300px; }
+.replay-empty {
+    flex: 1; display: flex; align-items: center; justify-content: center; text-align: center;
+    margin: 0; padding: 32px 24px; font-size: 15px; line-height: 1.5; color: var(--muted);
+    border: 2px dashed var(--line); border-radius: 14px;
+}
+.replay-pager { display: flex; align-items: center; justify-content: center; gap: 14px; font-size: 12px; color: var(--muted); }
+.replay-pager .btn.small:disabled { opacity: .4; cursor: default; }
 .game-preview.tiny { width: 26px; height: 26px; gap: 1px; padding: 2px; border-radius: 6px; flex: 0 0 auto; }
 .game-preview.tiny i { border-radius: 2px; }
 .skin-mc :is(.dd-button, .dd-option, .dd-menu) { border-radius: 0; border-color: #000; background: rgba(0,0,0,.62); }
 .skin-mc .dd-menu { background: #2b2b2b; }
-.replay-list { display: flex; flex-direction: column; gap: 8px; max-height: min(46vh, 420px); overflow-y: auto; padding-right: 2px; }
+.replay-list { display: flex; flex-direction: column; gap: 8px; }
 .replay-list:empty { display: none; }
 .replay-item {
     display: flex; align-items: center; gap: 10px; text-align: left;
@@ -390,7 +425,13 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
 /* phones: the text takes the full width and the three actions sit under it */
 @media (max-width: 899px) {
     .replays-card { gap: 8px; padding: 16px; }
-    .replay-list { max-height: 46vh; }
+    .replays-head .btn.small { flex: 1 1 100%; }
+    .replay-tools { gap: 6px; }
+    .replay-filter { flex: 1 1 100%; max-width: none; }
+    .replay-date { flex: 1 1 40%; }
+    .replay-date input { flex: 1; min-width: 0; }
+    .replay-count { flex: 1 1 100%; margin-left: 0; text-align: right; }
+    .replay-body { min-height: 220px; }
     .replay-item { flex-wrap: wrap; gap: 6px; }
     .replay-info { flex: 1 1 100%; }
     .replay-buttons { flex: 1 1 100%; justify-content: flex-end; }

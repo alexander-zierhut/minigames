@@ -13,6 +13,11 @@
     let phase = "menu";          // one of SCREENS
     let replayDoc = null;        // the replay document on the board (#42), null = playing
     let replayFilter = "all";    // the replays list's game filter
+    let replayKind = "all";      // all | bot | nobot
+    let replaySearch = "";       // part of a player's name
+    let replayFrom = "", replayTo = "";   // local days "YYYY-MM-DD", either may be empty
+    let replayPage = 0;          // the shown page of the filtered list
+    const REPLAY_PAGE = 10;      // rows per page: the card never grows out of hand
 
     /* Who sits in each seat (#35). Online the room knows it (every device announces its own
        name); offline the seats are this device's own (Prefs.seatNames: me first, then the
@@ -324,6 +329,7 @@
             opt.addEventListener("click", () => {
                 const byKey = document.activeElement === opt;      // keyboard: keep the focus on the control
                 replayFilter = key;
+                replayPage = 0;
                 box.classList.remove("open");
                 renderReplayFilter();
                 if (byKey) $("replay-filter-button").focus();
@@ -340,10 +346,23 @@
         const button = box.querySelector(".dd-button");
         if (button) button.setAttribute("aria-expanded", on ? "true" : "false");
     }
+    /* The list: every filter (game, bot or not, a name, the dates) is applied to all the
+       replays on this device, the count says how many were found, and the found ones come
+       in pages of REPLAY_PAGE rows, newest first. */
     async function renderReplays() {
         const box = $("replay-list");
-        const items = await Replays.store.list(replayFilter === "all" ? {} : { game: replayFilter });
+        const all = await Replays.store.list({});
+        const found = Replays.filter(all, { game: replayFilter, kind: replayKind, search: replaySearch, from: replayFrom, to: replayTo });
+        const pages = Math.max(1, Math.ceil(found.length / REPLAY_PAGE));
+        replayPage = Math.min(Math.max(0, replayPage), pages - 1);
+        const items = found.slice(replayPage * REPLAY_PAGE, (replayPage + 1) * REPLAY_PAGE);
         const kept = await Replays.store.persistent();
+        const plural = (k) => `${k} replay${k === 1 ? "" : "s"}`;
+        $("replay-count").textContent = found.length === all.length ? plural(all.length) : `${found.length} of ${plural(all.length)}`;
+        $("replay-pager").hidden = pages <= 1;
+        $("replay-page").textContent = `Page ${replayPage + 1} of ${pages}`;
+        $("replay-page-prev").disabled = replayPage === 0;
+        $("replay-page-next").disabled = replayPage >= pages - 1;
         box.innerHTML = "";
         for (const r of items) {
             const el = Util.fromTemplate("tpl-replay", 0);
@@ -352,10 +371,12 @@
             el.querySelector(".replay-sub").textContent = [Replays.when(r.playedAt), r.players.join(" vs "), r.resultText, `${r.moves} moves`].join(" · ");
             box.appendChild(el);
         }
+        const note = $("replays-note");
+        note.textContent = kept ? "" : "This browser cannot keep replays, so this list lasts only while the page is open. Save the ones you want as a file.";
+        note.hidden = !note.textContent;
         const hint = $("replays-hint");
-        hint.textContent = !kept
-            ? "This browser cannot keep replays, so this list lasts only while the page is open. Save the ones you want as a file."
-            : items.length === 0 ? "No replays yet. Play a game and it lands here." : "";
+        hint.textContent = all.length === 0 ? "No replays yet. Play a game and it lands here."
+            : found.length === 0 ? "No replay matches. Change the filter, the dates or the name." : "";
         hint.hidden = !hint.textContent;
     }
     // save a replay as a file (a Blob the browser downloads under the replay's own name)
@@ -550,6 +571,21 @@
         else if (btn.dataset.act === "download") downloadReplay(doc);
         else if (btn.dataset.act === "delete") { await Replays.store.remove(id); renderReplays(); toast("Replay deleted"); }
     });
+    $("replay-kind").addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-kind]");
+        if (!btn) return;
+        replayKind = btn.dataset.kind;
+        replayPage = 0;
+        for (const b of $("replay-kind").querySelectorAll("button")) b.classList.toggle("selected", b === btn);
+        renderReplays();
+    });
+    $("replay-search").addEventListener("input", () => { replaySearch = $("replay-search").value; replayPage = 0; renderReplays(); });
+    for (const id of ["replay-from", "replay-to"]) $(id).addEventListener("change", () => {
+        replayFrom = $("replay-from").value; replayTo = $("replay-to").value; replayPage = 0;
+        renderReplays();
+    });
+    $("replay-page-prev").addEventListener("click", () => { replayPage--; renderReplays(); });
+    $("replay-page-next").addEventListener("click", () => { replayPage++; renderReplays(); });
     $("btn-replay-upload").addEventListener("click", () => $("replay-file").click());
     $("replay-file").addEventListener("change", async (e) => {
         const file = e.target.files && e.target.files[0];

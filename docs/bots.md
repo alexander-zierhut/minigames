@@ -1,7 +1,7 @@
 # Bots — system, API and the current bots
 
 Bots play the offline "Play against a bot" mode. This document is the reference for the
-bot system; `AGENTS.md` holds the project-wide context and `docs/` is never deployed.
+bot system; `AGENTS.md` holds the project-wide context (the bot chapter is `.claude/rules/bots.md`) and `docs/` is never deployed.
 
 ## 1. Architecture in one picture
 
@@ -251,7 +251,7 @@ rules' fallback estimate drives the rest).
 The HUD's win chance is the most visible thing a bot does besides playing, and it is easy
 to make it look nervous. All four evaluators went through this cycle, each failing its own
 way; the numbers are from seeded self-play at the 12 000-node stage and the same story is
-told for the project as a whole under "Lessons learned" in `AGENTS.md`.
+told for the project as a whole under "Lessons learned" in `.claude/rules/bots.md`.
 
 | | Creeper (Chain React) | Sensei (Five Wins) | Warden (Isolation) | Fencer (Käsekästchen) |
 | --- | --- | --- | --- | --- |

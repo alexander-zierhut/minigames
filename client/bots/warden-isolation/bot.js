@@ -362,7 +362,7 @@ const WardenIsolation = (() => {
 
        Any minimax value carries a tempo artefact: with the mover choosing last the position
        looks better for them than with the mover choosing first, so the bar jumped up and
-       down every single move (the horizon effect AGENTS.md warns about). The score is
+       down every single move (the horizon effect .claude/rules/bots.md warns about). The score is
        therefore the average of the search of the real position and of the same position with
        the other seat to move: that pair is symmetric by construction, so what is left is the
        position, not whose turn it is. Both halves always run to the same depth, which is why
