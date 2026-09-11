@@ -156,6 +156,11 @@ correctness.
 
 ## Lessons learned
 
+- **Counting background work needs a wait, not a sleep.** `winchance.test.mjs` counted the
+  estimator's refinement stages after a fixed 20 ms and went red on CI with 8 of 9: the
+  stages run on node budgets with a yield between them, so how long three of them take is
+  the machine's business. Wait for the count (`until(() => calls.length === 9)`), the way
+  the e2e suites wait for an outcome. Anything that fires in the background needs the same.
 - **Determinism is a feature of the tests, not a hope.** Seeded RNG everywhere (bots,
   personas, e2e random play via `Bots.rng`, pinned bot seed through sessionStorage),
   node budgets instead of time, generous timing margins, `waitFor` over `sleep`. Cross-realm

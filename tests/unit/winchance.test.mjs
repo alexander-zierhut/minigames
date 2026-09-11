@@ -19,6 +19,16 @@ function install(w, table, stages = [1, 2, 3]) {
     return calls;
 }
 const pct = (w, k) => parseInt(w.document.getElementById(`p${k}-win-pct`).textContent, 10);
+/* The refinement stages run in the background (node budgets, with a yield between them), so
+   how long they take is the machine's business: wait for the count instead of sleeping a
+   fixed 20 ms, which had eight of nine stages done on the CI runner. */
+async function until(fn, what, ms = 4000) {
+    const t0 = Date.now();
+    while (!fn()) {
+        if (Date.now() - t0 > ms) throw new Error(`timeout waiting for ${what}`);
+        await wait(5);
+    }
+}
 
 test("frozen during the explosion animation, then refined stage by stage", async () => {
     const w = loadDom(); const G = w.eval("ChainGame");
@@ -26,9 +36,9 @@ test("frozen during the explosion animation, then refined stage by stage", async
     const { h } = hooks();
     G.newGame({ n: 4, speed: 30, startPlayer: 0 }, h);
     assert.equal(pct(w, 0), 50);
-    await wait(20);                                        // background stages of the start position
-    await G.play(0); await wait(20); await G.play(15); await wait(20);
-    assert.equal(calls.length, 9, "three stages after each settled move (+ start)");
+    await until(() => calls.length === 3, "the start position's three stages");
+    await G.play(0); await until(() => calls.length === 6, "three more after the first move");
+    await G.play(15); await until(() => calls.length === 9, "three stages after each settled move (+ start)");
     const before = pct(w, 0);
     const p = G.play(0);                                   // corner explodes: animated
     await wait(5);
@@ -36,8 +46,7 @@ test("frozen during the explosion animation, then refined stage by stage", async
     const mid = calls.length;
     await p;
     assert.equal(calls.length, mid + 1, "first stage right after settling");
-    await wait(20);
-    assert.equal(calls.length, mid + 3, "later stages in the background");
+    await until(() => calls.length === mid + 3, "the later stages in the background");
     w.close();
 });
 
