@@ -112,7 +112,12 @@ input[type="range"] { accent-color: var(--accent); width: 100%; margin: 0; }
 }
 .corner-btn:hover { background: #2b3556; }
 .corner-btn > span { pointer-events: none; }    /* taps and hit-tests land on the button itself */
-.corner-btn .corner-icon { font-size: 20px; }
+.corner-btn .corner-icon { font-size: 20px; display: inline-flex; }
+/* the line icons (client/lib/icons.js): sized by the font around them, drawn in the text colour */
+svg.ico { width: 1.1em; height: 1.1em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.2em; flex: 0 0 auto; }
+[data-icon] { display: inline-flex; align-items: center; justify-content: center; }
+button[data-icon] svg.ico { vertical-align: 0; }
+.btn:has(> [data-icon]) { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }   /* an icon and a word on one line, centred */
 /* the full label everywhere (#43); phones get it a touch smaller so the pill and the
    reaction toggle never meet on a 360px screen */
 @media (max-width: 899px) {

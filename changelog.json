@@ -5,6 +5,11 @@
       "date": "2026-09-11",
       "entries": [
         {
+          "type": "improvement",
+          "text": "Every emoji used as an icon is a clean line icon now: the settings button, the option rows, the preferences menu, the replay buttons, the Learn scenario kinds and the menu button in a game. Reactions stay emoji.",
+          "technical": true
+        },
+        {
           "type": "feature",
           "text": "The replays list grew into a tool: filter by game, by bot or not, by a player's name and by a date range, see how many replays matched, and page through them ten at a time. On desktop it is wider, on phones the page scrolls through the list instead of a small box."
         },

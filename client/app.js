@@ -68,14 +68,16 @@
         $("lobby-kind").textContent = online ? "Room" : bot ? "Against a bot" : "Local game";
         $("lobby-code").textContent = online ? Room.codeText() : bot ? "You vs bot" : "Same device";
         $("lobby-code").classList.toggle("as-word", online && Room.watching);   // "Watching" is a word, not a code
-        // a spectate-link viewer never sees the room code, so it gets no eye and no share
-        // or copy button: only the 👀 link to invite more viewers (#29)
+        // the Invite modal: a spectate-link viewer never sees the room code, so it gets no
+        // eye and no share or copy row, only the spectate link to invite more viewers (#29)
         const watcher = Room.watching;
         const eye = $("btn-hide-code");
         eye.hidden = !online || watcher;
-        eye.textContent = Room.codeHidden ? "🙈" : "👁";
-        eye.title = Room.codeHidden ? "Show the room code" : "Hide the room code";
-        eye.setAttribute("aria-label", eye.title);
+        Icons.set(eye.querySelector(".gear-icon"), Room.codeHidden ? "eye-off" : "eye");
+        $("hide-code-label").textContent = Room.codeHidden ? "Show the room code" : "Hide the room code";
+        $("invite-code").textContent = online ? Room.codeText() : "";
+        $("invite-code").hidden = !online || watcher;
+        $("invite-hint").textContent = watcher ? "Pass your own link on: whoever opens it watches too." : "Friends open the link, or type the code under Join room.";
         const roomBot = online ? Settings.bot : null;               // the room plays a bot (#36)
         $("btn-opponent").hidden = !bot && !roomBot;
         if (bot || roomBot) $("opponent-summary").textContent = Opponent.summary(Settings.game, Settings.read(), roomBot);

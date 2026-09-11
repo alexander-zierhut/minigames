@@ -59,10 +59,10 @@ const Learn = (() => {
     ];
     const UNLOCK = 0.6;
     const KINDS = {
-        "best-move": { icon: "🎯", label: "Best move" },
-        trap: { icon: "⚠️", label: "Trap" },
-        turnaround: { icon: "🔄", label: "Turnaround" },
-        "play-from-here": { icon: "🏁", label: "Play from here" },
+        "best-move": { icon: "target", label: "Best move" },       // icon names, see client/lib/icons.js
+        trap: { icon: "alert", label: "Trap" },
+        turnaround: { icon: "refresh", label: "Turnaround" },
+        "play-from-here": { icon: "flag", label: "Play from here" },
     };
     const DOTS = 5;                      // difficulty 1..10 shown as five dots
     const tierOf = (id) => TIERS.find((t) => t.id === id) || TIERS[0];
@@ -494,7 +494,7 @@ const Learn = (() => {
         row.dataset.scenario = sc.id;
         row.dataset.kind = sc.kind;
         row.innerHTML = `<span class="gear-icon"></span><span class="learn-sc-text"><b></b><small></small></span><span class="learn-dots"></span><span class="chev">›</span>`;
-        row.querySelector(".gear-icon").textContent = solved ? "✓" : kind.icon;
+        Icons.set(row.querySelector(".gear-icon"), solved ? "check" : kind.icon);
         row.querySelector(".gear-icon").className = "gear-icon" + (solved ? " solved" : "");
         row.querySelector("b").textContent = sc.title;
         row.querySelector("small").textContent = kind.label;

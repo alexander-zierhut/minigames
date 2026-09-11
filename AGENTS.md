@@ -46,6 +46,7 @@ Scripts, in order (each defines the global named in brackets):
 | File | Global | Role |
 | --- | --- | --- |
 | `client/vendor/peerjs.min.js` | `Peer` | PeerJS 1.5.4, vendored (no CDN at runtime) |
+| `client/lib/icons.js` | `Icons` | monochrome line icons in place of emoji: `[data-icon=name]` gets its SVG (an observer fills nodes added later), `Icons.set(el, name)`, `Icons.svg(name)`; reactions and the bot persona stay emoji |
 | `client/lib/util.js` | `Util` | `$`, `sleep`, `clamp`, `restartClass`, fail-safe storage `load/save/remove`, `fromTemplate`, `toast` |
 | `client/lib/bus.js` | `Bus` | event bus `on/off/emit` (see Events in `.claude/rules/games.md`) |
 | `client/lib/log.js` | `Log` | the HUD event log (`add`, `chat`, `clear`, 40 lines) |

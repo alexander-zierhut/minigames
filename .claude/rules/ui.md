@@ -40,7 +40,7 @@ The title screen, the lobby and the game screen, the install button and version 
 `manifest.json` (name, `standalone`, navy theme/background, icons 192/512 "any" + a
 `maskable` 512 with the artwork inside the safe zone for Android's adaptive icons) is
 linked from `index.html` and copied by the build (`ROOT_EXTRAS`). The title screen's
-`#btn-install` ("📲 Add to home screen") is hidden until the browser fires
+`#btn-install` ("Add to home screen" with the phone icon) is hidden until the browser fires
 `beforeinstallprompt` (Android Chrome and other Chromium browsers; never on iOS Safari,
 which has no prompt — the owner wants the button only where it works), then calls
 `prompt()` and hides itself; `appinstalled` toasts. The icon set (favicon, apple-touch,
@@ -63,7 +63,7 @@ to try things").
   like the offline row so all four buttons share one height, over the quiet
   pills `#btn-install` (see Install) and `Changelog` (`#btn-changelog`) in `.foot-quiet`
   (14 px of margin above it, and the card's bottom padding is 22 px to match). Learn, Replays and
-  Changelog carry no icon any more; only the install pill kept its 📲. **Above the card**
+  Changelog carry no icon any more; only the install pill kept its phone icon. **Above the card**
   (#43), as its own banner inside `#screen-menu` — which is therefore the one screen laid
   out as a column — sits `#update-notice` (see "Version updates"). No Look
   control here (owner: only in the preferences, #9). Never scrolls on a phone. The ⚙
@@ -161,9 +161,9 @@ to try things").
   "12 replays" or "3 of 12 replays". The found rows come in **pages** of `REPLAY_PAGE` = 10
   (`#replay-pager` with `#replay-page-prev` "‹ Newer", `#replay-page` "Page 1 of 2",
   `#replay-page-next` "Older ›", hidden with one page; every filter change goes back to
-  page 1). One `.replay-item` per row from `#tpl-replay` (title "Five Wins · 5 × 5", the sub
-  line "date · names · result · moves" from `Replays.summary`) with **Watch** / ⬇ (save as a
-  file) / 🗑 (delete). `.replay-body` keeps a minimum height (300 px, phones 220 px) and
+  page 1). One `.replay-item` per row from `#tpl-replay` (the game's small preview tile
+  from `previewTile`, then the title "Five Wins · 5 × 5" and the sub line "date · names ·
+  result · moves" from `Replays.summary`) with **Watch** / a download icon (save as a file) / a trash icon (delete). `.replay-body` keeps a minimum height (300 px, phones 220 px) and
   `#replays-hint` is the centred, dashed **empty state** ("No replays yet…" or "No replay
   matches…"); `#replays-note` above the list warns when the browser has no IndexedDB and
   the list only lasts for this visit. **Nothing scrolls inside the card**: like the Learn
@@ -263,6 +263,20 @@ restores form values on reload).
 - Any change → `onChange(config)` → app sends `lobby {s}` to the friends (`Room.settingsChanged`).
   `Settings.write` runs silently (no echo) when applying the friends' settings.
 - The **look is not a setting** (see Skins).
+
+## Icons (`client/lib/icons.js`)
+
+Every icon in the UI is a monochrome 24 × 24 line drawing stroked in `currentColor`
+(owner: no emoji as icons; emoji stay for the reactions and the bot persona, which are
+content). `<span data-icon="book"></span>` gets its SVG (`svg.ico`, 1.1 em, `[data-icon]`
+is `inline-flex`), a `MutationObserver` fills nodes added later (cloned templates, rows
+built by scripts), `Icons.set(el, name)` swaps one, `Icons.svg(name)` builds a bare
+element, `Icons.names()` lists them. Names in use: settings, phone, eye, eye-off, copy,
+monitor, share, book, bot, download, trash, user, palette, volume, video, wrench, chat,
+target, alert, refresh, flag, check, menu. Learn's `KINDS` name their icon, the replay
+rows' buttons and the lobby rows carry `data-icon` in the markup. `tests/unit/icons.test.mjs`
+checks every `data-icon` in the page is known and that no emoji is left where an icon
+belongs.
 
 ## Preferences (`client/prefs.js`, per device — the ⚙ button)
 

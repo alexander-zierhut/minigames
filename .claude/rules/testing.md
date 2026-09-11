@@ -86,9 +86,10 @@ not `deepStrictEqual`, and get globals with `w.eval("Name")`. A file that starts
 | `chat.test.mjs` | the log boxes, the limits, HTML never interpreted, offline nothing is sent, and chat surviving a new game |
 | `reactions.test.mjs` | `durationFor` from the recent rate with a mocked clock, own and received counted together, the rate limits, and the sender's colour on every float (#33) |
 | `clock.test.mjs` | a disabled clock, only the active one running, pause, the flag at zero, restore and the rendered text |
-| `net.test.mjs` | room codes and their normalisation, the spectator peer id of #29 (a code of its own that no room code can produce, and no message carrying the room code), and the relay-only peer config of #30 |
+| `net.test.mjs` | room codes and their normalisation, the `refused` flag that tells a rate-limiting broker from a hiccup, the spectator peer id of #29 (a code of its own that no room code can produce, and no message carrying the room code), and the relay-only peer config of #30 |
 | `dev.test.mjs` | (#31) `Dev.format` on a hand-made snapshot (network with a route per connection, performance, bot, win chance, and the offline and empty states), `enable()` through the preference, and the bot report and estimator stage that feed it |
 | `update.test.mjs` | (#40) `isNewer`, a fake fetch, the notice on the title screen only, the flag surviving until it shows, the idle reload happening once with an injected `reload`, and silence on every failure |
+| `icons.test.mjs` | every `data-icon` in the page names a known line icon and holds its SVG, no emoji left where an icon belongs, `Icons.set` swaps in place, the observer fills nodes added later |
 | `changelog.test.mjs` | `changelog.json` itself (days newest first, valid dates, known types, resolvable refs) and the modal (days as sections, links in a new tab, "Show older", and the technical toggle of #27) |
 | `build.test.mjs` | `SKIP_MINIFY=1 DIST_DIR=<tmp>`: hashed names, icons, a deterministic rebuild and `version.json` matching the meta stamp |
 | `ci.test.mjs` | the e2e shard split: every file in exactly one shard for 1 to 6 shards, shards balanced within a factor of 1.5, an unmeasured file placed, the size table only naming files that exist, and `ci.yml`'s matrix and gate job matching the script |

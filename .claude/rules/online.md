@@ -25,7 +25,7 @@ The PeerJS transport, the room protocol and its every message, seats and presenc
   the room code. Such connections are tagged `spectator: true` in `Net.peers` and can never
   hold a seat. The spectator code is room state the players share (`Room.spec`, in `state
   {spec}` to seated guests only and in the session), so whoever ends up hosting registers
-  the same viewer peer and the 👀 link keeps working.
+  the same viewer peer and the spectate link keeps working.
 - **Transport role**: whoever claims the room peer id is `host`; on `unavailable-id` the
   others become `guest` and dial the host — so "Create room" and "both type the same
   code" share `Net.open(code, handlers, preferredRole)` (`preferredRole` = `"guest"` /
@@ -85,7 +85,7 @@ The PeerJS transport, the room protocol and its every message, seats and presenc
   next dial's metadata says the same) or gives a free one, then answers `state {you}` to
   that connection and a `roster` to everyone. `Room.setSeat` follows through everywhere:
   `Match.setSeat`, the address bar (`&spectate=1` next to `?room=` for a seatless player, so
-  a refresh keeps the role; the 👀 spectate link is a different thing, see below), the net box, the lobby, the Rematch buttons and the session. A spectate-link
+  a refresh keeps the role; the spectate link is a different thing, see below), the net box, the lobby, the Rematch buttons and the session. A spectate-link
   connection is refused (`spectator` in `Net.peers`), and the *Players* control alone never
   re-seats somebody who chose to watch — only "Take a seat" does.
 - **Presence** (`presentSeats()`): the host derives it from its connections (an open
@@ -170,7 +170,7 @@ The PeerJS transport, the room protocol and its every message, seats and presenc
   hidden room from the session alone (no `?room=` needed; a visible room still needs the
   matching `?room=`). `Net.code`, the share / spectate links and `Copy code` are untouched
   — hiding is display only, per device, never sent to the room. The lobby's eye button
-  (`#btn-hide-code`, 👁 / 🙈) toggles it; `Prefs.hideCode` makes new rooms start hidden
+  (`#btn-hide-code` in the Invite modal, the eye / eye-off icon, "Hide the room code" / "Show the room code") toggles it; `Prefs.hideCode` makes new rooms start hidden
   (`Room.enter(code, { hidden: Prefs.get().hideCode, … })`).
 - Messages (JSON over reliable DataConnections; every message carries `from` = the
   sender's seat; game messages carry `g` = gameNo): `hello {seat, spectate, name, rev, phase,
@@ -255,14 +255,14 @@ the device knows the room code.
   → `state {you: -1}`), as does a player who chose "Watch instead" (#39). They may take a
   seat again ("Take a seat", see Seat switching); `reseat` alone never hands a seat to a
   connection whose `meta.spectate` says it does not want one.
-- **Spectate-link viewers (#29)**: the 👀 link `?watch=<SPECTATOR CODE>`
+- **Spectate-link viewers (#29)**: the spectate link `?watch=<SPECTATOR CODE>`
   (`#btn-share-spectate` → `Room.spectateLink()`) uses the room's second code and the host's
   second peer, so the viewer never receives the room code in any message (`state` carries
   `spec` only to seated guests; `roster`, `sync`, `lobby`, `chat` never carry a code at all,
   and the dev panel prints none). Its connection is `spectator: true` in `Net.peers`: the
   host's `hello` refuses it a seat whatever the message says, `reseat` skips it and it can
   never take a seat. Its lobby shows "Watching" instead of the code, with no eye and no
-  share / copy button (only 👀 to pass its own link on); the HUD net box says "Watching"
+  share / copy row in the Invite modal (only the spectator link to pass its own link on); the HUD net box says "Watching"
   with no code; `Room.watching` / `Room.codeText()` say so. It never claims the room id, so
   when the host hands hosting over it simply reconnects to the new host by the same link.
 Both get everything the host sends (`state`,

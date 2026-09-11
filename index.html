@@ -52,7 +52,7 @@
 </div>
 
 <!-- ===================== PREFERENCES (⚙ top-left on every screen; this device only) ===================== -->
-<button id="prefs-btn" class="corner-btn" aria-label="Settings &amp; Feedback" title="Settings &amp; Feedback"><span class="corner-icon">⚙</span><span class="corner-text">Settings &amp; Feedback</span></button>
+<button id="prefs-btn" class="corner-btn" aria-label="Settings &amp; Feedback" title="Settings &amp; Feedback"><span class="corner-icon" data-icon="settings"></span><span class="corner-text">Settings &amp; Feedback</span></button>
 
 <!-- ===================== TITLE / MENU ===================== -->
 <section id="screen-menu" class="screen">
@@ -99,7 +99,7 @@
             </div>
             <div class="foot-quiet">
                 <!-- shown only when the browser offers to install the page as an app (Android Chrome) -->
-                <button class="btn ghost install-btn" id="btn-install" hidden>📲 Add to home screen</button>
+                <button class="btn ghost install-btn" id="btn-install" hidden><span data-icon="phone"></span> Add to home screen</button>
                 <button class="btn ghost install-btn" id="btn-changelog">Changelog</button>
             </div>
         </div>
@@ -304,7 +304,7 @@
                     <div><span id="round-mini">Round 1</span></div>
                     <div id="mini-line2"></div>
                 </div>
-                <button class="gear" id="gear" aria-label="Menu">☰</button>
+                <button class="gear" id="gear" aria-label="Menu" data-icon="menu"></button>
             </div>
 
             <!-- one card per seat, from #tpl-player -->
@@ -412,27 +412,27 @@
         <div class="prefs-body">
             <div class="prefs-nav" id="prefs-nav">
                 <button class="settings-summary prefs-nav-row" id="prefs-nav-profile" data-section="profile">
-                    <span class="gear-icon">🙂</span><span class="prefs-nav-name">Profile</span>
+                    <span class="gear-icon" data-icon="user"></span><span class="prefs-nav-name">Profile</span>
                     <span class="prefs-nav-sum" id="prefs-sum-profile"></span><span class="chev">›</span>
                 </button>
                 <button class="settings-summary prefs-nav-row" id="prefs-nav-look" data-section="look">
-                    <span class="gear-icon">🎨</span><span class="prefs-nav-name">Look</span>
+                    <span class="gear-icon" data-icon="palette"></span><span class="prefs-nav-name">Look</span>
                     <span class="prefs-nav-sum" id="prefs-sum-look"></span><span class="chev">›</span>
                 </button>
                 <button class="settings-summary prefs-nav-row" id="prefs-nav-sound" data-section="sound">
-                    <span class="gear-icon">🔊</span><span class="prefs-nav-name">Sound</span>
+                    <span class="gear-icon" data-icon="volume"></span><span class="prefs-nav-name">Sound</span>
                     <span class="prefs-nav-sum" id="prefs-sum-sound"></span><span class="chev">›</span>
                 </button>
                 <button class="settings-summary prefs-nav-row" id="prefs-nav-streaming" data-section="streaming">
-                    <span class="gear-icon">📺</span><span class="prefs-nav-name">Content Creator</span>
+                    <span class="gear-icon" data-icon="video"></span><span class="prefs-nav-name">Content Creator</span>
                     <span class="prefs-nav-sum" id="prefs-sum-streaming"></span><span class="chev">›</span>
                 </button>
                 <button class="settings-summary prefs-nav-row" id="prefs-nav-developer" data-section="developer">
-                    <span class="gear-icon">🛠️</span><span class="prefs-nav-name">Developer</span>
+                    <span class="gear-icon" data-icon="wrench"></span><span class="prefs-nav-name">Developer</span>
                     <span class="prefs-nav-sum" id="prefs-sum-developer"></span><span class="chev">›</span>
                 </button>
                 <button class="settings-summary prefs-nav-row" id="prefs-nav-feedback" data-section="feedback">
-                    <span class="gear-icon">💬</span><span class="prefs-nav-name">Feedback</span>
+                    <span class="gear-icon" data-icon="chat"></span><span class="prefs-nav-name">Feedback</span>
                     <span class="prefs-nav-sum" id="prefs-sum-feedback"></span><span class="chev">›</span>
                 </button>
             </div>
@@ -510,7 +510,7 @@
 <div id="bot-modal" class="modal" hidden>
     <div class="menu-card bot-card">
         <div class="bot-detail-head">
-            <span class="bot-detail-icon">🤖</span>
+            <span class="bot-detail-icon" data-icon="bot"></span>
             <div>
                 <h1 class="title small" id="bot-name">Bot</h1>
                 <p class="tagline small" id="bot-desc"></p>
@@ -624,8 +624,8 @@
         </div>
         <div class="replay-buttons">
             <button class="btn small primary" data-act="watch">Watch</button>
-            <button class="btn small icon" data-act="download" title="Save as a file" aria-label="Save as a file">⬇</button>
-            <button class="btn small icon" data-act="delete" title="Delete this replay" aria-label="Delete this replay">🗑</button>
+            <button class="btn small icon" data-act="download" title="Save as a file" aria-label="Save as a file" data-icon="download"></button>
+            <button class="btn small icon" data-act="delete" title="Delete this replay" aria-label="Delete this replay" data-icon="trash"></button>
         </div>
     </div>
 </template>
@@ -636,6 +636,7 @@
 <!-- scripts are concatenated in this order by build.mjs; every file defines one global -->
 <script src="client/vendor/peerjs.min.js"></script>
 <script src="client/lib/util.js"></script>
+<script src="client/lib/icons.js"></script>
 <script src="client/lib/bus.js"></script>
 <script src="client/lib/log.js"></script>
 <script src="client/lib/clock.js"></script>

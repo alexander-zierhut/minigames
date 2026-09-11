@@ -197,7 +197,7 @@ test("a scenario: the position is loaded, a wrong move offers Retry, the right o
     await B.click("#learn-back");
     assert.equal(await B.screen(), "screen-learn-game");
     assert.match(await B.text("learn-progress"), /^1 \/ \d+ solved$/);
-    assert.equal(await B.ev("document.querySelector('#learn-scenarios .learn-scenario .gear-icon').textContent"), "✓");
+    assert.equal(await B.ev("document.querySelector('#learn-scenarios .learn-scenario .gear-icon').dataset.icon"), "check", "the solved mark");
     // the progress survives a reload
     await B.goto(server.url);
     await B.click("#btn-learn");
