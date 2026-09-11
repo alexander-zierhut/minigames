@@ -16,6 +16,11 @@
         },
         {
           "type": "improvement",
+          "text": "Cards never scroll inside themselves any more: a tall page or panel scrolls as a whole, on phones and on desktop.",
+          "technical": true
+        },
+        {
+          "type": "improvement",
           "text": "The game picker's tiles show the games themselves: Chain React with its lamp dots, Isolation with broken tiles, Käsekästchen as dots and boxes. Replay rows carry the tile too. The lobby got an Options heading, and the tagline under the picker is gone.",
           "technical": true
         },

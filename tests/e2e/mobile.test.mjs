@@ -63,7 +63,14 @@ test("online-shaped lobby with four seats: one Share button plus two icons under
         const swap = JSON.parse(await M.ev("JSON.stringify(['btn-watch', 'btn-room-bot', 'lobby-players', 'lobby-spectators'].map(id => { const r = document.getElementById(id).getBoundingClientRect(); return { top: Math.round(r.top), left: Math.round(r.left), right: Math.round(r.right) }; }))"));
         assert.ok(swap[0].top >= swap[2].top && swap[0].top <= swap[3].top, `${skin}: seat controls between the cards and the notes (${JSON.stringify(swap)})`);
         assert.ok(swap.slice(0, 2).every((b) => b.left >= 16 && b.right <= 344), `${skin}: seat controls inside the card (${JSON.stringify(swap)})`);
-        await assertNoScroll(`${skin}: online lobby with four seats`);
+        // four seats plus every seat control is taller than a 360×780 phone: the page scrolls
+        // (owner's rule: a page scroll over a scroll inside the card), the card never does
+        const fit = await M.noScroll();
+        assert.ok(fit.x && fit.y, `${skin}: never sideways, never the document ${JSON.stringify(fit)}`);
+        assert.ok(await M.ev("(() => { const c = document.querySelector('#screen-lobby .menu-card'); return c.scrollHeight <= c.clientHeight + 1; })()"), `${skin}: nothing scrolls inside the card`);
+        await M.ev("(() => { const s = document.getElementById('screen-lobby'); s.scrollTop = s.scrollHeight; return true; })()");
+        assert.ok(await M.ev("document.getElementById('btn-start').getBoundingClientRect().bottom <= innerHeight + 1"), `${skin}: Start reachable by scrolling the screen`);
+        await M.ev("(() => { document.getElementById('screen-lobby').scrollTop = 0; return true; })()");
         await M.screenshot(`mobile-lobby-${skin}.png`);
     }
     await M.selectSkin("classic");

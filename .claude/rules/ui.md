@@ -141,8 +141,13 @@ to try things").
   Then `.lobby-foot`: `Start game` (`#btn-start`, the one big primary button, its text also
   says why it is disabled) and a quiet text button `Leave room` / `Back` (`#btn-lobby-back`,
   class `btn quiet`). No chat in the lobby (#15) — chat lives in the game HUD only. The
-  whole card must fit 360×780 without scrolling in all three looks (`mobile.test.mjs`,
-  screenshots `mobile-lobby-<skin>.png`).
+  card fits 360×780 for a local or a two-seat room; four seats with every seat control
+  shown are taller than that and then **the screen scrolls, never the card** (`mobile.test.mjs`,
+  screenshots `mobile-lobby-<skin>.png`). That is the rule everywhere since 2026-09-11:
+  `.menu-card` has no `max-height` and no `overflow`, the screens and `.modal` use
+  `safe center` alignment with `overflow-y: auto`, and the changelog list, the How to play
+  modal and the preferences body have no inner scroll box either (the HUD log and the
+  replays dropdown menu are the two boxes that still scroll by design).
 - **Game** (`#screen-game`): board + HUD ("hut"). Result overlay: `Rematch`, `Look at
   board` (hides it and opens the replay bar), `Change game` (→ lobby). The HUD has
   `Rematch` and `Back to room` too. `renderRematch()` in app.js is the only writer of the
@@ -329,14 +334,15 @@ the open row `selected`, no chevron) and the open section sits beside it **in a 
 own** (`.prefs-section`: `--bg2` background, border, its `.section-title` a 17 px bold
 heading with a hairline under it), so nothing is ever two taps away; `open()` selects the
 first section right away. Both columns end on the same line (`align-items: stretch`, the
-section `flex: 1`, the menu rows `flex: 1 0 auto`). `.prefs-body` scrolls internally only
-as a last resort so Done stays visible. Phones keep the plain form without the card.
+section `flex: 1`, the menu rows `flex: 1 0 auto`). A too tall modal scrolls as a whole
+(the `.modal` backdrop), never `.prefs-body`. Phones keep the plain form without the card.
 **Adding a section = one nav row + one `.prefs-section` panel in index.html + one entry in
 `SECTIONS`** (and a `sectionSummary` case); nothing else knows about them.
 
 The sections hold: **Profile** (#35: the text field `#pref-name`, `maxlength` 16, written
 back on `change` so typing is never cut mid-word, hint "Shown to the others in the room.";
-the menu row's summary is the current name), the **Look** control (the only `.skin-seg`,
+the menu row's summary is the current name; the title screen's `#menu-name` is a second
+field for the same preference), the **Look** control (the only `.skin-seg`,
 full width, no extra label, #22; kept in sync by `Skins`) plus `#pref-win-graph`
 ("Win chance graph in replays", on by default, #43: the line graph in the analysis panel,
 two-player games only), the **Sound** rows (master volume slider

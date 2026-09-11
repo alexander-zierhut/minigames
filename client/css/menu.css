@@ -3,8 +3,8 @@
    ============================================================ */
 #screen-menu, #screen-lobby, #screen-replays {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: safe center;
+    justify-content: safe center;
     overflow-y: auto;
     padding: 16px;
     background:
@@ -24,8 +24,10 @@
     display: flex;
     flex-direction: column;
     gap: 18px;
-    max-height: 100%;
-    overflow-y: auto;
+    /* a card never scrolls inside itself (owner's rule): when it is taller than the screen
+       or the modal, that container scrolls the page and `margin: auto` keeps the card
+       centred while it fits and at the top once it does not */
+    margin: auto;
 }
 .title {
     margin: 0;
@@ -87,7 +89,7 @@
 /* a new version is deployed (#40): a banner above the title card (#43), title screen only.
    The title screen is the one screen that stacks two blocks, so it is a column. */
 #screen-menu { flex-direction: column; gap: 12px; }
-#screen-menu .menu-card { min-height: 0; }
+#screen-menu .menu-card { min-height: 0; margin: 0; }          /* the notice and the card stay together, centred by the screen */
 .update-notice {
     display: flex;
     align-items: center;
@@ -105,10 +107,17 @@
 }
 .skin-mc .update-notice { border-radius: 0; background: rgba(0,0,0,.7); border-color: #000; }
 
+/* ---- invite (the room's share actions) ---- */
+.invite-card { max-width: 440px; gap: 12px; }
+.invite-code { text-align: center; font-size: 32px; letter-spacing: 5px; line-height: 1.15; }
+.invite-rows { display: flex; flex-direction: column; gap: 8px; }
+.invite-row .invite-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.invite-row .invite-text b { font-size: 13px; }
+.invite-row .invite-text small { font-size: 11px; font-weight: 400; color: var(--muted); }
 /* ---- changelog ---- */
 .changelog-card { max-width: 560px; gap: 12px; }
 .cl-toggle { justify-content: center; font-size: 13px; color: var(--muted); }
-.changelog-list { max-height: 62vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-right: 4px; }
+.changelog-list { display: flex; flex-direction: column; gap: 12px; }        /* the modal scrolls, never the list */
 .cl-day h2 { margin: 0 0 6px; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
 /* entries: a compact list inside one box per day — head line (type badge + links), text below */
 .cl-day ul { list-style: none; margin: 0; padding: 2px 10px; display: flex; flex-direction: column; background: var(--bg2); border: 2px solid var(--line); border-radius: 10px; }
@@ -300,7 +309,7 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
 .pref-toggles label, .pref-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; }
 .pref-toggles input[type="checkbox"], .pref-check input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 auto; }
 /* desktop: two panes side by side, so no section is ever two taps away */
-.prefs-body { display: grid; grid-template-columns: 186px 1fr; gap: 16px; align-items: start; min-height: 0; overflow: auto; }
+.prefs-body { display: grid; grid-template-columns: 186px 1fr; gap: 16px; align-items: start; min-height: 0; }
 .prefs-nav { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .prefs-nav-row { gap: 8px; padding: 9px 12px; }
 .prefs-nav-row .gear-icon { font-size: 16px; }
@@ -372,8 +381,6 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
    card: regular players collect a lot of games, so it is wide on desktop, the list comes
    in pages and the page scrolls (never a box inside the card). ---- */
 .replays-card { max-width: 560px; gap: 12px; }
-#screen-replays { align-items: flex-start; }
-#screen-replays .menu-card { max-height: none; overflow: visible; margin: auto; }
 /* desktop: wide enough that the whole filter row and a row's date, players and result stay on one line */
 @media (min-width: 900px) { #screen-replays .menu-card { max-width: 860px; padding: 24px 28px; } }
 .replays-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
@@ -400,8 +407,6 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
     box-shadow: 0 16px 40px rgba(0,0,0,.55);
 }
 .dropdown.open .dd-menu { display: flex; }
-/* the card clips its content (it may scroll), so it lets the open menu out */
-.menu-card:has(.dropdown.open) { overflow: visible; }
 .dd-option.selected { border-color: var(--accent); }
 .replay-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
 .replay-filter { flex: 1 1 180px; min-width: 0; max-width: 280px; }

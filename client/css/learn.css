@@ -6,8 +6,8 @@
 /* the Learn screens look like the lobby (same card, same picker cards) */
 #screen-learn, #screen-learn-game {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: safe center;
+    justify-content: safe center;
     overflow-y: auto;
     padding: 16px;
     background:
@@ -17,11 +17,8 @@
 }
 #screen-learn-game .menu-card { gap: 14px; }
 .lobby-row-note { margin-left: auto; font-size: 11px; color: var(--muted); }
-/* The details page is the one screen that may scroll (#43): the rule bullets and the
-   scenario rows stay whole (no box inside a box that scrolls), the page carries them.
-   `margin: auto` centres the card while it fits and never pushes its top out of reach. */
-#screen-learn-game { align-items: flex-start; }
-#screen-learn-game .menu-card { max-height: none; overflow: visible; margin: auto; }
+/* The details page scrolls as a page (#43), like every card now: the rule bullets and the
+   scenario rows stay whole, no box inside a box that scrolls. */
 
 /* rules bullets and the tutorial steps in the lobby modal */
 .learn-rules, .learn-steps {
@@ -78,7 +75,6 @@
 .learn-tier .learn-tier-count { margin-left: auto; letter-spacing: 1px; }
 .learn-tier .learn-tier-text { flex-basis: 100%; font-size: 10px; letter-spacing: 0; text-transform: none; color: var(--muted); }
 .howto-card { max-width: 520px; gap: 12px; }
-.howto-card .learn-rules, .howto-card .learn-steps { max-height: 34vh; overflow-y: auto; }
 
 /* ---- the lesson panel (first block of the HUD, so phones show it right under the board) ---- */
 #learn-panel {

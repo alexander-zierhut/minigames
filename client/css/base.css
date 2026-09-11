@@ -133,7 +133,8 @@ button[data-icon] svg.ico { vertical-align: 0; }
 .modal {
     position: fixed; inset: 0; z-index: 48;
     background: rgba(0,0,0,.6);
-    display: flex; align-items: center; justify-content: center;
+    display: flex; align-items: safe center; justify-content: safe center;
+    overflow-y: auto;                                 /* a tall card scrolls the modal, never itself */
     padding: 16px; animation: fadein .2s;
 }
 #toast {
