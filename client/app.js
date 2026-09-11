@@ -524,18 +524,34 @@
     $("btn-howto").addEventListener("click", () => Learn.openHowto(Settings.game));
 
     // lobby
+    /* "It worked" is shown on the row that was clicked, not in a toast at the other end of
+       the screen (owner, 2026-09-11): its icon becomes a check and its border turns green
+       for DONE_MS, then it goes back to what it was. */
+    const DONE_MS = 1400;
+    const doneTimers = new Map();
+    function flashDone(btn) {
+        const icon = btn.querySelector(".gear-icon");
+        if (!icon) return;
+        const was = icon.dataset.icon;
+        Icons.set(icon, "check");
+        btn.classList.add("done");
+        clearTimeout(doneTimers.get(btn));
+        doneTimers.set(btn, setTimeout(() => { Icons.set(icon, was); btn.classList.remove("done"); doneTimers.delete(btn); }, DONE_MS));
+    }
+    // true when the link landed on the clipboard (the share sheet and the fallback prompt say so themselves)
     async function shareLink(link, text) {
         if (navigator.share) {
-            try { await navigator.share({ title: "ALZlper's Minigames", text, url: link }); return; } catch (e) { /* cancelled */ }
+            try { await navigator.share({ title: "ALZlper's Minigames", text, url: link }); return false; } catch (e) { /* cancelled */ }
         }
-        try { await navigator.clipboard.writeText(link); toast("Link copied"); }
-        catch (e) { prompt("Copy this link:", link); }
+        try { await navigator.clipboard.writeText(link); return true; }
+        catch (e) { prompt("Copy this link:", link); return false; }
     }
-    $("btn-share").addEventListener("click", () => shareLink(Room.roomLink(), `Play ${Games.get(Settings.game).title} with me!`));
+    const shareFrom = async (btn, link, text) => { if (await shareLink(link, text)) flashDone(btn); };
+    $("btn-share").addEventListener("click", () => shareFrom($("btn-share"), Room.roomLink(), `Play ${Games.get(Settings.game).title} with me!`));
     // the spectate link carries the room's own spectator code, never the room code (#29)
-    $("btn-share-spectate").addEventListener("click", () => shareLink(Room.spectateLink(), `Watch us play ${Games.get(Settings.game).title}!`));
+    $("btn-share-spectate").addEventListener("click", () => shareFrom($("btn-share-spectate"), Room.spectateLink(), `Watch us play ${Games.get(Settings.game).title}!`));
     $("btn-copy-code").addEventListener("click", async () => {
-        try { await navigator.clipboard.writeText(Net.code); toast("Code copied"); }
+        try { await navigator.clipboard.writeText(Net.code); flashDone($("btn-copy-code")); }
         catch (e) { prompt("Room code:", Net.code); }
     });
     // hiding the code the first time on this device asks whether new rooms should start hidden

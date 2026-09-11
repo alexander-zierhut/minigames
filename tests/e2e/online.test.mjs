@@ -341,6 +341,9 @@ test("hide the room code (#19): bullets in the lobby and the HUD, nothing in the
     await A.ev("navigator.clipboard.writeText = (t) => { window.__copied = t; return Promise.resolve(); }; true");
     await A.click("#btn-copy-code");
     await A.waitFor(`window.__copied === ${JSON.stringify(code)}`, { what: "copy code copies the real code" });
+    // the row says it worked on itself: a check and a green edge, then back (no toast)
+    await A.waitFor("document.querySelector('#btn-copy-code .gear-icon').dataset.icon === 'check' && document.getElementById('btn-copy-code').classList.contains('done')", { what: "the row confirms" });
+    await A.waitFor("document.querySelector('#btn-copy-code .gear-icon').dataset.icon === 'copy' && !document.getElementById('btn-copy-code').classList.contains('done')", { timeout: 5000, what: "and goes back" });
     assert.equal(await B.text("lobby-code"), code, "only my own view hides it");
     // a refresh of the bare page rejoins the room from the session and keeps the code hidden
     await A.goto(server.url);

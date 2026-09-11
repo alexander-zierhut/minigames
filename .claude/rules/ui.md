@@ -109,8 +109,12 @@ to try things").
      hide it" sets the `hideCode` preference and whose "Just this room" only hides this one;
      both remember `Prefs.hideCodeAsked`, so it never asks again, and showing the code never
      asks). A viewer sees only the spectator row. `startGame`
-     and `leaveRoom` close it. The owner's brief (2026-09-11): every action carries a word,
-     the room reads like the other lobbies.
+     and `leaveRoom` close it. A row that copied something says so **on itself**: its icon
+     becomes a check and its border turns green for `DONE_MS` (1.4 s, `flashDone` in
+     app.js), which replaced the toast at the bottom of the screen. The share sheet on a
+     phone and the fallback prompt say it themselves, so those do not flash. The owner's
+     brief (2026-09-11): every action carries a word, the room reads like the other
+     lobbies.
   2. **The seats** (`#group-players`, hidden against a bot because everything in it is;
      the seat count itself moved into the head, #28 — in the lobby so everyone sees the room
      takes up to four, and a count below the seats people already sit in is disabled, #34):

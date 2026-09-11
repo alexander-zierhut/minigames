@@ -18,7 +18,7 @@
         },
         {
           "type": "improvement",
-          "text": "The room lobby is tidier: one Invite button beside the code opens a panel where sharing the link, copying the code, the spectator link and hiding the code each carry a word, and the seat actions sit on the seat cards they belong to (Watch instead, Sit here, Add a bot, Remove the bot). How many players sit in the room is picked at the top right, beside the code, and the dividing lines are gone."
+          "text": "The room lobby is tidier: one Invite button beside the code opens a panel where sharing the link, copying the code, the spectator link and hiding the code each carry a word, and the seat actions sit on the seat cards they belong to (Watch instead, Sit here, Add a bot, Remove the bot). How many players sit in the room is picked at the top right, beside the code, and the dividing lines are gone. Copying a link or the code is confirmed on the row you tapped instead of a message at the bottom of the screen."
         },
         {
           "type": "improvement",
