@@ -63,8 +63,10 @@ test("online-shaped lobby with four seats: one Invite button beside the code, th
         assert.equal(await M.ev("document.getElementById('invite-modal').hidden"), true);
         await showRoomLobby();                    // opening Invite re-rendered the (offline) lobby: force the room shape again
         assert.equal(await M.ev("document.getElementById('lobby-chat')"), null, "no lobby chat");
-        // the two groups: the players control and the seat cards, then the picker and the settings
-        assert.ok(await M.ev("document.getElementById('group-players').contains(document.getElementById('row-players')) && document.getElementById('group-players').contains(document.getElementById('lobby-players'))"), "players control and seats in one group");
+        // the head carries the room and the seat count side by side, then the seat cards, then the game
+        assert.ok(await M.ev("document.querySelector('.lobby-head').contains(document.getElementById('row-players'))"), "the seat count sits in the head");
+        assert.ok(await M.ev("document.getElementById('group-players').contains(document.getElementById('lobby-players'))"), "the seat cards follow it");
+        assert.equal(await M.ev("[...document.querySelectorAll('#screen-lobby .lobby-group')].filter(g => parseFloat(getComputedStyle(g).borderTopWidth) > 0).length"), 0, "no hairlines in the lobby any more");
         assert.ok(await M.ev("document.getElementById('group-game').contains(document.getElementById('game-picker')) && document.getElementById('group-game').contains(document.getElementById('btn-settings'))"), "picker and settings in one group");
         // seat names are never cut off (the status wraps inside the card instead)
         assert.ok(await M.ev("[...document.querySelectorAll('.lobby-player .lp-name')].every(e => e.scrollWidth <= e.clientWidth + 1)"), `${skin}: seat names fit`);

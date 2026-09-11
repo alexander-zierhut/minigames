@@ -90,9 +90,15 @@ to try things").
 - **Lobby** (`#screen-lobby`), same screen for local and online (`Match.mode`), in **three
   calm blocks** separated by a hairline (`.lobby-group`, one `border-top`), then one primary
   action:
-  1. **Head** (`.lobby-head`): the kind label (`#lobby-kind`: "Room" / "Local game" /
-     "Against a bot"), the room code (`#lobby-code`) with — online only — one primary
-     button `#btn-invite` "Invite" beside it (`#lobby-share` in `.room-code-row`). It opens **`#invite-modal`**: the code
+  1. **Head** (`.lobby-head`), one row with two blocks (2026-09-11, which is what removed
+     the lobby's hairlines): on the **left** `.lobby-head-main` with the kind label
+     (`#lobby-kind`: "Room" / "Local game" / "Against a bot"), the room code (`#lobby-code`)
+     and — online only — one primary button `#btn-invite` "Invite" beside it (`#lobby-share`
+     in `.room-code-row`); on the **right** the **Players** row (`#row-players`: the label,
+     the segmented `#set-players` with 2 / 3 / 4 and `#lobby-spectators` "N spectator(s)
+     watching" under it). Against a bot the seat count is hidden (`Settings.setMode`) and
+     the left block has the head to itself, centred. Phones wrap: the room on the first
+     line, "Players 2 3 4" right-aligned under it. Invite opens **`#invite-modal`**: the code
      again (`#invite-code`, hidden for a spectate-link viewer), and four
      `.settings-summary.invite-row` rows with an icon, a label and a one-line explanation:
      `#btn-share` "Share link", `#btn-copy-code` "Copy room code", `#btn-share-spectate`
@@ -105,12 +111,10 @@ to try things").
      asks). A viewer sees only the spectator row. `startGame`
      and `leaveRoom` close it. The owner's brief (2026-09-11): every action carries a word,
      the room reads like the other lobbies.
-  2. **Group "Players"** (`#group-players`, hidden against a bot because everything in it
-     is): the **Players** row (`#row-players`: the label plus the segmented `#set-players`
-     with 2 / 3 / 4, #28 — in the lobby so everyone sees the room takes up to four; hidden
-     against a bot by `Settings.setMode`; a count below the seats people already sit in is
-     disabled, #34; the row also carries `#lobby-spectators` "N spectator(s) watching" as
-     its note and, while seat cards show, a hairline under it), one `.lobby-player` card per seat from
+  2. **The seats** (`#group-players`, hidden against a bot because everything in it is;
+     the seat count itself moved into the head, #28 — in the lobby so everyone sees the room
+     takes up to four, and a count below the seats people already sit in is disabled, #34):
+     one `.lobby-player` card per seat from
      `#tpl-lobby-player` (online only; as many as the *Players* control says; the name, a
      small `(you)` in `.lp-you`, and `#lp-<k>-status` "connected" / "not here yet" /
      "ready"; an absent seat gets `.absent` = a dashed, muted placeholder card; the card
@@ -125,7 +129,8 @@ to try things").
      Connection trouble never shows as a line here: it goes on the Start button in two words
      and into the sticky `#net-banner` at the top (see "Where a status is shown" in
      `online.md`).
-  3. **Group "Game"** (`#group-game`): the picker (one `.game-card[data-game]` per
+  3. **Group "Game"** (`#group-game`, separated by the same space as the one above Options,
+     no hairline): the picker (one `.game-card[data-game]` per
      registered game, built by `Settings.init`; each card says "2 to 4 players" and a game
      that doesn't take the chosen count is grayed out, `.unsupported` + `disabled`, #28),
      an empty line where its tagline used to be (`#menu-tagline`, `.lobby-gap`, kept as
