@@ -40,6 +40,13 @@
 .title.small { font-size: 28px; }
 .tagline { margin: -8px 0 0; text-align: center; color: var(--muted); font-size: 14px; }
 .tagline.small { font-size: 12px; margin: 0; }
+/* the title screen's greeting with the name field inline ("Hello [name]! Welcome …") */
+.menu-hello { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0 6px; line-height: 1.4; }
+.hello-name { display: inline-flex; align-items: center; white-space: nowrap; }   /* "Hello [name]!" one piece, the words centred on the field; the welcome may wrap under it */
+.name-inline { width: 10ch; margin: 0 1px 0 6px; padding: 5px 8px; font-size: 14px; font-weight: 800; text-align: center; color: var(--accent); vertical-align: middle; }
+/* phones: no room for the welcome next to the field (the field's width is set by Prefs.fill to the name's width budget) */
+@media (max-width: 899px) { .hello-welcome { display: none; } }
+.lobby-gap { min-height: 16px; }                 /* the empty line under the game picker */
 .menu-actions { display: flex; flex-direction: column; gap: 14px; }
 .section { display: flex; flex-direction: column; gap: 8px; }
 .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); padding-left: 2px; }
@@ -184,14 +191,18 @@
 .lobby-player.absent .cube { opacity: .35; }
 .lp-status { margin-left: auto; font-size: 10px; font-weight: 400; color: var(--muted); white-space: nowrap; }
 /* quiet seat controls under the seat cards: watch instead / take a seat (#39) */
-.seat-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
-.seat-actions:empty, .seat-actions:not(:has(button:not([hidden]))) { display: none; }
-.seat-actions .btn.small { padding: 4px 10px; font-size: 12px; }
-.seat-actions .btn:disabled { opacity: .45; }
+.seat-actions { display: none; }                        /* only parks the hidden seat controls */
+/* a seat control inside its card: a full-width quiet line under the name */
+.lobby-player .lp-act { flex: 1 1 100%; margin-top: 4px; padding: 4px 8px; font-size: 11px; font-weight: 700; background: var(--panel); border: 1px solid var(--line); color: var(--text); }
+.lobby-player .lp-act:disabled { opacity: .45; cursor: not-allowed; }
+.lobby-player.absent .lp-act { border-style: solid; color: var(--text); }
 .lobby-status { text-align: center; font-size: 12px; color: var(--muted); }
 .lobby-status:empty { display: none; }
 /* one primary action; leaving is a quiet text button under it */
 .lobby-foot { display: flex; flex-direction: column; gap: 4px; padding-top: 4px; }
+/* the room lobby: the space between the options and Start equals the one between the
+   picker and the Options heading (gap + the empty line + gap = card gap + this padding) */
+#screen-lobby .lobby-foot { padding-top: 20px; }
 .btn.quiet { background: none; border-color: transparent; color: var(--muted); font-size: 13px; padding: 8px 12px; }
 .btn.quiet:hover { background: none; border-color: transparent; color: var(--text); }
 /* desktop: a slightly wider card, so the picker texts and the tagline stay on one line */
@@ -249,6 +260,7 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
 }
 .game-preview i { display: block; border-radius: 4px; background: var(--panel2); box-shadow: inset 0 0 0 1px var(--line); }
 .game-preview i:is(.p0, .p1, .p2, .p3) { background: var(--block); box-shadow: 0 0 6px color-mix(in srgb, var(--pc) 60%, transparent); }
+.game-preview i.hole { background: transparent; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 60%, transparent); }
 
 /* ---- settings modal ---- */
 .settings-summary {

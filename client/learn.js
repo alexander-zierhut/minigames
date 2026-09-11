@@ -427,8 +427,8 @@ const Learn = (() => {
             const card = document.createElement("button");
             card.className = "game-card";
             card.dataset.game = key;
-            const tiles = [...d.preview].map((ch) => `<i${/\d/.test(ch) ? ` class="p${ch}"` : ""}></i>`).join("");
-            card.innerHTML = `<span class="game-preview ${key}">${tiles}</span><span class="game-name"></span><span class="game-desc"></span><span class="game-players"></span>`;
+            card.innerHTML = `<span class="game-name"></span><span class="game-desc"></span><span class="game-players"></span>`;
+            card.prepend(Games.previewTile(key));
             card.querySelector(".game-name").textContent = d.title;
             card.querySelector(".game-desc").textContent = d.desc;
             card.querySelector(".game-players").textContent = ho.scenarios.length ? `${solved} / ${ho.scenarios.length} scenarios` : "rules and tutorial";

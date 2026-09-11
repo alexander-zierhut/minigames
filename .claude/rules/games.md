@@ -421,7 +421,7 @@ Then register:
 const <Name>Game = Games.register({
     key: "<key>", title: "Nice Name",
     tagline: "One sentence under the picker.", desc: "Short card subtitle",
-    preview: "...01....",                   // 9 chars: "." empty, digit = player
+    preview: "...01....",                   // 9 chars: "." empty, digit = player, "#" hole, a/b/c (A/B/C) = 1..3 pieces of player 0 (1); Games.previewClass / previewTile draw it everywhere
     size: { min: 5, max: 19, default: 9 },  // board-size input limits
     sizeLabel: "Boxes per side",            // optional: the shared size row's label (default "Board size")
     minSize: (cfg) => 5,                    // optional, may depend on the game fields (five: winLen)

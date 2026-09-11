@@ -45,7 +45,7 @@ test("the lobby lists Isolation and starts it with the default 7 × 7 board", as
     assert.equal(await B.screen(), "screen-lobby");
     assert.match(await B.ev(`document.querySelector('.game-card[data-game="isolation"]').textContent`), /Isolation/);
     await B.selectGame("isolation");
-    assert.match(await B.text("menu-tagline"), /Step one tile/);
+    assert.equal(await B.text("menu-tagline"), "", "no tagline under the picker (an empty line)");
     assert.match(await B.text("settings-summary"), /^7 × 7 · no timer$/);
     assert.equal(await B.ev("[...document.querySelectorAll('#game-settings .row')].every(r => r.hidden)"), true, "no game rows of its own");
     await B.click("#btn-settings");

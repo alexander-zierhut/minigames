@@ -259,3 +259,29 @@ test("spectators only watch (#29): Settings.setLocked disables the picker, the p
     for (const t of ["chat", "react", "hello", "leave", "sync"]) assert.equal(R.accepts({ t }, -1), true, t);
     w.close();
 });
+
+test("picker previews: Games.previewClass turns the nine characters into cell classes, and every game's preview is nine of them", () => {
+    const w = loadDom(); const Games = w.eval("Games"); const d = w.document;
+    w.eval("Settings").init({});                       // builds the picker cards
+    assert.equal(Games.previewClass("."), "");
+    assert.equal(Games.previewClass("0"), "p0");
+    assert.equal(Games.previewClass("3"), "p3");
+    assert.equal(Games.previewClass("#"), "hole", "a broken tile (Isolation)");
+    assert.equal(Games.previewClass("a"), "p0 n1"); assert.equal(Games.previewClass("c"), "p0 n3", "three pieces of player 0 (Chain React)");
+    assert.equal(Games.previewClass("B"), "p1 n2", "two pieces of player 1");
+    for (const key of Games.keys()) {
+        const p = Games.get(key).preview;
+        assert.equal(p.length, 9, `${key}: nine characters`);
+        assert.ok([...p].every((ch) => /^[.#0-3a-cA-C]$/.test(ch)), `${key}: only known characters`);
+        assert.equal(d.querySelectorAll(`#game-picker .game-card[data-game="${key}"] .game-preview i`).length, 9, `${key}: nine tiles on the card`);
+    }
+    assert.equal(d.querySelectorAll('#game-picker .game-card[data-game="isolation"] .game-preview i.hole').length, 3, "Isolation shows three broken tiles");
+    assert.equal(d.querySelectorAll('#game-picker .game-card[data-game="chain"] .game-preview i.n3').length, 1, "Chain React shows one full cell");
+    // the one tile builder: a game's tile, its small variant, and the empty board for an unknown key
+    const tile = Games.previewTile("isolation");
+    assert.equal(tile.className, "game-preview isolation"); assert.equal(tile.querySelectorAll("i.hole").length, 3);
+    assert.equal(Games.previewTile("five", { small: true }).className, "game-preview tiny five");
+    const blank = Games.previewTile("all", { small: true });
+    assert.equal(blank.className, "game-preview tiny"); assert.equal(blank.querySelectorAll("i").length, 9); assert.equal(blank.querySelectorAll("i[class]:not([class=''])").length, 0);
+    w.close();
+});

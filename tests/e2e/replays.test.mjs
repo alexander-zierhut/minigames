@@ -273,6 +273,7 @@ test("pages of ten, the count of found replays and the date range", async () => 
     const rows = (n) => B.waitFor(`document.querySelectorAll('#replay-list .replay-item').length === ${n}`, { what: `${n} rows` });
     await rows(10);
     assert.equal(await B.text("replay-count"), "12 replays");
+    assert.ok(await B.ev("[...document.querySelectorAll('#replay-list .replay-item')].every(r => r.querySelector('.game-preview.tiny.five i'))"), "every row carries its game's tile");
     assert.equal(await B.ev("document.getElementById('replay-pager').hidden"), false, "more than one page: the pager shows");
     assert.equal(await B.text("replay-page"), "Page 1 of 2");
     assert.equal(await B.ev("document.getElementById('replay-page-prev').disabled"), true);

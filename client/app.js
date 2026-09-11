@@ -287,18 +287,8 @@
        games' preview tiles. The button says what is picked, the menu lists "All games"
        first and then every registered game with its own tile. */
     const filterLabel = (key) => (key === "all" ? "All games" : Games.get(key).title);
-    // the 3×3 preview of a game (the picker's tile, small); "All games" gets an empty board
-    function previewTile(key) {
-        const el = document.createElement("span");
-        el.className = "game-preview tiny" + (key === "all" ? "" : " " + key);
-        const shape = key === "all" ? "........." : Games.get(key).preview;
-        for (const ch of shape) {
-            const i = document.createElement("i");
-            if (/\d/.test(ch)) i.className = "p" + ch;
-            el.appendChild(i);
-        }
-        return el;
-    }
+    // the 3×3 preview of a game, small; "All games" gets an empty board
+    const previewTile = (key) => Games.previewTile(key, { small: true });
     function renderReplayFilter() {
         const box = $("replay-filter");
         box.innerHTML = "";
@@ -369,6 +359,7 @@
         for (const r of items) {
             const el = Util.fromTemplate("tpl-replay", 0);
             el.dataset.id = r.id;
+            el.prepend(previewTile(r.game));                     // the game's small tile in front of the text
             el.querySelector(".replay-title").textContent = `${r.title} · ${r.n} × ${r.n}` + (r.players.length > 2 ? ` · ${r.players.length} players` : "");
             el.querySelector(".replay-sub").textContent = [Replays.when(r.playedAt), r.players.join(" vs "), r.resultText, `${r.moves} moves`].join(" · ");
             box.appendChild(el);

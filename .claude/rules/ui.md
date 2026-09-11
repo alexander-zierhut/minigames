@@ -84,29 +84,49 @@ to try things").
   calm blocks** separated by a hairline (`.lobby-group`, one `border-top`), then one primary
   action:
   1. **Head** (`.lobby-head`): the kind label (`#lobby-kind`: "Room" / "Local game" /
-     "Against a bot"), the room code (`#lobby-code`) with its hide / show eye button
-     (`#btn-hide-code`, online only, see "Hidden room code" in `online.md`) and — online only — one row of
-     share actions (`#lobby-share`): the primary `Share link` (`#btn-share`) plus two small
-     icon buttons, 📋 `#btn-copy-code` and 👀 `#btn-share-spectate` (both carry `title` +
-     `aria-label`), so the three actions are not three equal buttons.
+     "Against a bot"), the room code (`#lobby-code`) with — online only — one primary
+     button `#btn-invite` "Invite" beside it (`#lobby-share` in `.room-code-row`). It opens **`#invite-modal`**: the code
+     again (`#invite-code`, hidden for a spectate-link viewer), and four
+     `.settings-summary.invite-row` rows with an icon, a label and a one-line explanation:
+     `#btn-share` "Share link", `#btn-copy-code` "Copy room code", `#btn-share-spectate`
+     "Copy a link for spectators" and `#btn-hide-code` "Hide the room code" / "Show the
+     room code" (`#hide-code-label`, the eye / eye-off icon on its `.gear-icon`, see
+     "Hidden room code" in `online.md`; hiding the code **the first time on a device** opens
+     `#hide-code-ask`, "Hide the room code in every new room from now on?", whose "Always
+     hide it" sets the `hideCode` preference and whose "Just this room" only hides this one;
+     both remember `Prefs.hideCodeAsked`, so it never asks again, and showing the code never
+     asks). A viewer sees only the spectator row. `startGame`
+     and `leaveRoom` close it. The owner's brief (2026-09-11): every action carries a word,
+     the room reads like the other lobbies.
   2. **Group "Players"** (`#group-players`, hidden against a bot because everything in it
      is): the **Players** row (`#row-players`: the label plus the segmented `#set-players`
      with 2 / 3 / 4, #28 — in the lobby so everyone sees the room takes up to four; hidden
      against a bot by `Settings.setMode`; a count below the seats people already sit in is
-     disabled, #34), one `.lobby-player` card per seat from
+     disabled, #34; the row also carries `#lobby-spectators` "N spectator(s) watching" as
+     its note and, while seat cards show, a hairline under it), one `.lobby-player` card per seat from
      `#tpl-lobby-player` (online only; as many as the *Players* control says; the name, a
      small `(you)` in `.lp-you`, and `#lp-<k>-status` "connected" / "not here yet" /
      "ready"; an absent seat gets `.absent` = a dashed, muted placeholder card; the card
-     wraps its status onto a second line rather than cutting a long name off), then the
-     quiet seat controls `#seat-actions` (`#btn-watch` "Watch instead" for a seated player,
-     `#btn-take-seat` "Take a seat" for a spectator, disabled without a free seat, #39;
-     `#btn-room-bot` "Against a bot instead" while a two-seat room waits for the friend and
-     `#btn-room-bot-off` "Wait for a friend instead" once a bot is set, #36) and
-     the notes `#lobby-status` / `#lobby-spectators` ("N spectator(s) watching").
+     wraps its status onto a second line rather than cutting a long name off). The seat
+     controls sit **inside the card they act on** (`.lp-act`, a full-width line under the
+     name; `renderLobby` parks them in the hidden `#seat-actions` and moves the shown ones
+     into the cards, so the ids never change): `#btn-watch` "Watch instead" on my own card,
+     `#btn-take-seat` "Sit here" on the first empty card for a spectator (disabled without a
+     free seat, #39), `#btn-room-bot` "Add a bot" on the empty card of a two-seat room and
+     `#btn-room-bot-off` "Remove the bot" on the bot's card (#36). Under the cards only the
+     transient note `#lobby-status` ("X left the room.", cleared once everyone is back).
+     Connection trouble never shows as a line here: it goes on the Start button in two words
+     and into the sticky `#net-banner` at the top (see "Where a status is shown" in
+     `online.md`).
   3. **Group "Game"** (`#group-game`): the picker (one `.game-card[data-game]` per
      registered game, built by `Settings.init`; each card says "2 to 4 players" and a game
      that doesn't take the chosen count is grayed out, `.unsupported` + `disabled`, #28),
-     its tagline (`#menu-tagline`), the *How to play* row (`#btn-howto` → `#howto-modal`,
+     an empty line where its tagline used to be (`#menu-tagline`, `.lobby-gap`, kept as
+     space by the owner's wish; the tagline still shows in Learn and in Replays), then the
+     **Options** heading (a second `.lobby-row` label) over up to three `.settings-summary`
+     rows (icon in a fixed 26 px column so the texts line up, the text in white taking the
+     width, the chevron at the right edge); the foot's padding (`#screen-lobby .lobby-foot`,
+     20 px) gives the same space before Start: the *How to play* row (`#btn-howto` → `#howto-modal`,
      #41: the selected game's rule bullets and its tutorial steps as plain text; reading
      only, so nobody has to leave the room, and `startGame` closes it), the *Opponent* row
      (`#btn-opponent`, in bot mode and while a room has a bot, #36) and

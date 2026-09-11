@@ -157,24 +157,28 @@
             <div class="lobby-row"><span class="lobby-row-label">Game</span></div>
             <!-- one card per registered game, built by settings.js -->
             <div class="game-picker" id="game-picker"></div>
-            <p class="tagline small" id="menu-tagline"></p>
+            <!-- an empty line under the picker: the game's tagline used to sit here, the owner
+                 wanted it gone and the space kept (the tagline still shows in Learn and Replays) -->
+            <p class="tagline small lobby-gap" id="menu-tagline"></p>
 
+            <!-- the options: up to three rows (How to play, the bot, the settings) under one heading -->
+            <div class="lobby-row"><span class="lobby-row-label">Options</span></div>
             <!-- the selected game's rules and tutorial steps as text (#41); never leaves the room -->
             <button class="settings-summary" id="btn-howto">
-                <span class="gear-icon">📚</span>
+                <span class="gear-icon" data-icon="book"></span>
                 <span id="howto-summary">How to play</span>
                 <span class="chev">›</span>
             </button>
 
             <!-- bot mode only: which bot, which difficulty (opens #bot-modal) -->
             <button class="settings-summary" id="btn-opponent" hidden>
-                <span class="gear-icon">🤖</span>
+                <span class="gear-icon" data-icon="bot"></span>
                 <span id="opponent-summary">Opponent</span>
                 <span class="chev">›</span>
             </button>
 
             <button class="settings-summary" id="btn-settings">
-                <span class="gear-icon">⚙</span>
+                <span class="gear-icon" data-icon="settings"></span>
                 <span id="settings-summary">Settings</span>
                 <span class="chev">›</span>
             </button>

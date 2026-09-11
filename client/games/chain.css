@@ -143,3 +143,12 @@
     border-radius: 0; background: var(--tex-p); background-size: cover; image-rendering: pixelated;
     box-shadow: 0 0 14px 3px rgba(255,220,120,.7);
 }
+
+/* the picker preview: a cell shows its pieces as lamp dots (1, 2 or 3, `n1`..`n3` from
+   Games.previewClass) in the owner's colour, the full one glowing as if about to burst */
+.game-preview.chain i { border-radius: 3px; }
+.game-preview.chain i:is(.p0, .p1) { background-color: var(--panel2); box-shadow: inset 0 0 0 1px var(--pc); background-repeat: no-repeat; }
+.game-preview.chain i.n1 { background-image: radial-gradient(circle at 50% 50%, var(--pc) 0 18%, transparent 24%); }
+.game-preview.chain i.n2 { background-image: radial-gradient(circle at 30% 50%, var(--pc) 0 16%, transparent 22%), radial-gradient(circle at 70% 50%, var(--pc) 0 16%, transparent 22%); }
+.game-preview.chain i.n3 { background-image: radial-gradient(circle at 50% 30%, var(--pc) 0 16%, transparent 22%), radial-gradient(circle at 28% 70%, var(--pc) 0 16%, transparent 22%), radial-gradient(circle at 72% 70%, var(--pc) 0 16%, transparent 22%); box-shadow: inset 0 0 0 1px var(--pc), 0 0 7px color-mix(in srgb, var(--pc) 75%, transparent); }
+:is(.skin-mc, .skin-mcboard) .game-preview.chain i:is(.p0, .p1) { background: var(--tex-p); background-size: cover; box-shadow: none; }

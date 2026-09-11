@@ -186,7 +186,6 @@ const Settings = (() => {
             c.disabled = !ok || locked;
             c.title = ok ? "" : `Not for ${players} players`;
         });
-        $("menu-tagline").textContent = d.tagline;
         document.querySelectorAll("#settings-modal [data-setting]").forEach((r) => { r.hidden = !shown.includes(r.dataset.setting); });
         fillSize();
         if (announce) changed(); else renderSummary();
@@ -256,8 +255,8 @@ const Settings = (() => {
             const card = document.createElement("button");
             card.className = "game-card";
             card.dataset.game = key;
-            const tiles = [...d.preview].map((ch) => `<i${/\d/.test(ch) ? ` class="p${ch}"` : ""}></i>`).join("");
-            card.innerHTML = `<span class="game-preview ${key}">${tiles}</span><span class="game-name"></span><span class="game-desc"></span><span class="game-players"></span>`;
+            card.innerHTML = `<span class="game-name"></span><span class="game-desc"></span><span class="game-players"></span>`;
+            card.prepend(Games.previewTile(key));
             card.querySelector(".game-name").textContent = d.title;
             card.querySelector(".game-desc").textContent = d.desc;
             card.querySelector(".game-players").textContent = playersText(d.players);

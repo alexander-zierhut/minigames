@@ -166,7 +166,7 @@ const ChainGame = Games.register({
     title: "Chain React",
     tagline: "Fill a cell, it explodes into its neighbours. Take the whole board.",
     desc: "Explosions & chain reactions",
-    preview: "...01....",                  // 3×3 picker preview: . empty, digit = player
+    preview: ".A.bcA.a.",                  // 3×3 picker preview: a full cyan cell about to burst, its neighbours (see Games.previewClass)
     size: { min: 3, max: 12, default: 6 },
     // rows of #settings-modal for this game (built by settings.js, read into config.<key>)
     settings: [

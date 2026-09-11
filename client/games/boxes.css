@@ -70,8 +70,27 @@
     100% { transform: scale(1); }
 }
 
-.game-preview.boxes { gap: 5px; }
-.game-preview.boxes i { border-radius: 2px; }
+/* the picker preview as dots and boxes: dots on every corner of the 3 × 3 boxes (four
+   quarter circles per tile of the background), faint undrawn lines, a taken box filled
+   and framed in its owner's colour */
+.game-preview.boxes {
+    --pv-pad: 6px;
+    gap: 0; padding: var(--pv-pad);
+    background-image:
+        radial-gradient(circle at 0 0, var(--text) 1.4px, transparent 2px),
+        radial-gradient(circle at 100% 0, var(--text) 1.4px, transparent 2px),
+        radial-gradient(circle at 0 100%, var(--text) 1.4px, transparent 2px),
+        radial-gradient(circle at 100% 100%, var(--text) 1.4px, transparent 2px);
+    background-size: calc((100% - 2 * var(--pv-pad)) / 3) calc((100% - 2 * var(--pv-pad)) / 3);
+    background-position: var(--pv-pad) var(--pv-pad);
+    background-repeat: repeat;
+}
+.game-preview.tiny.boxes { --pv-pad: 3px; }
+.game-preview.boxes i { border-radius: 0; background: transparent; box-shadow: none; border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.game-preview.boxes i:is(.p0, .p1, .p2, .p3) { background: color-mix(in srgb, var(--pc) 38%, transparent); border: 1.5px solid var(--pc); box-shadow: none; }
+:is(.skin-mc, .skin-mcboard) .game-preview.boxes { background-image: none; gap: 5px; padding: 4px; }
+:is(.skin-mc, .skin-mcboard) .game-preview.boxes i { border: 0; border-radius: 2px; background: var(--tex-glass); background-size: cover; image-rendering: pixelated; }
+:is(.skin-mc, .skin-mcboard) .game-preview.boxes i:is(.p0, .p1, .p2, .p3) { background: var(--tex-p); background-size: cover; }
 
 /* ---- Blocks board (both textured skins): quartz dots, player blocks as lines,
         matching stained glass as the closed boxes ---- */

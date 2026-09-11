@@ -17,7 +17,7 @@ test("lobby: its own game card, size label and summary", async () => {
     assert.equal(await B.ev("document.querySelectorAll('.game-card').length"), await B.ev("Games.keys().length"), "one picker card per registered game");
     await B.selectGame("boxes");
     assert.equal(await B.ev("document.querySelector('.game-card[data-game=boxes]').classList.contains('selected')"), true);
-    assert.match(await B.text("menu-tagline"), /^Draw a line between two dots/);
+    assert.equal(await B.text("menu-tagline"), "", "no tagline under the picker (an empty line)");
     await B.click("#btn-settings");
     assert.equal(await B.text("size-label"), "Boxes per side");
     assert.equal(await B.text("size-hint"), "(2–10)");

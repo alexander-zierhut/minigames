@@ -31,8 +31,33 @@ const Games = (() => {
     const has = (key) => !!defs[key];
     const get = (key) => defs[has(key) ? key : order[0]];
     const keys = () => order.slice();
+    /* The classes of one cell of a game's 3×3 picker preview (`def.preview`, nine
+       characters): "." empty, a digit = that player's piece, "#" a hole (Isolation),
+       "a" / "b" / "c" = player 0 with 1 / 2 / 3 pieces and "A" / "B" / "C" the same for
+       player 1 (Chain React's lamps). The game's CSS draws them (`.game-preview.<key> i`). */
+    function previewClass(ch) {
+        if (/\d/.test(ch)) return "p" + ch;
+        if (ch === "#") return "hole";
+        const k = "abc".indexOf(ch.toLowerCase());
+        if (k >= 0) return `${ch === ch.toLowerCase() ? "p0" : "p1"} n${k + 1}`;
+        return "";
+    }
+    /* The tile itself, `span.game-preview.<key>` with nine `i` cells: the picker cards, the
+       Learn list and the replays screen all build it here. `"all"` (the replays filter's
+       "All games") is an empty board without a game class; `small` adds `.tiny`. */
+    function previewTile(key, { small = false } = {}) {
+        const el = document.createElement("span");
+        el.className = "game-preview" + (small ? " tiny" : "") + (has(key) ? " " + key : "");
+        const shape = has(key) ? get(key).preview : ".........";
+        for (const ch of shape) {
+            const i = document.createElement("i");
+            i.className = previewClass(ch);
+            el.appendChild(i);
+        }
+        return el;
+    }
 
-    return { register, has, get, keys, positionAt: Rules.replay };
+    return { register, has, get, keys, previewClass, previewTile, positionAt: Rules.replay };
 })();
 
 /* ---------------- engine shell (shared by every game) ---------------- */
