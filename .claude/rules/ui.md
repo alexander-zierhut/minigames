@@ -202,9 +202,10 @@ One room, one link, the whole evening.
   (`Opponent.NAME`; `Bots.botFor(game, cfg)` picks it): the modal is one step (description,
   scores, difficulty, Cancel / Play). Picking a game does **not** open it (#12): the default
   is the middle difficulty; the row shows the choice. Offline you are seat 0 and the bot sits
-  on seat 1; everywhere else the seat is whatever `config.bot.seat` says (`Settings.BOT_SEAT`
-  1 is only the default), which is how "Play from here" (#43) can seat the bot on 0. **A
-  room can play a bot too (#36)**, see "The room's bot" in `online.md`.
+  on seat 1 unless the config names the seat (`config.bot.seat`, which is how "Play from
+  here" (#43) and a Learn scenario seat it; `Settings.BOT_SEAT` 1 is only the default a
+  room's bot is filled with). **A room can play a bot too (#36)**, see "The room's bot" in
+  `online.md`.
 - **Learn** (`#screen-learn`, `#screen-learn-game`, #41): see the "Learn section" chapter.
   Lessons themselves run on `#screen-game`.
 - `phase` ∈ `menu | lobby | game | replays | learn | learn-game` (the list `SCREENS`, one
@@ -485,14 +486,18 @@ that was cancelled, `#analysis-progress` is the progress bar while it runs. Phon
 collapsed (the head row only) and `#an-toggle` opens the body; desktop always shows it.
 
 **Play from here** (`#btn-play-from-here`, two-player replays only, offered in the viewer):
-`playFromHere(ply)` in app.js opens a **room** (like "Create room", so the spectate link keeps
-working), the human taking the seat that is to move at the shown position and the bot the
-other one (`Settings.setBot({ …Opponent.current, seat })`). `Match.gameNo` is set so that
+`playFromHere(ply)` in app.js starts an **offline bot game** (`Match.reset("bot")`, like
+"Against a bot"; until #52 it opened an online room, which greeted the player with "Waiting
+for your friend…" and left them in a room lobby): the human takes the seat that is to move
+at the shown position and the bot the other one through `config.bot = { id, difficulty,
+seat }`, which `Match.makeSeats` honours offline too. `Match.gameNo` is set so that
 `startPlayerFor` gives the recorded game's starter, and the moves up to `ply` travel as the
-**start prefix**: `startGame(cfg, gameNo, prefix)` replays `{ history, outs }` into the
-fresh game right after `Match.start`, and the room's `start {config, g, prefix}` carries it.
-Anyone who joins later needs nothing new: the prefix is part of `state.history`, so the
-usual `sync` (and the session on a refresh) already has it.
+**start prefix**: `startGame(cfg, gameNo, prefix)` replays `{ history, outs }` into the fresh
+game right after `Match.start` (a room's `start {config, g, prefix}` carries a prefix the
+same way, so the path stays generic). While such a game runs (`continued` in app.js) the HUD's
+`#btn-menu` and the overlay's `#overlay-menu` say "Back to replays" and go through
+`closeReplay()`, which keeps the game left half way like every other exit; Rematch stays and
+plays a fresh game against the same bot on the same seats.
 
 ## Sounds (`client/lib/sound.js`)
 

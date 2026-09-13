@@ -57,8 +57,8 @@ The PeerJS transport, the room protocol and its every message, seats and presenc
   `players` are taken away (`state {you: -1}`), people without a seat get a free one.
 - **The room's bot (#36)**: instead of waiting for the friend, a two-seat room can put a
   bot on the empty seat. It is **room state in the config** (`config.bot = { id, difficulty,
-  seat }`, seat 1 by default and everywhere read off `config.bot.seat`, never a constant, so
-  "Play from here" (#43) can seat the bot on 0 instead, see Settings in `ui.md`), so it travels in
+  seat }`, seat 1 by default and everywhere read off `config.bot.seat`, never a constant,
+  see Settings in `ui.md`), so it travels in
   `lobby {s}` / `start {config}` / `state` and
   everybody sees "Bot / ready" on that seat card, the *Opponent* row to change the level and
   an enabled Start. `#btn-room-bot` opens the usual bot modal (Play sets it, with the room's
@@ -241,7 +241,9 @@ The PeerJS transport, the room protocol and its every message, seats and presenc
   ("Connecting…", "Reconnecting…", "Connection problem") for the Start button. `#net-banner`
   lives outside the screens now and `updateBanner` shows it in the **lobby** (connection
   trouble only: waiting for players is normal there and the Start button says so) and in a
-  **game** (trouble or a missing seat, as before); it publishes its height as
+  **game** (trouble or a missing seat; a host that is merely `waiting` for a guest while no
+  seat is missing, because the room's bot fills the table, gets no banner, #52); it
+  publishes its height as
   `--banner-bottom` so the lobby card starts below it. `#lobby-status` keeps only the
   transient "X left the room." note and is cleared once everyone is back.
 - **The broker turning us away** (`Net.refused`, also in `Net.transport` for the dev panel):

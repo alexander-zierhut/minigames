@@ -54,6 +54,9 @@ test("the bot plays in the room and a spectate-link viewer sees its moves and re
     await A.click("#btn-start");
     await inGame(A); await inGame(C);
     assert.equal(await C.text("p1-name"), "Bot", "the HUD calls it Bot for everybody");
+    // a host alone at a full table is "waiting" for the transport, not in trouble: no banner (#52)
+    assert.equal(await A.ev("Room.updateBanner('waiting'); document.getElementById('net-banner').hidden"), true, "no 'Waiting for your friend' over a bot game");
+    await A.ev("Room.updateBanner(); true");
     assert.equal(await A.ev("JSON.stringify(Match.seats.map(s => s.kind))"), JSON.stringify(["local", "bot"]));
     assert.equal(await C.ev("JSON.stringify(Match.seats.map(s => s.kind))"), JSON.stringify(["remote", "remote"]), "for a viewer it is a remote seat");
     await C.waitFor("[...document.querySelectorAll('#react-layer .react-float.theirs')].some(e => e.textContent === '👋')", { timeout: 15000, what: "the bot's wave reaches the viewer (#14)" });

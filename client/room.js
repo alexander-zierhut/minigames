@@ -728,7 +728,9 @@ const Room = (() => {
             return;
         }
         const missing = missingSeats();
-        const connectionFine = status === "connected" || status === "idle" || (status === "signaling" && Net.connected);
+        // "waiting" is the host without a guest: fine while no seat is missing (the room's bot
+        // fills the table, #52); with a seat empty the presence branch below says who is missing
+        const connectionFine = ["connected", "idle", "waiting"].includes(status) || (status === "signaling" && Net.connected);
         if (connectionFine && missing.length === 0) { bannerShown(banner, false); return; }
         let text;
         if (Net.connected && missing.length) {

@@ -10,6 +10,7 @@
     const SCREENS = ["menu", "lobby", "game", "replays", "learn", "learn-game"];
     let phase = "menu";          // one of SCREENS
     let replayDoc = null;        // the replay document on the board (#42), null = playing
+    let continued = false;       // a replay played on against the bot (#43): its exits lead back to the replays
 
     /* Who sits in each seat (#35): online the room knows, offline the seats are this
        device's own (Prefs.seatNames); watching a replay the file says who played; a Learn
@@ -78,6 +79,8 @@
         $("btn-restart").disabled = spec;
         $("btn-restart").textContent = spec ? "Spectating" : "Rematch";
         $("btn-menu").textContent = spec ? "Leave room" : "Back to room";
+        // a replay played on (#43): there is no room to go back to, the replays are where it came from
+        if (continued) $("btn-menu").textContent = $("overlay-menu").textContent = "Back to replays";
         $("overlay-menu").hidden = spec;
         const again = $("overlay-again");
         if (spec) { again.textContent = "Spectating"; again.disabled = true; }
@@ -89,35 +92,43 @@
     /* ================= replays on the board (#42, #43) ================= */
     // what was played is kept on this device: finished games, and games somebody left
     // through "Back to room" (those are marked unfinished)
+    // returns the store's promise, so a screen that lists the replays can wait for it
     function saveReplay(finished) {
-        if (Match.mode === "replay" || Learn.active || !Match.running || !Match.config) return;   // a lesson is not a game (#41)
+        if (Match.mode === "replay" || Learn.active || !Match.running || !Match.config) return null;   // a lesson is not a game (#41)
         const record = Match.record();
-        if (!record.history.length) return;
-        if (!finished && record.over) return;             // it was already saved when it ended
-        Replays.store.save(Replays.fromRecord(record, Match.names, Match.mode, { finished }));
+        if (!record.history.length) return null;
+        if (!finished && record.over) return null;        // it was already saved when it ended
+        return Replays.store.save(Replays.fromRecord(record, Match.names, Match.mode, { finished }));
     }
     // watch a replay: the record on the board, nobody to move, the replay bar from move 0
     function watchReplay(doc) {
         replayDoc = doc;
+        continued = false;
         Match.watch(doc);
         $("result-fab").textContent = "Show result";
         renderRematch();
         show("game");
         Review.show(0, false);
     }
+    // back to the replays list: from the viewer, or from a game continued out of one (a game
+    // left half way is kept, like everywhere else)
     function closeReplay() {
         replayDoc = null;
+        continued = false;
+        const saved = saveReplay(false);
         Review.hide();
         $("overlay").hidden = true;
         Match.reset("local");
         Settings.setMode("local");
         ReplayList.open();
+        if (saved) saved.then(() => ReplayList.render());   // the list shows the game once the store has it
     }
-    /* Play from here (#43): continue a two-player replay against the bot, in an online room
-       so the spectate link still works. The human takes the seat that is to move at the
-       shown position, the bot the other one; the game number is picked so that the seat that
-       started the recorded game starts this one too, and the moves up to here are replayed
-       into it as the start prefix. */
+    /* Play from here (#43, #52): continue a two-player replay against the bot, offline, the
+       way "Against a bot" plays. The human takes the seat that is to move at the shown
+       position and the bot the other one (`config.bot.seat`, which Match honours offline
+       too); the game number is picked so that the seat that started the recorded game
+       starts this one, and the moves up to here are replayed into it as the start prefix.
+       Every exit leads back to the replays, where the player came from. */
     function playFromHere(ply) {
         const doc = replayDoc;
         if (!doc || (doc.config.players || 2) !== 2) return;
@@ -131,17 +142,19 @@
         const prefix = { history: doc.history.slice(0, at), outs: rec.outs.filter((o) => o.at <= at) };
         replayDoc = null;
         Review.hide();
-        Room.enter(Net.randomCode(), { preferHost: true, seat, spec: Net.randomCode() });
+        Match.reset("bot");
+        Settings.setMode("bot");
         Settings.write({ ...doc.config, bot: null });
-        Settings.setBot({ ...choice, seat: seat === 0 ? 1 : 0 }, false);
         Match.gameNo = doc.config.startPlayer || 0;       // …so the next game number starts the recorded starter
-        Room.startFromLobby(Settings.read(), prefix);
+        continued = true;
+        startGame({ ...Settings.read(), bot: { id: choice.id, difficulty: choice.difficulty, seat: seat === 0 ? 1 : 0 } }, Match.gameNo + 1, prefix);
         Log.add("Playing on from the replay.", "x");
     }
 
     /* ================= flow ================= */
     // offline lobby: two to four people on this device, or you against a bot
     function openLocalLobby(withBot) {
+        continued = false;
         Room.leave();
         Match.reset(withBot ? "bot" : "local");
         Settings.setMode(Match.mode);
@@ -150,6 +163,7 @@
 
     function leaveRoom() {
         saveReplay(false);                       // a game left half way is kept too (#42)
+        continued = false;
         Lobby.closeInvite();
         Room.leave();
         Match.reset("local");
@@ -208,7 +222,7 @@
 
     /* ================= wiring ================= */
     // title screen
-    $("btn-create").addEventListener("click", () => Room.enter(Net.randomCode(), { preferHost: true, seat: 0, spec: Net.randomCode() }));
+    $("btn-create").addEventListener("click", () => { continued = false; Room.enter(Net.randomCode(), { preferHost: true, seat: 0, spec: Net.randomCode() }); });
     $("btn-join-open").addEventListener("click", () => {
         const panel = $("join-panel");
         panel.hidden = !panel.hidden;
@@ -217,6 +231,7 @@
     $("btn-join").addEventListener("click", () => {
         const code = Net.normalizeCode($("join-code").value);
         if (code.length < 4) { toast("Enter the 5-letter room code"); $("join-code").focus(); return; }
+        continued = false;
         Room.enter(code, { preferHost: false });
     });
     $("join-code").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-join").click(); });
@@ -226,7 +241,7 @@
     $("btn-bot").addEventListener("click", () => openLocalLobby(true));
 
     // learn (#41): the academy is offline and never touches a room
-    $("btn-learn").addEventListener("click", () => { Room.leave(); Match.reset("local"); Learn.open(); });
+    $("btn-learn").addEventListener("click", () => { continued = false; Room.leave(); Match.reset("local"); Learn.open(); });
     $("btn-learn-back").addEventListener("click", () => show("menu"));
     $("btn-learn-game-back").addEventListener("click", () => Learn.open());
 
@@ -238,13 +253,13 @@
     $("gear").addEventListener("click", () => $("hut").classList.toggle("show-controls"));
     $("btn-restart").addEventListener("click", () => { if (!Match.state.busy) requestRematch(); });
     $("btn-menu").addEventListener("click", () => {
-        if (Match.mode === "replay") closeReplay();
+        if (Match.mode === "replay" || continued) closeReplay();
         else if (Learn.active) Learn.exit();
         else if (Match.spectator) leaveRoom();
         else backToLobby(true);
     });
     $("overlay-again").addEventListener("click", requestRematch);
-    $("overlay-menu").addEventListener("click", () => { if (Match.mode === "replay") closeReplay(); else backToLobby(true); });
+    $("overlay-menu").addEventListener("click", () => { if (Match.mode === "replay" || continued) closeReplay(); else backToLobby(true); });
 
     $("btn-net-retry").addEventListener("click", () => Net.retryNow());
     $("btn-net-leave").addEventListener("click", leaveRoom);

@@ -325,7 +325,8 @@ wave), `boxes:capture {boxes, player, score}` (Dots and Boxes: a move closed one
 ## Seats, bots and more players (`client/match.js`)
 
 `Match.seats[p] = { kind }` is built per game by `makeSeats`: `local` (this device moves for
-it), `remote` (a friend), `bot` or `watch` (a replay). The engine hooks live in Match: `mayPlay(p)` = local seat
+it), `remote` (a friend), `bot` or `watch` (a replay). Offline the bot sits on seat 1, or on
+the seat `config.bot.seat` names (a Learn scenario, a replay played on with "Play from here"). The engine hooks live in Match: `mayPlay(p)` = local seat
 + `live()`; `onTurn(p)` calls `botTurn(p)` for a bot seat: after `THINK_MS` (350 ms, so it
 doesn't feel instant) it asks the bot instance for a move on a **clone** of the state,
 re-checks that the same game is still on that turn (`running`, `gameNo`, busy, over), falls

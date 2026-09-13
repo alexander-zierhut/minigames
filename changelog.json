@@ -5,6 +5,11 @@
       "date": "2026-09-13",
       "entries": [
         {
+          "type": "fix",
+          "text": "\"Play from here\" in a replay now continues the game against the bot on this device, without opening an online room: no more \"Waiting for your friend\" over the board, and leaving takes you back to your replays instead of into a room. A room that plays its bot alone no longer shows that banner either.",
+          "refs": ["#52"]
+        },
+        {
           "type": "internal",
           "text": "A quality pass over the code with nothing changing for players: the app layer is split into one module per screen, the game framework hands games the pieces they used to build themselves, a game definition is checked when it is registered, and the documentation was shortened and brought up to date."
         }

@@ -23,7 +23,9 @@
      onBotReact(seat, e)   the bot's persona reacted (online: relay it to the room)
 
    Seats: Match.seats[p] = { kind: "local" | "remote" | "bot" | "watch" }. Bot mode: you are
-   seat 0, the bot seat 1 (Opponent.current(game) picks which bot and level). Online a room
+   seat 0, the bot seat 1 (Opponent.current(game) picks which bot and level) unless
+   `config.bot = { id, difficulty, seat }` names the seat (a Learn scenario, a replay
+   continued with "Play from here"). Online a room
    can have a bot too (#36): `config.bot = { id, difficulty, seat }` names it, the transport
    host runs it (hostsBot) and relays its moves and reactions, and for everybody else that
    seat is a normal remote seat that happens to be called "Bot". `Match.watch` puts a
@@ -67,15 +69,17 @@ const Match = (() => {
     const isBot = (p) => kind(p) === "bot";
     // seat 0 starts game 1, then the next seat, round-robin
     const startPlayerFor = (gameNo, players = 2) => (gameNo - 1) % players;
-    // the seat a bot holds: offline every seat but mine, online the one the room's config names (#36)
+    // the seat the config's bot holds (-1 = none): a room's bot (#36), a Learn scenario's, a
+    // replay continued from a position (#43, the human keeps the seat that is to move)
     const roomBotSeat = () => (st.config && st.config.bot ? st.config.bot.seat : -1);
-    // who moves for each seat: this device, a friend, or the bot. Online the room's bot runs
-    // on the transport host and is a normal remote seat for everybody else (#36).
+    // who moves for each seat: this device, a friend, or the bot. Offline the bot sits on the
+    // seat the config names, else on seat 1; online the room's bot runs on the transport host
+    // and is a normal remote seat for everybody else (#36).
     const makeSeats = (players) => Array.from({ length: players }, (_, p) => ({
         kind: watching() ? "watch"                                   // a replay: nobody sits here (#42)
             : online()
             ? (p === roomBotSeat() ? (h.hostsBot() ? "bot" : "remote") : p === st.me ? "local" : "remote")
-            : (st.mode === "bot" && p > 0 ? "bot" : "local"),
+            : st.mode === "bot" && (roomBotSeat() >= 0 ? p === roomBotSeat() : p > 0) ? "bot" : "local",
     }));
     const playerColor = (p) => (p >= 0 ? `var(--c${p})` : "#ffffff");
     // my seat at this table: the one seat this device plays (-1 = none / several / spectator)

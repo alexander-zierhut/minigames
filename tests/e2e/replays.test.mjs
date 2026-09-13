@@ -3,7 +3,7 @@
    from one, and deleted again. */
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { startServer, launchBrowser, ROOT, ONLINE } from "./harness.mjs";
+import { startServer, launchBrowser, ROOT } from "./harness.mjs";
 
 let server, B;
 const FIVE_WIN = [0, 5, 1, 6, 2, 7, 3];          // seat 0 makes four in a row on a 5×5 board
@@ -359,7 +359,7 @@ test("phone 360×780: the analysis panel fits above the bar, collapsed until it 
     await B.click("#btn-menu");
 });
 
-test("Play from here: the replay continues in a room against the bot, viewers can watch (#43)", { skip: !ONLINE }, async () => {
+test("Play from here: the replay continues offline against the bot and leads back to the replays (#43, #52)", async () => {
     await B.emulate(1000, 800);
     await B.click("#replay-list .replay-item button[data-act='watch']");
     await B.waitFor("Match.mode === 'replay'", { what: "the replay viewer" });
@@ -367,30 +367,30 @@ test("Play from here: the replay continues in a room against the bot, viewers ca
     assert.equal(await B.text("replay-pos"), "Move 3 / 7");
 
     await B.click("#btn-play-from-here");
-    await B.waitFor("Net.role === 'host' && Match.mode === 'online'", { timeout: 40000, what: "the room is up" });
+    await B.waitFor("Match.mode === 'bot' && Match.running", { what: "the game is on" });
     assert.equal(await B.screen(), "screen-game");
-    assert.equal(await B.ev("Match.me"), 1, "the human takes the seat that is to move");
-    assert.equal(await B.ev("Settings.bot.seat"), 0, "…and the bot sits on the other one");
-    assert.equal(await B.ev("JSON.stringify(Match.seats.map(s => s.kind))"), JSON.stringify(["bot", "local"]));
+    assert.equal(await B.ev("Room.online"), false, "no room: it is a plain bot game (#52)");
+    assert.equal(await B.ev("document.getElementById('net-banner').hidden"), true, "and nothing waits for a friend");
+    assert.equal(await B.ev("JSON.stringify(Match.seats.map(s => s.kind))"), JSON.stringify(["bot", "local"]), "the human takes the seat that is to move");
+    assert.equal(await B.ev("Match.config.bot.seat"), 0, "…and the bot sits on the other one");
     assert.equal(await B.ev("JSON.stringify(FiveGame.state.history)"), "[0,5,1]", "the game starts from the shown position");
     assert.equal((await B.state()).current, 1, "and it is my move");
     assert.equal(await B.text("p0-name"), "Bot");
+    assert.equal(await B.text("btn-menu"), "Back to replays", "the exits lead back to where the player came from");
+    assert.equal(await B.ev("document.getElementById('btn-restart').hidden"), false, "a rematch is still offered");
 
     await B.move(10);
     await B.waitFor("FiveGame.state.history.length === 5 && !FiveGame.state.busy", { timeout: 40000, what: "the bot answers" });
     assert.equal((await B.state()).current, 1, "back to me");
 
-    // the spectate link still works: a viewer sees the same position
-    const link = await B.ev("Room.spectateLink()");
-    assert.match(link, /watch=[A-Z0-9]{4,5}/);
-    const V = await launchBrowser();
-    try {
-        await V.goto(link);
-        await V.waitFor("Net.connected", { timeout: 60000, what: "the viewer connected" });
-        await V.waitFor("FiveGame.state.history.length >= 5", { timeout: 60000, what: "the viewer sees the position" });
-        assert.equal(await V.ev("Match.spectator"), true);
-        assert.equal(await V.ev("JSON.stringify(FiveGame.state.history.slice(0, 3))"), "[0,5,1]", "the moves from the replay are there too");
-        assert.deepEqual(V.errors, []);
-    } finally { await V.close(); }
+    // leaving lands in the replays, not in a room; the game left half way is kept there (the
+    // list is paged, so count the store, not the rows)
+    const stored = () => B.ev("Replays.store.list().then((l) => l.length)");
+    const before = await stored();
+    await B.click("#btn-menu");
+    await B.waitFor("document.querySelector('.screen:not([hidden])')?.id === 'screen-replays'", { what: "back in the replays" });
+    assert.equal(await B.ev("Match.mode"), "local");
+    await B.waitFor(`Replays.store.list().then((l) => l.length === ${before + 1})`, { what: "the continued game in the store" });
+    await B.waitFor("document.querySelector('#replay-list .replay-item .replay-sub')?.textContent.includes('Unfinished')", { what: "…and at the top of the list" });
     assert.deepEqual(B.errors, []);
 });

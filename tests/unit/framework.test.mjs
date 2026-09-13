@@ -116,6 +116,12 @@ test("Match: seats per mode, a bot seat that moves by itself, deferred work unti
     M.start({ game: "five", n: 6, winLen: 4, players: 2, timer: 0 }, 1);
     assert.equal(JSON.stringify(M.seats.map((s) => s.kind)), JSON.stringify(["local", "bot"]));
     assert.equal(M.names[1], "Bot", "the bot seat is simply called Bot (#21)");
+    // the config may seat the bot elsewhere offline too (a replay played on from a position, #43 / #52)
+    const seated = { ...O.current("five", { game: "five" }), seat: 0 };
+    M.start({ game: "five", n: 6, winLen: 4, players: 2, timer: 0, bot: { id: seated.id, difficulty: seated.difficulty, seat: 0 } }, 1);
+    assert.equal(JSON.stringify(M.seats.map((s) => s.kind)), JSON.stringify(["bot", "local"]));
+    assert.equal(M.names[0], "Bot");
+    M.start({ game: "five", n: 6, winLen: 4, players: 2, timer: 0 }, 1);
     await M.engine.play(0);
     await new Promise((r) => setTimeout(r, M.THINK_MS + 400));
     assert.equal(M.state.history.length, 2, "the bot moved");
