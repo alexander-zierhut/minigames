@@ -182,7 +182,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | bot definition | `id, name, game, version, description, difficulties [{id, label, nodes}], create(tools) → {move(state)}, evaluate?(state, tools) → raw, supports?(config) → bool, variant?(config) → key, baseline?` |
 | `BotPersona` | `attach({bot, seat, game, state, estimate, color, post?, delays?, cooldownMs?})`, `detach()`, `POOLS` |
 | `Skins` | `init({onChange})`, `set(key)`, `current` (no `names()` since #35) |
-| `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce)`, `summary(cfg)`, `setMode(mode)`, `setPlayers(n)`, `setMinPlayers(n)`, `setBot(choice, announce?)`, `setLocked(on)`, `supports(key)`, `MIN_PLAYERS_HINT`, `BOT_SEAT`, `game`, `players`, `minPlayers`, `bot`, `locked`, `fields` |
+| `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce, resetSize?)`, `summary(cfg)`, `setMode(mode)`, `setPlayers(n)`, `setMinPlayers(n)`, `setBot(choice, announce?)`, `setLocked(on)`, `supports(key)`, `MIN_PLAYERS_HINT`, `BOT_SEAT`, `game`, `players`, `minPlayers`, `bot`, `locked`, `fields` |
 | `Prefs` | `init({onChange, context})`, `get() → {name, defaultName, volume, soundSet, sounds, winGraph, hideCode, hideCodeAsked, privateIp, muteSpectators, developer}`, `set(patch)`, `open/close`, `feedbackUrl()`, `cleanName(s)`, `seatNames(count)`, `showSection(key)`, `sectionSummary(key)`, `CATEGORIES`, `SECTIONS`, `DEFAULT_NAMES`, `NAME_MAX`, `isOpen`, `section` |
 | `Opponent` | `init({onDone(game, played)})`, `open(game, config, choice?)`, `current(game, config) → {id, difficulty, def}`, `summary(game, config, choice?)`, `NAME` ("Bot") |
 | `Reactions` | `init({onSend, color})`, `receive(emoji, color)`, `place()`, `durationFor(recent)` |
@@ -191,7 +191,8 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Changelog` | `init()`, `open/close`, `render(doc[, all])`, `refUrl(ref)`, `technical(entry)`, `showTechnical`, `SHOW_DAYS` |
 | `Preload` | `textures()` |
 | `Learn` | `init({show, exit})`, `open()`, `openGame(key)`, `startTutorial(key)`, `startScenario(key, id)`, `restart()`, `exit()`, `howto(key) → {rules, tutorial, scenarios}`, `scenarios(game, list)` (the generated files register here), `games()`, `configFor(key, cfg)`, `names(base)`, `beforeMove(i)` / `cellClass(i)` / `onLocalMove(i)` (Match handlers), `openHowto(key)` / `closeHowto()`, `isSolved(game, id)`, `markSolved(game, id)`, `tutorialDone(game)`, `fold(on)` (#43), `tierProgress(game, tier)`, `tierLocked(game, tier)`, `tierOpen(game, tier)` / `toggleTier(game, tier)` (the folded tier cards), `nextScenario(game, id)`, `canAdvance()`, `again()`, `againText()`, `dots(difficulty)`; getters `active` (`null` \| `{kind, game, …}`), `page`, `folded`; `STEP_MS`, `MISS`, `TIERS`, `KINDS`, `UNLOCK` |
-| game definition | `howto: { rules: [], tutorial: [{text, config?, moves?, expect?, highlight?}], scenarios: [{id, title, text, config, history, toMove, best, tags?, tier, kind, difficulty, level, goal?}] }` (#41, #44; `Games.register` defaults it to empty) |
+| game definition | `key, title, tagline, desc, preview` (9 chars, see `Games.previewClass`), `size: {min, max, default, presets}`, `players?`, `premove?`, `settings: [{key, label (may be a function of the config), type: "select" | "bool" | "preset", def, min?, max?, options?, presets?, off?, startOff?, suffix?, customLabel?, flag?}]`, `describeRules?`, `describeOptions?`, `rules`, `view` |
+| game definition (Learn) | `howto: { rules: [], tutorial: [{text, config?, moves?, expect?, highlight?}], scenarios: [{id, title, text, config, history, toMove, best, tags?, tier, kind, difficulty, level, goal?}] }` (#41, #44; `Games.register` defaults it to empty) |
 | `Session` | `save(data)`, `load()`, `clear()` (shape incl. `codeHidden`, `watch`, `spec`) |
 | `Replays` | `FORMAT`, `VERSION`, `MIGRATIONS`, `EXT`, `migrate(doc)`, `validate(doc) → {ok, error}`, `parse(text) → {ok, doc, error}`, `fromRecord(record, names, mode, opts)`, `idFor`, `fileName`, `when(iso)`, `dayOf(iso)`, `summary(doc, id)`, `filter(items, {game, kind, search, from, to})`, `store.{save, list({game}), get, remove, clear, persistent, analysis.{get, put, remove, clear}}` (async, IndexedDB with a memory fallback), `playback({ply, total, seek, ms, setTimer, clearTimer}) → {start, stop, toggle, playing}`, `STEP_MS` |
 | `Analysis` | `init({onSeek, onPlayFrom})`, `open(doc, {canPlayFrom})`, `at(ply) → cell to mark`, `close()`, `run()`, `analyse(doc, {estimator, bot, nodes, onProgress, cancelled, breathe, maxMs}) → result`, `scores(moves, players)`, `verdict(move)`, `positionsOf(record)`, `stampFor(doc)`, `load(id, stamp)`, `store(id, result)`, `NODES/BOT_NODES/TOLERANCE/MISTAKE/BLUNDER/MAX_PLIES`; getters `result`, `busy`, `progress`, `shown` |
@@ -232,9 +233,24 @@ and `roster` are the ones that never get relayed (host to all, or guest to host 
 
 - Writes English and German; either is fine in replies.
 - Wants things to look nice; approved: classic skin, HUD contrast, explosion, compact
-  mobile HUD, unified dark MC UI, settings modal, room flow. Keep mobile non-scrolling.
+  mobile HUD, unified dark MC UI, settings modal, room flow.
   Layout need not be pixel-perfect, behaviour and texts must not change unasked. No em
   dashes in any user-facing text (#24): rewrite the sentence instead.
+- **The UI rules of the 2026-09-11 rebuild** (they hold for anything new; the details are in
+  `.claude/rules/ui.md`):
+  - **No emoji as an icon.** Every icon is a line icon from `client/lib/icons.js`
+    (`[data-icon]`); emoji are content (the reactions bar, the bot persona).
+  - **Every action carries a word.** No unlabelled icon button: a row says what it does and
+    explains itself in a line under the label where it helps.
+  - **Say it where it happened.** A copy or a switch confirms on the thing that was clicked
+    (a check, a green edge, a green code), never in a toast at the other end of the screen.
+  - **Every control in the settings is a dropdown**: a few values that work well, "Off"
+    where it applies, and "Custom…", which reveals a number row.
+  - **A card never scrolls inside itself.** When it is taller than the screen the page
+    scrolls (`safe center` + `overflow-y: auto` on the screen and on `.modal`). Phones may
+    scroll a room lobby; the local lobby still fits 360×780 and the game screen never scrolls.
+  - **Nothing above the game definition knows a game by name.** A picker for eight games is
+    planned in `.claude/rules/games.md` ("Beyond six games").
 - Prefers several small JS files over one big one; no framework.
 - Friends only (up to four in a room, plus spectators) — no matchmaking, no accounts, no
   own server.

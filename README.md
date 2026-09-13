@@ -53,9 +53,9 @@ thinking: the premove is marked on the board and played the moment it is your tu
 The number of players (two, three or four) is picked right in the lobby, next to the room
 code online and over the game list offline, and can never be
 set below the people already sitting in the room; the settings
-(board size or boxes per side, animation speed, chess-style timer, chain-win rule, stones in
-a row, the Yavalath rule) are
-shared live in the room lobby; anyone can change them. The ⚙ button in
+(board size, animation speed, chess-style timer, the chain win, how many stones in a row,
+the losing row) are dropdowns with a few values that work well and a Custom entry for your
+own number, and they are shared live in the room lobby; anyone can change them. The ⚙ button in
 the top-left corner holds the per-device preferences: your name (a short one is picked for
 you on the first visit, change it under Profile; up to 16 characters, everyone in the room
 sees it), the look (Classic, Blocks board,
