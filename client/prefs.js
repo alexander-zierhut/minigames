@@ -111,8 +111,10 @@ const Prefs = (() => {
 
     // change one or more preferences: { volume, soundSet, sounds: { chat: false } }
     function set(patch) {
+        const language = prefs.language;
         prefs = merge({ ...prefs, ...patch, sounds: { ...prefs.sounds, ...((patch && patch.sounds) || {}) } });
         Util.save(localStorage, KEY, prefs);
+        if (prefs.language !== language) I18n.init(prefs.language);   // the markup and the direction follow at once; the app repaints the rest (#47)
         fill();
         onChange(prefs);
     }
@@ -144,8 +146,8 @@ const Prefs = (() => {
     /* ---------- the language (#47) ----------
        A dropdown like the replays filter (a <select> cannot show a flag): "Automatic" with
        the browser's choice first, then every language the site speaks under its own name.
-       Picking one saves the preference and reloads the page, which is how every text,
-       every dropdown and the writing direction follow at once. */
+       Picking one saves the preference; `set` switches the language live and the app
+       repaints every text it built itself. */
     const langName = (code) => I18n.LANGS.find((l) => l.code === code).name;
     // the flag and the name of a language; "auto" shows the flag of the language it gives and, in the
     // menu (`full`), which one that is
@@ -182,13 +184,11 @@ const Prefs = (() => {
             opt.setAttribute("role", "option");
             opt.setAttribute("aria-selected", code === prefs.language ? "true" : "false");
             opt.appendChild(langRow(code, true));
-            opt.addEventListener("click", () => { box.classList.remove("open"); if (code !== prefs.language) { set({ language: code }); reload(); } });
+            opt.addEventListener("click", () => { box.classList.remove("open"); if (code !== prefs.language) set({ language: code }); });
             menu.appendChild(opt);
         }
         box.append(button, menu);
     }
-    let reload = () => location.reload();                 // replaceable in tests
-
     // content creator mode = every option of that section on; the button toggles all of them
     const CREATOR = ["hideCode", "privateIp", "muteSpectators"];     // the options the content creator button switches
     const creatorMode = () => CREATOR.every((k) => prefs[k]);
@@ -306,6 +306,5 @@ const Prefs = (() => {
     return {
         init, get, set, open, close, feedbackUrl, cleanName, fitName, seatNames, CATEGORIES, SECTIONS, DEFAULT_NAMES, NAME_MAX, showSection, sectionSummary,
         get isOpen() { return !$("prefs-modal").hidden; }, get section() { return section; },
-        get reload() { return reload; }, set reload(fn) { reload = fn; },
     };
 })();

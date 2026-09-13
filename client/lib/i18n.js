@@ -14,8 +14,9 @@
 
    The language comes from the browser the first time (`detect`, the first of
    navigator.languages the site speaks) and can be overridden in the preferences; a
-   switch reloads the page, so nothing has to re-render live. Arabic sets dir="rtl" on the
-   document (the board and everything that has cell coordinates stays LTR through CSS). */
+   switch calls `init` again (the markup follows at once) and every module repaints what
+   it built itself (app.js's `relabel`). Arabic sets dir="rtl" on the document (the board
+   and everything that has cell coordinates stays LTR through CSS). */
 
 "use strict";
 
@@ -95,6 +96,7 @@ const I18n = (() => {
         if (!root || !root.querySelectorAll) return;
         for (const el of root.querySelectorAll("[data-i18n]")) el.textContent = t(el.dataset.i18n);
         for (const [data, attr] of ATTRS) for (const el of root.querySelectorAll(`[${data}]`)) el.setAttribute(attr, t(el.getAttribute(data)));
+        for (const tpl of root.querySelectorAll("template")) apply(tpl.content);   // what Util.fromTemplate clones later
     }
 
     /* A small flag per language for the language menu (an SVG, like every icon; simplified

@@ -35,7 +35,7 @@ I18n.add("fr", {
 
     // ---- title screen ----
     "menu.hello": "Salut",
-    "menu.welcome": "Bienvenue dans des jeux sympas.",
+    "menu.welcome": "Bienvenue et bon jeu.",
     "menu.online": "En ligne",
     "menu.create": "Créer une salle",
     "menu.join": "Rejoindre",
@@ -61,6 +61,8 @@ I18n.add("fr", {
     "lobby.watching": "Spectateur",
     "lobby.invite": "Inviter",
     "lobby.players": "Joueurs",
+    "lobby.seats": "Places",
+    "lobby.roomSize": "Taille de la salle",
     "lobby.watch": "Regarder plutôt",
     "lobby.sit": "S'asseoir ici",
     "lobby.addBot": "Ajouter un bot",
@@ -562,7 +564,7 @@ I18n.add("fr", {
     "learn.note.isolation.race": "Les pions sont coupés l'un de l'autre : c'est une course à l'espace.",
 
     // ---- Chain React ----
-    "game.chain.title": "Chain React",
+    "game.chain.title": "Réaction en chaîne",
     "game.chain.tagline": "Remplis une case, elle explose vers ses voisines. Prends tout le plateau.",
     "game.chain.desc": "Explosions en chaîne",
     "game.chain.set.speed": "Vitesse d'animation",

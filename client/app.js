@@ -51,6 +51,21 @@
         Reactions.place();                               // layout is synchronous: the board rect is final here
     }
 
+    /* The language changed (#47): I18n already rewrote the markup (Prefs.set); every module
+       paints what it built itself again, in the new words. The log keeps its lines. */
+    function relabel() {
+        Settings.relabel();
+        Opponent.relabel();
+        Match.engine.relabel();
+        renderRematch();
+        Lobby.render();
+        Room.render();
+        Learn.relabel();
+        if (phase === "replays") ReplayList.relabel();
+        if (!$("replay-bar").hidden) Review.render();
+        Analysis.render();
+    }
+
     // the Rematch buttons (HUD + overlay) and the "Show result" button follow the rematch state;
     // a spectator cannot send everyone back to the room (#29): its button leaves the room instead
     function renderRematch() {
@@ -253,17 +268,67 @@
     // in game
     $("gear").addEventListener("click", () => $("hut").classList.toggle("show-controls"));
     $("btn-restart").addEventListener("click", () => { if (!Match.state.busy) requestRematch(); });
-    $("btn-menu").addEventListener("click", () => {
+    // what the HUD's back button does, by the table's kind (the back gesture takes the same step)
+    function backFromGame() {
         if (Match.mode === "replay" || continued) closeReplay();
         else if (Learn.active) Learn.exit();
         else if (Match.spectator) leaveRoom();
         else backToLobby(true);
-    });
+    }
+    $("btn-menu").addEventListener("click", backFromGame);
     $("overlay-again").addEventListener("click", requestRematch);
     $("overlay-menu").addEventListener("click", () => { if (Match.mode === "replay" || continued) closeReplay(); else backToLobby(true); });
 
     $("btn-net-retry").addEventListener("click", () => Net.retryNow());
     $("btn-net-leave").addEventListener("click", leaveRoom);
+
+    /* ================= the back gesture (a virtual history) =================
+       A phone's back button, or the browser's, steps back inside the page instead of leaving
+       it: one history entry of ours sits on top of the real one whenever there is something
+       to go back from (a screen that is not the title, or an open modal). Popping it takes
+       that step (the topmost modal closes, a game goes back to its room, a room is left, a
+       Learn page closes) and puts the entry back while there is more; on the title screen
+       with nothing open, the next back leaves the page as it always did. */
+    const Nav = (() => {
+        let armed = false;                                   // our entry sits on top of the real one
+        let dropping = 0;                                    // pops we asked for ourselves
+        const onePane = () => window.matchMedia && window.matchMedia("(max-width: 899px)").matches;
+        const openModal = () => {
+            const open = [...document.querySelectorAll(".modal:not([hidden])")];
+            return open.find((m) => m.id === "prefs-modal") || open[open.length - 1] || null;   // ⚙ opens over everything
+        };
+        const needed = () => phase !== "menu" || !!openModal();
+        function closeModal(m) {
+            if (m.id === "prefs-modal") { if (Prefs.section && onePane()) Prefs.showSection(null); else Prefs.close(); }
+            else if (m.id === "settings-modal") $("btn-settings-done").click();
+            else if (m.id === "bot-modal") $("btn-bot-cancel").click();
+            else if (m.id === "howto-modal") Learn.closeHowto();
+            else if (m.id === "invite-modal") Lobby.closeInvite();
+            else if (m.id === "changelog-modal") Changelog.close();
+            else m.hidden = true;
+        }
+        function back() {
+            const m = openModal();
+            if (m) closeModal(m);
+            else if (phase === "game") backFromGame();
+            else if (phase === "lobby") leaveRoom();
+            else if (phase === "learn-game") Learn.open();
+            else show("menu");                               // replays, learn
+        }
+        function sync() {
+            if (needed() && !armed) { history.pushState({ minigames: true }, ""); armed = true; }
+            else if (!needed() && armed) { armed = false; dropping++; history.back(); }   // nothing left to go back from: our entry goes
+        }
+        window.addEventListener("popstate", () => {
+            if (dropping) { dropping--; return; }
+            if (!armed) return;                              // the real entry: the browser leaves the page
+            armed = false;
+            if (needed()) { back(); sync(); }
+        });
+        if (history.state && history.state.minigames) history.replaceState(null, "");   // a reload on our entry: start clean
+        new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ["hidden"], subtree: true });
+        return { sync, back };
+    })();
 
     window.addEventListener("resize", fitBoard);
     window.addEventListener("resize", () => Room.updateBanner());   // the banner's height feeds the lobby's top padding
@@ -281,9 +346,11 @@
     Skins.init({ onChange: () => { Match.engine.render(); Lobby.render(); } });
     Dev.init();
     let shownName = Prefs.get().name;
+    let shownLanguage = Prefs.get().language;
     Prefs.init({
         onChange: (p) => {
             Dev.enable(p.developer);
+            if (p.language !== shownLanguage) { shownLanguage = p.language; relabel(); }
             if (p.name === shownName) return;         // only a new name needs the room and the boards (#35)
             shownName = p.name;
             Room.nameChanged();

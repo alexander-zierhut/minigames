@@ -61,6 +61,8 @@ I18n.add("ar", {
     "lobby.watching": "مشاهدة",
     "lobby.invite": "دعوة",
     "lobby.players": "اللاعبون",
+    "lobby.seats": "المقاعد",
+    "lobby.roomSize": "حجم الغرفة",
     "lobby.watch": "شاهد بدلًا من ذلك",
     "lobby.sit": "اجلس هنا",
     "lobby.addBot": "أضف بوتًا",
@@ -562,7 +564,7 @@ I18n.add("ar", {
     "learn.note.isolation.race": "انقطع البيدقان عن بعضهما: إنه سباق على المساحة.",
 
     // ---- Chain React ----
-    "game.chain.title": "تشين رياكت",
+    "game.chain.title": "تفاعل متسلسل",
     "game.chain.tagline": "املأ خانة فتنفجر إلى جيرانها. استولِ على اللوحة بأكملها.",
     "game.chain.desc": "انفجارات وتفاعلات متسلسلة",
     "game.chain.set.speed": "سرعة الحركة",

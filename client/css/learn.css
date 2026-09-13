@@ -155,3 +155,6 @@ body.learn-tutorial #hut .win-bar { display: none; }
     #learn-scenarios-group { grid-column: 2; grid-row: 3 / span 2; }
     #btn-learn-game-back { justify-self: center; min-width: 200px; }
 }
+
+/* a phone: a full game title ("Réaction en chaîne") stays on one line of the details page (#47) */
+@media (max-width: 480px) { #learn-title { font-size: 24px; } }

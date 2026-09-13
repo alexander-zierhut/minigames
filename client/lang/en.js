@@ -61,6 +61,8 @@ I18n.add("en", {
     "lobby.watching": "Watching",
     "lobby.invite": "Invite",
     "lobby.players": "Players",
+    "lobby.seats": "Seats",
+    "lobby.roomSize": "Room size",
     "lobby.watch": "Watch instead",
     "lobby.sit": "Sit here",
     "lobby.addBot": "Add a bot",

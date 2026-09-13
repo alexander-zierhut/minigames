@@ -71,17 +71,23 @@ const Settings = (() => {
         const el = document.createElement("select");
         el.id = idFor(s.key);
         el.autocomplete = "off";
-        if (s.type === "select") for (const [value, label] of s.options) el.appendChild(option(value, t(label), value === s.def));
-        else if (s.type === "bool") { el.appendChild(option("off", t("common.off"), !s.def)); el.appendChild(option("on", t("common.on"), !!s.def)); }
-        else {                                              // "preset": Off?, the presets, Custom…
-            if (s.off) el.appendChild(option("off", t("common.off"), !!s.startOff));   // `startOff`: the rule is off until it is picked
-            for (const v of s.presets || []) el.appendChild(option(v, presetText(s, v), !s.startOff && v === s.def));
-            el.appendChild(option("custom", t("common.custom")));
-        }
+        // "select": its options; "bool": Off / On; "preset": Off?, the presets, Custom… (`startOff`: the rule is off until it is picked)
+        const values = s.type === "select" ? s.options.map(([v]) => v) : s.type === "bool" ? ["off", "on"] : [...(s.off ? ["off"] : []), ...(s.presets || []), "custom"];
+        const picked = (v) => (s.type === "select" ? v === s.def : s.type === "bool" ? (v === "on") === !!s.def : s.startOff ? v === "off" : v === s.def);
+        for (const v of values) el.appendChild(option(v, optionText(s, String(v)), picked(v)));
         return el;
     }
     // the option text of a preset value: the number alone, or through the setting's `unit` (a plural key)
     const presetText = (s, v) => (s.unit ? t(s.unit, { count: v }) : String(v));
+    // the text of one option of a setting's dropdown, from its value
+    function optionText(s, value) {
+        if (value === "off") return t("common.off");
+        if (value === "on") return t("common.on");
+        if (value === "custom") return t("common.custom");
+        if (s.type === "select") { const o = s.options.find(([v]) => String(v) === value); return o ? t(o[1]) : value; }
+        return presetText(s, Number(value));
+    }
+    const customText = (s) => (s.customLabel ? t(s.customLabel) : t("settings.customRange", { min: s.min, max: s.max }));
     // the number that "Custom…" reveals, as its own row right under the setting
     function customRow(s) {
         const label = document.createElement("label");
@@ -90,7 +96,7 @@ const Settings = (() => {
         label.dataset.setting = s.key;
         label.hidden = true;
         const name = document.createElement("span");
-        name.textContent = s.customLabel ? t(s.customLabel) : t("settings.customRange", { min: s.min, max: s.max });
+        name.textContent = customText(s);
         const el = document.createElement("input");
         el.type = "number"; el.id = idFor(s.key) + "-custom"; el.autocomplete = "off";
         el.min = String(s.min); el.max = String(s.max); el.step = "1"; el.value = String(s.def || s.min);
@@ -298,6 +304,27 @@ const Settings = (() => {
         }
     }
 
+    /* The language changed (#47): the cards, every row's label and option texts and the
+       timer list are written again in the new words, around the values that are picked. */
+    function relabel() {
+        const timer = $("set-timer").value;
+        renderPicker();
+        for (const key of Games.keys()) {
+            for (const s of Games.get(key).settings) {
+                const row = $("row-" + s.key.toLowerCase());
+                if (!row) continue;
+                if (typeof s.label !== "function") row.querySelector(".row-label").textContent = t(s.label);
+                for (const o of $(idFor(s.key)).options) o.textContent = optionText(s, o.value);
+                const custom = $("row-" + s.key.toLowerCase() + "-custom");
+                if (custom) custom.firstElementChild.textContent = customText(s);
+            }
+        }
+        fillTimer();
+        $("set-timer").value = timer;
+        renderPlayers();
+        selectGame(game, false);            // the cards' state, the size list, the labels that name themselves, the summary
+    }
+
     // any local change: persist, refresh the labels and the summary, tell the app (which tells the friends)
     function changed() {
         syncLabels();
@@ -434,5 +461,5 @@ const Settings = (() => {
         selectGame(game, false);
     }
 
-    return { init, read, write, selectGame, setPlayers, setMinPlayers, setBot, summary, setMode, setLocked, supports, get MIN_PLAYERS_HINT() { return MIN_PLAYERS_HINT(); }, BOT_SEAT, get bot() { return bot ? { ...bot } : null; }, get locked() { return locked; }, get minPlayers() { return minPlayers; }, get game() { return game; }, get players() { return players; }, get fields() { return fields.map((f) => f.key); } };
+    return { init, read, write, selectGame, setPlayers, setMinPlayers, setBot, summary, setMode, setLocked, supports, relabel, get MIN_PLAYERS_HINT() { return MIN_PLAYERS_HINT(); }, BOT_SEAT, get bot() { return bot ? { ...bot } : null; }, get locked() { return locked; }, get minPlayers() { return minPlayers; }, get game() { return game; }, get players() { return players; }, get fields() { return fields.map((f) => f.key); } };
 })();

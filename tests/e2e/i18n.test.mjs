@@ -1,5 +1,6 @@
 /* Languages (#47) in a real browser: the page opens in the browser's language, the switch in
-   the preferences changes everything and survives a reload, Arabic reads right to left with
+   the preferences changes everything at once (no reload, the modal stays open) and survives a
+   reload, Arabic reads right to left with
    the board kept left to right, and, the one that matters for the future: in EVERY language,
    on a phone and on a desktop, no button, label, row or HUD text wraps onto a second line or
    runs out of its box. A translation that is too long fails here, not on a player's screen. */
@@ -19,8 +20,8 @@ const LANGS = ["en", "de", "es", "fr", "ja", "ar"];
    joined by dots) and a scenario's title in the learn ladder are designed for two lines,
    never three. */
 const ONE_LINE = [
-    ".btn", ".section-title", ".title.small", ".lobby-row-label", ".lobby-row-note", ".lobby-head .label", "#lobby-code",
-    ".settings-summary > span:not(.invite-text):not(.gear-icon):not(.chev):not(#settings-summary):not(#opponent-summary)", ".invite-text b", ".prefs-nav-name", ".prefs-nav-sum",
+    ".btn", ".section-title", ".title.small", ".menu-hello", ".lobby-row-label", ".lobby-row-note", ".lobby-head .label", "#lobby-code",
+    ".settings-summary > span:not(.invite-text):not(.gear-icon):not(.chev):not(.learn-sc-text):not(#settings-summary):not(#opponent-summary)", ".invite-text b", ".prefs-nav-name", ".prefs-nav-sum",
     ".row > span:first-child", ".seg button", ".dd-button", ".dd-option", ".game-name", ".game-players",
     ".lp-name", ".lp-status", ".stat", ".turn-name", ".turn-hint", ".sign-title", ".sign-sub", "#mini-line2", "#round-mini",
     "#replay-pos", ".replay-title", "#replay-count", "#replay-page", ".learn-tier b", ".learn-tier-count", ".learn-kind", ".learn-step",
@@ -37,7 +38,7 @@ const check = async (where) => {
 };
 const assertClean = () => { const list = found; found = []; assert.deepEqual(list, [], "a text wraps or overflows"); };
 
-test("the language follows the browser, the switch in the preferences changes everything and sticks", async () => {
+test("the language follows the browser, the switch in the preferences changes everything at once and sticks", async () => {
     assert.equal(await B.ev("I18n.lang"), "en", "headless Chrome speaks English");
     assert.equal(await B.text("btn-create"), "Create room");
     await B.click("#prefs-btn");
@@ -46,12 +47,20 @@ test("the language follows the browser, the switch in the preferences changes ev
     await B.click("#pref-language-button");
     assert.equal(await B.ev("document.querySelectorAll('#pref-language .dd-option').length"), 7, "Automatic plus six languages");
     assert.ok(await B.ev("!!document.querySelector('#pref-language .dd-option[data-language=de] svg.flag')"), "every row carries a flag");
-    await B.ev("Prefs.reload = () => { window.__reloaded = true; }; true");
     await B.click("#pref-language .dd-option[data-language=de]");
-    await B.waitFor("window.__reloaded === true", { what: "a language change reloads the page" });
-    await B.goto(server.url);
+    // live: no reload, the preferences stay open on the same section, every text is German at once
     assert.equal(await B.ev("I18n.lang"), "de");
     assert.equal(await B.ev("document.documentElement.lang"), "de");
+    assert.equal(await B.ev("Prefs.isOpen && Prefs.section"), "look", "the preferences stay open where they were");
+    assert.equal(await B.text("prefs-sum-look"), "Klassisch · Deutsch", "the row summary follows");
+    assert.equal(await B.ev("document.querySelector('#pref-language-button .dd-label').textContent"), "Deutsch");
+    assert.equal(await B.text("btn-create"), "Raum erstellen", "the title screen behind the modal is German");
+    assert.equal(await B.ev("document.querySelector('#screen-lobby .game-card[data-game=five] .game-name').textContent"), "Fünf gewinnt", "the picker cards are rebuilt");
+    assert.equal(await B.ev("document.querySelector('#set-timer option[value=custom]').textContent"), "Benutzerdefiniert…", "the settings' options are rewritten");
+    await B.click("#btn-prefs-done");
+    // and it sticks across a reload
+    await B.goto(server.url);
+    assert.equal(await B.ev("I18n.lang"), "de");
     assert.equal(await B.text("btn-create"), "Raum erstellen");
     assert.equal(await B.text("btn-local"), "Lokales Spiel", "the whole title screen is German");
     await B.click("#btn-local");

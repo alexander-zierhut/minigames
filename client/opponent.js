@@ -105,5 +105,6 @@ const Opponent = (() => {
         $("bot-modal").addEventListener("click", (e) => { if (e.target === $("bot-modal")) close(false); });
     }
 
-    return { init, open, current, summary, get NAME() { return NAME(); } };
+    const relabel = () => { if (game && !$("bot-modal").hidden) render(); };   // the language changed while the modal is open (#47)
+    return { init, open, current, summary, relabel, get NAME() { return NAME(); } };
 })();

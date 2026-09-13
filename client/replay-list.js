@@ -171,5 +171,6 @@ const ReplayList = (() => {
         });
     }
 
-    return { init, open, render, download, PAGE };
+    const relabel = () => { renderFilter(); render(); };     // the language changed while the list is open (#47)
+    return { init, open, render, relabel, download, PAGE };
 })();

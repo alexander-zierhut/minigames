@@ -57,6 +57,8 @@ I18n.add("ja", {
     "lobby.watching": "観戦中",
     "lobby.invite": "招待",
     "lobby.players": "プレイヤー",
+    "lobby.seats": "席",
+    "lobby.roomSize": "ルームの人数",
     "lobby.watch": "観戦に切り替え",
     "lobby.sit": "ここに座る",
     "lobby.addBot": "ボットを追加",
@@ -558,7 +560,7 @@ I18n.add("ja", {
     "learn.note.isolation.race": "両方のコマは分断されています。陣地の広さを争う競争です。",
 
     // ---- Chain React ----
-    "game.chain.title": "チェインリアクト",
+    "game.chain.title": "連鎖反応",
     "game.chain.tagline": "マスを埋めると周囲へ爆発が連鎖します。盤面をすべて奪いましょう。",
     "game.chain.desc": "爆発と連鎖反応",
     "game.chain.set.speed": "アニメーション速度",

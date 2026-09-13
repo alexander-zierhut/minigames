@@ -167,8 +167,10 @@
 .lobby-head { display: flex; flex-direction: column; align-items: stretch; gap: 8px; text-align: left; }
 .lobby-head .label { text-align: left; }                    /* over the room code, not over the card */
 .lobby-head-row { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; }
-.lobby-head-row #row-players { flex: 0 0 auto; }
-.lobby-head-row #row-players .lobby-row-label { display: none; }   /* the heading over the seat cards says it */
+/* the count is a small block on the right: "Room size" over the 2 / 3 / 4, both right-aligned,
+   so the code and the count read as two things and are far enough apart to tap (owner, 2026-09-13) */
+.lobby-head-row #row-players { flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 4px; margin-left: auto; }
+.lobby-head-row #row-players .lobby-row-label { letter-spacing: 1px; }
 .lobby-head-row #row-players .players-seg { margin-left: 0; width: 138px; }
 /* Invite is as tall as the seat count beside it */
 .lobby-actions .btn.small { padding: 5px 10px; font-size: 12px; }
@@ -252,11 +254,10 @@
 /* phones: a tighter lobby card so players, picker and buttons fit 360×780 without scrolling */
 @media (max-width: 899px) {
     .lobby-card { gap: 8px; padding: 16px 16px; }
-    /* the head wraps: the room on the first line, "Players 2 3 4" right-aligned under it */
+    /* the head wraps: the room on the first line, the "Room size" block right-aligned under it */
     .lobby-head { gap: 6px; }
     .lobby-head-row { gap: 8px; }
-    /* its own line under the code, left-aligned with it and far enough away to tap */
-    .lobby-head-row #row-players { flex: 1 0 100%; justify-content: flex-start; margin-top: 6px; }
+    .lobby-head-row #row-players { margin-top: 2px; }
     .lobby-head-row #row-players .players-seg { width: 132px; }
     /* offline on a phone the section keeps its heading but sits on one line, so the local
        lobby still fits 360×780 */

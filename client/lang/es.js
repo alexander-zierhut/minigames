@@ -34,7 +34,7 @@ I18n.add("es", {
 
     // ---- title screen ----
     "menu.hello": "Hola",
-    "menu.welcome": "Bienvenido a unos juegos divertidos.",
+    "menu.welcome": "Bienvenido a jugar.",
     "menu.online": "Online",
     "menu.create": "Crear sala",
     "menu.join": "Unirse a sala",
@@ -60,6 +60,8 @@ I18n.add("es", {
     "lobby.watching": "Viendo",
     "lobby.invite": "Invitar",
     "lobby.players": "Jugadores",
+    "lobby.seats": "Asientos",
+    "lobby.roomSize": "Tamaño de la sala",
     "lobby.watch": "Ver en cambio",
     "lobby.sit": "Siéntate aquí",
     "lobby.addBot": "Añadir un bot",
@@ -477,7 +479,7 @@ I18n.add("es", {
     "learn.finish": "Terminar",
     "learn.startOver": "Empezar de nuevo",
     "learn.back": "Volver a Aprender",
-    "learn.kindTutorial": "Tutorial de {game}",
+    "learn.kindTutorial": "Tutorial: {game}",
     "learn.step": "Paso {step} / {total}",
     "learn.stepDone": "Hecho",
     "learn.difficulty": "Dificultad {d} de 10",
@@ -561,7 +563,7 @@ I18n.add("es", {
     "learn.note.isolation.race": "Las fichas están aisladas entre sí: es una carrera por espacio.",
 
     // ---- Chain React ----
-    "game.chain.title": "Chain React",
+    "game.chain.title": "Reacción en cadena",
     "game.chain.tagline": "Llena una casilla, explota hacia sus vecinas. Hazte con todo el tablero.",
     "game.chain.desc": "Explosiones en cadena",
     "game.chain.set.speed": "Velocidad de animación",

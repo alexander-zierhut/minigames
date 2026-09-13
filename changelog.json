@@ -5,11 +5,46 @@
       "date": "2026-09-13",
       "entries": [
         {
+          "type": "improvement",
+          "text": "On a phone, the back button now steps back inside the site: it closes an open dialog, takes a game back to its room and leaves a room, and only leaves the site from the title screen.",
+          "refs": []
+        },
+        {
+          "type": "improvement",
+          "technical": true,
+          "text": "Changing the language in the settings applies at once, without reloading the page, and the settings stay open where they were.",
+          "refs": [
+            "#47"
+          ]
+        },
+        {
+          "type": "improvement",
+          "technical": true,
+          "text": "The games' names are translated too: Chain React is Kettenreaktion in German, Reacción en cadena in Spanish, Réaction en chaîne in French, 連鎖反応 in Japanese and تفاعل متسلسل in Arabic.",
+          "refs": [
+            "#47"
+          ]
+        },
+        {
+          "type": "improvement",
+          "technical": true,
+          "text": "In a room's lobby the seat count sits under its own \"Room size\" label on the right, apart from the room code, and the seat cards are headed \"Seats\".",
+          "refs": []
+        },
+        {
           "type": "feature",
           "text": "The site now speaks English, German, Spanish, French, Japanese and Arabic: it follows your browser's language the first time, and \"Look & Language\" in the settings lets you pick one. Every screen, every game and every lesson is translated; the games keep their names where they always had them.",
           "refs": [
             "#47",
             "#50"
+          ]
+        },
+        {
+          "type": "fix",
+          "technical": true,
+          "text": "The title screen's greeting stays on one line in German, Spanish and French on a desktop; the welcome sentence is shorter there.",
+          "refs": [
+            "#47"
           ]
         },
         {

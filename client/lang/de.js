@@ -35,7 +35,7 @@ I18n.add("de", {
 
     // ---- title screen ----
     "menu.hello": "Hallo",
-    "menu.welcome": "Willkommen zu ein paar lustigen Spielen.",
+    "menu.welcome": "Viel Spaß beim Spielen.",
     "menu.online": "Online",
     "menu.create": "Raum erstellen",
     "menu.join": "Raum beitreten",
@@ -61,6 +61,8 @@ I18n.add("de", {
     "lobby.watching": "Zuschauen",
     "lobby.invite": "Einladen",
     "lobby.players": "Spieler",
+    "lobby.seats": "Plätze",
+    "lobby.roomSize": "Raumgröße",
     "lobby.watch": "Stattdessen zuschauen",
     "lobby.sit": "Hier setzen",
     "lobby.addBot": "Bot hinzufügen",
@@ -562,7 +564,7 @@ I18n.add("de", {
     "learn.note.isolation.race": "Die Figuren sind voneinander abgeschnitten: es ist ein Wettrennen um Platz.",
 
     // ---- Chain React ----
-    "game.chain.title": "Chain React",
+    "game.chain.title": "Kettenreaktion",
     "game.chain.tagline": "Füll ein Feld, es explodiert in seine Nachbarn. Nimm das ganze Brett.",
     "game.chain.desc": "Explosionen & Kettenreaktionen",
     "game.chain.set.speed": "Animationsgeschwindigkeit",

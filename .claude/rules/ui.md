@@ -53,7 +53,15 @@ analysis panel, chat and reactions. The core context is `AGENTS.md`.
 | `client/settings.js`, `client/prefs.js`, `client/opponent.js`, `client/changelog.js` | one modal each |
 
 app.js is the only screen switcher: Room, Learn and ReplayList ask for a screen through
-the `show` handler they get; Match never switches screens. `show()` puts the screen back at
+the `show` handler they get; Match never switches screens. **The back gesture** (a phone's
+back button, the browser's Back) steps back inside the page: app.js's `Nav` keeps one
+history entry of its own on top of the real one whenever there is something to go back
+from (a screen that is not the title, or an open modal; a `MutationObserver` on `hidden`
+sees both) and, when it is popped, closes the topmost modal (⚙ counts as topmost; on a
+phone an open preferences section goes back to its menu first), takes a game back to its
+room (`backFromGame`, what the HUD's back button does), leaves a room, closes a Learn page
+or the replays, and pushes the entry again while there is more. On the title screen with
+nothing open the next back leaves the page as it always did. `show()` puts the screen back at
 its top, tells `Update` (the notice lives on the title screen only) and `Room.updateBanner`
 (the banner shows in the lobby and in a game only), fits the board on the game screen and
 renders the lobby when it opens.
@@ -89,9 +97,12 @@ One room, one link, the whole evening.
      spectate-link viewer, class `as-word`) with, online only, the primary `#btn-invite`
      "Invite" beside it (`#lobby-share`), and the seat count (`#row-players`, the segmented
      `#set-players` 2 / 3 / 4). **Where the count lives depends on the mode** and
-     `Lobby.render` moves the one control: in a room on that line (phones put it under the
-     code), offline in its own section `#group-count` over the game, and against a bot
-     nowhere (`Settings.setMode` hides it). Online `#screen-lobby.online` makes the code a
+     `Lobby.render` moves the one control: in a room on that line as a small right-aligned
+     block with its own label "Room size" over the 2 / 3 / 4 (phones wrap the block under
+     the code, still on the right, so code and count read as two things and are far enough
+     apart to tap), offline in its own section `#group-count` over the game under the label
+     "Players" (`Lobby.render` sets the label's key), and against a bot nowhere
+     (`Settings.setMode` hides it). Online `#screen-lobby.online` makes the code a
      button: **a tap copies the invite link** (the spectate link for a viewer) and the code
      turns green (`.copied`) for `Lobby.DONE_MS` (1.4 s); the text never changes, so
      nothing moves.
@@ -109,7 +120,7 @@ One room, one link, the whole evening.
      border turns green (`.done`) for `DONE_MS` (`flashDone`); the phone's share sheet and
      the fallback prompt say it themselves and do not flash.
   2. **The seats** (`#group-players`, a room's only): the heading `#row-seats-label`
-     "Players" with `#lobby-spectators` "N spectator(s) watching" as its note; one
+     "Seats" with `#lobby-spectators` "N spectator(s) watching" as its note; one
      `.lobby-player` card per seat from `#tpl-lobby-player` (as many as the *Players*
      control says; the name, `(you)` in `.lp-you`, `#lp-<k>-status` "connected" / "not here
      yet" / "ready"; an absent seat gets `.absent`). The seat controls sit **inside the
@@ -302,8 +313,8 @@ makes sure none does).
   for the reason a game ends, `I18n.msg` renders one (and passes a plain string through,
   which is what an older record or replay file carries). A descriptor may nest (`level:
   { k: "level.easy" }` inside a Learn sentence).
-- **Games** keep their keys (`chain`, `five`, …) and translate every label: `title`,
-  `tagline`, `desc`, the settings rows (`label`, `customLabel`, a `select`'s option labels
+- **Games** keep their keys (`chain`, `five`, …) and translate every label: `title` (in
+  full: "Kettenreaktion", "Fünf gewinnt", …), `tagline`, `desc`, the settings rows (`label`, `customLabel`, a `select`'s option labels
   are keys, a `preset`'s `unit` is a plural key such as `game.chain.explosions`, `off:
   true` means "Off"), `howto.rules` and the tutorial `text`s are keys, the HUD model's
   labels are built with `t()` in the view. `Games.title(key)` is the translated title.
@@ -327,9 +338,14 @@ makes sure none does).
   and every language under its own name and a small SVG flag (`I18n.flag`, an icon, so the
   "no emoji" rule holds); the closed button says "Automatic" with the flag of the language
   that gives.
-  Picking one saves and **reloads the page** (`Prefs.reload`, replaceable in tests): that
-  is how every text, every dropdown and the writing direction follow at once, and it
-  keeps the code free of live re-rendering. The Look row's summary names the language.
+  Picking one applies **at once, without a reload**: `Prefs.set` calls `I18n.init`
+  (the markup, the templates' contents and the writing direction follow) and app.js's
+  `relabel()` repaints what the modules built themselves: `Settings.relabel()` (cards,
+  every row's label and option texts, the timer list, around the values picked),
+  `Opponent.relabel()`, `Match.engine.relabel()` (the sign, the HUD, a shown result),
+  `renderRematch()`, `Lobby.render()`, `Room.render()`, `Learn.relabel()`, the replays
+  list and the replay bar with its analysis panel when they are open. The log keeps its
+  lines. The Look row's summary names the language.
 - **Arabic reads right to left**: `I18n.init` sets `dir="rtl"` on `<html>`, so the flex
   rows and the text mirror; `game.css` pins `#board`, the preview tiles, the reaction
   layer, the clocks, the graph and the replay position to `direction: ltr`, so cell 0 is

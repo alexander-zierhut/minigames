@@ -173,6 +173,16 @@ const Engine = (() => {
             render();
             return previewPly();
         }
+        // the language changed (#47): the sign, the HUD and a result that is on screen, in the new words
+        function relabel() {
+            if (!state || !hooks.names) return;
+            Hud.build(state.players, def.title);
+            render();
+            if (state.over && !Util.$("overlay").hidden) {
+                const won = state.winner >= 0;
+                Hud.overlay(won ? hooks.names[state.winner] : null, state.winner, `${I18n.msg(state.finishWhy)}\n${view.summary(state)}`);
+            }
+        }
         const previewPly = () => (shown ? shown.history.length : null);
         const position = () => shown || state;
 
@@ -215,7 +225,7 @@ const Engine = (() => {
             get state() { return state; },
             get config() { return config; },
             get previewPly() { return previewPly(); },
-            newGame, play, replay, finish, eliminate, abandon, render, hash, record, preview,
+            newGame, play, replay, finish, eliminate, abandon, render, relabel, hash, record, preview,
             isLegal: (i, player) => rules.isLegal(state, i, player),
             cellOf: (move) => cellOf(state, move),
         };

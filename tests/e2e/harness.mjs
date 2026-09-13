@@ -219,15 +219,20 @@ export async function launchBrowser({ width = 1400, height = 900, mobile = false
                 if (!text) continue;
                 // every text node on its own: a label next to an icon or a checkbox is one line, a label that breaks is two
                 const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-                let lines = 1, wide = false;
+                let lines = 1, wide = false; const all = [];
                 for (let node = walker.nextNode(); node; node = walker.nextNode()) {
                     if (!node.textContent.trim()) continue;
                     const range = document.createRange(); range.selectNodeContents(node);
-                    const tops = new Set([...range.getClientRects()].filter((q) => q.width > 0).map((q) => Math.round(q.top)));
+                    const rects = [...range.getClientRects()].filter((q) => q.width > 0); all.push(...rects);
+                    const tops = new Set(rects.map((q) => Math.round(q.top)));
                     lines = Math.max(lines, tops.size);
                     // wider than its box (an inline box has no clientWidth: its own rect is the box), clipped or not
                     if (range.getBoundingClientRect().width > (el.clientWidth || el.getBoundingClientRect().width) + 1) wide = true;
                 }
+                // the rows of the whole element: rects that do not overlap vertically (a smaller font next to a bigger one still shares its row)
+                let rows = 0, bottom = -Infinity;
+                for (const q of all.sort((a, b) => a.top - b.top)) { if (q.top >= bottom - 1) rows++; bottom = Math.max(bottom, q.bottom); }
+                lines = Math.max(lines, rows);
                 if (lines > ${max} || wide) out.push({ id: el.id || null, cls: el.className.toString().split(" ").slice(0, 2).join("."), text: text.slice(0, 60), lines, wide });
             }
             return JSON.stringify(out);

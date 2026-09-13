@@ -41,6 +41,7 @@ const Lobby = (() => {
         // it is the same control, moved
         const countHome = online ? document.querySelector(".lobby-head-row") : $("group-count");
         if ($("row-players").parentElement !== countHome) countHome.appendChild($("row-players"));
+        $("row-players").querySelector(".lobby-row-label").textContent = I18n.t(online ? "lobby.roomSize" : "lobby.players");   // "Room size" over the count in a room
         $("group-count").hidden = online || bot;
         $("lobby-share").hidden = !online;
         $("btn-share").hidden = watcher;

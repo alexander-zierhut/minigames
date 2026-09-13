@@ -146,3 +146,30 @@ test("changelog: the title screen's button loads changelog.json and links issues
     assert.equal(await B.ev("document.getElementById('changelog-modal').hidden"), true);
 });
 
+
+/* The back gesture (a phone's back button, the browser's Back) steps back inside the page:
+   the topmost modal closes, a game goes back to its room, a room is left, and only on the
+   title screen with nothing open does the next back leave the page. */
+test("the back gesture steps back inside the page instead of leaving it", async () => {
+    await B.click("#btn-local");
+    await B.waitFor("history.state && history.state.minigames === true", { what: "an entry to go back from" });
+    await B.click("#btn-settings");
+    await B.ev("history.back(); true");
+    await B.waitFor("document.getElementById('settings-modal').hidden", { what: "back closes the modal" });
+    assert.equal(await B.screen(), "screen-lobby", "and stays in the lobby");
+    await B.waitFor("history.state && history.state.minigames === true", { what: "the entry is back while there is more to go back from" });
+    await B.click("#btn-start");
+    assert.equal(await B.screen(), "screen-game");
+    await B.ev("history.back(); true");
+    await B.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-lobby'", { what: "back leaves the game for the room" });
+    await B.ev("history.back(); true");
+    await B.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-menu'", { what: "back leaves the room" });
+    await B.waitFor("!history.state", { what: "on the title screen nothing is left to go back from" });
+    // a modal on the title screen counts too: back closes it instead of leaving the page
+    await B.click("#prefs-btn");
+    await B.waitFor("history.state && history.state.minigames === true", { what: "the open preferences" });
+    await B.ev("history.back(); true");
+    await B.waitFor("document.getElementById('prefs-modal').hidden", { what: "back closes the preferences" });
+    await B.waitFor("!history.state", { what: "and nothing is left" });
+    assert.deepEqual(B.errors, []);
+});

@@ -400,7 +400,7 @@ const Analysis = (() => {
     }
 
     return {
-        init, open, close, at, run, analyse, scores, verdict, positionsOf, stampFor, load, store,
+        init, open, close, at, run, render, analyse, scores, verdict, positionsOf, stampFor, load, store,
         NODES, BOT_NODES, TOLERANCE, MISTAKE, BLUNDER, MAX_PLIES,
         get result() { return ui.res; }, get busy() { return ui.running; }, get progress() { return ui.progress.slice(); },
         get shown() { return ui.open; },

@@ -183,7 +183,7 @@ const Room = (() => {
             url.searchParams.set("room", code);
             if (Match.spectator) url.searchParams.set("spectate", "1");
         }
-        history.replaceState(null, "", url.toString());
+        history.replaceState(history.state, "", url.toString());   // the URL only: the back gesture's entry (app.js Nav) keeps its mark
     }
     // what the lobby / HUD show as the code: nothing to show for a viewer, bullets while hidden
     const codeText = (code = Net.code) => (r.watch ? "Watching" : r.codeHidden ? "•••••" : (code || "…"));

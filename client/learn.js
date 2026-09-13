@@ -408,6 +408,14 @@ const Learn = (() => {
         }
     }
 
+    // the language changed (#47): the list, the open details page and the lesson panel, in the new words
+    function relabel() {
+        renderList();
+        if (page) renderGame();
+        sizeText();
+        render();
+    }
+
     /* ---------- the two Learn screens ---------- */
     function open() {
         renderList();
@@ -539,7 +547,7 @@ const Learn = (() => {
     }
 
     return {
-        init, open, openGame, startTutorial, startScenario, restart, exit, names,
+        init, open, openGame, startTutorial, startScenario, restart, exit, names, relabel,
         howto, scenarios, games, configFor, beforeMove, cellClass, onLocalMove, openHowto, closeHowto,
         isSolved, markSolved, tutorialDone, fold, tierProgress, tierLocked, tierOpen, toggleTier, nextScenario, again, againText, canAdvance,
         get active() { return active; }, get page() { return page; }, get folded() { return folded; },
