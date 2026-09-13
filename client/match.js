@@ -296,7 +296,7 @@ const Match = (() => {
     }
     /* Watch a recorded game (#42): the same engine and the same board, but nobody sits at
        this table. Every seat is a "watch" seat, so no click, no premove, no clock and no
-       bot; the record is replayed instantly and app.js drives the replay bar from there. */
+       bot; the record is replayed instantly and Review drives the replay bar from there. */
     function watch(record) {
         stop();
         st.mode = "replay";
