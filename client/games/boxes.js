@@ -16,7 +16,6 @@ const BoxesView = (() => {
 
     function build(board, state, config, onClick) {
         const n = state.n, H = BoxesRules.hCount(n);
-        const cells = new Array(state.cells.length);
         boxEls = [];
         for (let r = 0; r <= n; r++) for (let c = 0; c <= n; c++) {
             const dot = document.createElement("div");
@@ -31,21 +30,13 @@ const BoxesView = (() => {
             board.appendChild(el);
             boxEls.push(el);
         }
-        for (let i = 0; i < state.cells.length; i++) {
+        return BoardView.cells(board, state.cells.length, onClick, (el, i) => {
             const horizontal = i < H;
             const row = horizontal ? 2 * ((i / n) | 0) + 1 : 2 * (((i - H) / (n + 1)) | 0) + 2;
             const col = horizontal ? 2 * (i % n) + 2 : 2 * ((i - H) % (n + 1)) + 1;
-            const el = document.createElement("div");
             el.className = "edge " + (horizontal ? "h" : "v");
             el.style.gridArea = `${row} / ${col}`;
-            const marker = document.createElement("div");
-            marker.className = "last-marker";
-            el.appendChild(marker);
-            el.addEventListener("click", () => onClick(i));
-            board.appendChild(el);
-            cells[i] = el;
-        }
-        return cells;
+        });
     }
 
     // the engine already set p<k>/taken/last/can-place/locked; only the draw-in animation
@@ -64,7 +55,7 @@ const BoxesView = (() => {
 
     function hud(state) {
         const total = state.n * state.n;
-        const best = Math.max(...state.scores);
+        const leading = BoardView.leading(state.scores);
         let free = 0;                                   // boxes anybody could close right now
         for (let b = 0; b < total; b++) if (state.boxes[b] === -1 && BoxesRules.sides(state, b) === 3) free++;
         return {
@@ -76,7 +67,7 @@ const BoxesView = (() => {
                 stats: [["Boxes", s], ["Lines", state.movesBy[k]]],
                 bar: total ? s / total : 0,
                 barText: `${s} / ${total}`,
-                leading: s === best && state.scores.every((o, j) => j === k || s > o),
+                leading: leading[k],
             })),
         };
     }

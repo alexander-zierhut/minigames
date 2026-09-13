@@ -223,6 +223,9 @@ test("Session: save / load / clear on sessionStorage, fail-safe", () => {
 test("picker (#28): a game declares how many players it takes; others are grayed out and the selection moves off them", () => {
     const w = loadDom(); const d = w.document; const S = w.eval("Settings"); const Games = w.eval("Games");
     assert.equal(JSON.stringify(Games.get("chain").players), JSON.stringify({ min: 2, max: 4 }), "default: two to four");
+    // a definition that misses a required part is refused at load, with the key in the message
+    assert.throws(() => Games.register({ key: "bad", title: "Bad" }), /Games\.register\(bad\)/);
+    assert.throws(() => Games.register({ key: "bad", title: "Bad", tagline: "t", desc: "d", preview: "....", size: { min: 3, max: 9, default: 5 }, rules: w.eval("FiveRules"), view: w.eval("FiveView") }), /preview/);
     // a two-player-only game registered before the picker is built
     Games.register({ key: "duo", title: "Duo", tagline: "t", desc: "d", preview: ".........", players: { min: 2, max: 2 }, size: { min: 3, max: 9, default: 5 }, rules: w.eval("FiveRules"), view: w.eval("FiveView") });
     S.init({});

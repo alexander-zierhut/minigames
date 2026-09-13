@@ -39,7 +39,7 @@ test("ðŸ‘ (or applause) for a strong human move, EZ when it is about to win, ðŸ
     const { w, Bus, bot, state, rules, sent } = setup(11, estimate);
     Bus.emit("game:new", { game: "five" }); await wait(5);
     Bus.emit("game:turn", { game: "five", player: 0 });          // human to move: position remembered
-    rules.place(state, 10, 0); rules.settle(state, 0); rules.conclude(state, 0);
+    rules.place(state, 10, 0); rules.conclude(state, 0);
     Bus.emit("game:move", { game: "five", cell: 10, player: 0 });
     Bus.emit("game:turn", { game: "five", player: 1 });          // settled: judge the move
     await wait(5);
@@ -49,7 +49,7 @@ test("ðŸ‘ (or applause) for a strong human move, EZ when it is about to win, ðŸ
     assert.equal(sent.includes("ðŸš¨"), false, "no siren any more: a good move gets a thumbs-up, not an alarm");
     // the bot's own move never triggers anything
     const before = sent.length;
-    rules.place(state, 20, 1); rules.settle(state, 1); rules.conclude(state, 1);
+    rules.place(state, 20, 1); rules.conclude(state, 1);
     Bus.emit("game:move", { game: "five", cell: 20, player: 1 });
     Bus.emit("game:turn", { game: "five", player: 0 });
     await wait(5);
@@ -58,11 +58,11 @@ test("ðŸ‘ (or applause) for a strong human move, EZ when it is about to win, ðŸ
     const winning = setup(1, () => 0.05);                       // p0 5 % -> bot 95 %
     winning.Bus.emit("game:new", { game: "five" }); await wait(5);
     winning.Bus.emit("game:turn", { game: "five", player: 0 });
-    winning.rules.place(winning.state, 3, 0); winning.rules.settle(winning.state, 0); winning.rules.conclude(winning.state, 0);
+    winning.rules.place(winning.state, 3, 0); winning.rules.conclude(winning.state, 0);
     winning.Bus.emit("game:move", { game: "five", cell: 3, player: 0 });
     winning.Bus.emit("game:turn", { game: "five", player: 1 }); await wait(5);
     winning.Bus.emit("game:turn", { game: "five", player: 0 });
-    winning.rules.place(winning.state, 4, 0); winning.rules.settle(winning.state, 0); winning.rules.conclude(winning.state, 0);
+    winning.rules.place(winning.state, 4, 0); winning.rules.conclude(winning.state, 0);
     winning.Bus.emit("game:move", { game: "five", cell: 4, player: 0 });
     winning.Bus.emit("game:turn", { game: "five", player: 1 }); await wait(5);
     assert.equal(winning.sent.filter((e) => of(winning.w, "ez").includes(e)).length, 1, `EZ (or ðŸ˜Ž) exactly once (${winning.sent})`);
@@ -78,7 +78,7 @@ test("a blunder gets a surprised or teasing face; the pools vary with the seed, 
         const { w, Bus, state, rules, sent } = setup(seed, blunder);
         Bus.emit("game:new", { game: "five" }); await wait(2);
         Bus.emit("game:turn", { game: "five", player: 0 });
-        rules.place(state, 10, 0); rules.settle(state, 0); rules.conclude(state, 0);
+        rules.place(state, 10, 0); rules.conclude(state, 0);
         Bus.emit("game:move", { game: "five", cell: 10, player: 0 });
         Bus.emit("game:turn", { game: "five", player: 1 }); await wait(2);
         assert.equal(sent.some((e) => of(w, "strong").includes(e)), false, `a blunder is not praised (seed ${seed}: ${sent})`);
@@ -93,7 +93,7 @@ test("a blunder gets a surprised or teasing face; the pools vary with the seed, 
         const g = setup(seed, strong);
         g.Bus.emit("game:new", { game: "five" }); await wait(2);
         g.Bus.emit("game:turn", { game: "five", player: 0 });
-        g.rules.place(g.state, 10, 0); g.rules.settle(g.state, 0); g.rules.conclude(g.state, 0);
+        g.rules.place(g.state, 10, 0); g.rules.conclude(g.state, 0);
         g.Bus.emit("game:move", { game: "five", cell: 10, player: 0 });
         g.Bus.emit("game:turn", { game: "five", player: 1 }); await wait(2);
         for (const e of g.sent) if (of(g.w, "strong").includes(e)) seen[e] = (seen[e] || 0) + 1;

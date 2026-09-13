@@ -150,10 +150,7 @@ const Learn = (() => {
     function configFor(game, cfg) {
         const d = Games.get(game);
         const out = { game: d.key, n: d.size.default };
-        for (const s of d.settings) {
-            out[s.key] = s.def;
-            if (s.with) out[s.with.key] = s.with.def;
-        }
+        for (const s of d.settings) out[s.key] = s.def;
         return { ...out, ...(cfg || {}), game: d.key, players: 2, timer: 0 };
     }
 

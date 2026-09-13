@@ -30,21 +30,14 @@ const IsolationView = (() => {
         && (state.cells[i] === IsolationRules.FREE || i === state.pawns[state.current]);
 
     function build(board, state, config, onClick) {
-        cells = [];
         base = [];
         pending = -1; pendingAt = -1; pendingFor = -1;
-        for (let i = 0; i < state.cells.length; i++) {
-            const slab = document.createElement("div");
+        cells = BoardView.cells(board, state.cells.length, (i) => click(state, i, onClick), (slab) => {
             slab.className = "slab";
-            const marker = document.createElement("div");
-            marker.className = "last-marker";
             const pawn = document.createElement("i");
             pawn.className = "pawn";
-            slab.append(marker, pawn);
-            slab.addEventListener("click", () => click(state, i, onClick));
-            board.appendChild(slab);
-            cells.push(slab);
-        }
+            slab.appendChild(pawn);
+        });
         return cells;
     }
 
@@ -92,6 +85,7 @@ const IsolationView = (() => {
 
     function hud(state) {
         const free = state.movesBy.map((_, p) => IsolationRules.mobility(state, p));
+        const leading = BoardView.leading(free);
         return {
             round: `Move ${state.history.length + 1}`,
             drawHint: "nobody is left",
@@ -100,7 +94,7 @@ const IsolationView = (() => {
                 stats: [["Moves", state.movesBy[k]], [state.trapped[k] ? "Out" : "Free moves", state.trapped[k] ? "trapped" : m]],
                 bar: state.trapped[k] ? 0 : m / 8,
                 barText: state.trapped[k] ? "trapped" : `${m} / 8`,
-                leading: !state.trapped[k] && free.every((o, j) => j === k || m > o),
+                leading: !state.trapped[k] && leading[k],
             })),
         };
     }

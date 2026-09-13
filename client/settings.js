@@ -169,7 +169,7 @@ const Settings = (() => {
         }
         if (s.timerSel) $("set-timer").value = s.timerSel;
         if (s.timerCustom) $("set-timer-custom").value = s.timerCustom;
-        syncDependents();
+        syncCustomRows();
         renderPlayers();
         selectGame(game, false, true);                  // their size, not the one picked here
         silent = false;
@@ -268,7 +268,7 @@ const Settings = (() => {
         if (announce) changed(); else renderSummary();
     }
 
-    function syncDependents() { syncCustomRows(); }
+    // a dropdown changed: its Custom row follows, then the usual bookkeeping
     function syncUi() {
         syncCustomRows();
         changed();
@@ -300,9 +300,9 @@ const Settings = (() => {
         const d = Games.get(cfg.game);
         const parts = [`${cfg.n} × ${cfg.n}`];
         if (cfg.players > 2) parts.push(`${cfg.players} players`);
-        if (d.describeRules) parts.push(...d.describeRules(cfg));
+        parts.push(...d.describeRules(cfg));
         parts.push(cfg.timer > 0 ? `${Math.round(cfg.timer / 60 * 10) / 10} min timer` : "no timer");
-        if (d.describeOptions) parts.push(...d.describeOptions(cfg));
+        parts.push(...d.describeOptions(cfg));
         return parts.join(" · ");
     }
     function renderSummary() { $("settings-summary").textContent = summary(); }
@@ -358,7 +358,7 @@ const Settings = (() => {
         document.body.classList.toggle("settings-locked", locked);
         renderPlayers();
         document.querySelectorAll("#settings-modal input, #settings-modal select").forEach((el) => { el.disabled = locked; });
-        if (!locked) syncDependents();
+        if (!locked) syncCustomRows();
         $("settings-locked-hint").hidden = !locked;
         selectGame(game, false);
     }

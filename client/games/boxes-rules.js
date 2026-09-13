@@ -51,11 +51,7 @@ const BoxesRules = (() => {
 
     const ownerOf = (state, i) => state.cells[i];
     const isLegal = (state, i, player) => !state.over && i >= 0 && i < state.cells.length && state.cells[i] === -1;
-    function legalMoves(state) {
-        const out = [];
-        for (let i = 0; i < state.cells.length; i++) if (state.cells[i] === -1) out.push(i);
-        return out;
-    }
+    const legalMoves = (state) => Rules.emptyCells(state);
 
     /* ---------- board analysis (bots and the win-chance heuristic build on these) ---------- */
     // drawn edges of box b (0…4)
@@ -125,11 +121,7 @@ const BoxesRules = (() => {
     }
 
     /* ---------- the move ---------- */
-    function place(state, i, player) {
-        state.cells[i] = player;
-        state.history.push(i);
-        state.movesBy[player]++;
-    }
+    const place = Rules.placeCell;
     // everything a placement drags with it: the boxes it closed, and whether the mover goes again
     function settle(state, player) {
         const i = state.history[state.history.length - 1];
@@ -157,7 +149,8 @@ const BoxesRules = (() => {
        the boxes already won, plus who is under pressure — a player to move without a safe
        edge has to open something and usually pays for it. */
     function estimate(state) {
-        if (state.over) return state.winner < 0 ? 0.5 : state.winner === 0 ? 1 : 0;
+        const done = Rules.decided(state);
+        if (done !== null) return done;
         const total = state.n * state.n;
         const left = total - state.scores.reduce((a, b) => a + b, 0);
         const diff = state.scores[0] - (state.scores[1] || 0);
@@ -165,8 +158,7 @@ const BoxesRules = (() => {
         const turn = state.current === 0 ? 1 : -1;
         const free = capturingMoves(state).length ? Infinity : safeMoves(state).length;
         const pressure = free === 0 ? -turn * Math.min(left, 4) * 0.6 : turn * 0.2;
-        const edge = (diff + pressure) / Math.max(1.5, Math.sqrt(total));
-        return 1 / (1 + Math.exp(-2.2 * edge));
+        return Rules.sigmoid((diff + pressure) / Math.max(1.5, Math.sqrt(total)), 2.2);
     }
 
     return {

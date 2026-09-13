@@ -20,7 +20,7 @@ function move(R, s, i) {
     const me = s.current;
     assert.equal(R.isLegal(s, i, me), true, `move ${i} legal for ${me}`);
     R.place(s, i, me);
-    R.settle(s, me);
+    if (R.settle) R.settle(s, me);
     const r = R.conclude(s, me);
     if (r) { s.over = true; s.winner = r.winner; s.finishWhy = r.why; }
     return r;

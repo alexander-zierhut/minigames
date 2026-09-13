@@ -14,26 +14,17 @@ const ChainView = (() => {
         speed = config.speed || 750;
         document.documentElement.style.setProperty("--speed", speed + "ms");
         const n = state.n;
-        const cells = [];
-        for (let i = 0; i < n * n; i++) {
+        const tiles = ["glass", "top", "glass", "left", "center", "right", "glass", "bottom", "glass"];
+        return BoardView.cells(board, n * n, onClick, (cell, i) => {
             const x = i % n, y = Math.floor(i / n);
             const hasNeighbour = { top: y > 0, left: x > 0, right: x < n - 1, bottom: y < n - 1 };
-            const tiles = ["glass", "top", "glass", "left", "center", "right", "glass", "bottom", "glass"];
-            const cell = document.createElement("div");
             cell.className = "cell";
             for (const t of tiles) {
                 const tile = document.createElement("div");
                 tile.className = "tile " + (t in hasNeighbour ? (hasNeighbour[t] ? "lamp" : "glass") : t);
                 cell.appendChild(tile);
             }
-            const marker = document.createElement("div");
-            marker.className = "last-marker";
-            cell.appendChild(marker);
-            cell.addEventListener("click", () => onClick(i));
-            board.appendChild(cell);
-            cells.push(cell);
-        }
-        return cells;
+        });
     }
 
     function renderCell(el, state, i) {
@@ -46,13 +37,14 @@ const ChainView = (() => {
     function hud(state) {
         const t = ChainRules.tally(state);
         const total = state.cells.length;
+        const leading = BoardView.leading(t.map((x) => x.cells));
         return {
             round: `Round ${state.round}`,
             players: t.map((x, k) => ({
                 stats: [["Cells", x.cells], ["Pieces", x.pieces]],
                 bar: x.cells / total,
                 barText: Math.round(x.cells / total * 100) + "%",
-                leading: t.every((o, j) => j === k || x.cells > o.cells),
+                leading: leading[k],
             })),
             box: { stats: [["Current chain", state.chainNow], ["Longest chain", state.chainBest], ["Explosions total", state.explosions]], hot: state.busy && state.chainNow >= 5 },
             line2: [["chain", state.chainNow], ["best", state.chainBest]],

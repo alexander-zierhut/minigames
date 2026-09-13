@@ -6,20 +6,7 @@
 const FiveView = (() => {
     const { sleep } = Util;
 
-    function build(board, state, config, onClick) {
-        const cells = [];
-        for (let i = 0; i < state.cells.length; i++) {
-            const cell = document.createElement("div");
-            cell.className = "stone";
-            const marker = document.createElement("div");
-            marker.className = "last-marker";
-            cell.appendChild(marker);
-            cell.addEventListener("click", () => onClick(i));
-            board.appendChild(cell);
-            cells.push(cell);
-        }
-        return cells;
-    }
+    const build = (board, state, config, onClick) => BoardView.cells(board, state.cells.length, onClick, (el) => { el.className = "stone"; });
 
     // winning stones get .win and an index so they jump in a wave
     function renderCell(el, state, i) {
@@ -30,15 +17,16 @@ const FiveView = (() => {
 
     function hud(state) {
         const rows = state.movesBy.map((_, p) => FiveRules.bestRow(state, p));
+        const leading = BoardView.leading(rows);
         return {
             round: `Move ${state.history.length + 1}`,
             drawHint: "no space left",
             line2: `best row ${rows.join(" · ")}`,
             players: rows.map((row, k) => ({
-                stats: [["Stones", state.movesBy[k]], [state.dead && state.dead[k] ? "Out" : "Best row", state.dead && state.dead[k] ? `${state.winLen - 1} in a row` : row]],
+                stats: [["Stones", state.movesBy[k]], [state.dead[k] ? "Out" : "Best row", state.dead[k] ? `${state.winLen - 1} in a row` : row]],
                 bar: row / state.winLen,
                 barText: `${row} / ${state.winLen}`,
-                leading: rows.every((o, j) => j === k || row > o),
+                leading: leading[k],
             })),
         };
     }

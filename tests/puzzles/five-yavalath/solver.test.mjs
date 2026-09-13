@@ -13,9 +13,7 @@ const mk = (config) => FiveRules.create(config, Rules.base(config));
 function play(s, i) {
     const p = s.current;
     assert.equal(FiveRules.isLegal(s, i, p), true, `move ${i} legal for ${p}`);
-    FiveRules.place(s, i, p); FiveRules.settle(s, p);
-    const r = FiveRules.conclude(s, p);
-    if (r) { s.over = true; s.winner = r.winner; s.finishWhy = r.why; }
+    Rules.step(FiveRules, s, i);
 }
 function replay(config, history) { const s = mk(config); for (const i of history) play(s, i); return s; }
 // a position from [x, y] stone lists (p0 moved first: equal counts → p0 to move, else p1)

@@ -41,9 +41,7 @@ const mk = (config) => FiveRules.create(config, Rules.base(config));
 function play(s, i) {
     const p = s.current;
     if (!FiveRules.isLegal(s, i, p)) throw new Error(`illegal ${i}`);
-    FiveRules.place(s, i, p); FiveRules.settle(s, p);
-    const r = FiveRules.conclude(s, p);
-    if (r) { s.over = true; s.winner = r.winner; s.finishWhy = r.why; }
+    Rules.step(FiveRules, s, i);
 }
 function replay(config, history) {
     const s = mk(config);

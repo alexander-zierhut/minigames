@@ -1,6 +1,7 @@
-/* Loads the DOM-free part of the client (util, rules, bots) into a bare VM context so
-   Node tools and tests can drive games and bots without a browser. The script list comes
-   from index.html, so a new rules module or bot folder is picked up automatically. */
+/* Loads the DOM-free part of the client (util, the rules, the bots) into a bare VM context
+   so Node tools and tests can drive games and bots without a browser. The script list
+   comes from index.html and every registered rules module is handed out under its own
+   global name (`ChainRules`, `FiveRules`, …), so a new game or bot is picked up by itself. */
 import { readFileSync, existsSync } from "node:fs";
 import vm from "node:vm";
 
@@ -12,11 +13,16 @@ export function headlessScripts() {
     return [...html.matchAll(/<script src="(client\/[^"]+)"><\/script>/g)].map((m) => m[1]).filter((f) => HEADLESS.test(f));
 }
 
+// "five" -> "FiveRules": the global a rules module defines
+const rulesName = (key) => key.replace(/(^|-)([a-z])/g, (m, _, c) => c.toUpperCase()) + "Rules";
+
 export function loadHeadless() {
     const ctx = vm.createContext({ document: undefined, console, setTimeout, clearTimeout, Date, Math, JSON });
     for (const f of headlessScripts()) {
         if (!existsSync(ROOT + f)) continue;                 // benchmark.js is generated; absent before the first run
         vm.runInContext(readFileSync(ROOT + f, "utf8"), ctx, { filename: f });
     }
-    return vm.runInContext("({ Util, Rules, ChainRules, FiveRules, IsolationRules, BoxesRules, Bots })", ctx);
+    const H = vm.runInContext("({ Util, Rules, Bots })", ctx);
+    for (const key of H.Rules.keys()) H[rulesName(key)] = H.Rules.of(key);
+    return H;
 }

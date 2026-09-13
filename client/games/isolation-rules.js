@@ -106,8 +106,6 @@ const IsolationRules = (() => {
         state.movesBy[player]++;
     }
 
-    function settle() { /* nothing follows a move */ }
-
     /* Pass the turn, and let it decide who is still in: a player who cannot step when the
        turn reaches them is trapped and out (never earlier — being locked in on somebody
        else's turn means nothing). Eliminations live in the rules (state.trapped), so
@@ -161,14 +159,14 @@ const IsolationRules = (() => {
     }
 
     function estimate(state) {
-        if (state.over) return state.winner < 0 ? 0.5 : state.winner === 0 ? 1 : 0;
+        const done = Rules.decided(state);
+        if (done !== null) return done;
         const t = territory(state);
         const m0 = mobility(state, 0), m1 = mobility(state, 1);
         if (active(state, 0) && m0 === 0 && state.current === 0) return 0;
         if (active(state, 1) && m1 === 0 && state.current === 1) return 1;
         const total = (t[0] + t[1]) || 1;
-        const edge = (t[0] - t[1]) / total + (m0 - m1) * 0.05 + (state.current === 0 ? 0.06 : -0.06);
-        return 1 / (1 + Math.exp(-2.4 * edge));
+        return Rules.sigmoid((t[0] - t[1]) / total + (m0 - m1) * 0.05 + (state.current === 0 ? 0.06 : -0.06), 2.4);
     }
 
     /* Framework hooks for games whose move is not a plain cell (see .claude/rules/games.md):
@@ -179,7 +177,7 @@ const IsolationRules = (() => {
         && state.cells[i] === FREE && steps(state, player).includes(i);
 
     return {
-        create, ownerOf, isLegal, legalMoves, place, settle, conclude, estimate,
+        create, ownerOf, isLegal, legalMoves, place, conclude, estimate,
         cellOf, canPlay, steps, mobility, territory, alive, active, startCell, encode, decode, HOLE, FREE,
     };
 })();

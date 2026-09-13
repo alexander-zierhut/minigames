@@ -25,11 +25,7 @@ const FiveRules = (() => {
 
     const ownerOf = (state, i) => state.cells[i];
     const isLegal = (state, i, player) => !state.over && i >= 0 && i < state.cells.length && state.cells[i] === -1;
-    function legalMoves(state) {
-        const out = [];
-        state.cells.forEach((o, i) => { if (o === -1) out.push(i); });
-        return out;
-    }
+    const legalMoves = (state) => Rules.emptyCells(state);
 
     // longest line through cell i for its owner, with its cells
     function lineThrough(state, i) {
@@ -77,12 +73,7 @@ const FiveRules = (() => {
         return false;
     }
 
-    function place(state, i, player) {
-        state.cells[i] = player;
-        state.history.push(i);
-        state.movesBy[player]++;
-    }
-    function settle() { /* nothing follows a placement */ }
+    const place = Rules.placeCell;                      // nothing follows a placement: no settle
 
     const alive = (state) => state.dead.map((d) => !d);
     function conclude(state, player) {
@@ -109,12 +100,12 @@ const FiveRules = (() => {
     // fallback win estimate (probability that player 0 wins) when no bot offers a better one:
     // longest rows relative to winLen, squared so a four counts far more than two twos
     function estimate(state) {
-        if (state.over) return state.winner < 0 ? 0.5 : state.winner === 0 ? 1 : 0;
+        const done = Rules.decided(state);
+        if (done !== null) return done;
         const r0 = bestRow(state, 0) / state.winLen, r1 = bestRow(state, 1) / state.winLen;
-        const edge = r0 * r0 - r1 * r1 + (state.current === 0 ? 0.03 : -0.03);
-        return 1 / (1 + Math.exp(-4 * edge));
+        return Rules.sigmoid(r0 * r0 - r1 * r1 + (state.current === 0 ? 0.03 : -0.03), 4);
     }
 
-    return { create, ownerOf, isLegal, legalMoves, place, settle, conclude, lineThrough, bestRow, canWin, estimate, alive };
+    return { create, ownerOf, isLegal, legalMoves, place, conclude, lineThrough, bestRow, canWin, estimate, alive };
 })();
 Rules.register("five", FiveRules);

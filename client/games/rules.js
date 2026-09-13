@@ -1,13 +1,13 @@
-/* Helpers every rules module builds on, and the pure game loop shared by everything that
-   drives a game without the DOM (engine replay, bots, benchmark, puzzle runner, a future
-   replay viewer). Rules modules are pure: they work on a plain state object, never touch
-   the DOM and never read settings (everything arrives in `config`). That keeps animated
-   play, instant replay and bots identical. */
+/* The pure game loop and the helpers every rules module builds on. Shared by everything
+   that drives a game without the DOM: the engine's replay, the bots, the benchmark, the
+   puzzle tools and the replay viewer. Rules modules are pure: they work on a plain state
+   object, never touch the DOM and never read settings (everything arrives in `config`),
+   which is what keeps animated play, instant replay and the bots identical. */
 
 "use strict";
 
 const Rules = (() => {
-    // the part of the game state that every game has; rules.create() adds the rest
+    // the part of the game state every game has; rules.create() adds the rest
     function base(config) {
         const players = config.players || 2;
         return {
@@ -15,9 +15,9 @@ const Rules = (() => {
             players,                                  // number of seats (2–4)
             current: config.startPlayer || 0,         // whose turn it is
             round: 1,                                 // increments when the rotation wraps
-            history: [],                              // cell ids in play order
+            history: [],                              // moves in play order (one integer each)
             movesBy: new Array(players).fill(0),
-            out: new Array(players).fill(false),      // eliminated outside the rules (flag fall) — skipped, can't win
+            out: new Array(players).fill(false),      // eliminated outside the rules (flag fall): skipped, can't win
             outs: [],                                 // those eliminations in order: { p, at: history length then, why }
             busy: false,                              // a move is being animated
             over: false,
@@ -26,7 +26,7 @@ const Rules = (() => {
         };
     }
 
-    // pass the turn to the next player (skipping eliminated ones: `state.out`, and the
+    // pass the turn to the next player, skipping eliminated ones (`state.out`, and the
     // game's own `alive` list when given)
     function pass(state, alive) {
         for (let k = 1; k <= state.players; k++) {
@@ -49,11 +49,34 @@ const Rules = (() => {
     const index = (n, x, y) => y * n + x;
     const inside = (n, x, y) => x >= 0 && y >= 0 && x < n && y < n;
 
+    /* ---------- building blocks for a rules module ---------- */
+    // the empty cells of a board whose cells hold an owner (-1 = empty): the legal moves
+    // of every "put a piece anywhere" game
+    function emptyCells(state) {
+        const out = [];
+        for (let i = 0; i < state.cells.length; i++) if (state.cells[i] === -1) out.push(i);
+        return out;
+    }
+    // the plain placement: the cell takes the owner, the move is recorded
+    function placeCell(state, i, player) {
+        state.cells[i] = player;
+        state.history.push(i);
+        state.movesBy[player]++;
+    }
+    // the win chance of a finished game (1 / 0 / 0.5 for seat 0), null while it runs:
+    // every `estimate` starts with this
+    const decided = (state) => (state.over ? (state.winner < 0 ? 0.5 : state.winner === 0 ? 1 : 0) : null);
+    // an edge in favour of seat 0 (0 = even) as a probability; `k` = how steep
+    const sigmoid = (edge, k) => 1 / (1 + Math.exp(-k * edge));
+
+    /* ---------- the registry ---------- */
     // rules modules register themselves by game key so bots and headless tools can find
     // them without the DOM-bound engine (games.js)
     const byGame = {};
-    const register = (key, rules) => { byGame[key] = rules; return rules; };
+    const order = [];
+    const register = (key, rules) => { byGame[key] = rules; order.push(key); return rules; };
     const of = (key) => byGame[key];
+    const keys = () => order.slice();
     const resolve = (rules) => (typeof rules === "string" ? byGame[rules] : rules);
 
     /* ---------- the game loop, instant and pure ---------- */
@@ -66,15 +89,16 @@ const Rules = (() => {
         return r.create(config, base(config));
     }
 
-    // one complete move by the current player, resolved instantly: place, settle, conclude.
-    // Returns the result ({ winner, why }) when the game ended, else null. Throws on an
-    // illegal move — callers check isLegal when the move comes from outside.
+    // one complete move by the current player, resolved instantly: place, settle (when the
+    // game has consequences to resolve), conclude. Returns the result ({ winner, why })
+    // when the game ended, else null. Throws on an illegal move: callers check isLegal
+    // when the move comes from outside.
     function step(rules, state, i) {
         const r = resolve(rules);
         const p = state.current;
         if (!r.isLegal(state, i, p)) throw new Error(`illegal move ${i} for player ${p}`);
         r.place(state, i, p);
-        r.settle(state, p);
+        if (r.settle) r.settle(state, p);
         const result = r.conclude(state, p);
         if (result) finish(state, result);
         return result;
@@ -111,8 +135,8 @@ const Rules = (() => {
     }
 
     /* The position of a game record after `ply` moves (default: all). A record is what a
-       game is made of and what a replay viewer will read: { game, config, history, outs }
-       (config carries n, players, startPlayer and the game's own keys). Pure — no DOM. */
+       game is made of and what a replay viewer reads: { game, config, history, outs }
+       (config carries n, players, startPlayer and the game's own keys). Pure, no DOM. */
     function replay(record, ply = record.history.length) {
         const key = record.game || record.config.game;
         const state = create(record.config, key);
@@ -120,5 +144,5 @@ const Rules = (() => {
         return state;
     }
 
-    return { base, pass, remaining, index, inside, register, of, create, step, eliminate, apply, replay };
+    return { base, pass, remaining, index, inside, emptyCells, placeCell, decided, sigmoid, register, of, keys, create, step, eliminate, apply, replay };
 })();
