@@ -173,3 +173,13 @@ test("the back gesture steps back inside the page instead of leaving it", async 
     await B.waitFor("!history.state", { what: "and nothing is left" });
     assert.deepEqual(B.errors, []);
 });
+
+test("the back gesture never brings a stale URL back: a room's link is gone after leaving", async () => {
+    await B.goto(server.url + "?room=ZZZZZ");                 // a link opens the lobby (and our history entry) with the code in the URL
+    await B.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-lobby'", { what: "the lobby from the link" });
+    await B.waitFor("history.state && history.state.minigames === true", { what: "an entry to go back from" });
+    await B.click("#btn-lobby-back");
+    await B.waitFor("document.querySelector('.screen:not([hidden])').id === 'screen-menu'", { what: "back on the title" });
+    await B.waitFor("!history.state && !location.search", { what: "the entry dropped and the URL clean" });
+    assert.equal(await B.ev("location.search"), "");
+});

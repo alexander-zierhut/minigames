@@ -292,6 +292,7 @@
     const Nav = (() => {
         let armed = false;                                   // our entry sits on top of the real one
         let dropping = 0;                                    // pops we asked for ourselves
+        let keepUrl = null;                                  // the URL the app wants while such a pop lands
         const onePane = () => window.matchMedia && window.matchMedia("(max-width: 899px)").matches;
         const openModal = () => {
             const open = [...document.querySelectorAll(".modal:not([hidden])")];
@@ -317,10 +318,14 @@
         }
         function sync() {
             if (needed() && !armed) { history.pushState({ minigames: true }, ""); armed = true; }
-            else if (!needed() && armed) { armed = false; dropping++; history.back(); }   // nothing left to go back from: our entry goes
+            else if (!needed() && armed) { armed = false; dropping++; keepUrl = location.href; history.back(); }   // nothing left to go back from: our entry goes
         }
         window.addEventListener("popstate", () => {
-            if (dropping) { dropping--; return; }
+            if (dropping) {                                  // our own drop landed on the older entry: keep the URL the app set since (Room clears ?room= / ?watch=)
+                dropping--;
+                if (keepUrl && location.href !== keepUrl) history.replaceState(history.state, "", keepUrl);
+                return;
+            }
             if (!armed) return;                              // the real entry: the browser leaves the page
             armed = false;
             if (needed()) { back(); sync(); }
