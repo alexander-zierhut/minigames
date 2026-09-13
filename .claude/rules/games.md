@@ -5,6 +5,7 @@ paths:
   - "client/match.js"
   - "client/css/game.css"
   - "client/css/skin-mc.css"
+  - "scripts/headless.mjs"
   - "tests/unit/rules.test.mjs"
   - "tests/unit/framework.test.mjs"
   - "tests/unit/chain.test.mjs"
@@ -18,18 +19,34 @@ paths:
 
 # Games: engine, rules, records, adding a game
 
-The engine contract every game plugs into, the HUD model, the game record, the rules of Chain React, Five Wins, Isolation and Dots and Boxes, the board / HUD layout rules, the Bus events, the table (`match.js`: seats, bots, premoves) and the step-by-step guide for a new game. The core context is `AGENTS.md`.
+The engine every game plugs into, the HUD model, the game record, the rules of Chain React,
+Five Wins, Isolation and Dots and Boxes, the board / HUD layout rules, the Bus events, the
+table (`match.js`: seats, bots, premoves) and the step-by-step guide for a new game. The
+core context is `AGENTS.md`.
 
-## Game engine interface (`client/games.js`)
+## The framework files
 
-`Games.register(def)` creates an engine from `def.rules` + `def.view` and stores the
-definition (`Games.get(key)`, `Games.has`, `Games.keys()` in registration order; the first
-registered game is the default; `Games.positionAt(record, ply)` = `Rules.replay`). Match
-holds the active engine (`Match.engine`) and, like everything else, only uses:
+| File | Global | What it is |
+| --- | --- | --- |
+| `client/games/rules.js` | `Rules` | the pure game loop and the registry of rules modules, plus the building blocks a rules module uses |
+| `client/games/hud.js` | `Hud` | the generic HUD renderer (from the model a view returns) |
+| `client/games/view.js` | `BoardView` | what every board view builds the same way (cells with marker and click, the `leading` flags) |
+| `client/games/engine.js` | `Engine` | the engine shell: `Engine.create(def)` wraps rules + view |
+| `client/games.js` | `Games` | the registry of game definitions: validation, defaults, the picker preview tile |
+
+## Game engine interface (`client/games/engine.js`)
+
+`Games.register(def)` validates the definition (key, title, tagline, desc, a nine-character
+`preview`, `size`, rules, view), fills the optional parts in (`settings: []`, `players:
+{ min: 2, max: 4 }`, `premove: true`, empty `howto`, `describeRules` / `describeOptions`
+returning `[]`, `minSize: null`, `size.presets: []`) and stores it with its engine
+(`Games.get(key)`, `Games.has`, `Games.keys()` in registration order; the first registered
+game is the default; `Games.positionAt(record, ply)` = `Rules.replay`). Match holds the
+active engine (`Match.engine`) and, like everything else, only uses:
 
 | Member | Contract |
 | --- | --- |
-| `state` (getter) | Current state object: `n, players, current, round, history, movesBy, out, outs, busy, over, winner (-1 = draw/none), finishWhy, cells` + game keys (chain: `chainNow, chainBest, explosions, chainRule, chainLen`; five: `winLen, winLine`). `out[p]` = eliminated from outside the rules (flag fall), `outs` = those eliminations in order `{ p, at: history length then, why }`. |
+| `state` (getter) | Current state object: `n, players, current, round, history, movesBy, out, outs, busy, over, winner (-1 = draw/none), finishWhy, cells` + game keys (chain: `chainNow, chainBest, explosions, chainRule, chainLen`; five: `winLen, winLine, yavalath, dead`; isolation: `pawns, trapped, lastFrom, lastRemoved`; boxes: `boxes, scores, lastBoxes, again`). `out[p]` = eliminated from outside the rules (flag fall), `outs` = those eliminations in order `{ p, at: history length then, why }`. |
 | `config` (getter) | The config the running game was started with (incl. `startPlayer`). |
 | `newGame(config, hooks)` | Builds state via `Rules.create`, board DOM via `view.build`, sets `body.game-<key>`, the sign title and `#board`'s class, HUD cards via `Hud.build(players, title)`, clears the log, hides the overlay, logs "New game. X starts.", emits `game:new` + `game:position`, renders, calls `hooks.onTurn`. |
 | `play(i) → Promise<bool>` | A move by the current player (own click, relayed friend move, bot). `false` if busy/illegal. Sets busy, `rules.place`, emits `game:move`, `hooks.onMoveApplied`, `await view.animateMove(ctx, i, me)`, `rules.conclude` → `finish` or next turn (`game:position`, `game:turn` **only when the turn really changed hands** — Dots and Boxes keeps the mover on turn after a closed box, and then no `game:turn` is emitted, so sounds and observers do not fire twice — then `hooks.onTurn`, which always runs). Bails out if `state.over` became true during the animation. |
@@ -41,7 +58,7 @@ holds the active engine (`Match.engine`) and, like everything else, only uses:
 | `record()` | The game as data: `{ game, config, history, outs, over, winner, why }` — see "Game records". |
 | `render()` | No-op until a board exists. Renders the shown position (the preview if there is one, else the live state): every cell (shared classes `p<k>`, `taken`, `last` (the cell of `cellOf(last move)`), `can-place`/`locked` (from the optional rules function `canPlay(state, i, player)` when the game has one, else `isLegal` — Isolation's move needs two clicks, so `canPlay` says which tiles *start* a move), then the one class `hooks.cellClass(i)` asks for, then `view.renderCell`), then **`view.renderBoard(state)` if the view has one** (a board part that is not a cell: Dots and Boxes paints its boxes there), and the HUD from `view.hud(...)`. |
 | `isLegal(i, player)` | Pure check via the rules. |
-| `cellOf(move)` | The board cell a move belongs to. Games whose move is not a plain cell id say so through the optional rules function `cellOf(state, move)` (Isolation: a move is `to * cells + removed`, and the cell is `to`); everything else keeps the identity. Used for the `last` marker and by `Match` for the premove marker. |
+| `cellOf(move)` | The board cell a move belongs to. Games whose move is not a plain cell id say so through the optional rules function `cellOf(state, move)` (Isolation: a move is `to * cells + removed`, and the cell is `to`); everything else keeps the identity. Used for the `last` marker and by `Match` for the premove and best-move markers. |
 | `preview(ply)` | **View only** (#38, the replay bar): show the position after `ply` moves (`Rules.replay(record(), ply)`) instead of the live one and re-render; `null` (or a `ply` at / past the end) goes back to the live position. Returns the new `previewPly`. It never touches the live state, the record, `hash()`, the session or the Bus, and while it is on every cell is `locked` and clicks are dropped, so a preview can never leak into play or into what the friends receive. |
 | `previewPly` (getter) | How many moves the shown position has, `null` when the live position is shown. |
 
@@ -52,7 +69,7 @@ on that cell, `""` for none — that is how the premove marker and Learn's `hint
 board without any game knowing it), `onCellClick(i)`, `onMoveApplied(i, p)`, `onTurn(p)`,
 `onBusy(bool)`, `onFinish(winner, why)`. Tests build their own (`tests/unit/dom.mjs`).
 
-### HUD (`Hud`, generic — a game only supplies a model)
+### HUD (`client/games/hud.js`, generic — a game only supplies a model)
 
 `Hud.build(players, title)` clones `#tpl-player` per seat (ids `p-{k}`, `p{k}-name`,
 `p{k}-you`, `clock-{k}`, `p{k}-stats` (the stat rows), `p{k}-bar`, `p{k}-pct`,
@@ -71,9 +88,10 @@ class `hot`) when the model has a `box`, else hidden; `#mini-line2`. The model c
   drawHint?: "no space left" }                       // under "Draw" when the game is drawn
 ```
 
-`Hud.overlay(name, winner, sub)` fills the result overlay. Player stat rows get ids
-`p{k}-stat-<j>` (tests read them). The win bars are not part of the model: `WinChance`
-writes them itself (see Board / HUD layout rules).
+`BoardView.leading(values)` turns one number per seat into the `leading` flags (strictly
+ahead of everyone else). `Hud.overlay(name, winner, sub)` fills the result overlay. Player
+stat rows get ids `p{k}-stat-<j>` (tests read them). The win bars are not part of the
+model: `WinChance` writes them itself (see Board / HUD layout rules).
 
 ### Game records (replay-ready)
 
@@ -105,7 +123,7 @@ Rule: **anything that changes the position must be a history entry or an `outs` 
   (eliminated players are skipped — a player who lost every cell with 3+ players, and
   `out` players).
 - Clock pauses during animations and while somebody is away; flag fall = loss (with 3+
-  players: out, the others play on — `Rules.remaining`, `Engine.eliminate`).
+  players: out, the others play on — `Rules.remaining`, `engine.eliminate`).
 
 ### Visual layout (`chain.js`, matches the 2015 screenshot)
 Each cell is a 3×3 block: corners glass, centre glass when empty / owner's block when
@@ -192,14 +210,13 @@ right edge (3), so 2, 3 and 4 players all start symmetrically.
 
 ## Dots and Boxes rules (`boxes-rules.js`)
 
-The school-exercise-book game (Käsekästchen in German, renamed for the UI on 2026-09-11;
-the key stays `boxes`). n × n boxes (the shared *Board size* row, 2–10,
-default 5), so (n+1)² dots and **2n(n+1) lines** — and the lines are the cells:
-`state.cells` is one entry per line (the owner who drew it, -1 = not drawn, so `ownerOf`
-colours it), while `state.n` is the boxes per side. Nothing in the framework assumes
-`cells.length === n * n` (the engine only compares `cells.length` with its element list, and
-`--n` is set from `state.n`), which is why a game whose cells are not a square grid needs no
-framework change beyond the `renderBoard` hook.
+The school-exercise-book game (Käsekästchen in German; the key stays `boxes`). n × n boxes
+(the shared *Board size* row, 2–10, default 5), so (n+1)² dots and **2n(n+1) lines** — and
+the lines are the cells: `state.cells` is one entry per line (the owner who drew it, -1 =
+not drawn, so `ownerOf` colours it), while `state.n` is the boxes per side. Nothing in the
+framework assumes `cells.length === n * n` (the engine only compares `cells.length` with
+its element list, and `--n` is set from `state.n`), which is why a game whose cells are not
+a square grid needs no framework change beyond the `renderBoard` hook.
 
 **Line numbering (binding for history, sync, replay, the record and the puzzle sets):** the
 n(n+1) horizontal lines first, row-major — `h(r, c) = r * n + c`, r = 0…n (dot rows),
@@ -277,12 +294,12 @@ a drawn line, the matching stained glass as a closed box.
   on `#board` when a game starts or a seat changes. Static (owner: no marker animation);
   on the textured looks `skin-mc.css` adds a dark inset backing so the dashes read on
   quartz and glass (it is hidden behind chain's tiles, where the outline alone carries).
-- **Last move**: every cell has a `.last-marker` child; the engine adds `.last` to the
-  newest history cell. Chain: static thin white border at the cell edge. Five and Isolation: static
-  white ring, **red** on the textured skins (white is invisible on quartz); for Isolation the
-  engine asks the rules' `cellOf` where the move happened (the tile stepped onto). Owner: no marker
-  animation. Hidden while a chain cell primes/booms and once the game is over
-  (`#board.over`).
+- **Last move**: every cell has a `.last-marker` child (`BoardView.cells` adds it); the
+  engine adds `.last` to the newest history cell. Chain: static thin white border at the
+  cell edge. Five and Isolation: static white ring, **red** on the textured skins (white is
+  invisible on quartz); for Isolation the engine asks the rules' `cellOf` where the move
+  happened (the tile stepped onto). Owner: no marker animation. Hidden while a chain cell
+  primes/booms and once the game is over (`#board.over`).
 - Board size = min(wrapper width, height) − 10 → `--board` (`fitBoard` in app.js, on
   resize and when `#hut` resizes). The page must **never scroll** on mobile: the HUD sits
   below the board in a compact two-row form (controls behind ☰); desktop shows the full
@@ -308,7 +325,7 @@ wave), `boxes:capture {boxes, player, score}` (Dots and Boxes: a move closed one
 ## Seats, bots and more players (`client/match.js`)
 
 `Match.seats[p] = { kind }` is built per game by `makeSeats`: `local` (this device moves for
-it), `remote` (a friend) or `bot`. The engine hooks live in Match: `mayPlay(p)` = local seat
+it), `remote` (a friend), `bot` or `watch` (a replay). The engine hooks live in Match: `mayPlay(p)` = local seat
 + `live()`; `onTurn(p)` calls `botTurn(p)` for a bot seat: after `THINK_MS` (350 ms, so it
 doesn't feel instant) it asks the bot instance for a move on a **clone** of the state,
 re-checks that the same game is still on that turn (`running`, `gameNo`, busy, over), falls
@@ -338,12 +355,12 @@ busy, not my turn any more, not `mayPlay` or no longer legal, in which case it i
 It is deferred with `whenIdle(…, "premove")`, and cleared on a new game, `stop()`,
 `reset()`, a seat change and the end of a game. Nothing about it travels to the room.
 
-**Fair play while the clock is paused (#43 follow-up, 2026-09-11):** in a **timed online
-game**, a connection problem stops the clocks for everyone (`live()` → `syncClock`), so the
-position is hidden as long as it lasts — otherwise the player whose connection dropped
-keeps thinking for free. `Match.syncClock()` toggles `body.board-covered` (`covered()`:
-running, not over, online, I hold a seat, `Clock.isEnabled()`, not `live()`); `game.css`
-blurs `#board` and shows `#board-cover` ("The board is hidden while the clock is paused.").
+**Fair play while the clock is paused (#43 follow-up):** in a **timed online game**, a
+connection problem stops the clocks for everyone (`live()` → `syncClock`), so the position
+is hidden as long as it lasts — otherwise the player whose connection dropped keeps
+thinking for free. `Match.syncClock()` toggles `body.board-covered` (`covered()`: running,
+not over, online, I hold a seat, `Clock.isEnabled()`, not `live()`); `game.css` blurs
+`#board` and shows `#board-cover` ("The board is hidden while the clock is paused.").
 Without a timer nothing is covered (there is nothing to gain), and a spectator, a replay and
 a lesson never are. Nothing about the state changes: it is one class over the board.
 
@@ -367,22 +384,23 @@ off, no bot, the record replayed instantly onto the board.
 
 # How to add a new game (step by step)
 
-A game is three files (pure rules, view + registration, CSS) plus two tags in
-`index.html`, and usually a bot folder. Everything else is the framework and is generic:
-rooms and the host relay for 2–4 seats, lobby sync of the settings, start / rematch /
-back to room, reconnect + replay from the game record, session restore, the chess
-clock and flag falls, spectators, chat, reactions, premoves, the replay bar, the replay list
-and replay files, the replay analysis (a game with a bot and an `estimate` gets win chances,
-best moves and scores for nothing), sounds for the generic events,
-the bot seat, the bot persona, the win-chance bars, the generic HUD (stat rows, info box,
-phone line), skins and player colours, the picker card, the settings rows, the Learn
-section (rules page, tutorial runner, scenarios), the benchmark and puzzle tooling. **A game never touches app.js, room.js, match.js, games.js, settings.js
-or index.html's HUD markup.** If it seems to need to, extend the definition contract
-instead (and this file).
+A game is three files (pure rules, view + registration, CSS) plus tags in `index.html`, and
+usually a bot folder. Everything else is the framework and is generic: rooms and the host
+relay for 2–4 seats, lobby sync of the settings, start / rematch / back to room, reconnect +
+replay from the game record, session restore, the chess clock and flag falls, spectators,
+chat, reactions, premoves, the replay bar, the replay list and replay files, the replay
+analysis (a game with a bot and an `estimate` gets win chances, best moves and scores for
+nothing), sounds for the generic events, the bot seat, the bot persona, the win-chance
+bars, the generic HUD (stat rows, info box, phone line), skins and player colours, the
+picker card, the settings rows, the Learn section (rules page, tutorial runner, scenarios),
+the benchmark and puzzle tooling, the headless loader. **A game never touches app.js,
+room.js, match.js, games.js, settings.js or index.html's HUD markup.** If it seems to need
+to, extend the definition contract instead (and this file).
 
 Copy Five Wins (`five-rules.js`, `five.js`, `five.css`, `random-five`, `sensei-five`) — it
 is the smallest complete game. Isolation is the example of a game whose move is not a plain
-cell id (an encoded integer, two clicks, `cellOf` / `canPlay` / `premove: false`).
+cell id (an encoded integer, two clicks, `cellOf` / `canPlay` / `premove: false`), Dots and
+Boxes the example of a board whose cells are not a square grid (`renderBoard`).
 
 ## 1. Rules `client/games/<key>-rules.js` (pure — no DOM, no settings, no Bus)
 
@@ -393,17 +411,17 @@ Expose a global `<Name>Rules` with these functions and register it (`Rules.regis
 | `create(config, base)` | Return `Object.assign(base, { cells, …your keys })`. `base` comes from `Rules.base(config)` (n, players, current, round, history, movesBy, out, outs, busy, over, winner, finishWhy). Read your own keys from `config` (they arrive from `Settings.read()` on both sides, plus `startPlayer`). |
 | `ownerOf(state, i)` | Owner of cell i (-1 = none). Drives the shared `p<k>`/`taken` classes. |
 | `isLegal(state, i, player)` | Pure; `false` when `state.over`. |
-| `legalMoves(state, player)` | Array of cell ids (bots, tests, the random fallback). |
-| `place(state, i, player)` | Apply the move: `history.push(i)`, `movesBy[player]++`, your board change. |
-| `settle(state, player)` | Resolve everything that follows a placement instantly (chain waves; no-op for five). |
+| `legalMoves(state, player)` | Array of moves (bots, tests, the random fallback). `Rules.emptyCells(state)` is the answer for "any empty cell". |
+| `place(state, i, player)` | Apply the move: `history.push(i)`, `movesBy[player]++`, your board change. `Rules.placeCell` is exactly that for a board whose cells hold an owner. |
+| `settle(state, player)` | **Optional.** Resolve everything that follows a placement instantly (chain waves, boxes closing). Leave it out when nothing follows. |
 | `conclude(state, player)` | Return `{ winner, why }` (winner -1 = draw) or `Rules.pass(state[, alive])` and return `null`. Respect `state.out` (eliminated seats): use `Rules.remaining(state)` / `Rules.pass`, which skip them; with 3–4 players decide what "everyone else is out" means (five: the last one wins). |
-| `estimate(state)` | Optional heuristic P(player 0 wins) in 0..1 for the win chance until a bot offers `evaluate` (see step 6). |
+| `estimate(state)` | Optional heuristic P(player 0 wins) in 0..1 for the win chance until a bot offers `evaluate` (see step 6). Start with `Rules.decided(state)` (the answer for a finished game, `null` otherwise) and map your edge through `Rules.sigmoid(edge, k)`. |
 | `cellOf(state, move)` | Optional. The board cell a move belongs to, when a move packs more than a cell id into its integer (Isolation: `to * cells + removed` → `to`). The engine uses it for the `last` marker and exposes it as `engine.cellOf`, which is how `Match` marks a premove. Default: the move itself. |
 | `canPlay(state, i, player)` | Optional. May this player *start* a move on cell `i`? Drives `can-place` / `locked`, so a game whose move needs two clicks still highlights the right cells. Default: `isLegal`. |
 
 `Rules.step(rules, state, i)` = place + settle + conclude is the **only** way any
 framework code resolves a move (engine replay, bots' `tools.apply`, playout, puzzle
-runner, calibration, a future replay viewer), so keep the three functions pure and
+runner, calibration, the replay viewer, the tests), so keep the functions pure and
 deterministic and never resolve anything outside them. A move must be a single integer
 (encode from/to as `from * n*n + to` if needed): `move`, `sync`, the session and the
 record assume `history` is an array of numbers. The cells need not be an n × n grid at all —
@@ -418,10 +436,10 @@ Expose `<Name>View` with:
 
 | Function | Contract |
 | --- | --- |
-| `build(board, state, config, onClick)` | Create one element per cell inside `board` (append a `<div class="last-marker">` child to each), wire `click → onClick(i)`, return the element array. Set CSS vars you need (chain sets `--speed`). |
+| `build(board, state, config, onClick)` | Create one element per cell inside `board`, in cell order, and return the element array. `BoardView.cells(board, count, onClick, decorate)` does it: `decorate(el, i)` sets the class and the game's own children, the last-move marker and the click come for free. Board parts that are not cells (Dots and Boxes's dots and boxes) are appended by hand. Set CSS vars you need (chain sets `--speed`). |
 | `renderCell(el, state, i)` | Game-specific classes only (the engine already set `p<k>`, `taken`, `last`, `can-place`, `locked`). |
-| `renderBoard(state)` | **Optional.** Called once per render, after every cell: paint the parts of the board that are not cells (Dots and Boxes's boxes; its cells are the lines). It gets the *shown* position, so a replay-bar preview is painted too. |
-| `hud(state)` | **Data only** — return the HUD model, the framework renders it: `{ round: "Move 3", players: [{ stats: [[label, value], …], bar: 0..1, barText, leading }], box?: { stats: [[label, value], …], hot? }, line2?: "text" | [[label, value], …], drawHint? }`. One `players` entry per seat (`state.players`, 2–4). `box` is an extra info box on desktop (chain's chain counters); `line2` the phone turn box's second line. Never write DOM here. |
+| `renderBoard(state)` | **Optional.** Called once per render, after every cell: paint the parts of the board that are not cells. It gets the *shown* position, so a replay-bar preview is painted too. |
+| `hud(state)` | **Data only** — return the HUD model, the framework renders it (see "HUD" above). One `players` entry per seat (`state.players`, 2–4); `BoardView.leading(values)` gives the `leading` flags. Never write DOM here. |
 | `summary(state)` | Second line of the result overlay ("12 moves"). |
 | `animateMove(ctx, i, player) → Promise` | Show the move. `ctx` gives `state`, `cells`, `board()`, `names()`, `renderCell(i)`, `renderHud()`, `render()`. Use the rules' own step functions for anything that changes state so the instant path (`settle`) stays identical. Return early if `state.over` after an `await`. Emit your own `Bus` events (`<key>:…`) for sounds / observers. |
 
@@ -432,12 +450,11 @@ const <Name>Game = Games.register({
     key: "<key>", title: "Nice Name",
     tagline: "One sentence under the picker.", desc: "Short card subtitle",
     preview: "...01....",                   // 9 chars: "." empty, digit = player, "#" hole, a/b/c (A/B/C) = 1..3 pieces of player 0 (1); Games.previewClass / previewTile draw it everywhere
-    size: { min: 5, max: 19, default: 9 },  // board-size input limits
-    size: { min: 5, max: 19, default: 9, presets: [5, 7, 9, 11] },   // `presets` fills the board-size dropdown
+    size: { min: 5, max: 19, default: 9, presets: [5, 7, 9, 11] },   // limits and the board-size dropdown
     minSize: (cfg) => 5,                    // optional, may depend on the game fields (five: winLen)
     players: { min: 2, max: 4 },            // optional (default 2–4): the picker grays the card out otherwise (#28)
     premove: false,                         // optional (default true): off when one click is not a whole move (#37)
-    settings: [                             // the game's rows in #settings-modal, built by settings.js
+    settings: [                             // optional: the game's rows in #settings-modal, built by settings.js
         // every control is a dropdown: presets, "Off" where it applies, and "Custom…" with a number row
         { key: "winLen", label: "In a row to win", type: "preset", presets: [3, 4, 5, 6], def: 5, min: 3, max: 25, customLabel: "Custom stones (3–25)" },
         { key: "speed", label: "Animation speed", type: "select", def: 750, options: [[1100, "Slow"], [750, "Normal"]] },
@@ -451,7 +468,8 @@ const <Name>Game = Games.register({
 });
 ```
 
-The picker card, the settings rows (`#row-<key>` / `#set-<key>`, lowercased) and the
+`Games.register` throws on a definition that misses a required part, so a typo shows up at
+load. The picker card, the settings rows (`#row-<key>` / `#set-<key>`, lowercased) and the
 config keys (`config.<key>` on both sides of a room, persisted per device) all come from
 this entry — no HTML to add. `.game-picker` is a fixed `1fr 1fr` grid, so the four games
 today fill exactly two rows; what buys the room on a phone is the lobby's own media query
@@ -461,9 +479,8 @@ today fill exactly two rows; what buys the room on a phone is the lobby's own me
 an ellipsis instead, checked by `mobile.test.mjs`). A fifth game adds a third row, so
 re-check the phone lobby every time.
 
-**Beyond six games the picker has to change shape** (thought through on 2026-09-11, when the
-lobby was rebuilt; nothing to do yet): a grid of cards does not survive eight or more. The
-plan, in the order it should happen:
+**Beyond six games the picker has to change shape** (nothing to do yet): a grid of cards
+does not survive eight or more. The plan, in the order it should happen:
 1. **The lobby stops being the picker.** The Game section shows the *chosen* game as one row
    (its tile, its name, a chevron) like How to play and Settings; tapping it opens a picker
    modal. The lobby then has a constant height whatever the catalogue does, and the modal is
@@ -495,13 +512,13 @@ HUD styling (rare) goes under `body.game-<key> …`.
 
 ## 4. Tags in `index.html`
 
-`<link rel="stylesheet" href="client/games/<key>.css">` after `five.css`;
+`<link rel="stylesheet" href="client/games/<key>.css">` after the last game's stylesheet;
 `<script src="client/games/<key>-rules.js">` and `<script src="client/games/<key>.js">`
-after the last game and before `bots.js` (and add the rules module to the tuple
-`scripts/headless.mjs` returns, plus a `CONFIGS` entry in `tests/unit/bots.test.mjs` so the
-bot conformance suite knows what board to use). Build, the unit-test loader and the headless loader
-(`scripts/headless.mjs` matches `games/<key>-rules.js`) pick them up from there. Once the
-game has generated Learn scenarios (step 7), one more tag:
+after the last game and before `bots.js`. The build, the unit-test loader and the headless
+loader (`scripts/headless.mjs` matches `games/<key>-rules.js` and hands the module out as
+`H.<Name>Rules` from the registry) pick them up from there; the bot conformance suite needs
+a `CONFIGS` entry in `tests/unit/bots.test.mjs` (what board to test bots on). Once the game
+has generated Learn scenarios (step 7), one more tag:
 `<script src="client/learn/<key>-scenarios.js">` next to the other scenario files.
 
 ## 5. Sounds (optional)
@@ -582,7 +599,7 @@ are filled in), which is what a game without a puzzle set gets.
   `p{k}-stat-<j>`, win-chance rows for 2 players); a bot folder test; the conformance
   suite in `bots.test.mjs` passes for every difficulty.
 - `Rules.replay` of the engine's `record()` equals the live state (`framework.test.mjs`
-  shows how) — this is what reconnects, refreshes and the future replay viewer rely on.
+  shows how) — this is what reconnects, refreshes and the replay viewer rely on.
 - Local: lobby → pick game → Start → play to a win **and** a draw → overlay text →
   Rematch → Back to room → switch to another game. Against a bot: the picker lists the bots.
 - Online with two headless browsers (`tests/e2e/online.test.mjs`): guest sees the host's

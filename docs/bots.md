@@ -6,7 +6,7 @@ bot system; `AGENTS.md` holds the project-wide context (the bot chapter is `.cla
 ## 1. Architecture in one picture
 
 ```
-client/games/<key>-rules.js   pure rules (create / isLegal / legalMoves / place / settle / conclude, estimate)
+client/games/<key>-rules.js   pure rules (create / isLegal / legalMoves / place / settle? / conclude, estimate)
         │                     registered via Rules.register(key, module) → Rules.of(key)
         ▼
 client/bots.js                Bots.register · Bots.create · Bots.tools · Bots.playout · Bots.estimator
@@ -20,7 +20,7 @@ client/bots.js                Bots.register · Bots.create · Bots.tools · Bots
         ├── client/winchance.js             win-chance bars from Bots.estimator (a Bus observer)
         ├── client/opponent.js              the bot modal (one bot per game, shown as "Bot": difficulty, scores), choice per game
         │
-        ├── scripts/headless.mjs              loads util + rules + bots into a bare Node VM (no DOM)
+        ├── scripts/headless.mjs              loads util + rules + bots into a bare Node VM (no DOM); H.<Name>Rules per registered game
         ├── scripts/puzzles/runner.mjs               replay a puzzle, grade a bot on a puzzle set
         ├── scripts/benchmark.mjs             series vs Random + puzzle score → benchmark.js
         └── scripts/puzzles/<key>/          solver + generator of the proven puzzle sets

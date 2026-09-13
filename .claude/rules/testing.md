@@ -58,14 +58,15 @@ The build and the deploy workflow, the unit and e2e suites file by file, how CI 
 the heavy lifting: `tests/unit/dom.mjs` puts `index.html` and every client script except
 `app.js` into jsdom (the script list is parsed from index.html, `Element.animate` is
 polyfilled) and hands out fake hooks, and `scripts/headless.mjs` loads util, rules and the
-bots into a bare `vm` with no DOM at all. Cross-realm arrays: compare via `JSON.stringify`,
+bots into a bare `vm` with no DOM at all (`{ Util, Rules, Bots }` plus every registered
+rules module under its own name, `H.FiveRules`). Cross-realm arrays: compare via `JSON.stringify`,
 not `deepStrictEqual`, and get globals with `w.eval("Name")`. A file that starts a timer
 (`clock`, `update`) must stop it and call `w.close()`, or the runner never exits.
 
 | File | What it covers |
 | --- | --- |
 | `rules.test.mjs` | the pure rules in a bare `vm`: `Rules.base` + `pass` rotation and rounds for 2 and 3 players; chain (legalMoves / place / settle / conclude, a player who lost every cell skipped, the chain rule); five (`lineThrough`, `bestRow`, win, full board and the dead board of #18); boxes (line numbering round trip, a closed box keeps the turn, one line closing two, the end and the tie, safe / capturing lines and `chainFrom`, three players, replay == play) |
-| `framework.test.mjs` | `Rules.step/apply/replay` == engine play at any ply (`Games.positionAt`), the generic HUD built from the view's model, the settings rows generated from the definitions, Match seats per mode / a bot seat that moves by itself / `whenIdle` / `record()`, the room's bot in the config and its seat kinds per device (#36), the seat names of #35 through `Match.init({ names })` and `Room.names()`, the picker's player counts (#28), a spectator's locked settings and `Room.accepts` (#29), `Session` |
+| `framework.test.mjs` | `Rules.step/apply/replay` == engine play at any ply (`Games.positionAt`), the generic HUD built from the view's model, `Games.register` refusing a broken definition, the settings rows generated from the definitions, Match seats per mode / a bot seat that moves by itself / `whenIdle` / `record()`, the room's bot in the config and its seat kinds per device (#36), the seat names of #35 through `Match.init({ names })` and `Room.names()`, the picker's player counts (#28), a spectator's locked settings and `Room.accepts` (#29), `Session` |
 | `chain.test.mjs` | caps, waves, the board-decided stop, the win, the chain rule, replay == play, the hooks' order, the HUD and the last-move marker, the win chance |
 | `five.test.mjs` | the registry (5–25, default 11 × 11 since #16, the win length is the minimum), lines in all 4 directions, `winLen` 6, longer than `winLen`, the full-board draw and the dead board (#18), replay == play, the HUD, the win chance, and the Yavalath rule with two and with three players plus Sensei's own benchmark numbers and calibration for it |
 | `isolation.test.mjs` | first the pure rules in a bare `vm` (start positions, the encoded move, what is legal, the trap with 2 and 3 players, `estimate`), then the engine and the view: the registry (5–12, default 7, `premove: false`), the two-step click and taking it back, `can-place` on the tiles the pawn may step onto, the last marker on the tile stepped onto, the HUD rows, replay == play and the hash, the overlay, the win-chance rows, the picker card |

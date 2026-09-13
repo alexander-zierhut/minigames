@@ -92,7 +92,7 @@ The PeerJS transport, the room protocol and its every message, seats and presenc
   connection with that seat, not in Room's `left` set), guests from the host's `roster
   {present[], spectators, left[], names[]}` message (sent on every change: hello, close,
   leave, reseat, a new name). `allHere()` = every seat filled and my connection up; `live()` = `!online ||
-  allHere()` gates input and the clock (`syncLive()` pauses/resumes on every presence
+  allHere()` gates input and the clock (`Match.syncClock()` pauses/resumes on every presence
   change). Start needs `allHere()` ("Waiting for your friend…" with two seats, else
   "Waiting for N more player(s)…"). The in-game banner (`updateBanner`) says who is
   missing (2 players: the classic "Your friend left the room…" / "seems to be away"
@@ -169,8 +169,8 @@ The PeerJS transport, the room protocol and its every message, seats and presenc
   `?room=` from the address bar, the session stores `codeHidden`, and the boot rejoins a
   hidden room from the session alone (no `?room=` needed; a visible room still needs the
   matching `?room=`). `Net.code`, the share / spectate links and `Copy code` are untouched
-  — hiding is display only, per device, never sent to the room. The lobby's eye button
-  (`#btn-hide-code` in the Invite modal, the eye / eye-off icon, "Hide the room code" / "Show the room code") toggles it; `Prefs.hideCode` makes new rooms start hidden
+  — hiding is display only, per device, never sent to the room. The Invite modal's
+  `#btn-hide-code` ("Hide the room code" / "Show the room code", see `ui.md`) toggles it; `Prefs.hideCode` makes new rooms start hidden
   (`Room.enter(code, { hidden: Prefs.get().hideCode, … })`).
 - Messages (JSON over reliable DataConnections; every message carries `from` = the
   sender's seat; game messages carry `g` = gameNo): `hello {seat, spectate, name, rev, phase,
@@ -193,7 +193,7 @@ The PeerJS transport, the room protocol and its every message, seats and presenc
   "Waiting for opponent…" / "Waiting for others… (k/N)" / "Accept rematch"), `review
   {ply, play, g}` (#38: I am looking at the position after `ply` moves of the finished game;
   relayed; receivers in the same finished game show the same ply and open the replay bar,
-  spectators included; `play: true` (#43) also starts their own Play timer from that move,
+  spectators included, through the `onReview` handler = `Review.follow`; `play: true` (#43) also starts their own Play timer from that move,
   `play: false` / a plain `review` pauses it), `seat {want}` (#39: a guest asks the host for a seat (`-1` = to
   watch instead); not relayed, the host answers `state` + `roster`; a spectate-link
   connection is always refused), `react
@@ -311,11 +311,11 @@ timeout, rematch, tolobby, lobby, start-request, review`) from a seatless connec
 relaying (`Room.accepts(msg, seat)`; a refused `lobby` gets the host's settings back so the
 sender's view is corrected) — the same veto path also drops a `lobby` message whose
 `s.players` is below `Room.occupiedSeats()` (`Room.keepsSeats(msg, occupied)`, pure), so a
-stale or forged message cannot take anybody's seat (#34). `Settings.setLocked(true)` (from `renderLobby`) disables the
+stale or forged message cannot take anybody's seat (#34). `Settings.setLocked(true)` (from `Lobby.render`) disables the
 picker, the players control and every settings input (`body.settings-locked`,
 `#settings-locked-hint`), and in the game the spectator's HUD button says "Leave room"
 (leaves the room instead of sending everyone `tolobby`) while the overlay's "Change game"
-is hidden (`renderRematch`, re-run on every seat change through `Room.setSeat` →
+is hidden (app.js's `renderRematch`, re-run on every seat change through `Room.setSeat` →
 `onVotes`). Chat and reactions stay allowed.
 The old "room is full" answer only remains in net.js for an app that refuses newcomers.
 

@@ -28,7 +28,8 @@ The bot registry and toolset, node budgets, rule variants, the benchmark and cal
 
 Bots are pure and headless: no DOM, only the game's rules module + the toolset. The same
 code runs in the browser and in Node (`scripts/headless.mjs` loads util, rules, bots.js and
-every bot folder into a bare VM — script list parsed from `index.html`).
+every bot folder into a bare VM — script list parsed from `index.html`; the rules modules
+come out under their own names, `H.ChainRules`, straight from `Rules.keys()`).
 
 - **Registry**: `Bots.register({ id, name, game, version, description, difficulties:
   [{ id, label }, …], create(tools), baseline? })` (validated: slug id, ≥ 1 difficulty,

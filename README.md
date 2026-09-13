@@ -94,13 +94,13 @@ lives in `.claude/rules/`.
 
 - `index.html`: markup, templates, and the ordered list of stylesheets and scripts
 - `client/lib/`: `util`, `bus` (events), `log`, `clock`, `net` (PeerJS rooms), `preload`, `sound`, `install`, `replays` (replay files + the IndexedDB store), `analysis` (replay analysis + its panel), `update` (a new build is offered on the title screen)
-- `client/games/rules.js`: the pure game loop (`Rules.create / step / eliminate / apply / replay`) every headless path shares
-- `client/games.js`: game registry, the engine shell every game shares, the generic HUD (rendered from a model the game returns)
+- `client/games/rules.js`: the pure game loop (`Rules.create / step / eliminate / apply / replay`) every headless path shares, and the building blocks a rules module uses
+- `client/games.js`, `client/games/engine.js`, `client/games/hud.js`, `client/games/view.js`: the game registry, the engine shell every game shares, the generic HUD (rendered from a model the game returns) and the shared board-view helpers
 - `client/games/`: per game: pure `<key>-rules.js`, `<key>.js` (view + registration incl. its settings rows), `<key>.css`
 - `client/bots.js`, `client/bots/<id>/`: bot registry + toolset; one folder per bot with its tests and benchmark score; `client/winchance.js` shows the bars
 - `client/learn.js`, `client/learn/`: the Learn section: rules, tutorial and scenarios per game (the data lives in the game definitions; `client/learn/<game>-scenarios.js` is generated from the proven puzzle sets)
 - `scripts/`: `headless.mjs` (rules + bots in Node), `benchmark.mjs` (`npm run benchmark`), puzzle solvers, verify, `learn/pick-scenarios.mjs` (`npm run learn:scenarios`), screenshots
-- `client/match.js` (the table: seats, engine, clock, bot seat), `client/room.js` (online protocol, presence, sync), `client/session.js`, `client/app.js` (screens, lobby, flow)
+- `client/match.js` (the table: seats, engine, clock, bot seat), `client/room.js` (online protocol, presence, sync), `client/session.js`, `client/app.js` (screens, flow), `client/lobby.js`, `client/review.js` (the replay bar and analysis panel), `client/replay-list.js` (the replays screen)
 - `client/skins.js` (the look), `client/prefs.js` (⚙ per-device preferences incl. your name), `client/settings.js`, `client/opponent.js`, `client/reactions.js`, `client/chat.js`, `client/changelog.js`
 - `client/lib/sound.js`, `client/sounds/`: sound cues (synthesized Classic set, the Blocks .ogg files)
 - `client/css/`: base tokens, menu/lobby, game screen, the Blocks skins
