@@ -33,8 +33,10 @@ const Net = (() => {
     const RELAY_SRC = "NTMwMzQzN2RhYjQzMTMyMzEyMGQ0ZjVhNzQ5YzBhMzNlZDhiPXllS2lwYT9zbGFpdG5lZGVyYy9ucnV0LzF2L2lwYS9ldmlsLmRlcmV0ZW0ucmVwbHpsYS8vOnNwdHRo";
     const relayUrl = () => atob(RELAY_SRC).split("").reverse().join("");
     const RELAY_CACHE_MS = 20 * 60 * 1000;
-    const NO_PATH_TEXT = "Your networks block a direct connection (both on mobile data?). Try Wi‑Fi on one side.";
-    const NO_RELAY_TEXT = "No relay server is available right now, so a private connection is not possible. Turn off \"Keep my IP always private\" to play anyway.";
+    // every status detail is a key of the language file (#47), rendered here so the app only ever sees text
+    const T = (key, params) => I18n.t(key, params);
+    const NO_PATH_TEXT = () => T("net.noPath");
+    const NO_RELAY_TEXT = () => T("net.noRelay");
     let iceCache = null;        // { at, promise }
     let iceInfo = { relayOnly: false, turn: false, servers: 0 };   // what the current peer was created with (dev panel, tests)
     const isTurn = (s) => [].concat(s && s.urls || []).some((u) => /^turns?:/i.test(u));
@@ -68,16 +70,12 @@ const Net = (() => {
             setup(peer);
         });
     }
-    const ERROR_TEXT = {
-        "browser-incompatible": "This browser can't do peer-to-peer connections (WebRTC).",
-        "network": "Can't reach the room server. Check your internet connection…",
-        "server-error": "The room server had an error. Retrying…",
-        "socket-error": "Lost the room server. Retrying…",
-        "socket-closed": "Lost the room server. Retrying…",
-        "ssl-unavailable": "The room server needs HTTPS.",
-        "webrtc": "The direct connection failed. Your networks may be blocking it.",
-        "disconnected": "Disconnected from the room server. Retrying…",
+    const ERROR_KEY = {
+        "browser-incompatible": "net.err.browser", "network": "net.err.network", "server-error": "net.err.server",
+        "socket-error": "net.err.socket", "socket-closed": "net.err.socket", "ssl-unavailable": "net.err.ssl",
+        "webrtc": "net.err.webrtc", "disconnected": "net.err.disconnected",
     };
+    const ERROR_TEXT = new Proxy({}, { get: (_, type) => (ERROR_KEY[type] ? T(ERROR_KEY[type]) : undefined) });
     const BROKER_ERRORS = ["network", "server-error", "socket-error", "socket-closed", "disconnected"];
 
     let peer = null;
@@ -214,16 +212,16 @@ const Net = (() => {
         if (old) { try { old.destroy(); } catch (e) {} }
     }
 
-    const waitingText = () => (everConnected ? "Waiting for your friend to come back…" : "Waiting for your friend…");
+    const waitingText = () => T(everConnected ? "net.waitBack" : "net.waiting");
 
     function claimHost() {
         role = "host";
-        setStatus("connecting", "Opening room…");
+        setStatus("connecting", T("net.opening"));
         createPeer(PREFIX + code, (peer) => {
         bindPeer(peer, claimHost);
         peer.on("open", () => {
             brokerAlive();                           // the broker took us: it is not turning us away
-            if (isOpen()) setStatus("connected", "Connected");
+            if (isOpen()) setStatus("connected", T("net.connected"));
             else setStatus("waiting", waitingText());
             if (handlers.onRole) handlers.onRole("host");
         });
@@ -245,13 +243,13 @@ const Net = (() => {
     function joinAsGuest() {
         role = "guest";
         dropSpecPeer();                          // we are not hosting any more
-        setStatus("connecting", "Joining room…");
+        setStatus("connecting", T("net.joining"));
         createPeer(undefined, (peer) => {
         bindPeer(peer, joinAsGuest);
         peer.on("open", () => {
             brokerAlive();                           // the broker took us: it is not turning us away
             if (handlers.onRole) handlers.onRole("guest");
-            if (isOpen()) setStatus("connected", "Connected");
+            if (isOpen()) setStatus("connected", T("net.connected"));
             else dial();
         });
         peer.on("error", handleError);
@@ -266,10 +264,8 @@ const Net = (() => {
         if (brokerFails >= REFUSED_TRIES && Date.now() - brokerBadSince >= REFUSED_MS) refused = true;
         if (!isOpen()) {
             setStatus("signaling", refused
-                ? "The room server is turning us away, usually because too many rooms were opened from your network. It can take up to an hour to clear. Playing on this device still works."
-                : everConnected
-                    ? "Lost the room server. Reconnecting…"
-                    : "Lost the room server. Reconnecting so your friend can join…");
+                ? T("net.refused")
+                : T(everConnected ? "net.lostBroker" : "net.lostBrokerJoin"));
         }
         after("signaling", 800, () => {
             if (!wantConnection || !peer || peer.destroyed) return;
@@ -283,10 +279,10 @@ const Net = (() => {
         if (!wantConnection || !peer || peer.destroyed || isOpen()) return;
         dialAttempts++;
         if (roomFull) { /* keep "room is full" on screen while we quietly try again */ }
-        else if (iceInfo.relayOnly && !iceInfo.turn) setStatus("error", NO_RELAY_TEXT);   // relay demanded, none to be had
-        else if (channelFailures >= 3) setStatus("error", NO_PATH_TEXT);   // host is there, channel never opens
-        else if (everConnected) setStatus("reconnecting", dialAttempts > 1 ? `Reconnecting to your friend… (try ${dialAttempts})` : "Reconnecting to your friend…");
-        else setStatus("connecting", dialAttempts > 1 ? "Your friend isn't in the room yet. Waiting…" : "Looking for the room…");
+        else if (iceInfo.relayOnly && !iceInfo.turn) setStatus("error", NO_RELAY_TEXT());   // relay demanded, none to be had
+        else if (channelFailures >= 3) setStatus("error", NO_PATH_TEXT());   // host is there, channel never opens
+        else if (everConnected) setStatus("reconnecting", dialAttempts > 1 ? T("net.reconnectTry", { n: dialAttempts }) : T("net.reconnect"));
+        else setStatus("connecting", T(dialAttempts > 1 ? "net.notYet" : "net.looking"));
         const metadata = handlers.metadata ? handlers.metadata() : {};   // e.g. my seat, for the host's full-room check
         const c = peer.connect((watchOnly ? SPEC_PREFIX : PREFIX) + code, { reliable: true, metadata });
         // The host answers the open channel with welcome (or full). Listen from the start:
@@ -331,7 +327,7 @@ const Net = (() => {
             send({ t: "ping" });
             if (Date.now() - lastPong > PING_TIMEOUT) onLost("timeout");
         }, PING_EVERY);
-        setStatus("connected", "Connected");
+        setStatus("connected", T("net.connected"));
         if (handlers.onOpen) handlers.onOpen(role, "host");
     }
 
@@ -340,7 +336,7 @@ const Net = (() => {
     function onFull() {
         if (!wantConnection) return;
         roomFull = true;
-        setStatus("error", "This room is full. Every seat is taken.");   // only if the app refuses newcomers (it doesn't: spectators)
+        setStatus("error", T("net.full"));   // only if the app refuses newcomers (it doesn't: spectators)
         after("retry", 5000, dial);
     }
 
@@ -352,8 +348,8 @@ const Net = (() => {
         clearTimer("ping");
         clearTimer("retry");
         setStatus("reconnecting", reason === "timeout"
-            ? "No answer from your friend (tab in background or offline?). Reconnecting…"
-            : "Connection to your friend was lost. Reconnecting…");
+            ? T("net.noAnswer")
+            : T("net.lost"));
         if (handlers.onClose) handlers.onClose(reason, "host");
         after("retry", 800, dial);
     }
@@ -407,7 +403,7 @@ const Net = (() => {
                 }
             }, PING_EVERY);
         }
-        setStatus("connected", "Connected");
+        setStatus("connected", T("net.connected"));
         if (handlers.onOpen) handlers.onOpen(role, entry.id);
     }
 
@@ -424,9 +420,9 @@ const Net = (() => {
         if (openConns().length === 0) {
             clearTimer("ping");
             setStatus("reconnecting", reason === "timeout"
-                ? "No answer from your friend (tab in background or offline?). Reconnecting…"
-                : "Connection to your friend was lost. Reconnecting…");
-        } else setStatus("connected", "Connected");
+                ? T("net.noAnswer")
+                : T("net.lost"));
+        } else setStatus("connected", T("net.connected"));
     }
 
     function handleError(err) {
@@ -441,10 +437,8 @@ const Net = (() => {
             // A spectate-link viewer never takes over: it has no room code and only watches (#29).
             if (++hostMissing >= 2 && !watchOnly) { hostMissing = 0; dropPeer(); claimHost(); return; }
             setStatus(everConnected ? "reconnecting" : "connecting", watchOnly
-                ? (everConnected ? "The room is away. Waiting for it to come back…" : "Nobody is in this room yet. Waiting…")
-                : everConnected
-                    ? "Your friend seems to be away. Waiting for them to come back…"
-                    : "Nobody is in this room yet. Waiting for your friend…");
+                ? T(everConnected ? "net.roomAway" : "net.nobodyYet")
+                : T(everConnected ? "net.friendAway" : "net.nobodyFriend"));
             after("retry", 2500, dial);
             return;
         }
@@ -455,7 +449,7 @@ const Net = (() => {
         }
         if (type === "webrtc") {
             channelFailures++;
-            setStatus("error", channelFailures >= 3 ? NO_PATH_TEXT : ERROR_TEXT.webrtc);
+            setStatus("error", channelFailures >= 3 ? NO_PATH_TEXT() : ERROR_TEXT.webrtc);
             if (role === "guest") after("retry", 4000, dial);
             return;
         }

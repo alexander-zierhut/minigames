@@ -231,7 +231,7 @@ test("phone: the modal opens on the section menu, a row opens its section, Back 
         assert.equal(await P.ev("Prefs.section"), null, "the menu first");
         assert.equal(await P.ev("getComputedStyle(document.getElementById('prefs-nav')).display !== 'none'"), true);
         assert.equal(await P.ev("getComputedStyle(document.getElementById('prefs-panes')).display"), "none", "no panel yet");
-        assert.equal(await P.text("prefs-sum-look"), "Classic");
+        assert.equal(await P.text("prefs-sum-look"), "Classic · English");
         assert.equal(await P.text("prefs-sum-streaming"), "Best for streaming");
         const modalFits = () => P.ev("(() => { const c = document.getElementById('prefs-card'); return c.scrollHeight <= c.clientHeight + 1; })()");
         assert.equal(await modalFits(), true, "the menu fits without scrolling");

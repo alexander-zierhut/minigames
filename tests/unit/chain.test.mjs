@@ -78,7 +78,7 @@ test("win: opponent has no cells after both moved", async () => {
     assert.equal(G.state.over, true);
     assert.equal(G.state.winner, 0);
     assert.equal(calls.finish.winner, 0);
-    assert.match(calls.finish.why, /whole board/i);
+    assert.equal(calls.finish.why.k, "why.chain.board");
 });
 
 test("no win before the second player has moved", async () => {
@@ -92,7 +92,7 @@ test("chain-win rule ends the game at the configured length", async () => {
     const { G, calls } = fresh({ n: 3, chainRule: true, chainLen: 2 });
     for (const i of TWO_WAVES) await G.play(i);   // 2-chain
     assert.equal(G.state.over, true);
-    assert.match(calls.finish.why, /chain reaction/i);
+    assert.equal(calls.finish.why.k, "why.chain.chain");
 });
 
 test("replay produces the identical state as animated play", async () => {

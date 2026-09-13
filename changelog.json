@@ -5,9 +5,27 @@
       "date": "2026-09-13",
       "entries": [
         {
+          "type": "feature",
+          "text": "The site now speaks English, German, Spanish, French, Japanese and Arabic: it follows your browser's language the first time, and \"Look & Language\" in the settings lets you pick one. Every screen, every game and every lesson is translated; the games keep their names where they always had them.",
+          "refs": [
+            "#47",
+            "#50"
+          ]
+        },
+        {
+          "type": "improvement",
+          "technical": true,
+          "text": "On a phone, the settings modal puts every label above its dropdown, the two buttons of a title-screen row share it by what their words need, and a lesson's difficulty dots sit under its title, so no language wraps a label onto a second line.",
+          "refs": [
+            "#47"
+          ]
+        },
+        {
           "type": "fix",
           "text": "\"Play from here\" in a replay now continues the game against the bot on this device, without opening an online room: no more \"Waiting for your friend\" over the board, and leaving takes you back to your replays instead of into a room. A room that plays its bot alone no longer shows that banner either.",
-          "refs": ["#52"]
+          "refs": [
+            "#52"
+          ]
         },
         {
           "type": "internal",

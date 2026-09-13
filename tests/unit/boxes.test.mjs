@@ -21,7 +21,7 @@ test("registry: 2 to 10 boxes per side, default 5, the shared board size row and
     assert.equal(def.size.min, 2); assert.equal(def.size.max, 10); assert.equal(def.size.default, 5);
     assert.equal(JSON.stringify(def.size.presets), "[3,4,5,6,8]", "the sizes its dropdown offers");
     assert.equal(def.sizeLabel, undefined, "no label of its own any more: every game says Board size (2026-09-11)");
-    assert.equal(def.title, "Dots and Boxes");
+    assert.equal(def.title, "game.boxes.title"); assert.equal(w.eval("Games").title("boxes"), "Dots and Boxes");
     assert.equal(JSON.stringify(def.players), '{"min":2,"max":4}');
     assert.equal(JSON.stringify(def.settings), "[]", "no rows of its own: the board size is the only setting");
     assert.equal(JSON.stringify(def.describeRules({ n: 5 })), '["25 boxes"]');
@@ -99,12 +99,12 @@ test("the game runs until the last line: most boxes wins, equal boxes is a draw"
     assert.equal(G.state.history.length, 12);
     assert.equal(G.state.scores[0] + G.state.scores[1], 4);
     if (G.state.winner < 0) {
-        assert.equal(calls.finish.why, "Tied!");
+        assert.equal(calls.finish.why.k, "why.boxes.tied");
         assert.equal(d.getElementById("overlay-title").textContent, "Draw!");
         assert.equal(d.getElementById("turn-name").textContent, "Draw");
         assert.equal(d.getElementById("turn-hint").textContent, "same number of boxes");
     } else {
-        assert.match(calls.finish.why, /^\d+ boxe?s?!$/);
+        assert.equal(calls.finish.why.k, "why.boxes.boxes");
         assert.match(d.getElementById("overlay-title").textContent, /wins!$/);
     }
     assert.match(d.getElementById("overlay-sub").textContent, /\d+ of 4 boxes$/);
@@ -119,7 +119,7 @@ test("a clear winner: three boxes of four", () => {
     assert.equal(G.state.over, true);
     assert.equal(G.state.scores[0] + G.state.scores[1], 4);
     assert.ok(calls.finish, "the game finished");
-    if (G.state.winner >= 0) assert.equal(calls.finish.why, `${G.state.scores[G.state.winner]} boxes!`);
+    if (G.state.winner >= 0) assert.equal(JSON.stringify(calls.finish.why), JSON.stringify({ k: "why.boxes.boxes", count: G.state.scores[G.state.winner] }));
     w.close();
 });
 

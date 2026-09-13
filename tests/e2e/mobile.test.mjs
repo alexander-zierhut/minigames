@@ -18,10 +18,11 @@ test("title screen and join panel fit a 360x780 phone", async () => {
     const right = await M.ev("document.getElementById('btn-join').getBoundingClientRect().right");
     assert.ok(right <= 360, `join button inside the viewport (${right})`);
     await M.click("#btn-join-open");
-    // the foot (#43): Learn and Replays side by side, same size, one line, no icons
-    const foot = JSON.parse(await M.ev("JSON.stringify(['btn-learn', 'btn-replays'].map(id => { const e = document.getElementById(id); const r = e.getBoundingClientRect(); return { text: e.textContent, top: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }; }))"));
+    // the foot (#43): Learn and Replays side by side, same height, one line, no icons; a phone
+    // shares the row by what the two words need (#47), so neither word leaves its button
+    const foot = JSON.parse(await M.ev("JSON.stringify(['btn-learn', 'btn-replays'].map(id => { const e = document.getElementById(id); const r = e.getBoundingClientRect(); const range = document.createRange(); range.selectNodeContents(e); return { text: e.textContent, top: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height), textW: Math.round(range.getBoundingClientRect().width), inner: e.clientWidth }; }))"));
     assert.equal(foot[0].top, foot[1].top, "Learn and Replays share a row");
-    assert.equal(foot[0].w, foot[1].w, "same width");
+    assert.ok(foot[0].textW <= foot[0].inner && foot[1].textW <= foot[1].inner, "each word fits its button");
     assert.equal(foot[0].h, foot[1].h, "same height");
     assert.deepEqual([foot[0].text, foot[1].text, await M.text("btn-changelog")], ["Learn to play", "Replays", "Changelog"], "no icons in the foot");
 });

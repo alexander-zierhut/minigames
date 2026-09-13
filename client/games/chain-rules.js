@@ -111,11 +111,11 @@ const ChainRules = (() => {
     // after the chain settled: winner, or pass the turn (returns null)
     function conclude(state, player) {
         if (state.chainRule && state.chainNow >= state.chainLen) {
-            return { winner: player, why: `Chain reaction of ${state.chainNow} explosions!` };
+            return { winner: player, why: { k: "why.chain.chain", count: state.chainNow } };
         }
         const live = alive(state);
         if (live.filter(Boolean).length === 1 && state.movesBy.every((m, p) => m > 0 || (state.out && state.out[p]))) {
-            return { winner: live.indexOf(true), why: "Took over the whole board!" };
+            return { winner: live.indexOf(true), why: { k: "why.chain.board" } };
         }
         Rules.pass(state, live);
         return null;

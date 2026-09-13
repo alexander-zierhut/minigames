@@ -80,19 +80,19 @@ const FiveRules = (() => {
         const line = lineThrough(state, state.history[state.history.length - 1]);
         if (line.len >= state.winLen) {
             state.winLine = line.cells;
-            return { winner: player, why: `${state.winLen} in a row!` };
+            return { winner: player, why: { k: "why.five.row", n: state.winLen } };
         }
         if (state.yavalath && line.len === state.winLen - 1) {      // the losing line: out (3+ players) or lost (2)
             state.dead[player] = true;
             state.winLine = line.cells;
             const rest = Rules.remaining(state, alive(state));
-            if (rest.length <= 1) return { winner: rest.length ? rest[0] : -1, why: `${state.winLen - 1} in a row loses!` };
+            if (rest.length <= 1) return { winner: rest.length ? rest[0] : -1, why: { k: "why.five.lose", n: state.winLen - 1 } };
         }
-        if (state.history.length === state.cells.length) return { winner: -1, why: "The board is full." };
+        if (state.history.length === state.cells.length) return { winner: -1, why: { k: "why.five.full" } };
         const left = Rules.remaining(state, alive(state));
-        if (left.length === 1 && state.players > 1) return { winner: left[0], why: "Everyone else is out." };
+        if (left.length === 1 && state.players > 1) return { winner: left[0], why: { k: "why.five.out" } };
         // dead board (#18): nobody still in the game has a window left → draw, however many cells are empty
-        if (!left.some((p) => canWin(state, p))) return { winner: -1, why: "No line can be completed any more." };
+        if (!left.some((p) => canWin(state, p))) return { winner: -1, why: { k: "why.five.dead" } };
         Rules.pass(state, alive(state));
         return null;
     }

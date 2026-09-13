@@ -57,7 +57,7 @@ const Match = (() => {
     let deferred = [];                                 // { key, fn } to run once the engine is idle
     let running = false;                               // a game is on the screen (start … stop)
     let h = {
-        live: () => true, names: () => ["Player 1", "Player 2", "Player 3", "Player 4"], turnHint: () => "to move", hostsBot: () => false,
+        live: () => true, names: () => [1, 2, 3, 4].map((n) => I18n.t("common.player", { n })), turnHint: () => I18n.t("hud.toMove"), hostsBot: () => false,
         beforeMove: () => true, cellClass: () => "",
         onLocalMove: () => {}, onChanged: () => {}, onIdle: () => {}, onFlag: () => {}, onBotReact: () => {}, onFinish: () => {},
     };
@@ -100,8 +100,8 @@ const Match = (() => {
         get names() { return names(); },
         mayPlay: (p) => isLocal(p) && h.live(),          // bot seats move in onTurn
         turnHint: (p) => {
-            const hint = isBot(p) ? "thinking…" : h.turnHint(p);
-            return st.premove >= 0 && !isLocal(p) ? `${hint} · premove set` : hint;
+            const hint = isBot(p) ? I18n.t("hud.thinking") : h.turnHint(p);
+            return st.premove >= 0 && !isLocal(p) ? I18n.t("hud.premoveSet", { hint }) : hint;
         },
         /* One class per cell: the premove wins, then the replay analysis' best move (#43),
            then whatever the app wants there (Learn's highlight). They never overlap in
@@ -205,7 +205,7 @@ const Match = (() => {
     // a player is out of time: with two players the other one wins, with more the player is out
     function flagged(p) {
         if (Game.state.over) return;
-        whenIdle(() => { if (Game.eliminate(p, "Out of time!")) h.onChanged("out"); }, "out:" + p);
+        whenIdle(() => { if (Game.eliminate(p, { k: "why.time" })) h.onChanged("out"); }, "out:" + p);
     }
     // the clock runs only while the game may run and nothing animates
     function syncClock() {
@@ -236,7 +236,7 @@ const Match = (() => {
             let i;
             const t0 = performance.now();
             try { i = await bot.move(bot.tools.clone(Game.state)); }
-            catch (e) { console.error(`bot ${bot.def.id} failed`, e); Log.add(`${Opponent.NAME} crashed, picking a random move.`, "x"); }
+            catch (e) { console.error(`bot ${bot.def.id} failed`, e); Log.add(I18n.t("log.botCrashed", { name: Opponent.NAME }), "x"); }
             if (!stillOn()) return;
             if (!Game.isLegal(i, p)) i = bot.tools.pick(bot.tools.legalMoves(Game.state, p));
             st.botInfo = { id: bot.def.id, difficulty: bot.difficulty, budget: bot.tools.budget.nodes, move: i, ms: performance.now() - t0, nodes: bot.tools.lastDeadline ? bot.tools.lastDeadline.nodes() : null, ...(bot.tools.last || {}) };

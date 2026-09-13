@@ -46,6 +46,8 @@ Scripts, in order (each defines the global named in brackets):
 | --- | --- | --- |
 | `client/vendor/peerjs.min.js` | `Peer` | PeerJS 1.5.4, vendored (no CDN at runtime) |
 | `client/lib/util.js` | `Util` | `$`, `sleep`, `clamp`, `restartClass`, fail-safe storage `load/save/remove`, `fromTemplate`, `toast` |
+| `client/lib/i18n.js` | `I18n` | translations (#47): `t(key, params)`, plurals, message descriptors (`msg`), the static markup (`apply`), the browser's language (`detect`), the writing direction, the flags |
+| `client/lang/<code>.js` | (registers) | one dictionary per language (`en` is the source of every key; `de`, `es`, `fr`, `ja`, `ar` carry the same set) |
 | `client/lib/icons.js` | `Icons` | monochrome line icons in place of emoji: `[data-icon=name]` gets its SVG (an observer fills nodes added later), `Icons.set(el, name)`, `Icons.svg(name)`; reactions and the bot persona stay emoji |
 | `client/lib/bus.js` | `Bus` | event bus `on/off/emit` (see Events in `.claude/rules/games.md`) |
 | `client/lib/log.js` | `Log` | the HUD event log (`add`, `chat`, `clear`, 40 lines) |
@@ -74,7 +76,7 @@ Scripts, in order (each defines the global named in brackets):
 | `client/winchance.js` | `WinChance` | win-chance bars: a Bus observer of `game:new` / `game:position` (no engine or game knows it) |
 | `client/bots/<id>/bot.js` | (registers) | one folder per bot: `bot.js`, generated `benchmark.js`, `bot.test.mjs` |
 | `client/skins.js` | `Skins` | look per device: body class only |
-| `client/prefs.js` | `Prefs` | per-device preferences ("⚙ Settings & Feedback" top-left): the player's name (#35), look, win-chance graph in replays (#43), sound volume / categories, hide the room code, keep my IP private, mute spectators, developer panel, feedback link |
+| `client/prefs.js` | `Prefs` | per-device preferences ("⚙ Settings & Feedback" top-left): the player's name (#35), look and language (#47), win-chance graph in replays (#43), sound volume / categories, hide the room code, keep my IP private, mute spectators, developer panel, feedback link |
 | `client/settings.js` | `Settings` | settings form ↔ config; the game rows are **built from the game definitions**; picker cards, persistence, summary |
 | `client/opponent.js` | `Opponent` | the bot modal: one bot per game, called "Bot" (`Opponent.NAME`), its scores and the difficulty; choice per game |
 | `client/changelog.js` | `Changelog` | the title screen's changelog modal (`changelog.json`; technical entries behind a toggle) |
@@ -172,6 +174,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | Global | Public surface |
 | --- | --- |
 | `Util` | `$`, `sleep`, `clamp`, `restartClass`, `load/save/remove(storage, key[, value])`, `fromTemplate(id, k)`, `toast` |
+| `I18n` | `init(pref) → code` (a code or `"auto"`), `add(code, dict)`, `t(key, params)`, `msg(descriptor | string)`, `apply(root)`, `detect(list)`, `has(code)`, `flag(code) → svg`, `LANGS [{code, name, dir}]`, `DEFAULT`; getters `lang`, `dir`, `locale`; `dict(code)`, `codes()` |
 | `Bus` | `on(event, fn) → off`, `off`, `emit(event, data)` — events listed in "Events" in `.claude/rules/games.md` |
 | `Log` | `add(text, cls)`, `chat(...)`, `clear()`; 40 lines, `#log` only |
 | `Clock` | `setup(seconds, onFlag, players)`, `setActive`, `pause`, `resume`, `stop`, `snapshot`, `restore`, `isEnabled` |
@@ -179,10 +182,10 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Install` | `init()`, `offered` |
 | `Update` | `init({url, current, onTitle, reload})`, `check()`, `isNewer(running, latest)`, `screenChanged()`, `stop()`; getters `available, latest, current`; writable `AUTO_MS`, `reload`; `EVERY_MS`, `TIMEOUT_MS` |
 | `Rules` | `base(config)`, `pass(state, alive)`, `remaining`, `index`, `inside`, `emptyCells(state)`, `placeCell(state, i, p)`, `decided(state) → 1 / 0 / 0.5 / null`, `sigmoid(edge, k)`, `register(key, rules)`, `of(key)`, `keys()`, **`create(config[, rules])`, `step(rules, state, i) → result|null`, `eliminate(state, p, why)`, `apply(rules, state, history, outs) → applied`, `replay(record, ply) → state`** (`rules` = module or key) |
-| rules module | `create, ownerOf, isLegal, legalMoves, place, conclude, estimate` (+ `settle` when a placement has consequences, + optional `cellOf(state, move)` / `canPlay(state, i, player)` for games whose move is not a plain cell id, + game helpers: chain `tally/readyCells/…`, five `lineThrough/bestRow/canWin`, isolation `steps/mobility/territory/encode/decode`, boxes `edgesOf/boxesOf/sides/captures/safeMoves/isFreeCapture/chainFrom`) — pure |
+| rules module | `create, ownerOf, isLegal, legalMoves, place, conclude, estimate` (+ `settle` when a placement has consequences, + optional `cellOf(state, move)` / `canPlay(state, i, player)` for games whose move is not a plain cell id, + game helpers: chain `tally/readyCells/…`, five `lineThrough/bestRow/canWin`, isolation `steps/mobility/territory/encode/decode`, boxes `edgesOf/boxesOf/sides/captures/safeMoves/isFreeCapture/chainFrom`) — pure; a reason a game ends (`conclude`'s `why`, `eliminate`'s `why`) is a message descriptor `{ k: "why.…", …params }`, never a text |
 | view module | `build, renderCell, hud, summary, animateMove` + optional `renderBoard(state)` (board parts that are not cells) |
 | `BoardView` | `cells(board, count, onClick, decorate(el, i)) → elements` (marker and click included), `marker()`, `leading(values) → [bool per seat]` |
-| `Games` | `register(def) → engine` (validates: key, title, tagline, desc, a 9-character preview, `size`, rules, view; fills `settings`, `players`, `premove`, `howto`, `describeRules`, `describeOptions`, `minSize`, `size.presets` in), `get/has/keys`, `previewClass(ch)`, `previewTile(key, {small})` (the one builder of the 3×3 picker tile), `positionAt(record, ply)` |
+| `Games` | `register(def) → engine` (validates: key, title, tagline, desc, a 9-character preview, `size`, rules, view; fills `settings`, `players`, `premove`, `howto`, `describeRules`, `describeOptions`, `minSize`, `size.presets` in), `get/has/keys`, `title(key)` (translated), `previewClass(ch)`, `previewTile(key, {small})` (the one builder of the 3×3 picker tile), `positionAt(record, ply)` |
 | engine | `state, config, previewPly, newGame, play, replay, preview, finish, eliminate, abandon, render, isLegal, cellOf, hash, record` |
 | `Hud` | `build(players, title)`, `render(state, hooks, model)`, `overlay(name, winner, sub)` |
 | `WinChance` | Bus-driven; `display`, `estimator`, `info`, `REFINE_MS`, `SMOOTH`, `DECIDED` |
@@ -191,15 +194,15 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `BotPersona` | `attach({bot, seat, game, state, estimate, color, post?, delays?, cooldownMs?})`, `detach()`, `POOLS` |
 | `Skins` | `init({onChange})`, `set(key)`, `current` |
 | `Settings` | `init({onChange, onSelectGame})`, `read()`, `write(cfg)`, `selectGame(key, announce, resetSize?)`, `summary(cfg)`, `setMode(mode)`, `setPlayers(n)`, `setMinPlayers(n)`, `setBot(choice, announce?)`, `setLocked(on)`, `supports(key)`, `MIN_PLAYERS_HINT`, `BOT_SEAT`, `game`, `players`, `minPlayers`, `bot`, `locked`, `fields` |
-| `Prefs` | `init({onChange, context})`, `get() → {name, defaultName, volume, soundSet, sounds, winGraph, hideCode, hideCodeAsked, privateIp, muteSpectators, developer}`, `set(patch)`, `open/close`, `feedbackUrl()`, `cleanName(s)`, `fitName(s, measure)`, `seatNames(count)`, `showSection(key)`, `sectionSummary(key)`, `CATEGORIES`, `SECTIONS`, `DEFAULT_NAMES`, `NAME_MAX`, `isOpen`, `section` |
-| `Opponent` | `init({onDone(game, played)})`, `open(game, config, choice?)`, `current(game, config) → {id, difficulty, def}`, `summary(game, config, choice?)`, `NAME` ("Bot") |
+| `Prefs` | `init({onChange, context})`, `get() → {name, defaultName, language, volume, soundSet, sounds, winGraph, hideCode, hideCodeAsked, privateIp, muteSpectators, developer}`, `set(patch)`, `open/close`, `feedbackUrl()`, `cleanName(s)`, `fitName(s, measure)`, `seatNames(count)`, `showSection(key)`, `sectionSummary(key)`, `CATEGORIES`, `SECTIONS`, `DEFAULT_NAMES`, `NAME_MAX`, `isOpen`, `section`, writable `reload` (the language switch) |
+| `Opponent` | `init({onDone(game, played)})`, `open(game, config, choice?)`, `current(game, config) → {id, difficulty, def}`, `summary(game, config, choice?)`, `NAME` (getter, "Bot" in the chosen language) |
 | `Reactions` | `init({onSend, color})`, `receive(emoji, color)`, `place()`, `durationFor(recent)` |
 | `Chat` | `init(...)`, `send`, `receive(msg)`, `enable(on)` (see chat section) |
 | `Sound` | `Bus`-driven; `play(cue)` for tests, unlock on first gesture |
 | `Changelog` | `init()`, `open/close`, `render(doc[, all])`, `refUrl(ref)`, `technical(entry)`, `showTechnical`, `SHOW_DAYS` |
 | `Preload` | `textures()` |
 | `Learn` | `init({show, exit})`, `open()`, `openGame(key)`, `startTutorial(key)`, `startScenario(key, id)`, `restart()`, `exit()`, `howto(key) → {rules, tutorial, scenarios}`, `scenarios(game, list)` (the generated files register here), `games()`, `configFor(key, cfg)`, `names(base)`, `beforeMove(i)` / `cellClass(i)` / `onLocalMove(i)` (Match handlers), `openHowto(key)` / `closeHowto()`, `isSolved(game, id)`, `markSolved(game, id)`, `tutorialDone(game)`, `fold(on)` (#43), `tierProgress(game, tier)`, `tierLocked(game, tier)`, `tierOpen(game, tier)` / `toggleTier(game, tier)` (the folded tier cards), `nextScenario(game, id)`, `canAdvance()`, `again()`, `againText()`, `dots(difficulty)`; getters `active` (`null` \| `{kind, game, …}`), `page`, `folded`; `STEP_MS`, `MISS`, `TIERS`, `KINDS`, `UNLOCK` |
-| game definition | `key, title, tagline, desc, preview` (9 chars, see `Games.previewClass`), `size: {min, max, default, presets?}`, `players?`, `premove?`, `minSize?(cfg)`, `settings?: [{key, label (may be a function of the config), type: "select" | "bool" | "preset", def, min?, max?, options?, presets?, off?, startOff?, suffix?, customLabel?, flag?}]`, `describeRules?(cfg)`, `describeOptions?(cfg)`, `howto?`, `rules`, `view` |
+| game definition | `key, title, tagline, desc` (keys of the language files), `preview` (9 chars, see `Games.previewClass`), `size: {min, max, default, presets?}`, `players?`, `premove?`, `minSize?(cfg)`, `settings?: [{key, label (a key, or a function of the config returning a text), type: "select" | "bool" | "preset", def, min?, max?, options? [[value, key]], presets?, off? (true), startOff?, unit? (a plural key), customLabel? (a key), flag?}]`, `describeRules?(cfg)`, `describeOptions?(cfg)` (return texts), `howto?` (keys), `rules`, `view` |
 | game definition (Learn) | `howto: { rules: [], tutorial: [{text, config?, moves?, expect?, highlight?}], scenarios: [{id, title, text, config, history, toMove, best, tags?, tier, kind, difficulty, level, goal?}] }` (#41, #44) |
 | `Session` | `save(data)`, `load()`, `clear()` (shape incl. `codeHidden`, `watch`, `spec`) |
 | `Replays` | `FORMAT`, `VERSION`, `MIGRATIONS`, `EXT`, `migrate(doc)`, `validate(doc) → {ok, error}`, `parse(text) → {ok, doc, error}`, `fromRecord(record, names, mode, opts)`, `idFor`, `fileName`, `when(iso)`, `dayOf(iso)`, `summary(doc, id)`, `filter(items, {game, kind, search, from, to})`, `store.{save, list({game}), get, remove, clear, persistent, analysis.{get, put, remove, clear}}` (async, IndexedDB with a memory fallback), `playback({ply, total, seek, ms, setTimer, clearTimer}) → {start, stop, toggle, playing}`, `STEP_MS` |
@@ -273,6 +276,11 @@ and `roster` are the ones that never get relayed (host to all, or guest to host 
     scroll a room lobby; the local lobby still fits 360×780 and the game screen never scrolls.
   - **Nothing above the game definition knows a game by name.** A picker for eight games is
     planned in `.claude/rules/games.md` ("Beyond six games").
+  - **Every text is a key (#47).** No user-facing string literal in the client: texts live
+    in `client/lang/en.js` and the other language files, the markup carries `data-i18n`,
+    a game's rules answer with descriptors. `tests/unit/i18n.test.mjs` enforces all of it
+    on every deploy, and `tests/e2e/i18n.test.mjs` proves that no label wraps or overflows
+    in any language on a phone and a desktop. A translation that is too long fails there.
 - Prefers several small JS files over one big one; no framework.
 - Friends only (up to four in a room, plus spectators) — no matchmaking, no accounts, no
   own server.

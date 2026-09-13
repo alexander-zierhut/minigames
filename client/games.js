@@ -47,6 +47,8 @@ const Games = (() => {
     const has = (key) => !!defs[key];
     const get = (key) => defs[has(key) ? key : order[0]];
     const keys = () => order.slice();
+    // a definition's texts are keys (#47): the title in the chosen language
+    const title = (key) => I18n.t(get(key).title);
 
     /* The classes of one cell of a game's 3×3 picker preview (`def.preview`, nine
        characters): "." empty, a digit = that player's piece, "#" a hole (Isolation),
@@ -74,5 +76,5 @@ const Games = (() => {
         return el;
     }
 
-    return { register, has, get, keys, previewClass, previewTile, positionAt: Rules.replay };
+    return { register, has, get, keys, title, previewClass, previewTile, positionAt: Rules.replay };
 })();

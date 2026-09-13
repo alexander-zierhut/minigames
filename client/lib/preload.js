@@ -29,7 +29,7 @@ const Preload = (() => {
         const showTimer = setTimeout(() => { $("loader").hidden = false; }, 120);   // no flash when cached
         const update = () => {
             $("loader-fill").style.width = Math.round(done / list.length * 100) + "%";
-            $("loader-text").textContent = `Loading textures… ${done}/${list.length}`;
+            $("loader-text").textContent = I18n.t("app.loadingCount", { done, total: list.length });
         };
         update();
         const one = (url) => new Promise((resolve) => {

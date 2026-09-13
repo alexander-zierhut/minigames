@@ -27,8 +27,9 @@
 
 const Settings = (() => {
     const { $, clamp } = Util;
+    const { t } = I18n;
     const KEY = "chainreact.settings";
-    const MIN_PLAYERS_HINT = "Someone would lose their seat. They have to leave the room first.";
+    const MIN_PLAYERS_HINT = () => t("settings.minPlayers");
     let fields = [];             // every game field: { key, el, type, min, max, def, game }
     let game = null;             // selected game key
     let players = 2;             // seats in the room / on this device (the lobby's players control)
@@ -70,16 +71,17 @@ const Settings = (() => {
         const el = document.createElement("select");
         el.id = idFor(s.key);
         el.autocomplete = "off";
-        if (s.type === "select") for (const [value, label] of s.options) el.appendChild(option(value, label, value === s.def));
-        else if (s.type === "bool") { el.appendChild(option("off", "Off", !s.def)); el.appendChild(option("on", "On", !!s.def)); }
+        if (s.type === "select") for (const [value, label] of s.options) el.appendChild(option(value, t(label), value === s.def));
+        else if (s.type === "bool") { el.appendChild(option("off", t("common.off"), !s.def)); el.appendChild(option("on", t("common.on"), !!s.def)); }
         else {                                              // "preset": Off?, the presets, Custom…
-            if (s.off) el.appendChild(option("off", s.off, !!s.startOff));        // `startOff`: the rule is off until it is picked
+            if (s.off) el.appendChild(option("off", t("common.off"), !!s.startOff));   // `startOff`: the rule is off until it is picked
             for (const v of s.presets || []) el.appendChild(option(v, presetText(s, v), !s.startOff && v === s.def));
-            el.appendChild(option("custom", "Custom…"));
+            el.appendChild(option("custom", t("common.custom")));
         }
         return el;
     }
-    const presetText = (s, v) => `${v}${s.suffix || ""}`;
+    // the option text of a preset value: the number alone, or through the setting's `unit` (a plural key)
+    const presetText = (s, v) => (s.unit ? t(s.unit, { count: v }) : String(v));
     // the number that "Custom…" reveals, as its own row right under the setting
     function customRow(s) {
         const label = document.createElement("label");
@@ -88,7 +90,7 @@ const Settings = (() => {
         label.dataset.setting = s.key;
         label.hidden = true;
         const name = document.createElement("span");
-        name.textContent = s.customLabel || `Custom (${s.min}–${s.max})`;
+        name.textContent = s.customLabel ? t(s.customLabel) : t("settings.customRange", { min: s.min, max: s.max });
         const el = document.createElement("input");
         el.type = "number"; el.id = idFor(s.key) + "-custom"; el.autocomplete = "off";
         el.min = String(s.min); el.max = String(s.max); el.step = "1"; el.value = String(s.def || s.min);
@@ -102,7 +104,7 @@ const Settings = (() => {
         label.dataset.setting = s.key;
         const name = document.createElement("span");
         name.className = "row-label";
-        name.textContent = typeof s.label === "function" ? s.label(read()) : s.label;
+        name.textContent = typeof s.label === "function" ? s.label(read()) : t(s.label);
         label.append(name, presetSelect(s));
         fields.push({ key: s.key, el: idFor(s.key), type: s.type, min: s.min, max: s.max, def: s.def,
             options: s.options, presets: s.presets, off: s.off, flag: s.flag, game: gameKey });
@@ -143,7 +145,7 @@ const Settings = (() => {
     function read() {
         const d = def();
         const lim = sizeLimits();
-        const timerSel = $("set-timer").value;
+        const timerSel = $("set-timer").value || "0";
         const timer = timerSel === "custom" ? Math.round(parseFloat($("set-timer-custom").value || "3") * 60) : parseInt(timerSel, 10);
         return {
             game, players: clamp(players, floor(), maxPlayers),
@@ -222,13 +224,22 @@ const Settings = (() => {
         const want = clamp((reset ? 0 : sizeValue()) || sizeFor[game] || d.size.default, lim.min, lim.max);
         el.innerHTML = "";
         for (const v of (d.size.presets || []).filter((v) => v >= lim.min && v <= lim.max)) el.appendChild(option(v, `${v} × ${v}`, v === want));
-        el.appendChild(option("custom", "Custom…"));
+        el.appendChild(option("custom", t("common.custom")));
         const known = !chosenCustom && [...el.options].some((o) => o.value === String(want));
         el.value = known ? String(want) : "custom";
         custom.min = String(lim.min); custom.max = String(lim.max); custom.value = String(want);
         $("size-hint").textContent = `(${lim.min}–${lim.max})`;
-        $("size-label").textContent = "Board size";
+        $("size-label").textContent = t("settings.size");
         syncCustomRows();
+    }
+    // the timer dropdown: Off, a few minute values and Custom… (a plural key names the unit)
+    const TIMER_PRESETS = [60, 180, 300, 600];
+    function fillTimer() {
+        const el = $("set-timer");
+        el.innerHTML = "";
+        el.appendChild(option("0", t("common.off"), true));
+        for (const s of TIMER_PRESETS) el.appendChild(option(s, t("settings.minutes", { count: s / 60 })));
+        el.appendChild(option("custom", t("common.custom")));
     }
 
     // clamp typed numbers once a field is left (typing "1" on the way to "12" must not snap)
@@ -260,7 +271,7 @@ const Settings = (() => {
             const ok = supports(c.dataset.game);
             c.classList.toggle("unsupported", !ok);
             c.disabled = !ok || locked;
-            c.title = ok ? "" : `Not for ${players} players`;
+            c.title = ok ? "" : t("settings.notFor", { count: players });
         });
         document.querySelectorAll("#settings-modal [data-setting]").forEach((r) => { r.hidden = !shown.includes(r.dataset.setting); });
         fillSize(resetSize || game !== before);          // another game: its own sizes, its own remembered one
@@ -282,7 +293,7 @@ const Settings = (() => {
                 if (typeof s.label !== "function") continue;
                 const el = $("row-" + s.key.toLowerCase());
                 const name = el && el.querySelector(".row-label");
-                if (name) name.textContent = s.label(cfg);
+                if (name) name.textContent = s.label(cfg);        // a label that names itself from the config (five)
             }
         }
     }
@@ -299,16 +310,16 @@ const Settings = (() => {
     function summary(cfg = read()) {
         const d = Games.get(cfg.game);
         const parts = [`${cfg.n} × ${cfg.n}`];
-        if (cfg.players > 2) parts.push(`${cfg.players} players`);
+        if (cfg.players > 2) parts.push(t("summary.players", { count: cfg.players }));
         parts.push(...d.describeRules(cfg));
-        parts.push(cfg.timer > 0 ? `${Math.round(cfg.timer / 60 * 10) / 10} min timer` : "no timer");
+        parts.push(cfg.timer > 0 ? t("summary.timer", { min: Math.round(cfg.timer / 60 * 10) / 10 }) : t("summary.noTimer"));
         parts.push(...d.describeOptions(cfg));
         return parts.join(" · ");
     }
     function renderSummary() { $("settings-summary").textContent = summary(); }
 
     /* ---------- players (the lobby's segmented control, #28) ---------- */
-    const playersText = (p) => (p.min === p.max ? `${p.min} players` : `${p.min} to ${p.max} players`);
+    const playersText = (p) => (p.min === p.max ? t("settings.playersExact", { count: p.min }) : t("settings.playersRange", { min: p.min, max: p.max }));
     // the smallest count this room may be set to: never fewer seats than people sitting in them (#34)
     const floor = () => clamp(minPlayers, 2, maxPlayers);
     function renderPlayers() {
@@ -317,7 +328,7 @@ const Settings = (() => {
             b.classList.toggle("selected", v === players);
             const kicks = v < floor();
             b.disabled = locked || kicks;
-            b.title = kicks && !locked ? MIN_PLAYERS_HINT : "";
+            b.title = kicks && !locked ? MIN_PLAYERS_HINT() : "";
         });
     }
     function setPlayers(n) {
@@ -344,8 +355,8 @@ const Settings = (() => {
             card.dataset.game = key;
             card.innerHTML = `<span class="game-name"></span><span class="game-desc"></span><span class="game-players"></span>`;
             card.prepend(Games.previewTile(key));
-            card.querySelector(".game-name").textContent = d.title;
-            card.querySelector(".game-desc").textContent = d.desc;
+            card.querySelector(".game-name").textContent = t(d.title);
+            card.querySelector(".game-desc").textContent = t(d.desc);
             card.querySelector(".game-players").textContent = playersText(d.players);
             card.addEventListener("click", () => { selectGame(key); onSelectGame(key); });
             picker.appendChild(card);
@@ -401,6 +412,7 @@ const Settings = (() => {
         onSelectGame = handlers.onSelectGame || onSelectGame;
         renderPicker();
         buildRows();
+        fillTimer();
         $("btn-settings").addEventListener("click", open);
         $("btn-settings-done").addEventListener("click", close);
         $("settings-modal").addEventListener("click", (e) => { if (e.target === $("settings-modal")) close(); });
@@ -422,5 +434,5 @@ const Settings = (() => {
         selectGame(game, false);
     }
 
-    return { init, read, write, selectGame, setPlayers, setMinPlayers, setBot, summary, setMode, setLocked, supports, MIN_PLAYERS_HINT, BOT_SEAT, get bot() { return bot ? { ...bot } : null; }, get locked() { return locked; }, get minPlayers() { return minPlayers; }, get game() { return game; }, get players() { return players; }, get fields() { return fields.map((f) => f.key); } };
+    return { init, read, write, selectGame, setPlayers, setMinPlayers, setBot, summary, setMode, setLocked, supports, get MIN_PLAYERS_HINT() { return MIN_PLAYERS_HINT(); }, BOT_SEAT, get bot() { return bot ? { ...bot } : null; }, get locked() { return locked; }, get minPlayers() { return minPlayers; }, get game() { return game; }, get players() { return players; }, get fields() { return fields.map((f) => f.key); } };
 })();

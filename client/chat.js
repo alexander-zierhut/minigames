@@ -11,7 +11,7 @@ const Chat = (() => {
     const MAX_LEN = 200, SEND_EVERY = 300, ACCEPT_EVERY = 300;
     const ROWS = [["chat-input", "chat-send"]];
     let lastMine = 0, lastTheirs = 0;
-    let handlers = { onSend: () => false, name: (seat) => `Player ${seat + 1}`, me: () => -1, online: () => false };
+    let handlers = { onSend: () => false, name: (seat) => I18n.t("common.player", { n: seat + 1 }), me: () => -1, online: () => false };
     let count = 0;                                          // lines shown (tests)
 
     const clean = (text) => String(text == null ? "" : text).replace(/\s+/g, " ").trim().slice(0, MAX_LEN);

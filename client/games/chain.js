@@ -7,6 +7,7 @@
 
 const ChainView = (() => {
     const { sleep, restartClass } = Util;
+    const { t } = I18n;
     let speed = 750;        // ms, from the animation-speed setting
 
     /* ---------- board ---------- */
@@ -35,26 +36,26 @@ const ChainView = (() => {
 
     /* ---------- HUD (data only; the framework renders it) ---------- */
     function hud(state) {
-        const t = ChainRules.tally(state);
+        const tally = ChainRules.tally(state);
         const total = state.cells.length;
-        const leading = BoardView.leading(t.map((x) => x.cells));
+        const leading = BoardView.leading(tally.map((x) => x.cells));
         return {
-            round: `Round ${state.round}`,
-            players: t.map((x, k) => ({
-                stats: [["Cells", x.cells], ["Pieces", x.pieces]],
+            round: t("hud.round", { n: state.round }),
+            players: tally.map((x, k) => ({
+                stats: [[t("game.chain.hud.cells"), x.cells], [t("game.chain.hud.pieces"), x.pieces]],
                 bar: x.cells / total,
                 barText: Math.round(x.cells / total * 100) + "%",
                 leading: leading[k],
             })),
-            box: { stats: [["Current chain", state.chainNow], ["Longest chain", state.chainBest], ["Explosions total", state.explosions]], hot: state.busy && state.chainNow >= 5 },
-            line2: [["chain", state.chainNow], ["best", state.chainBest]],
+            box: { stats: [[t("game.chain.hud.chainNow"), state.chainNow], [t("game.chain.hud.chainBest"), state.chainBest], [t("game.chain.hud.explosions"), state.explosions]], hot: state.busy && state.chainNow >= 5 },
+            line2: [[t("game.chain.hud.chain"), state.chainNow], [t("game.chain.hud.best"), state.chainBest]],
         };
     }
 
     function summary(state) {
-        const t = ChainRules.tally(state);
-        const cells = state.winner >= 0 ? t[state.winner].cells : 0;
-        return `Round ${state.round} · ${cells} of ${state.cells.length} cells · longest chain ${state.chainBest}`;
+        const tally = ChainRules.tally(state);
+        const cells = state.winner >= 0 ? tally[state.winner].cells : 0;
+        return t("game.chain.summary", { round: state.round, cells, total: state.cells.length, chain: state.chainBest });
     }
 
     /* ---------- animated chain reaction (owner-approved tuning, keep it "wuchtig") ----------
@@ -94,7 +95,7 @@ const ChainView = (() => {
             ctx.renderHud();
             await sleep(speed * 0.35);
         }
-        if (state.chainNow > 0) Log.add(`${ctx.names()[me]} set off a chain of ${state.chainNow}.`, "x");
+        if (state.chainNow > 0) Log.add(t("game.chain.log.chain", { name: ctx.names()[me], count: state.chainNow }), "x");
     }
 
     function cellCentre(ctx, i, size) {
@@ -155,66 +156,59 @@ const ChainView = (() => {
 
 const ChainGame = Games.register({
     key: "chain",
-    title: "Chain React",
-    tagline: "Fill a cell, it explodes into its neighbours. Take the whole board.",
-    desc: "Explosions & chain reactions",
+    title: "game.chain.title",
+    tagline: "game.chain.tagline",
+    desc: "game.chain.desc",
     preview: ".A.bcA.a.",                  // 3×3 picker preview: a full cyan cell about to burst, its neighbours (see Games.previewClass)
     size: { min: 3, max: 12, default: 6, presets: [4, 5, 6, 8, 10] },
     // rows of #settings-modal for this game (built by settings.js, read into config.<key>)
     settings: [
-        { key: "speed", label: "Animation speed", type: "select", def: 750, options: [[1100, "Slow"], [750, "Normal"], [350, "Fast"]] },
+        { key: "speed", label: "game.chain.set.speed", type: "select", def: 750, options: [[1100, "game.chain.speed.slow"], [750, "game.chain.speed.normal"], [350, "game.chain.speed.fast"]] },
         /* One dropdown for the optional chain win: Off, or how many explosions win outright.
            It writes both config keys (`chainRule` on/off, `chainLen` the number), so the rules
            and every replay keep the shape they always had. */
-        { key: "chainLen", flag: "chainRule", label: "Win on a long chain", type: "preset",
-          off: "Off", startOff: true, presets: [10, 15, 20, 30], suffix: " explosions", def: 15, min: 5, max: 99,
-          customLabel: "Custom explosions (5–99)" },
+        { key: "chainLen", flag: "chainRule", label: "game.chain.set.chainLen", type: "preset",
+          off: true, startOff: true, presets: [10, 15, 20, 30], unit: "game.chain.explosions", def: 15, min: 5, max: 99,
+          customLabel: "game.chain.set.chainLenCustom" },
     ],
     // Learn (#41): the rules in one sentence each and a guided tutorial on a 4×4 board.
     // The scenarios come from the proven puzzle set (client/learn/chain-scenarios.js).
     howto: {
-        rules: [
-            "Players take turns. On your turn you drop one piece into an empty cell or into a cell you already own.",
-            "A cell holds as many pieces as it has neighbours: two in a corner, three on an edge, four in the middle.",
-            "Reaching that number makes the cell burst: it hands one piece to each neighbour and empties itself.",
-            "Every cell a burst reaches turns your colour, pieces and all.",
-            "A burst that fills the next cell sets that one off too, and that is a chain reaction.",
-            "Own every cell on the board and you win.",
-            "Optional setting: a chain of N bursts in one move wins outright.",
+        rules: ["game.chain.rule.1", "game.chain.rule.2", "game.chain.rule.3", "game.chain.rule.4", "game.chain.rule.5", "game.chain.rule.6", "game.chain.rule.7"
         ],
         tutorial: [
             {
                 config: { n: 4, speed: 350 },
                 moves: [],
-                text: "Chain React is played on a grid of cells. Drop your first piece into the top left corner.",
+                text: "game.chain.tutorial.1",
                 expect: [0],
             },
             {
                 moves: [0],
-                text: "Both colours are on this device for the tutorial, so play the opponent's answer too: the far corner.",
+                text: "game.chain.tutorial.2",
                 expect: [15],
             },
             {
                 moves: [0, 15],
-                text: "A cell bursts once it holds as many pieces as it has neighbours. A corner has only two, so click your corner again to fill it up.",
+                text: "game.chain.tutorial.3",
                 expect: [0],
             },
             {
                 moves: [0, 15, 0],
-                text: "It burst: the corner emptied and pushed one piece into each neighbour, and both of those cells turned your colour. That is how you take cells from someone.",
+                text: "game.chain.tutorial.4",
             },
             {
                 moves: [0, 15, 0, 12, 1, 13, 2, 7, 2, 10, 5, 11, 5, 6, 5, 9, 0, 8],
-                text: "A few moves later. Edges burst at three pieces, cells in the middle at four, and a burst that fills the next cell sets it off as well. The highlighted edge cell is one piece short. Set it off.",
+                text: "game.chain.tutorial.5",
                 expect: [1],
             },
             {
                 moves: [0, 15, 0, 12, 1, 13, 2, 7, 2, 10, 5, 11, 5, 6, 5, 9, 0, 8, 1],
-                text: "One click, seven bursts, half the board changed colour. Long chains are how games swing, so think twice before you load a cell next to a full one.",
+                text: "game.chain.tutorial.6",
             },
         ],
     },
-    describeOptions: (cfg) => cfg.chainRule ? [`${cfg.chainLen}-chain wins`] : [],
+    describeOptions: (cfg) => cfg.chainRule ? [I18n.t("game.chain.sum.chain", { n: cfg.chainLen })] : [],
     rules: ChainRules,
     view: ChainView,
 });

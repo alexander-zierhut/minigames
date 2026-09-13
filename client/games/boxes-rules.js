@@ -137,8 +137,8 @@ const BoxesRules = (() => {
             const left = Rules.remaining(state);
             const best = left.reduce((m, p) => Math.max(m, state.scores[p]), -1);
             const top = left.filter((p) => state.scores[p] === best);
-            if (top.length === 1) return { winner: top[0], why: `${best} ${best === 1 ? "box" : "boxes"}!` };
-            return { winner: -1, why: "Tied!" };
+            if (top.length === 1) return { winner: top[0], why: { k: "why.boxes.boxes", count: best } };
+            return { winner: -1, why: { k: "why.boxes.tied" } };
         }
         if (state.again) return null;                                // closing a box gives another turn
         Rules.pass(state);

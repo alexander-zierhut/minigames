@@ -27,7 +27,7 @@ test("every sample file still imports, validates and plays to its recorded resul
         if (doc.result.over) {
             assert.equal(state.over, true, `${file} ends`);
             assert.equal(state.winner, doc.result.winner, `${file} ends the same way`);
-            assert.equal(state.finishWhy, doc.result.why, `${file}: same reason`);
+            assert.equal(w.eval("I18n").msg(state.finishWhy), w.eval("I18n").msg(doc.result.why), `${file}: same reason (an older file says it in English, the rules answer with a descriptor)`);
         }
     }
     w.close();
@@ -55,15 +55,15 @@ test("files that are not a replay of this version are refused with a reason", ()
         return res.error;
     };
     refused(read("bad-not-a-replay.json"));
-    assert.match(refused(read("bad-future-version.json")), /newer version/);
-    assert.match(refused(read("bad-illegal-move.json")), /rules/);
+    assert.match(refused(read("bad-future-version.json")), /replays\.err\.newer/);
+    assert.match(refused(read("bad-illegal-move.json")), /replays\.err\.rules/);
     refused("not json at all");
     // an old shape without a version (a "v0" file) is refused too, never guessed at
     const v0 = JSON.parse(read("v1-five.json"));
     delete v0.version;
     refused(JSON.stringify(v0));
     const unknownGame = { ...JSON.parse(read("v1-five.json")), game: "tetris" };
-    assert.match(refused(JSON.stringify(unknownGame)), /does not have/);
+    assert.match(refused(JSON.stringify(unknownGame)), /replays\.err\.noGame/);
     w.close();
 });
 

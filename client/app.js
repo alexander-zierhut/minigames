@@ -7,6 +7,7 @@
 
 (() => {
     const { $, toast } = Util;
+    const { t } = I18n;
     const SCREENS = ["menu", "lobby", "game", "replays", "learn", "learn-game"];
     let phase = "menu";          // one of SCREENS
     let replayDoc = null;        // the replay document on the board (#42), null = playing
@@ -58,7 +59,7 @@
             $("btn-restart").hidden = true;
             $("overlay-again").hidden = true;
             $("overlay-menu").hidden = false;
-            $("btn-menu").textContent = $("overlay-menu").textContent = "Back to replays";
+            $("btn-menu").textContent = $("overlay-menu").textContent = t("game.backReplays");
             return;
         }
         $("btn-restart").hidden = false;
@@ -70,23 +71,23 @@
             again.disabled = false;
             again.textContent = Learn.againText();
             $("overlay-menu").hidden = false;
-            $("overlay-menu").textContent = "Back to Learn";
+            $("overlay-menu").textContent = t("game.backLearn");
             return;
         }
         $("overlay-again").hidden = false;
-        $("overlay-menu").textContent = "Change game";
+        $("overlay-menu").textContent = t("game.changeGame");
         const spec = Match.spectator;
         $("btn-restart").disabled = spec;
-        $("btn-restart").textContent = spec ? "Spectating" : "Rematch";
-        $("btn-menu").textContent = spec ? "Leave room" : "Back to room";
+        $("btn-restart").textContent = t(spec ? "overlay.spectating" : "overlay.rematch");
+        $("btn-menu").textContent = t(spec ? "game.leaveRoom" : "game.backRoom");
         // a replay played on (#43): there is no room to go back to, the replays are where it came from
-        if (continued) $("btn-menu").textContent = $("overlay-menu").textContent = "Back to replays";
+        if (continued) $("btn-menu").textContent = $("overlay-menu").textContent = t("game.backReplays");
         $("overlay-menu").hidden = spec;
         const again = $("overlay-again");
-        if (spec) { again.textContent = "Spectating"; again.disabled = true; }
+        if (spec) { again.textContent = t("overlay.spectating"); again.disabled = true; }
         else if (Room.online && Room.votedMyself) { again.textContent = Room.rematchWaitText(); again.disabled = true; }
-        else if (Room.online && Room.votes.size > 0) { again.textContent = "Accept rematch"; again.disabled = false; $("result-fab").textContent = "Rematch requested!"; }
-        else { again.textContent = "Rematch"; again.disabled = false; }
+        else if (Room.online && Room.votes.size > 0) { again.textContent = t("overlay.accept"); again.disabled = false; $("result-fab").textContent = t("replay.requested"); }
+        else { again.textContent = t("overlay.rematch"); again.disabled = false; }
     }
 
     /* ================= replays on the board (#42, #43) ================= */
@@ -105,7 +106,7 @@
         replayDoc = doc;
         continued = false;
         Match.watch(doc);
-        $("result-fab").textContent = "Show result";
+        $("result-fab").textContent = t("replay.showResult");
         renderRematch();
         show("game");
         Review.show(0, false);
@@ -135,9 +136,9 @@
         const rec = { game: doc.game, config: doc.config, history: doc.history, outs: doc.outs || [] };
         const at = Math.max(0, Math.min(doc.history.length, ply));
         const pos = Rules.replay(rec, at);
-        if (pos.over) { toast("That game is already decided."); return; }
+        if (pos.over) { toast(t("toast.decided")); return; }
         const choice = Opponent.current(doc.game, doc.config);
-        if (!choice) { toast("No bot plays this game yet."); return; }
+        if (!choice) { toast(t("toast.noBot")); return; }
         const seat = pos.current;
         const prefix = { history: doc.history.slice(0, at), outs: rec.outs.filter((o) => o.at <= at) };
         replayDoc = null;
@@ -148,7 +149,7 @@
         Match.gameNo = doc.config.startPlayer || 0;       // …so the next game number starts the recorded starter
         continued = true;
         startGame({ ...Settings.read(), bot: { id: choice.id, difficulty: choice.difficulty, seat: seat === 0 ? 1 : 0 } }, Match.gameNo + 1, prefix);
-        Log.add("Playing on from the replay.", "x");
+        Log.add(t("log.playingOn"), "x");
     }
 
     /* ================= flow ================= */
@@ -184,7 +185,7 @@
         Room.newGame();
         Match.start(cfg, gameNo);
         if (prefix && prefix.history && prefix.history.length) Match.engine.replay(prefix.history.slice(), (prefix.outs || []).slice());
-        $("result-fab").textContent = "Show result";
+        $("result-fab").textContent = t("replay.showResult");
         $("result-fab").hidden = true;
         renderRematch();
         show("game");
@@ -230,7 +231,7 @@
     });
     $("btn-join").addEventListener("click", () => {
         const code = Net.normalizeCode($("join-code").value);
-        if (code.length < 4) { toast("Enter the 5-letter room code"); $("join-code").focus(); return; }
+        if (code.length < 4) { toast(t("menu.codeShort")); $("join-code").focus(); return; }
         continued = false;
         Room.enter(code, { preferHost: false });
     });
@@ -273,6 +274,7 @@
     window.addEventListener("online", () => { if (Room.online) Net.retryNow(); });
 
     /* ================= boot ================= */
+    I18n.init(Prefs.get().language);                  // the language (#47) before anything renders a text
     Preload.textures();
     Install.init();
     Update.init({ onTitle: () => phase === "menu" });   // poll version.json on the title screen (#40)
@@ -326,13 +328,13 @@
     Chat.init({
         online: () => Room.online,
         me: () => Match.me,
-        name: (seat) => (seat >= 0 ? Match.names[seat] || `Player ${seat + 1}` : "Spectator"),
+        name: (seat) => (seat >= 0 ? Match.names[seat] || t("common.player", { n: seat + 1 }) : t("common.spectator")),
         onSend: Room.say,
     });
     Match.init({
         live: Room.live,
         names: seatNames,
-        turnHint: (p) => (Room.online ? Room.turnHint(p) : "to move"),
+        turnHint: (p) => (Room.online ? Room.turnHint(p) : t("hud.toMove")),
         hostsBot: () => Room.isHost,                 // the room's bot seat runs on the transport host (#36)
         onBotReact: (seat, e) => { if (Room.online) Room.react(e, seat); },
         beforeMove: (i) => Learn.beforeMove(i),          // a tutorial takes only the cell it asks for (#41)
@@ -375,7 +377,7 @@
             Match.engine.replay(session.history || [], session.outs || []);
             Clock.restore(session.clocks);
             Clock.pause();
-            Log.add(session.watch ? "Rejoining as a spectator…" : "Rejoining room " + Room.codeText() + "…", "x");
+            Log.add(session.watch ? t("log.rejoinSpectator") : t("log.rejoin", { code: Room.codeText() }), "x");
         }
         Room.rev = session.rev || 0;
     } else if (watchFromUrl) {

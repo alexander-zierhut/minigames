@@ -60,7 +60,7 @@ const Engine = (() => {
             Hud.build(state.players, def.title);
             Log.clear();
             Util.$("overlay").hidden = true;
-            Log.add(`New game. ${hooks.names[state.current]} starts.`, "p" + state.current);
+            Log.add(I18n.t("log.newGame", { name: hooks.names[state.current] }), "p" + state.current);
             emit("game:new", { config: cfg, state });
             render();
             settled();
@@ -106,7 +106,7 @@ const Engine = (() => {
             if (hooks.onTurn) hooks.onTurn(state.current);
         }
 
-        const logOut = (p, why) => { if (state.players > 2) Log.add(`${hooks.names[p]} is out. ${why}`, "p" + p); };
+        const logOut = (p, why) => { if (state.players > 2) Log.add(I18n.t("log.out", { name: hooks.names[p], why: I18n.msg(why) }), "p" + p); };
 
         function finish(winner, why) {
             state.over = true;
@@ -115,9 +115,10 @@ const Engine = (() => {
             state.finishWhy = why;
             const names = hooks.names;
             const won = winner >= 0;
-            Log.add(won ? `${names[winner]} wins! ${why}` : `Draw. ${why}`, won ? "p" + winner : "x");
+            const reason = I18n.msg(why);                  // `why` is a descriptor from the rules (#47)
+            Log.add(won ? I18n.t("log.wins", { name: names[winner], why: reason }) : I18n.t("log.draw", { why: reason }), won ? "p" + winner : "x");
             render();
-            Hud.overlay(won ? names[winner] : null, winner, `${why}\n${view.summary(state)}`);
+            Hud.overlay(won ? names[winner] : null, winner, `${reason}\n${view.summary(state)}`);
             settled();
             emit("game:finish", { winner, why, state });
             if (hooks.onBusy) hooks.onBusy(false);
@@ -207,7 +208,7 @@ const Engine = (() => {
             view.renderCell(el, s, i);
         }
         // in a preview the turn hint is neutral: "your move" would be a lie about a past position
-        const previewHooks = () => ({ names: hooks.names, turnHint: () => "to move" });
+        const previewHooks = () => ({ names: hooks.names, turnHint: () => I18n.t("hud.toMove") });
         const renderHud = () => Hud.render(position(), shown ? previewHooks() : hooks, view.hud(position()));
 
         return {

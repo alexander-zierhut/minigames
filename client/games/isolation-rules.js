@@ -114,13 +114,13 @@ const IsolationRules = (() => {
         for (let guard = 0; guard <= state.players; guard++) {
             const left = Rules.remaining(state, alive(state));
             if (left.length <= 1) {
-                return { winner: left.length ? left[0] : -1, why: state.players > 2 ? "Everyone else is trapped." : "Trapped!" };
+                return { winner: left.length ? left[0] : -1, why: { k: state.players > 2 ? "why.isolation.all" : "why.isolation.trapped" } };
             }
             Rules.pass(state, alive(state));
             if (mobility(state, state.current) > 0) return null;
             state.trapped[state.current] = true;
         }
-        return { winner: -1, why: "Nobody can move." };                 // unreachable, a safety net
+        return { winner: -1, why: { k: "why.isolation.nobody" } };      // unreachable, a safety net
     }
 
     /* Fallback win estimate (probability that player 0 wins) until a bot offers evaluate():

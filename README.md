@@ -9,6 +9,8 @@ you go again, most boxes wins). Live at https://minigames.alzlper.com/.
 
 Static site, no backend, no framework. Create a room once, share the link, then pick
 games and settings together in the room lobby; rematch or switch games without new links.
+The site speaks English, German, Spanish, French, Japanese and Arabic: it follows your
+browser's language the first time, and the settings let you pick one.
 
 **License:** the source is available to read, run locally and contribute to (see
 [LICENSE](LICENSE)); it is a game, not a library, so running a copy of it under another

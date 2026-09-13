@@ -8,6 +8,7 @@
 
 const Lobby = (() => {
     const { $ } = Util;
+    const { t } = I18n;
     const DONE_MS = 1400;                   // how long a copy confirmation shows
     let h = { names: () => [] };            // app.js: who sits in each seat
 
@@ -17,21 +18,21 @@ const Lobby = (() => {
         const nm = h.names();
         Settings.setMinPlayers(online ? Room.occupiedSeats() : 2);  // no count that takes a seat away (#34)
         const players = Settings.read().players;
-        $("lobby-kind").textContent = online ? "Online room" : bot ? "Against a bot" : "Local game";
-        $("lobby-code").textContent = online ? Room.codeText() : bot ? "You vs bot" : "Same device";
+        $("lobby-kind").textContent = t(online ? "lobby.kind.online" : bot ? "lobby.kind.bot" : "lobby.kind.local");
+        $("lobby-code").textContent = online ? Room.codeText() : t(bot ? "lobby.code.bot" : "lobby.code.local");
         $("lobby-code").classList.toggle("as-word", online && Room.watching);   // "Watching" is a word, not a code
         $("screen-lobby").classList.toggle("online", online);       // the code is a copy button in a room
-        $("lobby-code").title = online ? (Room.watching ? "Copy the link for spectators" : "Copy the invite link") : "";
+        $("lobby-code").title = online ? t(Room.watching ? "lobby.copySpectate" : "lobby.copyInvite") : "";
         // the Invite modal: a spectate-link viewer never sees the room code, so it gets no
         // eye and no share or copy row, only the spectate link to invite more viewers (#29)
         const watcher = Room.watching;
         const eye = $("btn-hide-code");
         eye.hidden = !online || watcher;
         Icons.set(eye.querySelector(".gear-icon"), Room.codeHidden ? "eye-off" : "eye");
-        $("hide-code-label").textContent = Room.codeHidden ? "Show the room code" : "Hide the room code";
+        $("hide-code-label").textContent = t(Room.codeHidden ? "invite.show" : "invite.hide");
         $("invite-code").textContent = online ? Room.codeText() : "";
         $("invite-code").hidden = !online || watcher;
-        $("invite-hint").textContent = watcher ? "Pass your own link on: whoever opens it watches too." : "Friends open the link, or type the code under Join room.";
+        $("invite-hint").textContent = t(watcher ? "invite.hintWatcher" : "invite.hint");
         const roomBot = online ? Settings.bot : null;               // the room plays a bot (#36)
         $("btn-opponent").hidden = !bot && !roomBot;
         if (bot || roomBot) $("opponent-summary").textContent = Opponent.summary(Settings.game, Settings.read(), roomBot);
@@ -59,9 +60,9 @@ const Lobby = (() => {
         for (let k = 0; k < players; k++) {
             const mine = Match.me === k;
             $(`lp-${k}`).querySelector(".lp-name").textContent = nm[k];
-            $(`lp-${k}`).querySelector(".lp-you").textContent = online && mine ? "(you)" : "";
+            $(`lp-${k}`).querySelector(".lp-you").textContent = online && mine ? t("lobby.you") : "";
             $(`lp-${k}`).classList.toggle("absent", online && !present[k]);
-            $(`lp-${k}-status`).textContent = !online ? "" : mine || k === botSeat ? "ready" : (present[k] ? "connected" : "not here yet");
+            $(`lp-${k}-status`).textContent = !online ? "" : t(mine || k === botSeat ? "lobby.status.ready" : present[k] ? "lobby.status.connected" : "lobby.status.absent");
         }
         // swap between playing and watching (#39): a spectate-link viewer never sits down.
         // Each control sits in the card it acts on: "Watch instead" on my own card, "Sit here"
@@ -77,21 +78,21 @@ const Lobby = (() => {
         place($("btn-watch"), canSwap && Match.me >= 0, Match.me);
         place($("btn-take-seat"), canSwap && Match.me < 0, firstFree);
         $("btn-take-seat").disabled = !free;
-        $("btn-take-seat").title = free ? "" : "Every seat is taken right now.";
+        $("btn-take-seat").title = free ? "" : t("lobby.seatTaken");
         // a two-seat room waiting for a friend may play a bot instead (#36)
         const mayAskBot = canSwap && Match.me >= 0 && players === 2 && Opponent.current(Settings.game, Settings.read());
         place($("btn-room-bot"), mayAskBot && !roomBot && !Room.allHere(), firstFree);
         place($("btn-room-bot-off"), mayAskBot && roomBot, botSeat);
         const watching = online ? Room.spectators : 0;
-        $("lobby-spectators").textContent = watching > 0 ? `${watching} spectator${watching > 1 ? "s" : ""} watching` : "";
+        $("lobby-spectators").textContent = watching > 0 ? t("lobby.spectators", { count: watching }) : "";
         const start = $("btn-start");
         if (!online) {
             start.disabled = bot && !Opponent.current(Settings.game, Settings.read());
-            start.textContent = "Start game";
+            start.textContent = t("lobby.start");
             $("lobby-status").textContent = "";
         } else if (Match.spectator) {
             start.disabled = true;
-            start.textContent = "Spectating";
+            start.textContent = t("lobby.spectating");
         } else if (Room.netTrouble()) {
             // a connection problem says so on the button in two words (the banner at the top
             // carries the whole sentence), never as a stray line under the seats
@@ -100,13 +101,13 @@ const Lobby = (() => {
         } else if (!Room.allHere()) {
             const missing = Room.missingSeats().length;
             start.disabled = true;
-            start.textContent = players === 2 ? "Waiting for your friend…" : `Waiting for ${missing} more player${missing === 1 ? "" : "s"}…`;
+            start.textContent = players === 2 ? t("lobby.waitingFriend") : t("lobby.waitingMore", { count: missing });
         } else {
             start.disabled = false;
-            start.textContent = Room.isHost ? "Start game" : "Start game (asks the host)";
+            start.textContent = t(Room.isHost ? "lobby.start" : "lobby.startAsk");
             $("lobby-status").textContent = "";       // everyone is back: drop the "X left the room." note
         }
-        $("btn-lobby-back").textContent = online ? "Leave room" : "Back";
+        $("btn-lobby-back").textContent = t(online ? "lobby.leave" : "lobby.back");
     }
 
     /* ---------- the Invite modal and its confirmations ----------
@@ -130,21 +131,21 @@ const Lobby = (() => {
     // true when the link landed on the clipboard (the share sheet and the fallback prompt say so themselves)
     async function shareLink(link, text) {
         if (navigator.share) {
-            try { await navigator.share({ title: "ALZlper's Minigames", text, url: link }); return false; } catch (e) { /* cancelled */ }
+            try { await navigator.share({ title: t("app.name"), text, url: link }); return false; } catch (e) { /* cancelled */ }
         }
         try { await navigator.clipboard.writeText(link); return true; }
-        catch (e) { prompt("Copy this link:", link); return false; }
+        catch (e) { prompt(t("invite.promptCopy"), link); return false; }
     }
     const shareFrom = async (btn, link, text) => { if (await shareLink(link, text)) flashDone(btn); };
     const closeInvite = () => { $("invite-modal").hidden = true; };
 
     function init(handlers) {
         h = { ...h, ...handlers };
-        $("btn-share").addEventListener("click", () => shareFrom($("btn-share"), Room.roomLink(), `Play ${Games.get(Settings.game).title} with me!`));
+        $("btn-share").addEventListener("click", () => shareFrom($("btn-share"), Room.roomLink(), t("invite.shareText", { game: Games.title(Settings.game) })));
         // the spectate link carries the room's own spectator code, never the room code (#29)
-        $("btn-share-spectate").addEventListener("click", () => shareFrom($("btn-share-spectate"), Room.spectateLink(), `Watch us play ${Games.get(Settings.game).title}!`));
+        $("btn-share-spectate").addEventListener("click", () => shareFrom($("btn-share-spectate"), Room.spectateLink(), t("invite.watchText", { game: Games.title(Settings.game) })));
         $("btn-copy-code").addEventListener("click", async () => {
-            if (await copyText(Net.code, "Room code:")) flashDone($("btn-copy-code"));
+            if (await copyText(Net.code, t("invite.promptCode"))) flashDone($("btn-copy-code"));
         });
         // the room code itself copies the invite link (a spectate-link viewer has no room
         // code and copies its own watch link); only the colour says it worked, so nothing moves
@@ -152,7 +153,7 @@ const Lobby = (() => {
             if (!Room.online) return;
             const watcher = Room.watching;
             const link = watcher ? Room.spectateLink() : Room.roomLink();
-            if (!(await copyText(link, watcher ? "Watch link:" : "Invite link:"))) return;
+            if (!(await copyText(link, t(watcher ? "invite.promptWatch" : "invite.promptLink")))) return;
             const el = $("lobby-code");
             el.classList.add("copied");
             clearTimeout(doneTimers.get(el));

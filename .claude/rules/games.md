@@ -356,6 +356,9 @@ busy, not my turn any more, not `mayPlay` or no longer legal, in which case it i
 It is deferred with `whenIdle(…, "premove")`, and cleared on a new game, `stop()`,
 `reset()`, a seat change and the end of a game. Nothing about it travels to the room.
 
+**A flag fall** is `engine.eliminate(p, { k: "why.time" })`: the reason is a descriptor like
+every reason from the rules (#47), stored in `state.outs`, the session and the sync.
+
 **Fair play while the clock is paused (#43 follow-up):** in a **timed online game**, a
 connection problem stops the clocks for everyone (`live()` → `syncClock`), so the position
 is hidden as long as it lasts — otherwise the player whose connection dropped keeps

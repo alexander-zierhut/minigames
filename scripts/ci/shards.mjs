@@ -27,6 +27,7 @@ export const SIZES = {
     "online-edge.test.mjs": 80,
     "online.test.mjs": 65,
     "prefs.test.mjs": 40,
+    "i18n.test.mjs": 35,           // #47: six languages, two viewports, every screen
     "online-spectate.test.mjs": 32,
     "replays.test.mjs": 30,        // #43 added the analysis and the game played on against the bot
     "local-flow.test.mjs": 28,

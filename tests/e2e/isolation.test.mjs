@@ -95,7 +95,7 @@ test("a whole game ends in a trap, with the overlay and the replay bar", async (
     const r = await randomGame();
     assert.equal(r.over, true, `the game finishes (${r.moves} moves)`);
     assert.ok(r.winner === 0 || r.winner === 1);
-    assert.match(r.why, /Trapped!/);
+    assert.equal(r.why.k, "why.isolation.trapped", "the reason is a message descriptor (#47)");
     assert.equal(await B.ev("document.getElementById('overlay').hidden"), false);
     assert.match(await B.text("overlay-title"), /wins!$/);
     assert.match(await B.text("overlay-sub"), /Trapped!/);

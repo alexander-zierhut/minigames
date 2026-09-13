@@ -10,8 +10,9 @@
 
 const Opponent = (() => {
     const { $ } = Util;
+    const { t } = I18n;
     const KEY = "chainreact.bots";
-    const NAME = "Bot";
+    const NAME = () => t("bot.name");            // what a player sees wherever a bot sits
     let choices = Util.load(localStorage, KEY) || {};      // game -> { id, difficulty }
     let game = null;                                        // game the modal is open for
     let difficulty = null;                                  // difficulty being edited
@@ -34,41 +35,47 @@ const Opponent = (() => {
     // `choice` describes a bot somebody else picked (the room's bot, #36); without it my own.
     function summary(g, cfg, choice) {
         const c = choice && choice.id && Bots.get(choice.id) ? { ...choice, def: Bots.get(choice.id) } : current(g, cfg);
-        if (!c) return "No bot plays this game yet";
-        const parts = [NAME];
-        if (c.def.difficulties.length > 1) parts.push(level(c.def, c.difficulty).label);
+        if (!c) return t("bot.none");
+        const parts = [NAME()];
+        if (c.def.difficulties.length > 1) parts.push(levelName(level(c.def, c.difficulty)));
         const b = Bots.benchmarkOf(c.id, cfg);
-        if (b) parts.push(`${b.score} % vs Random`);
-        if (b && b.puzzles) parts.push(`${b.puzzles.pct} % puzzles`);
+        if (b) parts.push(t("bot.vsRandom", { pct: b.score }));
+        if (b && b.puzzles) parts.push(t("bot.puzzles", { pct: b.puzzles.pct }));
         return parts.join(" · ");
     }
 
+    // a difficulty's name in the chosen language (the definition's `label` is the English one)
+    const levelName = (d) => t("level." + d.id);
     function badges(id, config) {
         const b = Bots.benchmarkOf(id, config);
-        if (!b) return `<span class="bot-badge muted">not rated</span>`;
-        return `<span class="bot-badge"><b>${b.score} %</b> vs Random</span>` + (b.puzzles ? `<span class="bot-badge"><b>${b.puzzles.pct} %</b> puzzles</span>` : "");
+        const box = $("bot-badges");
+        box.innerHTML = "";
+        const badge = (text, muted) => { const el = document.createElement("span"); el.className = "bot-badge" + (muted ? " muted" : ""); el.textContent = text; box.appendChild(el); };
+        if (!b) { badge(t("bot.notRated"), true); return; }
+        badge(t("bot.vsRandom", { pct: b.score }));
+        if (b.puzzles) badge(t("bot.puzzles", { pct: b.puzzles.pct }));
     }
     const thousands = (n) => String(n).replace(/\B(?=(\d{3})+$)/g, "\u202f");   // 2 000, 100 000
 
     let cfg = null;                                         // the settings the modal was opened with (rule variants)
     function render() {
         const def = current(game, cfg).def;
-        $("bot-name").textContent = NAME;
-        $("bot-desc").textContent = def.description || "";
-        $("bot-badges").innerHTML = badges(def.id, cfg);
+        $("bot-name").textContent = NAME();
+        $("bot-desc").textContent = t(`bot.${def.id}.desc`);
+        badges(def.id, cfg);
         const seg = $("bot-difficulty");
         seg.innerHTML = "";
         $("bot-difficulty-row").hidden = def.difficulties.length <= 1;
         for (const d of def.difficulties) {
             const btn = document.createElement("button");
-            btn.textContent = d.label;
+            btn.textContent = levelName(d);
             btn.dataset.difficulty = d.id;
             btn.classList.toggle("selected", d.id === difficulty);
             btn.addEventListener("click", () => { difficulty = d.id; render(); });
             seg.appendChild(btn);
         }
         const lv = level(def, difficulty);
-        $("bot-difficulty-hint").textContent = lv.nodes ? `${lv.label}: searches up to ${thousands(lv.nodes)} positions per move.` : "";
+        $("bot-difficulty-hint").textContent = lv.nodes ? t("bot.levelHint", { level: levelName(lv), nodes: thousands(lv.nodes) }) : "";
     }
 
     // `config` = the settings the bot has to play (rule variants); `choice` = the level to
@@ -98,5 +105,5 @@ const Opponent = (() => {
         $("bot-modal").addEventListener("click", (e) => { if (e.target === $("bot-modal")) close(false); });
     }
 
-    return { init, open, current, summary, NAME };
+    return { init, open, current, summary, get NAME() { return NAME(); } };
 })();

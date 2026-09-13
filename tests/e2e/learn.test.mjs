@@ -160,7 +160,8 @@ test("a scenario: the position is loaded, a wrong move offers Retry, the right o
     assert.equal(await B.ev("FiveGame.state.history.length"), sc.history.length, "the position is on the board");
     assert.equal(await B.ev("FiveGame.state.current"), 0, "you are to move");
     assert.equal(await B.text("p1-name"), "Bot");
-    assert.match(await B.text("learn-text"), new RegExp(sc.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    const title = await B.ev(`Learn.titleOf(${JSON.stringify(sc)})`);
+    assert.match(await B.text("learn-text"), new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     assert.equal(await B.text("learn-hint"), "Your move: find the best one.");
 
     // a legal move that is not one of the proven best ones

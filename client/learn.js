@@ -35,35 +35,34 @@
 
 const Learn = (() => {
     const { $ } = Util;
+    const { t } = I18n;
     const KEY = "chainreact.learn";
     const STEP_MS = 450;                 // pause after a correct click, so the move can be seen
-    const MISS = "Try the highlighted cell.";
-    const READ = "Read the step, then press Next.";
-    const ASK = "Your move: find the best one.";
-    const RIGHT = "Right! Play the position out, or go back to Learn.";
-    const WRONG = "Not this one. Press Retry to set the position up again.";
-    const FINISHED = "That is everything. Try a scenario, or start a game.";
+    // the panel's hint lines (keys; MISS is what the tests look for)
+    const MISS = "learn.hint.miss", READ = "learn.hint.read", ASK = "learn.hint.ask", RIGHT = "learn.hint.right", WRONG = "learn.hint.wrong", FINISHED = "learn.hint.finished";
     // play-from-here (#44): only the result of the whole game counts
-    const GOAL = "You must win this one. A draw is not enough.";
-    const WON = "You won it. Well done!";
-    const LOST = "The bot held this one. Press Retry to try it again.";
+    const GOAL = "learn.hint.goal", WON = "learn.hint.won", LOST = "learn.hint.lost";
 
     /* The ladder (#44): three tiers, four kinds of scenario. A tier opens up once UNLOCK of
        the one before it is solved, but a locked row still starts when it is tapped: the lock
        is a muted header, never a wall or a note. */
-    // id, label and the one line under the label on the details page
+    // id, the label and the one line under it on the details page (keys)
     const TIERS = [
-        { id: "basics", label: "Basics", text: "Wins in one move and the first traps. Start here." },
-        { id: "tactics", label: "Tactics", text: "Ideas a move or two deep, and positions that look lost." },
-        { id: "mastery", label: "Mastery", text: "Long proofs and games you have to win against the bot." },
+        { id: "basics", label: "learn.tier.basics", text: "learn.tier.basics.text" },
+        { id: "tactics", label: "learn.tier.tactics", text: "learn.tier.tactics.text" },
+        { id: "mastery", label: "learn.tier.mastery", text: "learn.tier.mastery.text" },
     ];
     const UNLOCK = 0.6;
     const KINDS = {
-        "best-move": { icon: "target", label: "Best move" },       // icon names, see client/lib/icons.js
-        trap: { icon: "alert", label: "Trap" },
-        turnaround: { icon: "refresh", label: "Turnaround" },
-        "play-from-here": { icon: "flag", label: "Play from here" },
+        "best-move": { icon: "target", label: "learn.kind.best-move" },       // icon names, see client/lib/icons.js
+        trap: { icon: "alert", label: "learn.kind.trap" },
+        turnaround: { icon: "refresh", label: "learn.kind.turnaround" },
+        "play-from-here": { icon: "flag", label: "learn.kind.play-from-here" },
     };
+    /* A scenario's title is a key plus a number inside its tier ("Win in one move (2)"), its
+       text a list of message descriptors from the generator, or a plain key. */
+    const titleOf = (sc) => (sc.no > 1 ? t("learn.title.numbered", { title: t(sc.title), n: sc.no }) : t(sc.title));
+    const textOf = (sc) => (Array.isArray(sc.text) ? sc.text.map(I18n.msg).join(" ") : t(sc.text));
     const DOTS = 5;                      // difficulty 1..10 shown as five dots
     const tierOf = (id) => TIERS.find((t) => t.id === id) || TIERS[0];
     const kindOf = (id) => KINDS[id] || KINDS["best-move"];
@@ -231,8 +230,8 @@ const Learn = (() => {
         if (!active || active.kind !== "tutorial") return true;
         const s = step();
         if (!s) return false;
-        if (!s.expect) { say(READ); return false; }
-        if (!s.expect.includes(i)) { say(MISS); return false; }
+        if (!s.expect) { say(t(READ)); return false; }
+        if (!s.expect.includes(i)) { say(t(MISS)); return false; }
         return true;
     }
     // the highlight the engine paints on a cell (through Match's cellClass hook)
@@ -318,7 +317,7 @@ const Learn = (() => {
     }
     /* What the result overlay's primary button does inside a lesson (app.js asks): the next
        scenario once this one is solved, otherwise simply set it up again. */
-    const againText = () => (canAdvance() ? "Next scenario" : active && active.kind === "scenario" ? "Retry" : "Start over");
+    const againText = () => t(canAdvance() ? "learn.nextScenario" : active && active.kind === "scenario" ? "common.retry" : "learn.startOver");
     const again = () => { if (canAdvance()) nextOne(); else restart(); };
     // leave a running lesson for the game's details page (the panel button, the HUD, the overlay)
     function exit() {
@@ -335,7 +334,7 @@ const Learn = (() => {
        A tutorial has nobody at the other seat, so it is simply "Opponent"; a scenario is a
        real game against the bot and Match already renames that seat to "Bot". You keep your
        own name in both, so every log line still reads properly. */
-    const names = (base) => (active && active.kind === "tutorial" ? [base[0], "Opponent", ...base.slice(2)] : null);
+    const names = (base) => (active && active.kind === "tutorial" ? [base[0], t("learn.opponent"), ...base.slice(2)] : null);
 
     /* ---------- the panel in the HUD ---------- */
     /* Fold a scenario's explanation away (#43). Remembered for this visit, so it stays
@@ -356,7 +355,7 @@ const Learn = (() => {
         if (!active || active.kind !== "tutorial") return;
         const keep = el.textContent;
         let max = 0;
-        for (const text of [...active.steps.map((s) => s.text), FINISHED]) {
+        for (const text of [...active.steps.map((s) => t(s.text)), t(FINISHED)]) {
             el.textContent = text;
             max = Math.max(max, el.scrollHeight);
         }
@@ -374,36 +373,36 @@ const Learn = (() => {
         // the fold is a scenario's, so a tutorial always shows its step
         const foldable = !!active && active.kind === "scenario";
         toggle.hidden = !foldable;
-        toggle.textContent = folded ? "Show" : "Hide";
+        toggle.textContent = t(folded ? "common.show" : "common.hide");
         panel.classList.toggle("folded", foldable && folded);
         if (!active) return;
-        const title = Games.get(active.game).title;
+        const title = Games.title(active.game);
         const next = $("learn-next");
         const back = $("learn-back");
         if (active.kind === "tutorial") {
             $("overlay").hidden = true;               // the panel tells the story, not the result card
             const done = active.i >= active.steps.length;
-            $("learn-kind").textContent = `${title} tutorial`;
-            $("learn-step").textContent = done ? "Done" : `Step ${active.i + 1} / ${active.steps.length}`;
-            $("learn-text").textContent = done ? FINISHED : active.steps[active.i].text;
+            $("learn-kind").textContent = t("learn.kindTutorial", { game: title });
+            $("learn-step").textContent = done ? t("learn.stepDone") : t("learn.step", { step: active.i + 1, total: active.steps.length });
+            $("learn-text").textContent = t(done ? FINISHED : active.steps[active.i].text);
             next.hidden = done || !!active.steps[active.i].expect;
-            next.textContent = active.i === active.steps.length - 1 ? "Finish" : "Next";
-            $("learn-retry").textContent = "Start over";
+            next.textContent = t(active.i === active.steps.length - 1 ? "learn.finish" : "common.next");
+            $("learn-retry").textContent = t("learn.startOver");
             $("learn-hint").textContent = hint;
             $("learn-hint").className = "learn-hint" + (hint ? " bad" : "");
             back.classList.toggle("primary", done);
         } else {
             const sc = active.scenario;
             const goal = isGoal(sc);
-            $("learn-kind").textContent = `${tierOf(sc.tier).label} · ${kindOf(sc.kind).label}`;
+            $("learn-kind").textContent = `${t(tierOf(sc.tier).label)} · ${t(kindOf(sc.kind).label)}`;
             $("learn-step").textContent = dots(sc.difficulty);
-            $("learn-text").textContent = `${sc.title}. ${sc.text}`;
+            $("learn-text").textContent = `${titleOf(sc)}. ${textOf(sc)}`;
             next.hidden = !canAdvance();
-            next.textContent = "Next scenario";
-            $("learn-retry").textContent = "Retry";
+            next.textContent = t("learn.nextScenario");
+            $("learn-retry").textContent = t("common.retry");
             $("learn-hint").textContent = goal
-                ? (active.result === "right" ? WON : active.result === "wrong" ? LOST : GOAL)
-                : (active.result === "right" ? (active.won ? `${RIGHT} ${WON}` : RIGHT) : active.result === "wrong" ? WRONG : ASK);
+                ? t(active.result === "right" ? WON : active.result === "wrong" ? LOST : GOAL)
+                : (active.result === "right" ? (active.won ? `${t(RIGHT)} ${t(WON)}` : t(RIGHT)) : t(active.result === "wrong" ? WRONG : ASK));
             $("learn-hint").className = "learn-hint " + (active.result || "ask");
             back.classList.remove("primary");
         }
@@ -426,9 +425,9 @@ const Learn = (() => {
             card.dataset.game = key;
             card.innerHTML = `<span class="game-name"></span><span class="game-desc"></span><span class="game-players"></span>`;
             card.prepend(Games.previewTile(key));
-            card.querySelector(".game-name").textContent = d.title;
-            card.querySelector(".game-desc").textContent = d.desc;
-            card.querySelector(".game-players").textContent = ho.scenarios.length ? `${solved} / ${ho.scenarios.length} scenarios` : "rules and tutorial";
+            card.querySelector(".game-name").textContent = t(d.title);
+            card.querySelector(".game-desc").textContent = t(d.desc);
+            card.querySelector(".game-players").textContent = ho.scenarios.length ? t("learn.cardScenarios", { solved, total: ho.scenarios.length }) : t("learn.cardRules");
             card.addEventListener("click", () => openGame(key));
             box.appendChild(card);
         }
@@ -442,16 +441,14 @@ const Learn = (() => {
     function renderGame() {
         const d = Games.get(page);
         const ho = howto(page);
-        $("learn-title").textContent = d.title;
-        $("learn-tagline").textContent = d.tagline;
+        $("learn-title").textContent = t(d.title);
+        $("learn-tagline").textContent = t(d.tagline);
         bullets($("learn-rules"), ho.rules);
         $("learn-tutorial-group").hidden = ho.tutorial.length === 0;
-        $("learn-tutorial-hint").textContent = tutorialDone(page)
-            ? "You finished this tutorial. Run it again any time."
-            : `${ho.tutorial.length} steps on a real board.`;
+        $("learn-tutorial-hint").textContent = tutorialDone(page) ? t("learn.tutorialDone") : t("learn.tutorialSteps", { count: ho.tutorial.length });
         const solved = ho.scenarios.filter((s) => isSolved(page, s.id)).length;
         $("learn-scenarios-group").hidden = ho.scenarios.length === 0;
-        $("learn-progress").textContent = ho.scenarios.length ? `${solved} / ${ho.scenarios.length} solved` : "";
+        $("learn-progress").textContent = ho.scenarios.length ? t("learn.solved", { solved, total: ho.scenarios.length }) : "";
         // one block per tier (#44): a header with the tier's progress and, while the tier
         // before it is not solved enough, a hint that it is meant for later
         const box = $("learn-scenarios");
@@ -474,9 +471,9 @@ const Learn = (() => {
             head.dataset.tier = tier.id;
             head.setAttribute("aria-expanded", open ? "true" : "false");
             head.innerHTML = `<span class="learn-chev">›</span><b></b><span class="learn-tier-count"></span><small class="learn-tier-text"></small>`;
-            head.querySelector("b").textContent = tier.label;
+            head.querySelector("b").textContent = t(tier.label);
             head.querySelector(".learn-tier-count").textContent = `${done.solved} / ${done.total}`;
-            head.querySelector(".learn-tier-text").textContent = tier.text;      // every tier says what it holds
+            head.querySelector(".learn-tier-text").textContent = t(tier.text);   // every tier says what it holds
             head.addEventListener("click", () => { toggleTier(page, tier.id); renderGame(); });
             card.appendChild(head);
             for (const sc of list) { const row = scenarioRow(sc); row.hidden = !open; card.appendChild(row); }
@@ -493,10 +490,10 @@ const Learn = (() => {
         row.innerHTML = `<span class="gear-icon"></span><span class="learn-sc-text"><b></b><small></small></span><span class="learn-dots"></span><span class="chev">›</span>`;
         Icons.set(row.querySelector(".gear-icon"), solved ? "check" : kind.icon);
         row.querySelector(".gear-icon").className = "gear-icon" + (solved ? " solved" : "");
-        row.querySelector("b").textContent = sc.title;
-        row.querySelector("small").textContent = kind.label;
+        row.querySelector("b").textContent = titleOf(sc);
+        row.querySelector("small").textContent = t(kind.label);
         row.querySelector(".learn-dots").textContent = dots(sc.difficulty);
-        row.querySelector(".learn-dots").title = `Difficulty ${sc.difficulty} of 10`;
+        row.querySelector(".learn-dots").title = t("learn.difficulty", { d: sc.difficulty });
         row.addEventListener("click", () => startScenario(page, sc.id));
         return row;
     }
@@ -504,7 +501,7 @@ const Learn = (() => {
         box.innerHTML = "";
         for (const text of list) {
             const li = document.createElement("li");
-            li.textContent = text;
+            li.textContent = t(text);
             box.appendChild(li);
         }
     }
@@ -513,14 +510,14 @@ const Learn = (() => {
     function openHowto(game) {
         const d = Games.get(game);
         const ho = howto(game);
-        $("howto-title").textContent = d.title;
-        $("howto-tagline").textContent = d.tagline;
+        $("howto-title").textContent = t(d.title);
+        $("howto-tagline").textContent = t(d.tagline);
         bullets($("howto-rules"), ho.rules);
         const steps = $("howto-steps");
         steps.innerHTML = "";
         for (const s of ho.tutorial) {
             const li = document.createElement("li");
-            li.textContent = s.text;
+            li.textContent = t(s.text);
             steps.appendChild(li);
         }
         $("howto-steps-title").hidden = ho.tutorial.length === 0;
@@ -546,6 +543,6 @@ const Learn = (() => {
         howto, scenarios, games, configFor, beforeMove, cellClass, onLocalMove, openHowto, closeHowto,
         isSolved, markSolved, tutorialDone, fold, tierProgress, tierLocked, tierOpen, toggleTier, nextScenario, again, againText, canAdvance,
         get active() { return active; }, get page() { return page; }, get folded() { return folded; },
-        STEP_MS, MISS, TIERS, KINDS, UNLOCK, dots,
+        STEP_MS, MISS, TIERS, KINDS, UNLOCK, dots, titleOf, textOf,
     };
 })();

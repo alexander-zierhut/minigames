@@ -12,6 +12,7 @@ import { loadPuzzles } from "../../scripts/puzzles/runner.mjs";
 
 const w = loadDom();
 const Learn = w.eval("Learn");
+const I18n = w.eval("I18n");
 const Games = w.eval("Games");
 const Rules = w.eval("Rules");
 const Bots = w.eval("Bots");
@@ -26,8 +27,10 @@ test("every game that appears in Learn brings rules bullets", () => {
     for (const key of GAMES) {
         const ho = Learn.howto(key);
         assert.ok(ho.rules.length >= 3, `${key}: at least a handful of rule bullets`);
-        for (const line of ho.rules) {
-            assert.equal(typeof line, "string");
+        for (const key2 of ho.rules) {
+            assert.equal(typeof key2, "string");
+            const line = I18n.t(key2);
+            assert.notEqual(line, key2, `${key}: rule "${key2}" has a text in the language file`);
             assert.ok(line.trim().length > 10, `${key}: "${line}" is not a sentence`);
             assert.ok(!/[—–]/.test(line), `${key}: no em dashes in user text (#24)`);
             assert.ok(!/minecraft/i.test(line), `${key}: the looks are called Blocks`);
@@ -44,8 +47,10 @@ test("tutorial steps replay, and every expected click is legal for the player to
         ho.tutorial.forEach((step, i) => {
             const where = `${key} step ${i + 1}`;
             assert.equal(typeof step.text, "string");
-            assert.ok(step.text.length > 20, `${where}: says something`);
-            assert.ok(!/[—–]/.test(step.text), `${where}: no em dashes (#24)`);
+            const text = I18n.t(step.text);
+            assert.notEqual(text, step.text, `${where}: the step's key has a text`);
+            assert.ok(text.length > 20, `${where}: says something`);
+            assert.ok(!/[—–]/.test(text), `${where}: no em dashes (#24)`);
             if (step.config) config = step.config;
             const full = Learn.configFor(key, config);
             const rules = Rules.of(key);
@@ -77,7 +82,9 @@ test("scenarios replay to their position, best moves are legal and you are to mo
             assert.ok(!ids.has(sc.id), `${key}: duplicate scenario id ${sc.id}`);
             ids.add(sc.id);
             assert.ok(sc.title && sc.text, `${sc.id}: title and text`);
-            assert.ok(!/[—–]/.test(`${sc.title} ${sc.text}`), `${sc.id}: no em dashes (#24)`);
+            const shown = `${Learn.titleOf(sc)}. ${Learn.textOf(sc)}`;
+            assert.ok(!/learn\.(title|text|note)\./.test(shown), `${sc.id}: every key of the title and text has a translation (${shown})`);
+            assert.ok(!/[—–]/.test(shown), `${sc.id}: no em dashes (#24)`);
             assert.equal(sc.toMove, 0, `${sc.id}: a scenario always puts you in seat 0`);
             const rules = Rules.of(key);
             const state = Rules.create(Learn.configFor(key, sc.config), key);
@@ -208,7 +215,7 @@ test("the tutorial walks its steps: wrong click hints, the expected one advances
     assert.equal(w.document.getElementById("learn-panel").hidden, false);
     assert.ok(w.document.body.classList.contains("learn"));
     assert.equal(w.document.getElementById("learn-step").textContent, `Step 1 / ${steps.length}`);
-    assert.equal(w.document.getElementById("learn-text").textContent, steps[0].text);
+    assert.equal(w.document.getElementById("learn-text").textContent, I18n.t(steps[0].text));
 
     const cells = () => w.document.querySelectorAll("#board > .cell");
     const expected = steps[0].expect[0];
@@ -218,7 +225,7 @@ test("the tutorial walks its steps: wrong click hints, the expected one advances
     const wrong = [...Array(16).keys()].find((i) => i !== expected);
     cells()[wrong].click();
     assert.equal(Match.state.history.length, 0, "nothing was played");
-    assert.equal(w.document.getElementById("learn-hint").textContent, Learn.MISS);
+    assert.equal(w.document.getElementById("learn-hint").textContent, I18n.t(Learn.MISS));
 
     // the expected click plays and steps on (a chain reaction may animate for a while first)
     const clickAndWait = async (cell) => {
@@ -363,7 +370,7 @@ test("a scenario's explanation folds away and stays folded for the visit (#43)",
 test("the details page and the lobby's How to play modal render from the same data", () => {
     Learn.openGame("chain");
     const ho = Learn.howto("chain");
-    assert.equal(w.document.getElementById("learn-title").textContent, Games.get("chain").title);
+    assert.equal(w.document.getElementById("learn-title").textContent, Games.title("chain"));
     assert.equal(w.document.querySelectorAll("#learn-rules li").length, ho.rules.length);
     assert.equal(w.document.querySelectorAll("#learn-scenarios .learn-scenario").length, ho.scenarios.length);
     assert.equal(w.document.getElementById("learn-progress").textContent, `0 / ${ho.scenarios.length} solved`);
@@ -412,7 +419,7 @@ test("the details page and the lobby's How to play modal render from the same da
 
     Learn.openHowto("five");
     assert.equal(w.document.getElementById("howto-modal").hidden, false);
-    assert.equal(w.document.getElementById("howto-title").textContent, Games.get("five").title);
+    assert.equal(w.document.getElementById("howto-title").textContent, Games.title("five"));
     assert.equal(w.document.querySelectorAll("#howto-rules li").length, Learn.howto("five").rules.length);
     assert.equal(w.document.querySelectorAll("#howto-steps li").length, Learn.howto("five").tutorial.length);
     Learn.closeHowto();

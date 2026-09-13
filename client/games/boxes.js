@@ -10,6 +10,7 @@
 
 const BoxesView = (() => {
     const { sleep } = Util;
+    const { t } = I18n;
     const DRAW_MS = 130;                      // the line draws itself in
     const POP_MS = 200;                       // a closed box pops
     let boxEls = [];                          // one element per box, in box order
@@ -59,12 +60,12 @@ const BoxesView = (() => {
         let free = 0;                                   // boxes anybody could close right now
         for (let b = 0; b < total; b++) if (state.boxes[b] === -1 && BoxesRules.sides(state, b) === 3) free++;
         return {
-            round: `Move ${state.history.length + 1}`,
-            drawHint: "same number of boxes",
-            line2: `boxes ${state.scores.join(" · ")}`,
-            box: { stats: [["Boxes left", total - state.scores.reduce((a, b) => a + b, 0)], ["On the table", free]], hot: free > 0 },
+            round: t("hud.move", { n: state.history.length + 1 }),
+            drawHint: t("game.boxes.hud.same"),
+            line2: t("game.boxes.hud.line2", { list: state.scores.join(" · ") }),
+            box: { stats: [[t("game.boxes.hud.left"), total - state.scores.reduce((a, b) => a + b, 0)], [t("game.boxes.hud.table"), free]], hot: free > 0 },
             players: state.scores.map((s, k) => ({
-                stats: [["Boxes", s], ["Lines", state.movesBy[k]]],
+                stats: [[t("game.boxes.hud.boxes"), s], [t("game.boxes.hud.lines"), state.movesBy[k]]],
                 bar: total ? s / total : 0,
                 barText: `${s} / ${total}`,
                 leading: leading[k],
@@ -74,7 +75,7 @@ const BoxesView = (() => {
 
     const summary = (state) => {
         const top = state.winner >= 0 ? state.scores[state.winner] : Math.max(...state.scores);
-        return `${top} of ${state.n * state.n} boxes`;
+        return t("game.boxes.summary", { top, total: state.n * state.n });
     };
 
     async function animateMove(ctx, i, player) {
@@ -96,51 +97,45 @@ const BoxesView = (() => {
 
 const BoxesGame = Games.register({
     key: "boxes",
-    title: "Dots and Boxes",
-    tagline: "Draw a line between two dots. Close a box and it is yours, and you go again. Most boxes wins.",
-    desc: "Close boxes, most wins",
+    title: "game.boxes.title",
+    tagline: "game.boxes.tagline",
+    desc: "game.boxes.desc",
     preview: "01.1.0.01",
     size: { min: 2, max: 10, default: 5, presets: [3, 4, 5, 6, 8] },
     settings: [],
-    describeRules: (cfg) => [`${cfg.n * cfg.n} boxes`],
+    describeRules: (cfg) => [I18n.t("game.boxes.sum.boxes", { n: cfg.n * cfg.n })],
     /* Learn (#41): the rule bullets, and a hand-written lesson on a 2 × 2 board that walks
        through the four things the game is about — draw a line, keep the board safe, take
        the box you are given, and the extra turn that comes with it. The scenarios are
        generated from the proven puzzle set (client/learn/boxes-scenarios.js). */
     howto: {
-        rules: [
-            "The board is a grid of dots. On your turn you draw one line between two dots that sit next to each other.",
-            "Draw the fourth side of a box and the box is yours.",
-            "Closing a box gives you another turn, so one line can win several boxes in a row.",
-            "A line that leaves a box with three sides hands that box to whoever moves next.",
-            "The game ends when every line is drawn. Most boxes wins, the same number of boxes is a draw.",
-            "The board is a setting: 2 to 10 boxes per side, five by default.",
+        rules: ["game.boxes.rule.1", "game.boxes.rule.2", "game.boxes.rule.3", "game.boxes.rule.4", "game.boxes.rule.5", "game.boxes.rule.6"
         ],
         tutorial: [
             {
                 config: { n: 2 },
                 moves: [],
-                text: "Dots and Boxes is played on the lines between the dots, not on the boxes. Draw the top line of the box in the top left corner.",
+                text: "game.boxes.tutorial.1",
                 expect: [0],
             },
             {
                 moves: [0, 5],
-                text: "Your opponent answered at the bottom right. A single line changes nothing on its own, so keep going: draw the left side of the same box.",
+                text: "game.boxes.tutorial.2",
                 expect: [6],
             },
             {
                 moves: [0, 5, 6, 11],
-                text: "The top left box has two sides now. A third side would hand it to your opponent, so play a safe line instead: any of the highlighted ones leaves no box on three sides.",
+                text: "game.boxes.tutorial.3",
                 expect: [1, 4, 8, 9],
             },
             {
                 moves: [0, 5, 6, 11, 1, 2],
-                text: "Your opponent gave the box away: it has three sides. Close it.",
+                text: "game.boxes.tutorial.4",
                 expect: [7],
             },
             {
                 moves: [0, 5, 6, 11, 1, 2, 7],
-                text: "The box is yours and it is still your turn. That is why one careless line can cost a whole chain of boxes. Finish with a safe line: only two of them leave nothing on three sides.",
+                text: "game.boxes.tutorial.5",
                 expect: [4, 9],
             },
         ],

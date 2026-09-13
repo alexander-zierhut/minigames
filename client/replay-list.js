@@ -7,6 +7,7 @@
 
 const ReplayList = (() => {
     const { $, toast } = Util;
+    const { t } = I18n;
     const PAGE = 10;                     // rows per page: the card never grows out of hand
     const f = { game: "all", kind: "all", search: "", from: "", to: "", page: 0 };   // the filters and the shown page
     let h = { show: () => {}, watch: () => {} };
@@ -20,7 +21,7 @@ const ReplayList = (() => {
     /* The game filter (#43): a small dropdown, because a plain <select> cannot show the
        games' preview tiles. The button says what is picked, the menu lists "All games"
        first and then every registered game with its own tile. */
-    const filterLabel = (key) => (key === "all" ? "All games" : Games.get(key).title);
+    const filterLabel = (key) => (key === "all" ? t("replays.allGames") : Games.title(key));
     const previewTile = (key) => Games.previewTile(key, { small: true });
     function renderFilter() {
         const box = $("replay-filter");
@@ -82,10 +83,10 @@ const ReplayList = (() => {
         f.page = Math.min(Math.max(0, f.page), pages - 1);
         const items = found.slice(f.page * PAGE, (f.page + 1) * PAGE);
         const kept = await Replays.store.persistent();
-        const plural = (k) => `${k} replay${k === 1 ? "" : "s"}`;
-        $("replay-count").textContent = found.length === all.length ? plural(all.length) : `${found.length} of ${plural(all.length)}`;
+        const plural = (k) => t("replays.count", { count: k });
+        $("replay-count").textContent = found.length === all.length ? plural(all.length) : t("replays.found", { found: found.length, all: plural(all.length) });
         $("replay-pager").hidden = pages <= 1;
-        $("replay-page").textContent = `Page ${f.page + 1} of ${pages}`;
+        $("replay-page").textContent = t("replays.page", { page: f.page + 1, pages });
         $("replay-page-prev").disabled = f.page === 0;
         $("replay-page-next").disabled = f.page >= pages - 1;
         box.innerHTML = "";
@@ -93,16 +94,15 @@ const ReplayList = (() => {
             const el = Util.fromTemplate("tpl-replay", 0);
             el.dataset.id = r.id;
             el.prepend(previewTile(r.game));                     // the game's small tile in front of the text
-            el.querySelector(".replay-title").textContent = `${r.title} · ${r.n} × ${r.n}` + (r.players.length > 2 ? ` · ${r.players.length} players` : "");
-            el.querySelector(".replay-sub").textContent = [Replays.when(r.playedAt), r.players.join(" vs "), r.resultText, `${r.moves} moves`].join(" · ");
+            el.querySelector(".replay-title").textContent = `${r.title} · ${r.n} × ${r.n}` + (r.players.length > 2 ? ` · ${t("replays.players", { count: r.players.length })}` : "");
+            el.querySelector(".replay-sub").textContent = [Replays.when(r.playedAt), r.players.join(` ${t("replays.vs")} `), r.resultText, t("replays.moves", { count: r.moves })].join(" · ");
             box.appendChild(el);
         }
         const note = $("replays-note");
-        note.textContent = kept ? "" : "This browser cannot keep replays, so this list lasts only while the page is open. Save the ones you want as a file.";
+        note.textContent = kept ? "" : t("replays.noStore");
         note.hidden = !note.textContent;
         const hint = $("replays-hint");
-        hint.textContent = all.length === 0 ? "No replays yet. Play a game and it lands here."
-            : found.length === 0 ? "No replay matches. Change the filter, the dates or the name." : "";
+        hint.textContent = all.length === 0 ? t("replays.empty") : found.length === 0 ? t("replays.noMatch") : "";
         hint.hidden = !hint.textContent;
     }
 
@@ -115,7 +115,7 @@ const ReplayList = (() => {
             a.download = Replays.fileName(doc);
             a.click();
             setTimeout(() => URL.revokeObjectURL(url), 4000);
-        } catch (e) { toast("This browser cannot save the file."); }
+        } catch (e) { toast(t("replays.cantSave")); }
     }
 
     // a filter changed: back to the first page
@@ -129,10 +129,10 @@ const ReplayList = (() => {
             if (!btn) return;
             const id = btn.closest(".replay-item").dataset.id;
             const doc = await Replays.store.get(id);
-            if (!doc) { toast("That replay is gone."); render(); return; }
+            if (!doc) { toast(t("replays.gone")); render(); return; }
             if (btn.dataset.act === "watch") h.watch(doc);
             else if (btn.dataset.act === "download") download(doc);
-            else if (btn.dataset.act === "delete") { await Replays.store.remove(id); render(); toast("Replay deleted"); }
+            else if (btn.dataset.act === "delete") { await Replays.store.remove(id); render(); toast(t("replays.deleted")); }
         });
         $("replay-kind").addEventListener("click", (e) => {
             const btn = e.target.closest("button[data-kind]");
@@ -151,9 +151,9 @@ const ReplayList = (() => {
             e.target.value = "";                                  // the same file may be opened again
             if (!file) return;
             let text = "";
-            try { text = await file.text(); } catch (err) { toast("That file could not be read."); return; }
+            try { text = await file.text(); } catch (err) { toast(t("replays.cantRead")); return; }
             const res = Replays.parse(text);
-            if (!res.ok) { toast(res.error); return; }
+            if (!res.ok) { toast(t(res.error)); return; }
             await Replays.store.save(res.doc);
             render();
             h.watch(res.doc);

@@ -11,6 +11,7 @@
 
 const IsolationView = (() => {
     const { sleep } = Util;
+    const { t } = I18n;
     const SLIDE_MS = 260;                 // the pawn's step
     const DROP_MS = 300;                  // the tile falling away
 
@@ -87,19 +88,19 @@ const IsolationView = (() => {
         const free = state.movesBy.map((_, p) => IsolationRules.mobility(state, p));
         const leading = BoardView.leading(free);
         return {
-            round: `Move ${state.history.length + 1}`,
-            drawHint: "nobody is left",
-            line2: `free moves ${free.join(" · ")}`,
+            round: t("hud.move", { n: state.history.length + 1 }),
+            drawHint: t("game.isolation.hud.nobody"),
+            line2: t("game.isolation.hud.line2", { list: free.join(" · ") }),
             players: free.map((m, k) => ({
-                stats: [["Moves", state.movesBy[k]], [state.trapped[k] ? "Out" : "Free moves", state.trapped[k] ? "trapped" : m]],
+                stats: [[t("game.isolation.hud.moves"), state.movesBy[k]], [t(state.trapped[k] ? "game.isolation.hud.out" : "game.isolation.hud.free"), state.trapped[k] ? t("game.isolation.hud.trapped") : m]],
                 bar: state.trapped[k] ? 0 : m / 8,
-                barText: state.trapped[k] ? "trapped" : `${m} / 8`,
+                barText: state.trapped[k] ? t("game.isolation.hud.trapped") : `${m} / 8`,
                 leading: !state.trapped[k] && leading[k],
             })),
         };
     }
 
-    const summary = (state) => `${state.history.length} moves`;
+    const summary = (state) => t("hud.moves", { count: state.history.length });
 
     // the pawn slides from the tile it left, the removed tile falls away
     async function animateMove(ctx, move, player) {
@@ -128,9 +129,9 @@ const IsolationView = (() => {
 
 const IsolationGame = Games.register({
     key: "isolation",
-    title: "Isolation",
-    tagline: "Step one tile, then break one away. Whoever cannot move is trapped.",
-    desc: "Break the floor, trap the rest",
+    title: "game.isolation.title",
+    tagline: "game.isolation.tagline",
+    desc: "game.isolation.desc",
     preview: "0.#.#.#.1",                  // two pawns, three tiles already broken (# = hole)
     size: { min: 5, max: 12, default: 7, presets: [5, 7, 9, 11] },
     players: { min: 2, max: 4 },
@@ -141,38 +142,31 @@ const IsolationGame = Games.register({
        every step names its `highlight` cells itself instead of letting them default to
        `expect`. The positions below are proven: the last step's move really traps. */
     howto: {
-        rules: [
-            "Every player has one pawn. Yours starts in the middle of the top edge.",
-            "A turn is two clicks: step onto one of the up to eight tiles around your pawn, then break away any tile that is still there.",
-            "You may only step onto a tile that still exists and has nobody on it.",
-            "You may break any tile nobody stands on, anywhere on the board, the one you just left included.",
-            "Whoever cannot step when their turn comes is trapped and out. With two players that ends the game.",
-            "With three or four players the others play on and the last one standing wins.",
-            "There are no draws: every move breaks a tile, so somebody runs out of room.",
+        rules: ["game.isolation.rule.1", "game.isolation.rule.2", "game.isolation.rule.3", "game.isolation.rule.4", "game.isolation.rule.5", "game.isolation.rule.6", "game.isolation.rule.7"
         ],
         tutorial: [
             {
                 config: { n: 5 },
                 moves: [],
-                text: "You are the pawn at the top, your opponent sits at the bottom. A turn takes two clicks. First step: click the highlighted tile next to your pawn. Then click any other tile to break it away.",
+                text: "game.isolation.tutorial.1",
                 expect: [200, 201, 202, 203, 204, 205, 206, 207, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 223, 224],
                 highlight: [8],
             },
             {
                 moves: [87, 409, 183, 565, 49, 402],
-                text: "Breaking tiles far away changes nothing. Take room away from the other pawn instead: step wherever you like, then break one of the highlighted tiles, the ones your opponent could step on.",
+                text: "game.isolation.tutorial.2",
                 expect: [10, 11, 17, 20, 21, 22, 135, 136, 142, 145, 146, 147, 160, 161, 167, 170, 171, 172, 185, 186, 192, 195, 196, 197],
                 highlight: [10, 11, 17, 20, 21, 22],
             },
             {
                 moves: [87, 409, 183, 565, 49, 402, 171, 504],
-                text: "Your opponent is in the corner with one single tile left to step on. Step anywhere you like and break that tile.",
+                text: "game.isolation.tutorial.3",
                 expect: [16, 41, 141, 191, 266, 291],
                 highlight: [16],
             },
             {
                 moves: [87, 409, 183, 565, 49, 402, 171, 504, 16],
-                text: "Trapped, and the game is yours. Watch your own room while you take theirs: the pawn with more tiles around it usually wins the race.",
+                text: "game.isolation.tutorial.4",
             },
         ],
     },

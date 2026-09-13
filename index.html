@@ -45,64 +45,64 @@
 <!-- ===================== LOADER (first visit: preload all textures) ===================== -->
 <div id="loader" hidden>
     <div class="loader-card">
-        <div class="loader-title">ALZlper's Minigames</div>
+        <div class="loader-title" data-i18n="app.name">ALZlper's Minigames</div>
         <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
-        <div class="loader-text" id="loader-text">Loading textures…</div>
+        <div class="loader-text" id="loader-text" data-i18n="app.loading">Loading textures…</div>
     </div>
 </div>
 
 <!-- ===================== PREFERENCES (⚙ top-left on every screen; this device only) ===================== -->
-<button id="prefs-btn" class="corner-btn" aria-label="Settings &amp; Feedback" title="Settings &amp; Feedback"><span class="corner-icon" data-icon="settings"></span><span class="corner-text">Settings &amp; Feedback</span></button>
+<button id="prefs-btn" class="corner-btn" aria-label="Settings &amp; Feedback" data-i18n-aria="app.prefs" title="Settings &amp; Feedback" data-i18n-title="app.prefs"><span class="corner-icon" data-icon="settings"></span><span class="corner-text" data-i18n="app.prefs">Settings &amp; Feedback</span></button>
 
 <!-- ===================== TITLE / MENU ===================== -->
 <section id="screen-menu" class="screen">
     <!-- a newer version was deployed while this page was open (#40); a banner above the
          card, title screen only (#43) -->
     <div class="update-notice" id="update-notice" hidden>
-        <span>A new version is ready.</span>
-        <button class="btn small primary" id="btn-update-reload">Reload</button>
+        <span data-i18n="update.ready">A new version is ready.</span>
+        <button class="btn small primary" id="btn-update-reload" data-i18n="update.reload">Reload</button>
     </div>
     <div class="menu-card">
-        <h1 class="title">ALZlper's Minigames</h1>
+        <h1 class="title" data-i18n="app.name">ALZlper's Minigames</h1>
         <!-- the greeting doubles as the name field (#35: the same preference as Profile in ⚙,
              kept in sync by Prefs); the drawn default name shows from the first visit -->
-        <p class="tagline menu-hello"><span class="hello-name">Hello <input type="text" id="menu-name" class="name-inline" maxlength="16" autocomplete="off" spellcheck="false" aria-label="Your name">!</span> <span class="hello-welcome">Welcome to some fun games.</span></p>
+        <p class="tagline menu-hello"><span class="hello-name"><span data-i18n="menu.hello">Hello</span> <input type="text" id="menu-name" class="name-inline" maxlength="16" autocomplete="off" spellcheck="false" aria-label="Your name" data-i18n-aria="prefs.name">!</span> <span class="hello-welcome" data-i18n="menu.welcome">Welcome to some fun games.</span></p>
 
         <div class="menu-actions">
             <div class="section">
-                <div class="section-title">Online</div>
+                <div class="section-title" data-i18n="menu.online">Online</div>
                 <div class="btn-row">
-                    <button class="btn primary big" id="btn-create">Create room</button>
-                    <button class="btn big" id="btn-join-open">Join room</button>
+                    <button class="btn primary big" id="btn-create" data-i18n="menu.create">Create room</button>
+                    <button class="btn big" id="btn-join-open" data-i18n="menu.join">Join room</button>
                 </div>
                 <!-- the seats are picked in the lobby (#28); say here that a room holds four -->
-                <p class="hint" id="menu-online-hint">One room for up to 4 players, plus spectators.</p>
+                <p class="hint" id="menu-online-hint" data-i18n="menu.onlineHint">One room for up to 4 players, plus spectators.</p>
                 <div id="join-panel" hidden>
                     <div class="join-row">
-                        <input id="join-code" placeholder="ROOM CODE" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false">
-                        <button class="btn primary" id="btn-join">Join</button>
+                        <input id="join-code" placeholder="ROOM CODE" data-i18n-placeholder="menu.codePlaceholder" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false">
+                        <button class="btn primary" id="btn-join" data-i18n="menu.joinGo">Join</button>
                     </div>
-                    <p class="hint">Enter your friend's code. Both typing the same new code works too.</p>
+                    <p class="hint" data-i18n="menu.joinHint">Enter your friend's code. Both typing the same new code works too.</p>
                 </div>
             </div>
             <div class="section">
-                <div class="section-title">Offline</div>
+                <div class="section-title" data-i18n="menu.offline">Offline</div>
                 <div class="btn-row">
-                    <button class="btn big" id="btn-local">Local multiplayer</button>
-                    <button class="btn big" id="btn-bot">Against a bot</button>
+                    <button class="btn big" id="btn-local" data-i18n="menu.local">Local multiplayer</button>
+                    <button class="btn big" id="btn-bot" data-i18n="menu.bot">Against a bot</button>
                 </div>
             </div>
         </div>
         <div class="menu-foot">
             <!-- the academy (#41) and the saved games (#42): two equal buttons in one row -->
             <div class="btn-row">
-                <button class="btn big" id="btn-learn">Learn to play</button>
-                <button class="btn big" id="btn-replays">Replays</button>
+                <button class="btn big" id="btn-learn" data-i18n="menu.learn">Learn to play</button>
+                <button class="btn big" id="btn-replays" data-i18n="menu.replays">Replays</button>
             </div>
             <div class="foot-quiet">
                 <!-- shown only when the browser offers to install the page as an app (Android Chrome) -->
-                <button class="btn ghost install-btn" id="btn-install" hidden><span data-icon="phone"></span> Add to home screen</button>
-                <button class="btn ghost install-btn" id="btn-changelog">Changelog</button>
+                <button class="btn ghost install-btn" id="btn-install" hidden><span data-icon="phone"></span> <span data-i18n="menu.install">Add to home screen</span></button>
+                <button class="btn ghost install-btn" id="btn-changelog" data-i18n="menu.changelog">Changelog</button>
             </div>
         </div>
     </div>
@@ -114,19 +114,19 @@
         <!-- head: the kind over one line that holds the room (code, Invite) and, in a room,
              how many seats; all three vertically centred -->
         <div class="lobby-head">
-            <div class="label" id="lobby-kind">Online room</div>
+            <div class="label" id="lobby-kind" data-i18n="lobby.kind.online">Online room</div>
             <div class="lobby-head-row">
                 <div class="room-code-row">
                     <div class="room-code" id="lobby-code">…</div>
                     <!-- online only: the share actions live in #invite-modal, each with a word -->
                     <div class="lobby-actions" id="lobby-share">
-                        <button class="btn small primary" id="btn-invite"><span data-icon="share"></span> Invite</button>
+                        <button class="btn small primary" id="btn-invite"><span data-icon="share"></span> <span data-i18n="lobby.invite">Invite</span></button>
                     </div>
                 </div>
                 <!-- how many seats (#28): here in a room, its own section offline (Lobby.render
                      moves it); hidden against a bot (always two) by Settings.setMode -->
                 <div class="lobby-row" id="row-players">
-                    <span class="lobby-row-label">Players</span>
+                    <span class="lobby-row-label" data-i18n="lobby.players">Players</span>
                     <div class="seg players-seg" id="set-players">
                         <button data-players="2" class="selected">2</button>
                         <button data-players="3">3</button>
@@ -140,7 +140,7 @@
         <div class="lobby-group" id="group-players">
             <!-- a section heading like Game and Options, with the spectator count as its note -->
             <div class="lobby-row" id="row-seats-label">
-                <span class="lobby-row-label">Players</span>
+                <span class="lobby-row-label" data-i18n="lobby.players">Players</span>
                 <span class="lobby-row-note" id="lobby-spectators"></span>
             </div>
             <!-- one card per seat, from #tpl-lobby-player; the seat controls below are moved
@@ -148,11 +148,11 @@
             <div class="lobby-players" id="lobby-players"></div>
             <!-- online only: swap between playing and watching in the lobby (#39) -->
             <div class="seat-actions" id="seat-actions">
-                <button class="btn small lp-act" id="btn-watch" hidden>Watch instead</button>
-                <button class="btn small lp-act" id="btn-take-seat" hidden>Sit here</button>
+                <button class="btn small lp-act" id="btn-watch" hidden data-i18n="lobby.watch">Watch instead</button>
+                <button class="btn small lp-act" id="btn-take-seat" hidden data-i18n="lobby.sit">Sit here</button>
                 <!-- a two-seat room whose other seat is empty can play a bot instead of waiting (#36) -->
-                <button class="btn small lp-act" id="btn-room-bot" hidden>Add a bot</button>
-                <button class="btn small lp-act" id="btn-room-bot-off" hidden>Remove the bot</button>
+                <button class="btn small lp-act" id="btn-room-bot" hidden data-i18n="lobby.addBot">Add a bot</button>
+                <button class="btn small lp-act" id="btn-room-bot-off" hidden data-i18n="lobby.removeBot">Remove the bot</button>
             </div>
             <div class="lobby-status" id="lobby-status"></div>
         </div>
@@ -163,7 +163,7 @@
 
         <!-- group "Game": the picker, its tagline, the opponent (bot mode) and the settings -->
         <div class="lobby-group" id="group-game">
-            <div class="lobby-row"><span class="lobby-row-label">Game</span></div>
+            <div class="lobby-row"><span class="lobby-row-label" data-i18n="lobby.game">Game</span></div>
             <!-- one card per registered game, built by settings.js -->
             <div class="game-picker" id="game-picker"></div>
             <!-- an empty line under the picker: the game's tagline used to sit here, the owner
@@ -171,31 +171,31 @@
             <p class="tagline small lobby-gap" id="menu-tagline"></p>
 
             <!-- the options: up to three rows (How to play, the bot, the settings) under one heading -->
-            <div class="lobby-row"><span class="lobby-row-label">Options</span></div>
+            <div class="lobby-row"><span class="lobby-row-label" data-i18n="lobby.options">Options</span></div>
             <!-- the selected game's rules and tutorial steps as text (#41); never leaves the room -->
             <button class="settings-summary" id="btn-howto">
                 <span class="gear-icon" data-icon="book"></span>
-                <span id="howto-summary">How to play</span>
+                <span id="howto-summary" data-i18n="lobby.howto">How to play</span>
                 <span class="chev">›</span>
             </button>
 
             <!-- bot mode only: which bot, which difficulty (opens #bot-modal) -->
             <button class="settings-summary" id="btn-opponent" hidden>
                 <span class="gear-icon" data-icon="bot"></span>
-                <span id="opponent-summary">Opponent</span>
+                <span id="opponent-summary" data-i18n="lobby.opponent">Opponent</span>
                 <span class="chev">›</span>
             </button>
 
             <button class="settings-summary" id="btn-settings">
                 <span class="gear-icon" data-icon="settings"></span>
-                <span id="settings-summary">Settings</span>
+                <span id="settings-summary" data-i18n="lobby.settings">Settings</span>
                 <span class="chev">›</span>
             </button>
         </div>
 
         <div class="lobby-foot">
-            <button class="btn primary big" id="btn-start">Start game</button>
-            <button class="btn quiet" id="btn-lobby-back">Leave</button>
+            <button class="btn primary big" id="btn-start" data-i18n="lobby.start">Start game</button>
+            <button class="btn quiet" id="btn-lobby-back" data-i18n="common.leave">Leave</button>
         </div>
     </div>
 </section>
@@ -204,25 +204,25 @@
 <section id="screen-replays" class="screen" hidden>
     <div class="menu-card replays-card">
         <div class="replays-head">
-            <h1 class="title small">Replays</h1>
-            <button class="btn small" id="btn-replay-upload">Open a replay file</button>
+            <h1 class="title small" data-i18n="replays.title">Replays</h1>
+            <button class="btn small" id="btn-replay-upload" data-i18n="replays.open">Open a replay file</button>
         </div>
-        <p class="tagline small">Every game you play is saved on this device. Watch it again, save it as a file or open a file somebody sent you.</p>
+        <p class="tagline small" data-i18n="replays.tagline">Every game you play is saved on this device. Watch it again, save it as a file or open a file somebody sent you.</p>
         <!-- the game filter (#43): a dropdown showing the game's preview tile, built by replay-list.js
              ("All games" first, then one row per registered game) -->
         <div class="replay-tools">
             <div class="dropdown replay-filter" id="replay-filter"></div>
             <!-- against a bot or not (a room with a bot counts as a bot game) -->
             <div class="seg replay-kind" id="replay-kind">
-                <button data-kind="all" class="selected">All</button>
-                <button data-kind="bot">Bot</button>
-                <button data-kind="nobot">No bot</button>
+                <button data-kind="all" class="selected" data-i18n="replays.all">All</button>
+                <button data-kind="bot" data-i18n="replays.bot">Bot</button>
+                <button data-kind="nobot" data-i18n="replays.noBot">No bot</button>
             </div>
-            <input type="search" id="replay-search" class="replay-search" placeholder="Player name" autocomplete="off" spellcheck="false" aria-label="Search by player name">
+            <input type="search" id="replay-search" class="replay-search" placeholder="Player name" data-i18n-placeholder="replays.search" autocomplete="off" spellcheck="false" aria-label="Search by player name" data-i18n-aria="replays.searchAria">
         </div>
         <div class="replay-tools replay-dates">
-            <label class="replay-date"><span>From</span><input type="date" id="replay-from" autocomplete="off" aria-label="Played on or after"></label>
-            <label class="replay-date"><span>To</span><input type="date" id="replay-to" autocomplete="off" aria-label="Played on or before"></label>
+            <label class="replay-date"><span data-i18n="replays.from">From</span><input type="date" id="replay-from" autocomplete="off" aria-label="Played on or after" data-i18n-aria="replays.fromAria"></label>
+            <label class="replay-date"><span data-i18n="replays.to">To</span><input type="date" id="replay-to" autocomplete="off" aria-label="Played on or before" data-i18n-aria="replays.toAria"></label>
             <!-- "12 of 48 replays": found by the filters, of all on this device -->
             <span class="replay-count" id="replay-count"></span>
         </div>
@@ -235,12 +235,12 @@
             <div class="replay-list" id="replay-list"></div>
         </div>
         <div class="replay-pager" id="replay-pager" hidden>
-            <button class="btn small" id="replay-page-prev">‹ Newer</button>
+            <button class="btn small" id="replay-page-prev" data-i18n="replays.newer">‹ Newer</button>
             <span id="replay-page"></span>
-            <button class="btn small" id="replay-page-next">Older ›</button>
+            <button class="btn small" id="replay-page-next" data-i18n="replays.older">Older ›</button>
         </div>
         <div class="lobby-foot">
-            <button class="btn quiet" id="btn-replays-back">Back</button>
+            <button class="btn quiet" id="btn-replays-back" data-i18n="common.back">Back</button>
         </div>
         <input type="file" id="replay-file" accept=".replay,.json,application/json" hidden>
     </div>
@@ -250,30 +250,30 @@
 <!-- Both screens are filled by the Learn module from every game's `howto` data. -->
 <section id="screen-learn" class="screen" hidden>
     <div class="menu-card">
-        <h1 class="title small">Learn</h1>
-        <p class="tagline small">The rules, a guided tutorial and training positions. All offline, no room needed.</p>
+        <h1 class="title small" data-i18n="learn.title">Learn</h1>
+        <p class="tagline small" data-i18n="learn.tagline">The rules, a guided tutorial and training positions. All offline, no room needed.</p>
         <div class="game-picker" id="learn-games"></div>
-        <button class="btn quiet" id="btn-learn-back">Back</button>
+        <button class="btn quiet" id="btn-learn-back" data-i18n="common.back">Back</button>
     </div>
 </section>
 <section id="screen-learn-game" class="screen" hidden>
     <div class="menu-card">
-        <h1 class="title small" id="learn-title">Game</h1>
+        <h1 class="title small" id="learn-title" data-i18n="lobby.game">Game</h1>
         <p class="tagline small" id="learn-tagline"></p>
         <div class="lobby-group">
-            <div class="lobby-row"><span class="lobby-row-label">Rules</span></div>
+            <div class="lobby-row"><span class="lobby-row-label" data-i18n="learn.rules">Rules</span></div>
             <ul class="learn-rules" id="learn-rules"></ul>
         </div>
         <div class="lobby-group" id="learn-tutorial-group">
-            <div class="lobby-row"><span class="lobby-row-label">Tutorial</span></div>
-            <button class="btn primary" id="btn-learn-tutorial">Start tutorial</button>
+            <div class="lobby-row"><span class="lobby-row-label" data-i18n="learn.tutorial">Tutorial</span></div>
+            <button class="btn primary" id="btn-learn-tutorial" data-i18n="learn.startTutorial">Start tutorial</button>
             <p class="hint" id="learn-tutorial-hint"></p>
         </div>
         <div class="lobby-group" id="learn-scenarios-group">
-            <div class="lobby-row"><span class="lobby-row-label">Scenarios</span><span class="lobby-row-note" id="learn-progress"></span></div>
+            <div class="lobby-row"><span class="lobby-row-label" data-i18n="learn.scenarios">Scenarios</span><span class="lobby-row-note" id="learn-progress"></span></div>
             <div class="learn-scenarios" id="learn-scenarios"></div>
         </div>
-        <button class="btn quiet" id="btn-learn-game-back">Back</button>
+        <button class="btn quiet" id="btn-learn-game-back" data-i18n="common.back">Back</button>
     </div>
 </section>
 
@@ -284,7 +284,7 @@
             <div id="board"></div>
             <!-- a timed game whose clock is paused by a connection problem hides the position,
                  so nobody can keep thinking for free (body.board-covered, see match.js) -->
-            <p id="board-cover">The board is hidden while the clock is paused.</p>
+            <p id="board-cover" data-i18n="game.covered">The board is hidden while the clock is paused.</p>
         </div>
 
         <aside id="hut">
@@ -294,33 +294,33 @@
                     <span class="learn-kind" id="learn-kind"></span>
                     <span class="learn-step" id="learn-step"></span>
                     <!-- scenarios only (#43): fold the explanation away to see the whole board -->
-                    <button class="learn-toggle" id="learn-hide" hidden>Hide</button>
+                    <button class="learn-toggle" id="learn-hide" hidden data-i18n="common.hide">Hide</button>
                 </div>
                 <div class="learn-text" id="learn-text"></div>
                 <div class="learn-hint" id="learn-hint"></div>
                 <div class="learn-actions">
-                    <button class="btn small primary" id="learn-next">Next</button>
-                    <button class="btn small" id="learn-retry">Retry</button>
-                    <button class="btn small ghost" id="learn-back">Back to Learn</button>
+                    <button class="btn small primary" id="learn-next" data-i18n="common.next">Next</button>
+                    <button class="btn small" id="learn-retry" data-i18n="common.retry">Retry</button>
+                    <button class="btn small ghost" id="learn-back" data-i18n="learn.back">Back to Learn</button>
                 </div>
             </div>
 
             <div class="sign">
-                <div class="sign-title" id="sign-title">CHAIN REACT</div>
-                <div class="sign-sub" id="round-label">Round 1</div>
+                <div class="sign-title" id="sign-title"></div>
+                <div class="sign-sub" id="round-label"></div>
             </div>
 
             <div class="turn-box" id="turn-box">
                 <div class="turn-block" id="turn-block"></div>
                 <div class="turn-text">
-                    <div class="turn-name" id="turn-name">Player 1</div>
-                    <div class="turn-hint" id="turn-hint">to move</div>
+                    <div class="turn-name" id="turn-name"></div>
+                    <div class="turn-hint" id="turn-hint" data-i18n="hud.toMove">to move</div>
                 </div>
                 <div class="turn-mini">
-                    <div><span id="round-mini">Round 1</span></div>
+                    <div><span id="round-mini"></span></div>
                     <div id="mini-line2"></div>
                 </div>
-                <button class="gear" id="gear" aria-label="Menu" data-icon="menu"></button>
+                <button class="gear" id="gear" aria-label="Menu" data-i18n-aria="game.menuAria" data-icon="menu"></button>
             </div>
 
             <!-- one card per seat, from #tpl-player -->
@@ -331,20 +331,20 @@
 
             <div class="net-box" id="net-box" hidden>
                 <span class="net-dot" id="net-dot"></span>
-                <span id="net-text">Connected</span>
+                <span id="net-text" data-i18n="hud.connected">Connected</span>
                 <span class="net-code" id="net-code"></span>
             </div>
 
             <div class="log" id="log"></div>
             <!-- chat (online only): desktop under the log, phones behind ☰ -->
             <div class="chat-row" id="chat-row">
-                <input id="chat-input" placeholder="Say something…" maxlength="200" autocomplete="off" spellcheck="false" disabled>
-                <button class="btn small" id="chat-send" disabled>Send</button>
+                <input id="chat-input" placeholder="Say something…" data-i18n-placeholder="game.chatPlaceholder" maxlength="200" autocomplete="off" spellcheck="false" disabled>
+                <button class="btn small" id="chat-send" disabled data-i18n="game.send">Send</button>
             </div>
 
             <div class="controls" id="game-controls">
-                <button class="btn" id="btn-restart">Rematch</button>
-                <button class="btn" id="btn-menu">Back to room</button>
+                <button class="btn" id="btn-restart" data-i18n="overlay.rematch">Rematch</button>
+                <button class="btn" id="btn-menu" data-i18n="game.backRoom">Back to room</button>
             </div>
         </aside>
     </div>
@@ -373,7 +373,7 @@
             <button data-e="EZ" class="chip">EZ</button>
             <button data-e="GG" class="chip">GG</button>
         </div>
-        <button id="react-toggle" aria-label="Reactions">😜</button>
+        <button id="react-toggle" aria-label="Reactions" data-i18n-aria="game.reactionsAria">😜</button>
     </div>
 
 </section>
@@ -381,155 +381,155 @@
 <!-- the sticky connection banner: fixed at the top of the lobby and of a game (never inside
      a screen, so both can show it); Room.updateBanner owns its text and its buttons -->
 <div id="net-banner" hidden>
-    <span id="net-banner-text">Connection lost. Reconnecting…</span>
-    <button class="btn small" id="btn-net-retry" hidden>Retry</button>
-    <button class="btn small ghost" id="btn-net-leave">Leave</button>
+    <span id="net-banner-text" data-i18n="banner.default">Connection lost. Reconnecting…</span>
+    <button class="btn small" id="btn-net-retry" hidden data-i18n="banner.retry">Retry</button>
+    <button class="btn small ghost" id="btn-net-leave" data-i18n="banner.leave">Leave</button>
 </div>
 
 <!-- ===================== SETTINGS ===================== -->
 <!-- shared rows here; a game's own rows land in #game-settings and show for that game only -->
 <div id="settings-modal" class="modal" hidden>
     <div class="menu-card settings-card">
-        <h1 class="title small">Settings</h1>
+        <h1 class="title small" data-i18n="settings.title">Settings</h1>
         <!-- spectators only watch (#29) -->
-        <p class="hint" id="settings-locked-hint" hidden>You are spectating. Only the players change the settings.</p>
+        <p class="hint" id="settings-locked-hint" hidden data-i18n="settings.locked">You are spectating. Only the players change the settings.</p>
         <div class="settings">
             <!-- every control is a dropdown: values that work well plus "Custom…", which
                  reveals the number row under it (settings.js builds the options per game) -->
             <label class="row">
-                <span id="size-label">Board size</span>
+                <span id="size-label" data-i18n="settings.size">Board size</span>
                 <select id="set-size" autocomplete="off"></select>
             </label>
             <label class="row row-custom" id="row-size-custom" hidden>
-                <span>Custom size <small id="size-hint"></small></span>
+                <span><span data-i18n="settings.sizeCustom">Custom size</span> <small id="size-hint"></small></span>
                 <input type="number" id="set-size-custom" min="3" max="25" step="1" value="6" autocomplete="off">
             </label>
             <!-- one row per game setting, built by settings.js from each game's `settings` list -->
             <div class="game-settings" id="game-settings"></div>
             <label class="row">
-                <span>Timer per player</span>
-                <select id="set-timer" autocomplete="off">
-                    <option value="0" selected>Off</option>
-                    <option value="60">1 min</option>
-                    <option value="180">3 min</option>
-                    <option value="300">5 min</option>
-                    <option value="600">10 min</option>
-                    <option value="custom">Custom…</option>
-                </select>
+                <span data-i18n="settings.timer">Timer per player</span>
+                <!-- Off, a few minute values and Custom…: the options are built by settings.js -->
+                <select id="set-timer" autocomplete="off"></select>
             </label>
             <label class="row row-custom" id="row-timer-custom" hidden>
-                <span>Custom minutes</span>
+                <span data-i18n="settings.timerCustom">Custom minutes</span>
                 <input type="number" id="set-timer-custom" min="0.5" max="120" step="0.5" value="3" autocomplete="off">
             </label>
         </div>
-        <button class="btn primary" id="btn-settings-done">Done</button>
+        <button class="btn primary" id="btn-settings-done" data-i18n="common.done">Done</button>
     </div>
 </div>
 
 <!-- ===================== PREFERENCES MODAL (look, sound; stored per device) ===================== -->
 <div id="prefs-modal" class="modal" hidden>
     <div class="menu-card prefs-card" id="prefs-card">
-        <h1 class="title small">Preferences</h1>
-        <p class="tagline small">Only for this device. Never shared with the room.</p>
+        <h1 class="title small" data-i18n="prefs.title">Preferences</h1>
+        <p class="tagline small" data-i18n="prefs.tagline">Only for this device. Never shared with the room.</p>
         <!-- two levels (#32): a menu of sections and one panel per section. Phones show one
              of the two at a time, desktop shows both side by side. A new section = one nav
              row here and one .prefs-section panel below. -->
         <div class="prefs-body">
             <div class="prefs-nav" id="prefs-nav">
                 <button class="settings-summary prefs-nav-row" id="prefs-nav-profile" data-section="profile">
-                    <span class="gear-icon" data-icon="user"></span><span class="prefs-nav-name">Profile</span>
+                    <span class="gear-icon" data-icon="user"></span><span class="prefs-nav-name" data-i18n="prefs.profile">Profile</span>
                     <span class="prefs-nav-sum" id="prefs-sum-profile"></span><span class="chev">›</span>
                 </button>
                 <button class="settings-summary prefs-nav-row" id="prefs-nav-look" data-section="look">
-                    <span class="gear-icon" data-icon="palette"></span><span class="prefs-nav-name">Look</span>
+                    <span class="gear-icon" data-icon="palette"></span><span class="prefs-nav-name" data-i18n="prefs.look">Look &amp; Language</span>
                     <span class="prefs-nav-sum" id="prefs-sum-look"></span><span class="chev">›</span>
                 </button>
                 <button class="settings-summary prefs-nav-row" id="prefs-nav-sound" data-section="sound">
-                    <span class="gear-icon" data-icon="volume"></span><span class="prefs-nav-name">Sound</span>
+                    <span class="gear-icon" data-icon="volume"></span><span class="prefs-nav-name" data-i18n="prefs.sound">Sound</span>
                     <span class="prefs-nav-sum" id="prefs-sum-sound"></span><span class="chev">›</span>
                 </button>
                 <button class="settings-summary prefs-nav-row" id="prefs-nav-streaming" data-section="streaming">
-                    <span class="gear-icon" data-icon="video"></span><span class="prefs-nav-name">Content Creator</span>
+                    <span class="gear-icon" data-icon="video"></span><span class="prefs-nav-name" data-i18n="prefs.creator">Content Creator</span>
                     <span class="prefs-nav-sum" id="prefs-sum-streaming"></span><span class="chev">›</span>
                 </button>
                 <button class="settings-summary prefs-nav-row" id="prefs-nav-developer" data-section="developer">
-                    <span class="gear-icon" data-icon="wrench"></span><span class="prefs-nav-name">Developer</span>
+                    <span class="gear-icon" data-icon="wrench"></span><span class="prefs-nav-name" data-i18n="prefs.developer">Developer</span>
                     <span class="prefs-nav-sum" id="prefs-sum-developer"></span><span class="chev">›</span>
                 </button>
                 <button class="settings-summary prefs-nav-row" id="prefs-nav-feedback" data-section="feedback">
-                    <span class="gear-icon" data-icon="chat"></span><span class="prefs-nav-name">Feedback</span>
+                    <span class="gear-icon" data-icon="chat"></span><span class="prefs-nav-name" data-i18n="prefs.feedback">Feedback</span>
                     <span class="prefs-nav-sum" id="prefs-sum-feedback"></span><span class="chev">›</span>
                 </button>
             </div>
             <div class="prefs-panes" id="prefs-panes">
-                <button class="btn small prefs-back" id="btn-prefs-back">‹ Back</button>
+                <button class="btn small prefs-back" id="btn-prefs-back" data-i18n="prefs.back">‹ Back</button>
                 <div class="prefs-section prefs-rows" data-section="profile" hidden>
-                    <div class="section-title">Profile</div>
+                    <div class="section-title" data-i18n="prefs.profile">Profile</div>
                     <label class="row">
-                        <span>Your name</span>
+                        <span data-i18n="prefs.name">Your name</span>
                         <input type="text" id="pref-name" maxlength="16" autocomplete="off" spellcheck="false">
                     </label>
-                    <p class="hint">Shown to the others in the room. Leave it empty to go back to the name you were given.</p>
+                    <p class="hint" data-i18n="prefs.nameHint">Shown to the others in the room. Leave it empty to go back to the name you were given.</p>
                 </div>
                 <div class="prefs-section prefs-rows" data-section="look" hidden>
-                    <div class="section-title">Look</div>
+                    <div class="section-title" data-i18n="prefs.look">Look &amp; Language</div>
                     <div class="seg skin-seg">
-                        <button data-skin="classic" class="selected">Classic</button>
-                        <button data-skin="mcboard">Blocks board</button>
-                        <button data-skin="mc">Blocks</button>
+                        <button data-skin="classic" class="selected" data-i18n="prefs.skin.classic">Classic</button>
+                        <button data-skin="mcboard" data-i18n="prefs.skin.mcboard">Blocks board</button>
+                        <button data-skin="mc" data-i18n="prefs.skin.mc">Blocks</button>
                     </div>
-                    <label class="pref-check"><input type="checkbox" id="pref-win-graph" checked autocomplete="off"> Win chance graph in replays</label>
-                    <p class="hint">The line graph over the moves in the analysis panel. Two players only, because the win chance needs two sides.</p>
+                    <!-- the language (#47): a dropdown with the native names and a flag, built by
+                         prefs.js; "Automatic" follows the browser, a change reloads the page -->
+                    <div class="row lang-row">
+                        <span data-i18n="prefs.language">Language</span>
+                        <div class="dropdown lang-dropdown" id="pref-language"></div>
+                    </div>
+                    <label class="pref-check"><input type="checkbox" id="pref-win-graph" checked autocomplete="off"> <span data-i18n="prefs.winGraph">Win chance graph in replays</span></label>
+                    <p class="hint" data-i18n="prefs.winGraphHint">The line graph over the moves in the analysis panel. Two players only, because the win chance needs two sides.</p>
                 </div>
                 <div class="prefs-section prefs-rows" data-section="sound" hidden>
-                    <div class="section-title">Sound</div>
+                    <div class="section-title" data-i18n="prefs.sound">Sound</div>
                     <label class="row">
-                        <span>Volume <small id="pref-volume-val">30 %</small></span>
+                        <span><span data-i18n="prefs.volume">Volume</span> <small id="pref-volume-val">30 %</small></span>
                         <input type="range" id="pref-volume" min="0" max="100" step="5" value="30" autocomplete="off">
                     </label>
                     <label class="row">
-                        <span>Sound set</span>
+                        <span data-i18n="prefs.soundSet">Sound set</span>
                         <select id="pref-soundset" autocomplete="off">
-                            <option value="auto" selected>Follow the look</option>
-                            <option value="classic">Classic</option>
-                            <option value="mc">Blocks</option>
+                            <option value="auto" selected data-i18n="prefs.set.auto">Follow the look</option>
+                            <option value="classic" data-i18n="prefs.skin.classic">Classic</option>
+                            <option value="mc" data-i18n="prefs.skin.mc">Blocks</option>
                         </select>
                     </label>
                     <div class="pref-toggles" id="pref-toggles">
-                        <label><input type="checkbox" id="pref-snd-moves" checked autocomplete="off"> Moves</label>
-                        <label><input type="checkbox" id="pref-snd-explosions" checked autocomplete="off"> Explosions</label>
-                        <label><input type="checkbox" id="pref-snd-results" checked autocomplete="off"> Win / lose</label>
-                        <label><input type="checkbox" id="pref-snd-turn" checked autocomplete="off"> Your turn</label>
-                        <label><input type="checkbox" id="pref-snd-reactions" checked autocomplete="off"> Reactions</label>
-                        <label><input type="checkbox" id="pref-snd-chat" checked autocomplete="off"> Chat</label>
+                        <label><input type="checkbox" id="pref-snd-moves" checked autocomplete="off"> <span data-i18n="prefs.snd.moves">Moves</span></label>
+                        <label><input type="checkbox" id="pref-snd-explosions" checked autocomplete="off"> <span data-i18n="prefs.snd.explosions">Explosions</span></label>
+                        <label><input type="checkbox" id="pref-snd-results" checked autocomplete="off"> <span data-i18n="prefs.snd.results">Win / lose</span></label>
+                        <label><input type="checkbox" id="pref-snd-turn" checked autocomplete="off"> <span data-i18n="prefs.snd.turn">Your turn</span></label>
+                        <label><input type="checkbox" id="pref-snd-reactions" checked autocomplete="off"> <span data-i18n="prefs.snd.reactions">Reactions</span></label>
+                        <label><input type="checkbox" id="pref-snd-chat" checked autocomplete="off"> <span data-i18n="prefs.snd.chat">Chat</span></label>
                     </div>
-                    <button class="btn small" id="pref-test-sound">Play a test sound</button>
+                    <button class="btn small" id="pref-test-sound" data-i18n="prefs.testSound">Play a test sound</button>
                 </div>
                 <div class="prefs-section prefs-rows" data-section="streaming" hidden>
-                    <div class="section-title">Content Creator</div>
+                    <div class="section-title" data-i18n="prefs.creator">Content Creator</div>
                     <!-- one tap turns every option in this section on -->
-                    <button class="btn primary" id="pref-creator-mode">Turn on content creator mode</button>
-                    <p class="hint">Turns everything below on or off at once, for streaming or recording.</p>
-                    <label class="pref-check"><input type="checkbox" id="pref-hide-code" autocomplete="off"> Hide the room code when I enter a room</label>
-                    <p class="hint">The code stays hidden in the lobby, the game and the address bar until you show it. Share and copy keep working.</p>
-                    <label class="pref-check"><input type="checkbox" id="pref-private-ip" autocomplete="off"> Keep my IP always private</label>
-                    <p class="hint">Every connection goes through the relay server instead of directly to the others, so nobody in the room learns your IP address. A little more delay. Takes effect when you next enter a room.</p>
-                    <label class="pref-check"><input type="checkbox" id="pref-mute-spectators" autocomplete="off"> Hide chat and reactions from spectators</label>
-                    <p class="hint">Spectators' chat lines and emojis never show on this device. The players in the room still see them.</p>
+                    <button class="btn primary" id="pref-creator-mode" data-i18n="prefs.creatorOn">Turn on content creator mode</button>
+                    <p class="hint" data-i18n="prefs.creatorHint">Turns everything below on or off at once, for streaming or recording.</p>
+                    <label class="pref-check"><input type="checkbox" id="pref-hide-code" autocomplete="off"> <span data-i18n="prefs.hideCode">Hide the room code when I enter a room</span></label>
+                    <p class="hint" data-i18n="prefs.hideCodeHint">The code stays hidden in the lobby, the game and the address bar until you show it. Share and copy keep working.</p>
+                    <label class="pref-check"><input type="checkbox" id="pref-private-ip" autocomplete="off"> <span data-i18n="prefs.privateIp">Keep my IP always private</span></label>
+                    <p class="hint" data-i18n="prefs.privateIpHint">Every connection goes through the relay server instead of directly to the others, so nobody in the room learns your IP address. A little more delay. Takes effect when you next enter a room.</p>
+                    <label class="pref-check"><input type="checkbox" id="pref-mute-spectators" autocomplete="off"> <span data-i18n="prefs.mute">Hide chat and reactions from spectators</span></label>
+                    <p class="hint" data-i18n="prefs.muteHint">Spectators' chat lines and emojis never show on this device. The players in the room still see them.</p>
                 </div>
                 <div class="prefs-section prefs-rows" data-section="developer" hidden>
-                    <div class="section-title">Developer</div>
-                    <label class="pref-check"><input type="checkbox" id="pref-developer" autocomplete="off"> Show developer info</label>
-                    <p class="hint">A small panel with the connection and its route per player, performance and what the bot is calculating.</p>
+                    <div class="section-title" data-i18n="prefs.developer">Developer</div>
+                    <label class="pref-check"><input type="checkbox" id="pref-developer" autocomplete="off"> <span data-i18n="prefs.showDev">Show developer info</span></label>
+                    <p class="hint" data-i18n="prefs.devHint">A small panel with the connection and its route per player, performance and what the bot is calculating.</p>
                 </div>
                 <div class="prefs-section prefs-rows" data-section="feedback" hidden>
-                    <div class="section-title">Feedback</div>
-                    <button class="btn small" id="pref-feedback">Report a problem or an idea</button>
-                    <p class="hint">Opens a new GitHub issue with details about this screen already filled in.</p>
+                    <div class="section-title" data-i18n="prefs.feedback">Feedback</div>
+                    <button class="btn small" id="pref-feedback" data-i18n="prefs.report">Report a problem or an idea</button>
+                    <p class="hint" data-i18n="prefs.reportHint">Opens a new GitHub issue with details about this screen already filled in.</p>
                 </div>
             </div>
         </div>
-        <button class="btn primary" id="btn-prefs-done">Done</button>
+        <button class="btn primary" id="btn-prefs-done" data-i18n="common.done">Done</button>
     </div>
 </div>
 
@@ -539,22 +539,22 @@
         <div class="bot-detail-head">
             <span class="bot-detail-icon" data-icon="bot"></span>
             <div>
-                <h1 class="title small" id="bot-name">Bot</h1>
+                <h1 class="title small" id="bot-name" data-i18n="bot.title">Bot</h1>
                 <p class="tagline small" id="bot-desc"></p>
             </div>
         </div>
         <div class="bot-badges" id="bot-badges"></div>
         <div class="bot-params">
-            <div class="section-title">Parameters</div>
+            <div class="section-title" data-i18n="bot.params">Parameters</div>
             <div class="skin-row" id="bot-difficulty-row">
-                <span class="skin-label">Difficulty</span>
+                <span class="skin-label" data-i18n="bot.difficulty">Difficulty</span>
                 <div class="seg" id="bot-difficulty"></div>
             </div>
             <p class="hint" id="bot-difficulty-hint"></p>
         </div>
         <div class="btn-row">
-            <button class="btn ghost" id="btn-bot-cancel">Cancel</button>
-            <button class="btn primary" id="btn-bot-done">Play</button>
+            <button class="btn ghost" id="btn-bot-cancel" data-i18n="common.cancel">Cancel</button>
+            <button class="btn primary" id="btn-bot-done" data-i18n="common.play">Play</button>
         </div>
     </div>
 </div>
@@ -563,58 +563,58 @@
 <!-- Reading only: the interactive tutorial would have to leave the room, so it stays in Learn. -->
 <div id="howto-modal" class="modal" hidden>
     <div class="menu-card howto-card">
-        <h1 class="title small" id="howto-title">How to play</h1>
+        <h1 class="title small" id="howto-title" data-i18n="howto.title">How to play</h1>
         <p class="tagline small" id="howto-tagline"></p>
-        <div class="section-title">Rules</div>
+        <div class="section-title" data-i18n="howto.rules">Rules</div>
         <ul class="learn-rules" id="howto-rules"></ul>
-        <div class="section-title" id="howto-steps-title">Step by step</div>
+        <div class="section-title" id="howto-steps-title" data-i18n="howto.steps">Step by step</div>
         <ol class="learn-steps" id="howto-steps"></ol>
-        <p class="hint">The guided tutorial on a real board is in the Learn section on the title screen.</p>
-        <button class="btn primary" id="btn-howto-done">Done</button>
+        <p class="hint" data-i18n="howto.hint">The guided tutorial on a real board is in the Learn section on the title screen.</p>
+        <button class="btn primary" id="btn-howto-done" data-i18n="common.done">Done</button>
     </div>
 </div>
 
 <!-- ===================== INVITE (the room's share actions, one word on each) ===================== -->
 <div id="invite-modal" class="modal" hidden>
     <div class="menu-card invite-card">
-        <h1 class="title small">Invite</h1>
-        <p class="tagline small" id="invite-hint">Friends open the link, or type the code under Join room.</p>
+        <h1 class="title small" data-i18n="invite.title">Invite</h1>
+        <p class="tagline small" id="invite-hint" data-i18n="invite.hint">Friends open the link, or type the code under Join room.</p>
         <div class="room-code invite-code" id="invite-code">…</div>
         <div class="invite-rows">
             <button class="settings-summary invite-row" id="btn-share">
                 <span class="gear-icon" data-icon="share"></span>
-                <span class="invite-text"><b>Share link</b><small>The link opens this room straight away.</small></span>
+                <span class="invite-text"><b data-i18n="invite.share">Share link</b><small data-i18n="invite.shareSub">The link opens this room straight away.</small></span>
                 <span class="chev">›</span>
             </button>
             <button class="settings-summary invite-row" id="btn-copy-code">
                 <span class="gear-icon" data-icon="copy"></span>
-                <span class="invite-text"><b>Copy room code</b><small>For friends who type it in under Join room.</small></span>
+                <span class="invite-text"><b data-i18n="invite.copyCode">Copy room code</b><small data-i18n="invite.copyCodeSub">For friends who type it in under Join room.</small></span>
                 <span class="chev">›</span>
             </button>
             <!-- the spectate link carries the room's own spectator code, never the room code (#29) -->
             <button class="settings-summary invite-row" id="btn-share-spectate">
                 <span class="gear-icon" data-icon="monitor"></span>
-                <span class="invite-text"><b>Copy a link for spectators</b><small>They watch and chat, but never get a seat.</small></span>
+                <span class="invite-text"><b data-i18n="invite.spectate">Copy a link for spectators</b><small data-i18n="invite.spectateSub">They watch and chat, but never get a seat.</small></span>
                 <span class="chev">›</span>
             </button>
             <!-- hide the code for streaming (#19); share and copy keep working -->
             <button class="settings-summary invite-row" id="btn-hide-code">
                 <span class="gear-icon" data-icon="eye"></span>
-                <span class="invite-text"><b id="hide-code-label">Hide the room code</b><small>For streaming: the code shows as dots until you show it again.</small></span>
+                <span class="invite-text"><b id="hide-code-label" data-i18n="invite.hide">Hide the room code</b><small data-i18n="invite.hideSub">For streaming: the code shows as dots until you show it again.</small></span>
                 <span class="chev">›</span>
             </button>
         </div>
-        <button class="btn primary" id="btn-invite-done">Done</button>
+        <button class="btn primary" id="btn-invite-done" data-i18n="common.done">Done</button>
     </div>
 </div>
 <!-- asked once per device, the first time the code is hidden: make it the default for new rooms? -->
 <div id="hide-code-ask" class="modal" hidden>
     <div class="menu-card ask-card">
-        <h1 class="title small">Hide the code</h1>
-        <p class="tagline small">Hide the room code in every new room from now on? You can change that any time under Content Creator in the settings.</p>
+        <h1 class="title small" data-i18n="hideAsk.title">Hide the code</h1>
+        <p class="tagline small" data-i18n="hideAsk.text">Hide the room code in every new room from now on? You can change that any time under Content Creator in the settings.</p>
         <div class="btn-row">
-            <button class="btn" id="btn-hide-once">Just this room</button>
-            <button class="btn primary" id="btn-hide-always">Always hide it</button>
+            <button class="btn" id="btn-hide-once" data-i18n="hideAsk.once">Just this room</button>
+            <button class="btn primary" id="btn-hide-always" data-i18n="hideAsk.always">Always hide it</button>
         </div>
     </div>
 </div>
@@ -622,11 +622,13 @@
 <!-- ===================== CHANGELOG (changelog.json, loaded on demand) ===================== -->
 <div id="changelog-modal" class="modal" hidden>
     <div class="menu-card changelog-card">
-        <h1 class="title small">Changelog</h1>
+        <h1 class="title small" data-i18n="changelog.title">Changelog</h1>
         <!-- off by default: only what changes the game for players; on: internal and cosmetic work too (#27) -->
-        <label class="pref-check cl-toggle"><input type="checkbox" id="changelog-tech" autocomplete="off"> Show technical changes too</label>
+        <label class="pref-check cl-toggle"><input type="checkbox" id="changelog-tech" autocomplete="off"> <span data-i18n="changelog.tech">Show technical changes too</span></label>
+        <!-- the entries are written per commit and stay English (#47) -->
+        <p class="hint" id="changelog-english" data-i18n="changelog.english">The entries are written in English.</p>
         <div class="changelog-list" id="changelog-list"></div>
-        <button class="btn primary" id="btn-changelog-done">Done</button>
+        <button class="btn primary" id="btn-changelog-done" data-i18n="common.done">Done</button>
     </div>
 </div>
 
@@ -634,12 +636,12 @@
 <div id="overlay" hidden>
     <div class="overlay-card">
         <div class="overlay-block" id="overlay-block"></div>
-        <div class="overlay-title" id="overlay-title">Player 2 wins!</div>
+        <div class="overlay-title" id="overlay-title"></div>
         <div class="overlay-sub" id="overlay-sub"></div>
         <div class="overlay-actions">
-            <button class="btn primary" id="overlay-again">Rematch</button>
-            <button class="btn" id="overlay-look">Look at board</button>
-            <button class="btn ghost" id="overlay-menu">Change game</button>
+            <button class="btn primary" id="overlay-again" data-i18n="overlay.rematch">Rematch</button>
+            <button class="btn" id="overlay-look" data-i18n="overlay.look">Look at board</button>
+            <button class="btn ghost" id="overlay-menu" data-i18n="game.changeGame">Change game</button>
         </div>
     </div>
 </div>
@@ -648,15 +650,15 @@
 <div id="replay-dock">
     <div id="replay-panel" hidden>
         <div class="an-head">
-            <button class="btn small" id="btn-analyse">Analyse</button>
+            <button class="btn small" id="btn-analyse" data-i18n="analysis.analyse">Analyse</button>
             <div id="analysis-progress" hidden>
                 <div class="an-progress-track"><div id="analysis-bar"></div></div>
                 <span id="analysis-progress-text"></span>
             </div>
             <span class="an-verdict" id="an-verdict"></span>
             <span id="an-chance"></span>
-            <button class="btn small" id="btn-play-from-here" hidden>Play from here</button>
-            <button class="btn small an-toggle" id="an-toggle" title="Show more" aria-label="Show more">▾</button>
+            <button class="btn small" id="btn-play-from-here" hidden data-i18n="analysis.playFrom">Play from here</button>
+            <button class="btn small an-toggle" id="an-toggle" title="Show more" data-i18n-title="analysis.more" aria-label="Show more" data-i18n-aria="analysis.more">▾</button>
         </div>
         <div class="an-body">
             <div id="an-graph" hidden></div>
@@ -664,13 +666,13 @@
         </div>
     </div>
     <div id="replay-bar" hidden>
-        <button class="btn small" id="replay-first" title="First move" aria-label="First move">|◀</button>
-        <button class="btn small" id="replay-prev" title="Previous move" aria-label="Previous move">◀</button>
-        <span id="replay-pos">Move 0 / 0</span>
-        <button class="btn small" id="replay-next" title="Next move" aria-label="Next move">▶</button>
-        <button class="btn small" id="replay-last" title="Last move" aria-label="Last move">▶|</button>
-        <button class="btn small" id="replay-play" title="Play through the game" aria-label="Play through the game">▶▶</button>
-        <button id="result-fab" class="btn primary small" hidden>Show result</button>
+        <button class="btn small" id="replay-first" title="First move" data-i18n-title="replay.first" aria-label="First move" data-i18n-aria="replay.first">|◀</button>
+        <button class="btn small" id="replay-prev" title="Previous move" data-i18n-title="replay.prev" aria-label="Previous move" data-i18n-aria="replay.prev">◀</button>
+        <span id="replay-pos"></span>
+        <button class="btn small" id="replay-next" title="Next move" data-i18n-title="replay.next" aria-label="Next move" data-i18n-aria="replay.next">▶</button>
+        <button class="btn small" id="replay-last" title="Last move" data-i18n-title="replay.last" aria-label="Last move" data-i18n-aria="replay.last">▶|</button>
+        <button class="btn small" id="replay-play" title="Play through the game" data-i18n-title="replay.play" aria-label="Play through the game" data-i18n-aria="replay.play">▶▶</button>
+        <button id="result-fab" class="btn primary small" hidden data-i18n="replay.showResult">Show result</button>
     </div>
 </div>
 
@@ -681,11 +683,11 @@
 <!-- ===================== TEMPLATES ("{k}" = player number) ===================== -->
 <template id="tpl-player">
     <div class="player p{k}" id="p-{k}">
-        <div class="player-head"><span class="cube p{k}"></span> <span id="p{k}-name"></span> <span class="you" id="p{k}-you" hidden>you</span></div>
+        <div class="player-head"><span class="cube p{k}"></span> <span id="p{k}-name"></span> <span class="you" id="p{k}-you" hidden data-i18n="hud.you">you</span></div>
         <div class="clock" id="clock-{k}" hidden>3:00</div>
         <div class="stats" id="p{k}-stats"></div>
         <div class="bar stat-bar"><div class="bar-fill p{k}" id="p{k}-bar" style="width:0%"></div><span id="p{k}-pct">0%</span></div>
-        <div class="bar win-bar" id="p{k}-win-row" hidden><div class="bar-fill p{k}" id="p{k}-win" style="width:50%"></div><span id="p{k}-win-pct">50 % win</span></div>
+        <div class="bar win-bar" id="p{k}-win-row" hidden><div class="bar-fill p{k}" id="p{k}-win" style="width:50%"></div><span id="p{k}-win-pct"></span></div>
     </div>
 </template>
 <template id="tpl-replay">
@@ -695,9 +697,9 @@
             <div class="replay-sub"></div>
         </div>
         <div class="replay-buttons">
-            <button class="btn small primary" data-act="watch">Watch</button>
-            <button class="btn small icon" data-act="download" title="Save as a file" aria-label="Save as a file" data-icon="download"></button>
-            <button class="btn small icon" data-act="delete" title="Delete this replay" aria-label="Delete this replay" data-icon="trash"></button>
+            <button class="btn small primary" data-act="watch" data-i18n="replays.watch">Watch</button>
+            <button class="btn small icon" data-act="download" title="Save as a file" data-i18n-title="replays.save" aria-label="Save as a file" data-i18n-aria="replays.save" data-icon="download"></button>
+            <button class="btn small icon" data-act="delete" title="Delete this replay" data-i18n-title="replays.delete" aria-label="Delete this replay" data-i18n-aria="replays.delete" data-icon="trash"></button>
         </div>
     </div>
 </template>
@@ -708,6 +710,14 @@
 <!-- scripts are concatenated in this order by build.mjs; every file defines one global -->
 <script src="client/vendor/peerjs.min.js"></script>
 <script src="client/lib/util.js"></script>
+<script src="client/lib/i18n.js"></script>
+<!-- languages (#47): English is the source of every key, the others carry the same set -->
+<script src="client/lang/en.js"></script>
+<script src="client/lang/de.js"></script>
+<script src="client/lang/es.js"></script>
+<script src="client/lang/fr.js"></script>
+<script src="client/lang/ja.js"></script>
+<script src="client/lang/ar.js"></script>
 <script src="client/lib/icons.js"></script>
 <script src="client/lib/bus.js"></script>
 <script src="client/lib/log.js"></script>

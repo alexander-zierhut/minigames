@@ -106,7 +106,7 @@ test("sections (#32): the menu rows summarise their state, showSection opens one
     P.set({ name: "Robin" });
     assert.equal(P.sectionSummary("profile"), "Robin", "the profile row shows the name (#35)");
     assert.equal(d.getElementById("prefs-sum-profile").textContent, "Robin");
-    assert.equal(P.sectionSummary("look"), "Classic");
+    assert.equal(P.sectionSummary("look"), "Classic · English");
     assert.equal(P.sectionSummary("sound"), "30 % · Follow the look");
     assert.equal(P.sectionSummary("streaming"), "Best for streaming");
     assert.equal(P.get().hideCodeAsked, false, "the hide-code question has not been asked on a fresh device");
@@ -136,7 +136,7 @@ test("sections (#32): the menu rows summarise their state, showSection opens one
     P.set({ developer: true });
     assert.equal(P.sectionSummary("developer"), "on");
     w.eval("Skins").set("mc");
-    assert.equal(P.sectionSummary("look"), "Blocks");
+    assert.equal(P.sectionSummary("look"), "Blocks · English");
     w.eval("Skins").set("classic");
     // one panel at a time; the card marks that a section is open (phones hide the menu by it)
     P.showSection("sound");

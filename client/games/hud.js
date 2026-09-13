@@ -13,10 +13,11 @@
 
 const Hud = (() => {
     const { $ } = Util;
+    const { t } = I18n;
 
     // one .player card per seat, cloned from #tpl-player (ids p-{k}, p{k}-name, clock-{k}, p{k}-stats …)
     function build(players, title) {
-        if (title !== undefined) $("sign-title").textContent = title.toUpperCase();
+        if (title !== undefined) $("sign-title").textContent = t(title).toUpperCase();
         const box = $("players");
         if (box.children.length === players) return;
         box.innerHTML = "";
@@ -60,17 +61,18 @@ const Hud = (() => {
         const names = hooks.names;
         const p = state.current;
         const draw = state.over && state.winner < 0;
-        const roundText = state.over ? "Game over" : model.round;
+        const roundText = state.over ? t("hud.gameOver") : model.round;
         $("round-label").textContent = roundText;
         $("round-mini").textContent = roundText;
         $("turn-box").className = `turn-box p${p}` + (state.busy ? " busy" : "");
         const board = $("board");
         for (let k = 0; k < 4; k++) board.classList.toggle("turn-p" + k, !state.over && p === k);
         board.classList.toggle("over", state.over);
-        $("turn-name").textContent = draw ? "Draw" : names[p];
+        $("turn-name").textContent = draw ? t("hud.draw") : names[p];
         $("turn-hint").textContent = state.over
-            ? (draw ? model.drawHint || "" : `${names[state.winner]} won`)
-            : (hooks.turnHint ? hooks.turnHint(p) : "to move");
+            ? (draw ? model.drawHint || "" : t("hud.won", { name: names[state.winner] }))
+            : (hooks.turnHint ? hooks.turnHint(p) : t("hud.toMove"));
+        $("turn-hint").dataset.busy = t("hud.chainReaction");     // what the CSS appends while a move animates
         model.players.forEach((m, k) => {
             $(`p${k}-name`).textContent = names[k];
             statRows($(`p${k}-stats`), m.stats, `p${k}-stat`);
@@ -88,7 +90,7 @@ const Hud = (() => {
     // the result overlay: `name` = the winner's name (null = draw), `sub` = why + the game's summary
     function overlay(name, winner, sub) {
         $("overlay-block").className = "overlay-block " + (name ? "p" + winner : "draw");
-        $("overlay-title").textContent = name ? `${name} wins!` : "Draw!";
+        $("overlay-title").textContent = name ? t("overlay.wins", { name }) : t("overlay.draw");
         $("overlay-sub").textContent = sub;
         $("overlay").hidden = false;
     }

@@ -73,7 +73,7 @@ test("chain: chain rule wins at the configured length (instant path)", () => {
     const { R, s } = chain({ n: 3, chainRule: true, chainLen: 2 });
     for (const i of [0, 1, 3, 1, 6, 8]) move(R, s, i);
     const r = move(R, s, 0);
-    assert.equal(r.winner, 0); assert.match(r.why, /Chain reaction of 2/);
+    assert.equal(r.winner, 0); assert.equal(JSON.stringify(r.why), JSON.stringify({ k: "why.chain.chain", count: 2 }));
 });
 
 test("five: lineThrough, bestRow, win, draw and legalMoves", () => {
@@ -86,7 +86,7 @@ test("five: lineThrough, bestRow, win, draw and legalMoves", () => {
     const d = five({ n: 3, winLen: 3 });
     for (const i of [1, 0, 2, 5, 3, 6, 4, 7]) move(d.R, d.s, i);   // the last window (row 2) stays open until the last stone
     const full = move(d.R, d.s, 8);
-    assert.equal(full.winner, -1, "full board is a draw"); assert.match(full.why, /full/i);
+    assert.equal(full.winner, -1, "full board is a draw"); assert.equal(full.why.k, "why.five.full");
 });
 
 // 9×9 / 5 stones that block every window of 5 for both colours while 36 cells stay empty:
@@ -112,7 +112,7 @@ test("five: draw as soon as no line can be completed any more (#18)", () => {
     const d = five({ n: 3, winLen: 3 });
     for (const i of [0, 1, 2, 4, 3, 5, 7]) assert.equal(move(d.R, d.s, i), null);
     const r = move(d.R, d.s, 6);
-    assert.equal(r.winner, -1); assert.match(r.why, /No line can be completed/);
+    assert.equal(r.winner, -1); assert.equal(r.why.k, "why.five.dead");
     assert.equal(d.s.history.length, 8);
     assert.equal(d.R.canWin(d.s, 0), false); assert.equal(d.R.canWin(d.s, 1), false);
     // 9×9 / 5: 45 stones block every window of 5 for both colours; ≥ 36 cells stay empty
@@ -122,7 +122,7 @@ test("five: draw as soon as no line can be completed any more (#18)", () => {
     const g = five({ n, winLen: 5 });
     let res = null;
     for (const i of seq) { res = move(g.R, g.s, i); if (res) break; }
-    assert.ok(res && res.winner === -1, "draw"); assert.match(res.why, /No line can be completed/);
+    assert.ok(res && res.winner === -1, "draw"); assert.equal(res.why.k, "why.five.dead");
     assert.ok(g.s.cells.filter((c) => c === -1).length >= 36, `many empties left (${g.s.history.length} stones)`);
     assert.equal(g.R.canWin(g.s, 0), false); assert.equal(g.R.canWin(g.s, 1), false);
     // one stone less at (0,2): column 0 (rows 0–4) still has a window for Amber, who owns
@@ -195,8 +195,8 @@ test("boxes: the game ends when every line is drawn, most boxes wins, equal is a
     assert.ok(result, "the last line ends it");
     assert.equal(s.history.length, 12);
     assert.equal(s.scores[0] + s.scores[1], 4);
-    if (s.scores[0] === s.scores[1]) { assert.equal(result.winner, -1); assert.equal(result.why, "Tied!"); }
-    else { assert.equal(result.winner, s.scores[0] > s.scores[1] ? 0 : 1); assert.match(result.why, /^\d+ boxe?s?!$/); }
+    if (s.scores[0] === s.scores[1]) { assert.equal(result.winner, -1); assert.equal(result.why.k, "why.boxes.tied"); }
+    else { assert.equal(result.winner, s.scores[0] > s.scores[1] ? 0 : 1); assert.equal(result.why.k, "why.boxes.boxes"); }
 });
 
 test("boxes: safe lines, capturing lines and the chain a capture hangs off", () => {

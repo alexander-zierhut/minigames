@@ -106,7 +106,7 @@ test("trapped when your turn comes: with two players the other one wins", () => 
     const r = Rules.step(R, t, kill2);
     assert.equal(t.over, true);
     assert.equal(t.winner, 0);
-    assert.equal(r.why, "Trapped!");
+    assert.equal(r.why.k, "why.isolation.trapped");
     assert.equal(J(t.trapped), J([false, true]), "the trap is an elimination inside the rules");
 });
 
@@ -288,7 +288,7 @@ test("a trap ends the game with the overlay and the log", async () => {
     assert.equal(d.getElementById("overlay").hidden, false);
     assert.match(d.getElementById("overlay-title").textContent, /wins!/);
     assert.match(d.getElementById("overlay-sub").textContent, /Trapped!/);
-    assert.match(d.getElementById("overlay-sub").textContent, /moves/);
+    assert.match(d.getElementById("overlay-sub").textContent, /\d+ moves?$/);
     assert.ok(d.getElementById("board").classList.contains("over"));
     w.close();
 });

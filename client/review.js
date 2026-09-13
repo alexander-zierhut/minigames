@@ -8,6 +8,7 @@
 
 const Review = (() => {
     const { $ } = Util;
+    const { t } = I18n;
     let h = { doc: () => null, onPlayFrom: () => {} };   // app.js: the replay document on the board (null while playing); "Play from here"
 
     const total = () => Match.state.history.length;
@@ -31,13 +32,13 @@ const Review = (() => {
     function render() {
         const n = total();
         const ply = current();
-        $("replay-pos").textContent = `Move ${ply} / ${n}`;
+        $("replay-pos").textContent = t("replay.pos", { ply, total: n });
         $("replay-first").disabled = $("replay-prev").disabled = ply === 0;
         $("replay-next").disabled = $("replay-last").disabled = ply === n;
         const play = $("replay-play");
         play.disabled = n === 0;
         play.textContent = player.playing ? "❚❚" : "▶▶";
-        play.title = player.playing ? "Pause" : "Play through the game";
+        play.title = t(player.playing ? "replay.pause" : "replay.play");
         play.setAttribute("aria-label", play.title);
         // the analysis marks the bot's move on the board; a game whose moves are not plain
         // cell ids says which cell that is (`engine.cellOf`)

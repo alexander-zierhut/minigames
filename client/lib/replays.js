@@ -47,36 +47,37 @@ const Replays = (() => {
     /* ---------- validation ---------- */
     // Is this a replay this page can show? Checks the shape and replays every move with the
     // game's own rules. It never compares the recorded result: the rules of a game may have
-    // grown since, and what the file says happened stays what the list shows.
+    // grown since, and what the file says happened stays what the list shows. `error` is a
+    // key (#47); the screen renders it with I18n.t.
     function validate(doc) {
         const bad = (error) => ({ ok: false, error });
-        if (!doc || typeof doc !== "object" || Array.isArray(doc) || doc.format !== FORMAT) return bad("This is not a replay file.");
-        if (doc.version !== VERSION) return bad("This replay comes from a newer version of the site.");
-        if (!Games.has(doc.game) || !Rules.of(doc.game)) return bad("This replay is of a game this page does not have.");
+        if (!doc || typeof doc !== "object" || Array.isArray(doc) || doc.format !== FORMAT) return bad("replays.err.notReplay");
+        if (doc.version !== VERSION) return bad("replays.err.newer");
+        if (!Games.has(doc.game) || !Rules.of(doc.game)) return bad("replays.err.noGame");
         const cfg = doc.config;
-        if (!cfg || typeof cfg !== "object") return bad("This replay has no board.");
-        if (!Number.isInteger(cfg.n) || cfg.n < 2 || cfg.n > 50) return bad("This replay has a board size that cannot be right.");
+        if (!cfg || typeof cfg !== "object") return bad("replays.err.noBoard");
+        if (!Number.isInteger(cfg.n) || cfg.n < 2 || cfg.n > 50) return bad("replays.err.badSize");
         const players = cfg.players || 2;
-        if (!Number.isInteger(players) || players < 2 || players > 4) return bad("This replay has a number of players that cannot be right.");
+        if (!Number.isInteger(players) || players < 2 || players > 4) return bad("replays.err.badPlayers");
         // how many cells this game's board has for that config (never n * n: Dots and Boxes's
         // cells are the 2n(n+1) lines between the dots)
         let cells = 0;
         try { cells = Rules.create({ ...cfg, game: doc.game, players }, doc.game).cells.length; } catch (e) { /* an impossible board */ }
-        if (!cells) return bad("This replay has a board that cannot be built.");
+        if (!cells) return bad("replays.err.cantBuild");
         // a move is one integer: a cell id, or a pair of cells a game packed into one — a game
         // that does that says so with the rules' `cellOf` (Isolation's `to * cells + removed`)
         const moveMax = Rules.of(doc.game).cellOf ? cells * cells : cells;
-        if (!Array.isArray(doc.history) || doc.history.some((i) => !Number.isInteger(i) || i < 0 || i >= moveMax)) return bad("This replay has moves that are not on the board.");
-        if (doc.outs !== undefined && !Array.isArray(doc.outs)) return bad("This replay is damaged.");
-        if (!doc.result || typeof doc.result !== "object") return bad("This replay does not say how it ended.");
-        if (!Array.isArray(doc.players) || doc.players.length < players || doc.players.some((n) => typeof n !== "string")) return bad("This replay does not say who played.");
-        if (!doc.meta || typeof doc.meta !== "object" || typeof doc.meta.playedAt !== "string") return bad("This replay does not say when it was played.");
+        if (!Array.isArray(doc.history) || doc.history.some((i) => !Number.isInteger(i) || i < 0 || i >= moveMax)) return bad("replays.err.badMoves");
+        if (doc.outs !== undefined && !Array.isArray(doc.outs)) return bad("replays.err.damaged");
+        if (!doc.result || typeof doc.result !== "object") return bad("replays.err.noResult");
+        if (!Array.isArray(doc.players) || doc.players.length < players || doc.players.some((n) => typeof n !== "string")) return bad("replays.err.noPlayers");
+        if (!doc.meta || typeof doc.meta !== "object" || typeof doc.meta.playedAt !== "string") return bad("replays.err.noDate");
         try {
             const state = Rules.create({ ...cfg, game: doc.game }, doc.game);
             const applied = Rules.apply(doc.game, state, doc.history, doc.outs || []);
-            if (applied !== doc.history.length) return bad("This replay does not fit the rules of the game.");
+            if (applied !== doc.history.length) return bad("replays.err.rules");
         } catch (e) {
-            return bad("This replay could not be played back.");
+            return bad("replays.err.playback");
         }
         return { ok: true };
     }
@@ -84,9 +85,9 @@ const Replays = (() => {
     // one file → a document ready for the viewer, or an error to show the player
     function parse(text) {
         let raw = null;
-        try { raw = JSON.parse(text); } catch (e) { return { ok: false, error: "That file is not a replay (it is not even JSON)." }; }
+        try { raw = JSON.parse(text); } catch (e) { return { ok: false, error: "replays.err.notJson" }; }
         const doc = migrate(raw);
-        if (!doc) return { ok: false, error: raw && raw.format === FORMAT ? "This replay comes from a newer version of the site." : "That file is not a replay." };
+        if (!doc) return { ok: false, error: raw && raw.format === FORMAT ? "replays.err.newer" : "replays.err.notFile" };
         const check = validate(doc);
         return check.ok ? { ok: true, doc } : check;
     }
@@ -115,7 +116,7 @@ const Replays = (() => {
                 winner: finished ? (record.winner === null || record.winner === undefined ? -1 : record.winner) : null,
                 why: finished ? (record.why || "") : "",
             },
-            players: Array.from({ length: players }, (_, p) => String(names[p] === undefined || names[p] === null ? `Player ${p + 1}` : names[p])),
+            players: Array.from({ length: players }, (_, p) => String(names[p] === undefined || names[p] === null ? I18n.t("common.player", { n: p + 1 }) : names[p])),
             meta: {
                 playedAt: opts.playedAt || new Date().toISOString(),
                 mode,
@@ -151,7 +152,8 @@ const Replays = (() => {
         const d = new Date(iso);
         if (isNaN(d.getTime())) return "";
         try {
-            return `${d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}, ${d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`;
+            const locale = I18n.locale;                     // the chosen language's date format (#47)
+            return `${d.toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" })}, ${d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}`;
         } catch (e) {
             return d.toISOString().slice(0, 16).replace("T", ", ");
         }
@@ -164,7 +166,7 @@ const Replays = (() => {
         return {
             id,
             game: doc.game,
-            title: Games.has(doc.game) ? Games.get(doc.game).title : doc.game,
+            title: Games.has(doc.game) ? Games.title(doc.game) : doc.game,
             n: doc.config.n,
             players,
             moves: doc.history.length,
@@ -174,7 +176,7 @@ const Replays = (() => {
             // (#36, and "Play from here" opens such a room)
             bot: doc.meta.mode === "bot" || !!(doc.config && doc.config.bot),
             over: !!doc.result.over,
-            resultText: !doc.result.over ? "Unfinished" : winner >= 0 ? `${players[winner] || `Player ${winner + 1}`} won` : "Draw",
+            resultText: !doc.result.over ? I18n.t("replays.unfinished") : winner >= 0 ? I18n.t("replays.won", { name: players[winner] || I18n.t("common.player", { n: winner + 1 }) }) : I18n.t("replays.draw"),
         };
     }
 

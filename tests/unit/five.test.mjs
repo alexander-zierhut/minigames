@@ -19,12 +19,12 @@ test("registry: 5–25 cells, default 11 × 11 (#16), the win length is the mini
 });
 
 test("horizontal five wins with the exact line", async () => {
-    const { G, calls } = fresh();
+    const { G, calls, w } = fresh();
     await playAll(G, [0, 9, 1, 10, 2, 11, 3, 12, 4]);
     assert.equal(G.state.over, true);
     assert.equal(G.state.winner, 0);
     assert.equal(JSON.stringify([...G.state.winLine].sort((a, b) => a - b)), "[0,1,2,3,4]");
-    assert.match(calls.finish.why, /5 in a row/);
+    assert.match(w.eval("I18n").msg(calls.finish.why), /5 in a row/);
 });
 
 test("vertical and diagonal lines win", async () => {
@@ -72,12 +72,12 @@ test("occupied cells are illegal, game over blocks moves", async () => {
 
 test("full board without a line is a draw", () => {
     // 3×3, winLen 3: row 2 stays open for Amber until Cyan's last stone fills the board
-    const { G, calls } = fresh({ n: 3, winLen: 3 });
+    const { G, calls, w } = fresh({ n: 3, winLen: 3 });
     G.replay([1, 0, 2, 5, 3, 6, 4, 7, 8]);
     assert.equal(G.state.over, true);
     assert.equal(G.state.winner, -1);
     assert.equal(G.state.history.length, 9);
-    assert.match(calls.finish.why, /full/i);
+    assert.match(w.eval("I18n").msg(calls.finish.why), /full/i);
 });
 
 test("draw as soon as no line can be completed any more, with empty cells left (#18)", () => {
@@ -99,7 +99,7 @@ test("draw as soon as no line can be completed any more, with empty cells left (
     G.replay(seq);
     assert.equal(G.state.over, true);
     assert.equal(G.state.winner, -1);
-    assert.match(calls.finish.why, /No line can be completed any more/);
+    assert.match(w.eval("I18n").msg(calls.finish.why), /No line can be completed any more/);
     assert.ok(G.state.history.length < 25, `ended with ${25 - G.state.history.length} empty cells`);
     assert.equal(w.document.getElementById("overlay-title").textContent, "Draw!");
     assert.match(w.document.getElementById("overlay-sub").textContent, /No line can be completed any more/);
@@ -111,7 +111,7 @@ test("draw as soon as no line can be completed any more, with empty cells left (
         for (const i of seq) { if (live.G.state.over) break; assert.equal(await live.G.play(i), true); }
         assert.equal(live.G.state.history.length, G.state.history.length);
         assert.equal(live.G.state.winner, -1);
-        assert.equal(live.calls.finish.why, calls.finish.why);
+        assert.equal(JSON.stringify(live.calls.finish.why), JSON.stringify(calls.finish.why));
         assert.equal(live.G.hash(), G.hash(), "replay == play");
     })();
 });
@@ -150,16 +150,16 @@ test("win chance: even at the start, grows with a longer row, exact on a draw", 
 });
 
 test("Yavalath rule: one less than winLen in a row loses; with two players the other one wins", async () => {
-    const { G, calls } = fresh({ n: 7, winLen: 4, yavalath: true });
+    const { G, calls, w } = fresh({ n: 7, winLen: 4, yavalath: true });
     assert.equal(G.state.yavalath, true); assert.equal(JSON.stringify(G.state.dead), "[false,false]");
     await playAll(G, [0, 7, 1, 8, 2]);                         // p0 makes three in a row: loses
     assert.equal(G.state.over, true); assert.equal(G.state.winner, 1);
-    assert.match(calls.finish.why, /3 in a row loses/);
+    assert.match(w.eval("I18n").msg(calls.finish.why), /3 in a row loses/);
     assert.equal(JSON.stringify([...G.state.winLine].sort((a, b) => a - b)), "[0,1,2]", "the losing line is marked");
     // a stone that makes four wins even though it also makes a three somewhere else
     const g2 = fresh({ n: 7, winLen: 4, yavalath: true });
     await playAll(g2.G, [0, 21, 1, 22, 3, 28, 2]);             // 0 1 _ 3 then 2 completes four
-    assert.equal(g2.G.state.winner, 0); assert.match(g2.calls.finish.why, /4 in a row/);
+    assert.equal(g2.G.state.winner, 0); assert.match(w.eval("I18n").msg(g2.calls.finish.why), /4 in a row/);
     // two in a row is nothing (winLen 4: only exactly three loses)
     const g3 = fresh({ n: 7, winLen: 4, yavalath: true });
     await playAll(g3.G, [0, 21, 1]);
@@ -182,7 +182,7 @@ test("Yavalath rule with three players: the one who makes the losing line is out
     await playAll(G, [31, 23]);                                 // p1: 30 31; p2: 21 22 23 = three → out, p1 is the last one
     assert.equal(G.state.over, true); assert.equal(G.state.winner, 1);
     assert.equal(JSON.stringify(G.state.dead), "[true,false,true]");
-    assert.match(calls.finish.why, /3 in a row loses/);
+    assert.match(w.eval("I18n").msg(calls.finish.why), /3 in a row loses/);
     // replay == play with the rule (deterministic elimination inside the rules)
     const R = w.eval("Rules").replay(G.record());
     assert.equal(JSON.stringify(R.dead), JSON.stringify(G.state.dead)); assert.equal(R.winner, 1);

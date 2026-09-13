@@ -37,7 +37,7 @@ test("rules: out players are skipped by pass, remaining() lists the rest, the la
     assert.equal(f.current, 0); assert.equal(f.round, 2);
     f.out[1] = true; f.out[2] = true;
     const r = move(FiveRules, f, 5);
-    assert.equal(r.winner, 0); assert.match(r.why, /Everyone else is out/);
+    assert.equal(r.winner, 0); assert.equal(r.why.k, "why.five.out");
     // chain with three players: an out player's cells don't keep it alive
     const c = ChainRules.create({ n: 3, players: 3 }, Rules.base({ n: 3, players: 3 }));
     move(ChainRules, c, 0); move(ChainRules, c, 4); move(ChainRules, c, 8);
@@ -67,10 +67,10 @@ test("engine: eliminate() mid-game with three players — turn passes, HUD/log f
     assert.equal(d.getElementById("p2-name").textContent, "Lime");
     await G.play(0); await G.play(1);                            // seat 2 to move
     assert.equal(G.state.current, 2);
-    assert.equal(G.eliminate(2, "Out of time!"), true);
+    assert.equal(G.eliminate(2, { k: "why.time" }), true);
     assert.equal(G.state.out[2], true);
     assert.equal(G.state.current, 0, "it was seat 2's turn: passes to seat 0");
-    assert.equal(JSON.stringify(G.state.outs), JSON.stringify([{ p: 2, at: 2, why: "Out of time!" }]));
+    assert.equal(JSON.stringify(G.state.outs), JSON.stringify([{ p: 2, at: 2, why: { k: "why.time" } }]));
     assert.equal(calls.turns[calls.turns.length - 1], 0, "onTurn told the app");
     assert.match(d.getElementById("log").textContent, /Lime is out\. Out of time!/);
     assert.equal(G.eliminate(2, "again"), false, "already out");
@@ -84,7 +84,7 @@ test("engine: eliminate() mid-game with three players — turn passes, HUD/log f
     assert.equal(R.hash(), G.hash(), "replay with outs == live play");
     assert.equal(R.state.current, 0); assert.equal(R.state.out[2], true);
     // a second flag fall leaves one player: the game ends for them
-    G.eliminate(1, "Out of time!");
+    G.eliminate(1, { k: "why.time" });
     assert.equal(G.state.over, true); assert.equal(G.state.winner, 0);
     assert.equal(d.getElementById("overlay-title").textContent, "Cyan wins!");
     assert.match(d.getElementById("overlay-sub").textContent, /Out of time!/);
@@ -94,17 +94,17 @@ test("engine: eliminate() mid-game with three players — turn passes, HUD/log f
 test("engine: with two players a flag fall ends the game (no 'is out' line); a missed flag fall arrives via replay([], outs)", () => {
     const w = loadDom(); const d = w.document;
     const { G, calls } = fresh(w, "ChainGame", { game: "chain", n: 4, speed: 1, players: 2 });
-    G.eliminate(0, "Out of time!");
+    G.eliminate(0, { k: "why.time" });
     assert.equal(G.state.over, true); assert.equal(G.state.winner, 1);
-    assert.equal(calls.finish.why, "Out of time!");
+    assert.equal(calls.finish.why.k, "why.time");
     assert.equal(d.getElementById("overlay-title").textContent, "Amber wins!");
     assert.doesNotMatch(d.getElementById("log").textContent, /is out/);
     const w2 = loadDom();
     const { G: H } = fresh(w2, "FiveGame", { game: "five", n: 5, winLen: 4, players: 3 });
-    H.replay([0, 1], [{ p: 1, at: 2, why: "Out of time!" }]);
+    H.replay([0, 1], [{ p: 1, at: 2, why: { k: "why.time" } }]);
     assert.equal(H.state.out[1], true);
     assert.equal(H.state.current, 2, "seat 1 was out before its turn came: 0 → 2");
-    H.replay([], [{ p: 2, at: 2, why: "Out of time!" }]);
+    H.replay([], [{ p: 2, at: 2, why: { k: "why.time" } }]);
     assert.equal(H.state.over, true); assert.equal(H.state.winner, 0);
     w.close(); w2.close();
 });

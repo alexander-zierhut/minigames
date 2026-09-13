@@ -229,7 +229,10 @@ doesn't snap at "1"). Persisted in `localStorage["chainreact.settings"]` togethe
 - **Every control is a dropdown**, the timer's shape: a few values that work well, "Off"
   where the setting can be off, and "Custom…", which reveals a number row (`.row-custom`,
   `#row-<key>-custom` with `#set-<key>-custom`) right under it. Units are part of the option
-  text ("15 explosions") or of the custom row's label.
+  text ("15 explosions", a plural key named by the setting's `unit`) or of the custom row's
+  label. The timer's options are built by `fillTimer` (`settings.minutes`), the size's by
+  `fillSize`; every label is a key (#47). A phone (`max-width: 480px`) stacks the label over
+  the dropdown, so a long label in any language has the whole row.
 - Shared rows (in index.html): board size (`#set-size`, options built per game by
   `fillSize` from `size.presets` inside the limits `size` + optional `minSize(cfg)`: chain
   3–12 default 6, five 5–25 default 11, isolation 5–12 default 7, boxes 2–10 default 5; the
@@ -247,12 +250,12 @@ doesn't snap at "1"). Persisted in `localStorage["chainreact.settings"]` togethe
 - **Game rows are generated** into `#game-settings` from every registered game's
   `settings` list (`Settings.init` → `buildRows`). A setting is
   `{ key, label, type: "select" | "bool" | "preset", def, min?, max?, options?, presets?,
-  off?, startOff?, suffix?, customLabel?, flag? }`; `label` may be a **function of the
-  current config**, re-read on every change and on a game switch (`syncLabels`), which is
-  how five's Yavalath row says "Lose when 4 in a row". The types: `select` (`options` =
-  `[[value, label], …]`), `bool` (an Off / On dropdown) and **`preset`** (`presets:
-  [numbers]`, optional `off` label with `startOff`, `suffix` for the option text, `min` /
-  `max` / `def` and `customLabel` for the Custom row). A preset may name a **`flag`**: one
+  off?, startOff?, unit?, customLabel?, flag? }`; `label` is a key, or a **function of the
+  current config** returning a text, re-read on every change and on a game switch
+  (`syncLabels`), which is how five's Yavalath row says "Lose when 4 in a row". The types:
+  `select` (`options` = `[[value, key], …]`), `bool` (an Off / On dropdown) and **`preset`**
+  (`presets: [numbers]`, `off: true` for an Off entry with `startOff`, `unit` = a plural key
+  for the option text, `min` / `max` / `def` and `customLabel` (a key) for the Custom row). A preset may name a **`flag`**: one
   control then writes two config keys, which is how chain's "Win on a long chain" row sets
   `chainRule` on or off and `chainLen` to the number, leaving the config shape (and every
   replay) as it was. The row is `<label class="row" id="row-<key>" data-setting="<key>">`,
@@ -276,6 +279,89 @@ doesn't snap at "1"). Persisted in `localStorage["chainreact.settings"]` togethe
   game remembers instead of what is picked (true when the game really changes and when a
   config arrives, false for the re-renders that only gray out cards).
 - The **look is not a setting** (see Skins).
+
+## Languages (`client/lib/i18n.js`, `client/lang/*.js`, #47)
+
+The site speaks English (the source), German, Spanish, French, Japanese and Arabic.
+Every user-facing text is a **key** looked up in the dictionary of the chosen language;
+`I18n.t(key, params)` fills `{name}` placeholders and picks a plural form (an entry that is
+an object keyed by CLDR category, `{ one, other }` in the European languages, `other` only
+in Japanese, six forms in Arabic; the form comes from `Intl.PluralRules` and `params.count`,
+a missing form falls back to `other`). An unknown key comes back as the key itself, so a
+typo is visible. English is the fallback for a key another language lacks (the parity test
+makes sure none does).
+
+- **The static markup** carries `data-i18n="key"` on every element with text, and
+  `data-i18n-title` / `data-i18n-placeholder` / `data-i18n-aria` for the attributes;
+  `I18n.apply(document)` fills them at boot (`I18n.init` in app.js, before anything else
+  renders). The English text stays in `index.html` for readability and the unit test
+  checks that it equals the English value of its key, so the two never drift.
+- **Texts built at runtime** go through `t()` in the module that renders them; the
+  dictionaries are loaded right after `util.js`, so every module may call `I18n.t` at any
+  time. The pure rules answer with **message descriptors** (`{ k: "why.five.row", n: 5 }`)
+  for the reason a game ends, `I18n.msg` renders one (and passes a plain string through,
+  which is what an older record or replay file carries). A descriptor may nest (`level:
+  { k: "level.easy" }` inside a Learn sentence).
+- **Games** keep their keys (`chain`, `five`, …) and translate every label: `title`,
+  `tagline`, `desc`, the settings rows (`label`, `customLabel`, a `select`'s option labels
+  are keys, a `preset`'s `unit` is a plural key such as `game.chain.explosions`, `off:
+  true` means "Off"), `howto.rules` and the tutorial `text`s are keys, the HUD model's
+  labels are built with `t()` in the view. `Games.title(key)` is the translated title.
+  The generated scenario files carry keys too: `title` (`learn.title.<tag>`) with `no`
+  for a repeated title inside a tier, and `text` as a list of descriptors that
+  `scripts/learn/pick-scenarios.mjs` parses out of the puzzle notes (`NOTE_SENTENCES`; an
+  unknown sentence stops the generator until its key exists). `Learn.titleOf(sc)` /
+  `textOf(sc)` render them.
+- **Bots** are headless and keep English in their definitions (`name`, `description`,
+  the difficulties' `label`); the UI shows `bot.<id>.desc` and `level.<id>` instead, and
+  the unit test checks that every bot and every difficulty has its key.
+- **What stays as it is**: names, chat lines and reactions (content), the changelog
+  entries (written per commit, in English; the modal says so), the developer panel
+  (`dev.js`), the feedback issue body (the owner reads GitHub in English; marked
+  `i18n-ignore-start` … `i18n-ignore-end`), and the `<meta>` / Open Graph tags.
+- **Choosing the language**: the browser's list (`navigator.languages`) the first time
+  (`I18n.detect`: the first language the site speaks, `de-AT` counts as `de`, else
+  English), overridden by the `language` preference (`Prefs`, `"auto"` by default). The
+  switch lives under **Look & Language** in the preferences: a `.dropdown` (`#pref-language`,
+  the same component as the replays filter, as wide as its widest row) with "Automatic (…)"
+  and every language under its own name and a small SVG flag (`I18n.flag`, an icon, so the
+  "no emoji" rule holds); the closed button says "Automatic" with the flag of the language
+  that gives.
+  Picking one saves and **reloads the page** (`Prefs.reload`, replaceable in tests): that
+  is how every text, every dropdown and the writing direction follow at once, and it
+  keeps the code free of live re-rendering. The Look row's summary names the language.
+- **Arabic reads right to left**: `I18n.init` sets `dir="rtl"` on `<html>`, so the flex
+  rows and the text mirror; `game.css` pins `#board`, the preview tiles, the reaction
+  layer, the clocks, the graph and the replay position to `direction: ltr`, so cell 0 is
+  top left in every language and a tutorial's "top left corner" means the same. No other
+  RTL work was done on purpose (the owner asked for no more than that).
+- **Dates** use the chosen language (`Replays.when` formats with `I18n.locale`).
+
+**What every deploy checks** (`tests/unit/i18n.test.mjs`): every language file carries
+exactly the English key set, with the same placeholders per key and per plural form, no
+em dash and no en dash outside a number range; every text node and every `title` /
+`placeholder` / `aria-label` in `index.html` is keyed to the English text it shows; every
+bot and difficulty has its key; and **no user-facing string literal is left in the client
+code** (a lint over `client/**/*.js` minus the vendored PeerJS, the language files, the
+bots and `dev.js`: a literal with two words separated by a space is a sentence, unless the
+line is a selector, an error for the console, a class name or is marked `// i18n-ignore`).
+**And the layout** (`tests/e2e/i18n.test.mjs`): for every language, on a 360 × 780 phone
+and a 1400 × 900 desktop, it walks the title screen, the preferences (every section), the
+local lobby with every game and its settings modal, How to play, the bot lobby and modal,
+a whole game with its HUD, overlay and replay bar, the replays screen and the Learn pages,
+and asserts through `B.overflows(selectors[, max])` that none of the single-line elements
+(`.btn`, headings, row labels, seat cards, the dropdown rows, segments, HUD stats, the turn
+box, the replay bar, the learn ladder's heads, …) takes a second line or is wider than its
+box (clipped or not; every text node is measured on its own, so an icon next to a label is
+not a line), that the picker descriptions, the options rows' summaries and a scenario's
+title stay within two, and that the phone screens still do not scroll. Hints, taglines,
+lesson texts and the sentence next to a checkbox may wrap. **That is the guarantee for the
+future**: a new text or a longer translation that breaks a layout fails CI, on the one
+screen it breaks, in the one language it breaks; the fix is a shorter wording in that
+language file, and only as a last resort more room in the CSS. The room that was made for
+#47: a phone stacks a settings label over its dropdown, shares a title-screen button row
+by what the two words need, puts a scenario's difficulty dots under its title, lets a
+segment grow with its word, and never wraps the install pill.
 
 ## Icons (`client/lib/icons.js`)
 
@@ -310,7 +396,8 @@ beside it in a card of its own (`.prefs-section` with a `.section-title` heading
 `SECTIONS`** (and a `sectionSummary` case).
 
 The sections hold: **Profile** (#35: `#pref-name`, `maxlength` 16, written back on
-`change`), **Look** (the only `.skin-seg`, kept in sync by `Skins`) plus `#pref-win-graph`
+`change`), **Look & Language** (the only `.skin-seg`, kept in sync by `Skins`; the language
+dropdown `#pref-language`, see "Languages") plus `#pref-win-graph`
 ("Win chance graph in replays", on by default, #43), **Sound** (`#pref-volume`, default
 30 %; `#pref-soundset`: follow the look / Classic / Blocks; one checkbox per category
 `#pref-snd-<cat>`, `Prefs.CATEGORIES` = moves, explosions, results, turn, reactions, chat;
@@ -323,7 +410,7 @@ always private": every connection relayed through TURN, #30, read by `Net` when 
 is created; `#pref-mute-spectators` "Hide chat and reactions from spectators", see
 `Room.hides` in `online.md`), **Developer** (`#pref-developer`: the info panel, #31) and
 **Feedback**. Stored in `localStorage["chainreact.prefs"]` (`Prefs.get()` → `{ name,
-defaultName, volume, soundSet, sounds, winGraph, hideCode, hideCodeAsked, privateIp,
+defaultName, language, volume, soundSet, sounds, winGraph, hideCode, hideCodeAsked, privateIp,
 muteSpectators, developer }`; `Prefs.set(patch)` merges, clamps, persists, refills the form,
 re-renders the menu rows and calls `onChange`).
 

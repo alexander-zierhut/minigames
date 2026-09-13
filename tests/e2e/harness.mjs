@@ -206,6 +206,32 @@ export async function launchBrowser({ width = 1400, height = 900, mobile = false
                 return JSON.stringify({ over: G.state.over, moves: m, winner: G.state.winner });
             })()`));
         },
+        /* Single-line texts that wrapped or overflowed (#47): for every visible element the
+           selectors match, the lines its text takes (distinct line boxes of a Range over it)
+           and whether the text is wider than the box. `[]` means every label sits on one line
+           (or within `max` lines), whatever the language. */
+        overflows: (selectors, max = 1) => B.ev(`(() => {
+            const out = [];
+            for (const el of document.querySelectorAll(${JSON.stringify(selectors)})) {
+                const r = el.getBoundingClientRect();
+                if (r.width === 0 || r.height === 0 || el.closest("[hidden]")) continue;
+                const text = (el.textContent || "").trim();
+                if (!text) continue;
+                // every text node on its own: a label next to an icon or a checkbox is one line, a label that breaks is two
+                const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+                let lines = 1, wide = false;
+                for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                    if (!node.textContent.trim()) continue;
+                    const range = document.createRange(); range.selectNodeContents(node);
+                    const tops = new Set([...range.getClientRects()].filter((q) => q.width > 0).map((q) => Math.round(q.top)));
+                    lines = Math.max(lines, tops.size);
+                    // wider than its box (an inline box has no clientWidth: its own rect is the box), clipped or not
+                    if (range.getBoundingClientRect().width > (el.clientWidth || el.getBoundingClientRect().width) + 1) wide = true;
+                }
+                if (lines > ${max} || wide) out.push({ id: el.id || null, cls: el.className.toString().split(" ").slice(0, 2).join("."), text: text.slice(0, 60), lines, wide });
+            }
+            return JSON.stringify(out);
+        })()`).then(JSON.parse),
         noScroll: () => B.ev(`JSON.stringify({ x: document.documentElement.scrollWidth <= innerWidth, y: document.documentElement.scrollHeight <= innerHeight, screen: (() => { const s = document.querySelector('.screen:not([hidden])'); return s ? s.scrollHeight <= s.clientHeight + 1 : true; })() })`).then(JSON.parse),
         // Chrome may still be writing its profile for a moment after the kill: retry the
         // cleanup, and never fail a test file over a leftover temp directory (CI hit ENOTEMPTY)

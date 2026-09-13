@@ -52,6 +52,9 @@ body.board-covered #board-cover {
     box-shadow: 0 0 22px color-mix(in srgb, var(--pc) 45%, transparent);
 }
 
+/* Arabic reads right-to-left (#47): the page mirrors, the things that carry coordinates do
+   not, so cell 0 stays top left in every language and "the far corner" means the same. */
+#board, .game-preview, #react-layer, .clock, .an-graph, #replay-pos { direction: ltr; }
 /* last move: every cell has a .last-marker child; the engine adds .last to the newest cell.
    Games restyle it (chain: static border, five: ring). Hidden once the game is over. */
 .last-marker {
@@ -103,7 +106,7 @@ body.online #hut.show-controls .chat-row { display: flex; }
     box-shadow: 0 0 14px color-mix(in srgb, var(--pc, transparent) 35%, transparent);
     transition: box-shadow .3s, border-color .3s;
 }
-.turn-box.busy .turn-hint::after { content: " · chain reaction!"; color: #ff9b3d; }
+.turn-box.busy .turn-hint::after { content: attr(data-busy); color: #ff9b3d; }   /* the text comes from the language file (hud.js) */
 .turn-block { width: 32px; height: 32px; border-radius: 30%; background: var(--block); }
 .turn-name { font-weight: 800; font-size: 16px; }
 .turn-hint { font-size: 11px; color: var(--muted); }

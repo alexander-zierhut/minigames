@@ -43,6 +43,16 @@
 .learn-sc-text small { font-size: 11px; color: var(--muted); }
 /* the difficulty of a row, as dots (#44) */
 .learn-dots { font-size: 10px; letter-spacing: 1px; color: var(--muted); white-space: nowrap; align-self: center; }
+/* a phone gives the title the dots' column too: the dots move under it, next to the kind (#47) */
+@media (max-width: 480px) {
+    .learn-scenario { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; column-gap: 10px; row-gap: 2px; align-items: center; }
+    .learn-scenario .gear-icon { grid-row: 1 / 3; }
+    .learn-sc-text { display: contents; }
+    .learn-sc-text b { grid-column: 2 / 4; grid-row: 1; }
+    .learn-sc-text small { grid-column: 2; grid-row: 2; }
+    .learn-dots { grid-column: 3; grid-row: 2; }
+    .learn-scenario .chev { grid-column: 4; grid-row: 1 / 3; }
+}
 
 /* one card per tier of the ladder (#44), its header a button that folds the tier
    (collapsed by default, the next tier to work on open): name, "3 / 8" and, while it is

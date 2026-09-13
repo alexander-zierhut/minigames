@@ -20,6 +20,7 @@
 
 const Room = (() => {
     const { $, toast } = Util;
+    const { t } = I18n;
     const RELAY = new Set(["move", "chat", "react", "tolobby", "rematch", "timeout", "lobby", "review"]);
     /* A spectator's chat line or reaction reaches the host like any guest message, gets
        `from: -1` and is relayed to everyone. Whether it is SHOWN is this device's business:
@@ -34,7 +35,7 @@ const Room = (() => {
     // number of seats people are sitting in; they have to leave first (#34). Pure, so the
     // unit test can pass any occupied count.
     const keepsSeats = (msg, occupied) => !(msg.t === "lobby" && msg.s && (parseInt(msg.s.players, 10) || 2) < occupied);
-    const STATUS_TEXT = { connected: "Connected", waiting: "Waiting for friend", reconnecting: "Reconnecting…", connecting: "Connecting…", signaling: "Room server reconnecting…", error: "Connection error" };
+    const STATUS_KEYS = ["connected", "waiting", "reconnecting", "connecting", "signaling", "error"];   // t("room.status.<status>")
     const r = {
         rev: 0,                 // room-state revision: +1 per phase change (start, rematch, back to room)
         roster: { present: [], spectators: 0, left: [], names: [] },   // who is here (guests: from the host's roster message)
@@ -56,7 +57,7 @@ const Room = (() => {
     const isHost = () => Net.role === "host";     // transport role: the host is the room's source of truth
     const Game = () => Match.engine;
     // my own name (#35): the preference, cleaned; it travels with hello / name / roster / state
-    const myName = () => Prefs.cleanName(Prefs.get().name) || "Player";      // the preference is never empty; this is belt and braces
+    const myName = () => Prefs.cleanName(Prefs.get().name) || t("common.player", { n: 1 });      // the preference is never empty; this is belt and braces
     /* Per seat the name of whoever sits there. The host reads it off its connections (the
        dial's metadata and the `name` message keep Net's per-connection meta up to date), a
        guest off the host's roster; my own seat always shows my own preference. A seat nobody
@@ -75,7 +76,7 @@ const Room = (() => {
         }
         for (let k = 0; k < n; k++) {
             if (out[k]) r.lastNames[k] = out[k];
-            else out[k] = r.lastNames[k] || `Player ${k + 1}`;
+            else out[k] = r.lastNames[k] || t("common.player", { n: k + 1 });
         }
         const b = botSeat();                          // the room's bot is simply "Bot" for everybody (#36)
         if (b >= 0 && b < n) out[b] = Opponent.NAME;
@@ -101,7 +102,7 @@ const Room = (() => {
         return cfg && cfg.bot ? cfg.bot.seat : -1;
     };
     // how a seat is called in messages: with two players the classic "your friend", else the name
-    const who = (seat) => (two() ? "Your friend" : names()[seat] || "Someone");
+    const who = (seat) => (two() ? t("room.friend") : names()[seat] || t("room.someone"));
     const otherPlayer = (p, players = 2) => (p + 1) % players;
     // every message I originate carries my seat
     const netSend = (obj) => Net.send({ from: Match.me, ...obj });
@@ -285,15 +286,15 @@ const Room = (() => {
         netSend({ t: "rematch", g: Match.gameNo + 1 });
         if (rematchComplete()) return;
         h.onVotes();
-        toast("Rematch requested");
+        toast(t("toast.rematchRequested"));
     }
     const votedMyself = () => r.votes.has(Match.me);
-    const rematchWaitText = () => (two() ? "Waiting for opponent…" : `Waiting for others… (${r.votes.size}/${playersNow()})`);
+    const rematchWaitText = () => (two() ? t("room.waitOpponent") : t("room.waitOthers", { votes: r.votes.size, total: playersNow() }));
     // everyone pressed: start the next game (the room's bot always says yes, #36)
     function rematchComplete() {
         for (let k = 0; k < playersNow(); k++) if (k !== botSeat() && !r.votes.has(k)) return false;
         startGame(Match.config, Match.gameNo + 1);
-        Log.add("Rematch!", "x");
+        Log.add(t("log.rematch"), "x");
         sendSync();
         return true;
     }
@@ -349,7 +350,7 @@ const Room = (() => {
     // the host is back in the lobby: give the bot's seat to somebody who is waiting for one
     function enteredLobby() {
         if (!online() || !isHost()) return;
-        if (botSeat() >= 0 && Net.peers.some((p) => p.open && p.seat < 0 && wantsSeat(p))) dropBot("The bot steps aside for a friend.");
+        if (botSeat() >= 0 && Net.peers.some((p) => p.open && p.seat < 0 && wantsSeat(p))) dropBot(t("toast.botAside"));
         reseat();
     }
 
@@ -416,11 +417,11 @@ const Room = (() => {
         const gameNo = msg.g || Match.gameNo;
         if (msg.phase === "game" && msg.config) {
             if (!inGame() || gameNo !== Match.gameNo) startGame(msg.config, gameNo);
-            Log.add("Joined your friend's game.", "x");
+            Log.add(t("log.joined"), "x");
         } else if (h.phase() !== "lobby") {
             Match.gameNo = gameNo;
             h.backToLobby(false);
-            toast("Your friend went back to the room");
+            toast(t("toast.friendBack"));
         } else Match.gameNo = gameNo;
         r.rev = msg.rev;
     }
@@ -435,7 +436,7 @@ const Room = (() => {
             const conn = Net.peers.find((p) => p.id === id);
             const n = playersNow();
             // a friend arriving in the lobby beats the room's bot: it steps aside (#36)
-            if (!msg.spectate && !watcherConn(conn) && !inGame() && botSeat() >= 0 && freeSeat(takenSeats(id), n) < 0) dropBot("A friend joined. The bot steps aside.");
+            if (!msg.spectate && !watcherConn(conn) && !inGame() && botSeat() >= 0 && freeSeat(takenSeats(id), n) < 0) dropBot(t("toast.botAsideJoined"));
             const taken = takenSeats(id);
             let seat = -1;
             // a spectate-link viewer only ever watches, whatever its hello says (#29)
@@ -466,7 +467,7 @@ const Room = (() => {
                 if (msg.phase === "game" && msg.config) {
                     if (!inGame() || msg.g !== Match.gameNo) {
                         startGame(msg.config, msg.g);
-                        Log.add("Connected to host.", "x");
+                        Log.add(t("log.connectedHost"), "x");
                     }
                     r.rev = msg.rev;
                     sendSync();
@@ -501,7 +502,7 @@ const Room = (() => {
         },
         lobby(msg) {                                  // somebody changed game / settings
             Settings.write(msg.s);
-            if (h.phase() === "lobby") { toast(two() ? "Settings updated by your friend" : `Settings updated by ${names()[msg.from] || "your friend"}`); h.renderLobby(); }
+            if (h.phase() === "lobby") { toast(two() || !names()[msg.from] ? t("toast.settingsFriend") : t("toast.settingsBy", { name: names()[msg.from] })); h.renderLobby(); }
             reseat();
         },
         "start-request"() {                           // a guest asked the host to start
@@ -510,10 +511,10 @@ const Room = (() => {
         start(msg) {                                  // the host started a game
             if (isHost() || msg.g <= Match.gameNo) return;
             startGame(msg.config, msg.g, msg.prefix);
-            Log.add(`Game ${msg.g}: ${Games.get(msg.config.game).title}.`, "x");
+            Log.add(t("log.game", { n: msg.g, game: Games.title(msg.config.game) }), "x");
         },
         tolobby(msg) {
-            if (inGame()) { toast(`${who(msg.from)} went back to the room`); h.backToLobby(false); }
+            if (inGame()) { toast(t("toast.wentBack", { name: who(msg.from) })); h.backToLobby(false); }
         },
         sync(msg) {
             if (!inThisGame(msg)) return;
@@ -532,7 +533,7 @@ const Room = (() => {
             if (msg.g <= Match.gameNo || !inGame() || !(msg.from >= 0)) return;   // stale / duplicate request
             r.votes.add(msg.from);
             if (rematchComplete()) return;
-            if (!votedMyself()) toast(two() ? "Opponent wants a rematch" : `${names()[msg.from]} wants a rematch`);
+            if (!votedMyself()) toast(two() ? t("toast.wantsRematchFriend") : t("toast.wantsRematch", { name: names()[msg.from] }));
             h.onVotes();
         },
         // somebody is stepping through the finished game (#38): everyone looks at the same move
@@ -553,7 +554,7 @@ const Room = (() => {
             if (seat >= 0) { r.left.add(seat); if (!isHost()) r.roster.present[seat] = false; }
             Clock.pause();
             if (isHost()) rosterChanged(); else presenceChanged();
-            if (!inGame() && seat >= 0) $("lobby-status").textContent = `${who(seat)} left the room.`;
+            if (!inGame() && seat >= 0) $("lobby-status").textContent = t("lobby.left", { name: who(seat) });
         },
     };
     function onMessage(msg, id) {
@@ -577,13 +578,13 @@ const Room = (() => {
     function startFromLobby(cfg, prefix) {
         if (!allHere() || Match.spectator) return;
         if (isHost()) hostStart(cfg, prefix);
-        else { netSend({ t: "start-request" }); toast("Asked the host to start"); }
+        else { netSend({ t: "start-request" }); toast(t("toast.askedHost")); }
     }
     function hostStart(cfg, prefix) {
         const g = Match.gameNo + 1;
         netSend({ t: "start", config: cfg, g, ...(prefix && prefix.history && prefix.history.length ? { prefix } : {}) });
         startGame(cfg, g, prefix);
-        Log.add(`Game ${g}: ${Games.get(cfg.game).title}.`, "x");
+        Log.add(t("log.game", { n: g, game: Games.title(cfg.game) }), "x");
     }
 
     /* ---------- moves & sync ---------- */
@@ -640,8 +641,8 @@ const Room = (() => {
         if (isHost()) { sendSync(); return; }                  // the guest rebuilds from us
         const key = `${Match.gameNo}:${(msg.history || []).length}`;
         if (r.rebuiltAt === key) {                              // rebuilt once already and still different: give up
-            Log.add("Out of sync with your friend.", "x");
-            toast("Game out of sync. Back to the room.");
+            Log.add(t("log.outOfSync"), "x");
+            toast(t("toast.outOfSync"));
             h.backToLobby(true);
             return;
         }
@@ -650,7 +651,7 @@ const Room = (() => {
         r.rev--;                                                // a rebuild is not a new phase
         Game().replay(msg.history || [], msg.outs);
         if (msg.clocks) Clock.restore(msg.clocks);
-        Log.add("Re-synced with the host.", "x");
+        Log.add(t("log.resynced"), "x");
         sendSync();
         afterSync();
     }
@@ -661,8 +662,8 @@ const Room = (() => {
         if (!online()) return;
         $("net-dot").className = "net-dot " + Net.status;
         const missing = Net.connected ? missingSeats().length : 0;
-        $("net-text").textContent = Match.spectator && Net.connected ? (r.watch ? "Watching" : "Spectating") : missing && !two() ? `Waiting for ${missing}…` : (STATUS_TEXT[Net.status] || Net.status);
-        $("net-code").textContent = r.watch || !Net.code ? "" : "Room " + codeText();   // a viewer never sees a code (#29)
+        $("net-text").textContent = Match.spectator && Net.connected ? t(r.watch ? "room.watching" : "room.spectating") : missing && !two() ? t("room.waitingFor", { count: missing }) : (STATUS_KEYS.includes(Net.status) ? t("room.status." + Net.status) : Net.status);
+        $("net-code").textContent = r.watch || !Net.code ? "" : t("room.code", { code: codeText() });   // a viewer never sees a code (#29)
         for (let k = 0; k < 4; k++) { const you = $(`p${k}-you`); if (you) you.hidden = Match.me !== k; }
         Game().render();                              // cell locks depend on the connection
     }
@@ -678,14 +679,14 @@ const Room = (() => {
        worth a word. `troubleSince` is the moment the current trouble began, cleared the moment
        it clears, and `now` is injectable so the delay can be tested without waiting. */
     const TROUBLE_MS = 6000;
-    const SHORT_TROUBLE = { connecting: "Connecting…", reconnecting: "Reconnecting…", signaling: "Reconnecting…", error: "Connection problem" };
+    const SHORT_TROUBLE = { connecting: "banner.short.connecting", reconnecting: "banner.short.reconnecting", signaling: "banner.short.reconnecting", error: "banner.short.error" };
     let troubleSince = 0, troubleTimer = null;
     function troubleOf(status) {
         if (!online()) return null;
         if (["connected", "idle", "waiting"].includes(status)) return null;
         if (status === "signaling" && Net.connected) return null;   // the broker dropped, the game connection is fine
         if (status === "reconnecting" && isHost()) return null;     // the room is up, it is only empty: the seats and Start say so
-        return { text: r.netDetail || "Reconnecting…", short: Net.refused ? "Room server busy" : (SHORT_TROUBLE[status] || "Reconnecting…") };
+        return { text: r.netDetail || t("banner.reconnecting"), short: t(Net.refused ? "banner.short.busy" : (SHORT_TROUBLE[status] || "banner.short.reconnecting")) };
     }
     function netTrouble(status = Net.status, now = Date.now()) {
         const raw = troubleOf(status);
@@ -736,11 +737,11 @@ const Room = (() => {
         if (Net.connected && missing.length) {
             const gone = someoneLeft(missing);
             text = two()
-                ? (gone ? "Your friend left the room. The game resumes if they come back." : "Your friend seems to be away. The game resumes when they are back.")
-                : `Waiting for ${missing.map((k) => names()[k]).join(", ")}${gone ? " (left the room)" : ""}. The game resumes when everyone is back.`;
+                ? t(gone ? "banner.friendLeft" : "banner.friendAway")
+                : t(gone ? "banner.waitingNamesLeft" : "banner.waitingNames", { names: missing.map((k) => names()[k]).join(", ") });
         } else text = r.left.size
-            ? (two() ? "Your friend left the room. The game resumes if they come back." : `${[...r.left].map((k) => names()[k]).join(", ")} left the room. The game resumes if they come back.`)
-            : r.netDetail || "Reconnecting…";
+            ? (two() ? t("banner.friendLeft") : t("banner.leftNames", { names: [...r.left].map((k) => names()[k]).join(", ") }))
+            : r.netDetail || t("banner.reconnecting");
         $("net-banner-text").textContent = text;
         $("btn-net-retry").hidden = !retryable;
         bannerShown(banner, true);
@@ -766,9 +767,9 @@ const Room = (() => {
 
     // the turn-box hint for a seat while online
     function turnHint(p) {
-        if (Match.spectator) return "spectating";
-        if (p === Match.me) return "your move";
-        return two() ? "waiting for opponent…" : `waiting for ${names()[p]}…`;
+        if (Match.spectator) return t("room.turn.spectating");
+        if (p === Match.me) return t("room.turn.yours");
+        return two() ? t("room.turn.waitOpponent") : t("room.turn.waitFor", { name: names()[p] });
     }
 
     function init(handlers) { h = { ...h, ...handlers }; }

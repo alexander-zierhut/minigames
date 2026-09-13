@@ -55,7 +55,8 @@
 .btn-row { display: flex; gap: 8px; }
 .btn-row .btn { flex: 1; }
 .btn-row .btn.big { font-size: 15px; padding: 14px 8px; white-space: nowrap; min-width: 0; }
-@media (max-width: 420px) { .btn-row .btn.big { font-size: 14px; padding: 14px 4px; } }
+/* a phone shares a row between its two buttons by what their words need, so no language has to fit a half (#47) */
+@media (max-width: 420px) { .btn-row .btn.big { flex: 1 1 auto; width: auto; font-size: 14px; padding: 14px 4px; } }
 /* desktop: the title card gets more room and air (#10) */
 @media (min-width: 900px) {
     #screen-menu .menu-card { max-width: 560px; padding: 40px 44px 22px; gap: 26px; }
@@ -84,7 +85,7 @@
 .foot-quiet { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
 /* the space under the pills equals the space above them (gap 8 + margin 14) */
 #screen-menu .menu-card { padding-bottom: 22px; }
-.install-btn { font-size: 13px; padding: 10px 14px; }
+.install-btn { font-size: 13px; padding: 10px 14px; white-space: nowrap; }   /* the pill wraps to its own row, never its words (#47) */
 
 /* a new version is deployed (#40): a banner above the title card (#43), title screen only.
    The title screen is the one screen that stacks two blocks, so it is a column. */
@@ -148,7 +149,7 @@
 .skin-label { color: var(--muted); flex: 0 0 auto; }
 .seg { display: flex; flex: 1; border: 2px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg2); }
 .seg button {
-    flex: 1; padding: 8px 4px; font-size: 12px; font-weight: 700;
+    flex: 1 1 auto; padding: 8px 4px; font-size: 12px; font-weight: 700; white-space: nowrap;   /* a segment never wraps its word: a longer one grows (#47) */
     background: transparent; color: var(--muted); border: 0; cursor: pointer;
 }
 .seg button + button { border-left: 2px solid var(--line); }
@@ -332,6 +333,8 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
 .game-settings { display: contents; }          /* the generated rows space like the fixed ones; hidden rows take no gap (#26) */
 /* label column + fixed control column so every control lines up */
 :is(.settings, .prefs-rows) .row { display: grid; grid-template-columns: 1fr 185px; align-items: center; gap: 12px; font-size: 14px; }
+/* a phone stacks the label over its dropdown: no language has to fit a label into 80 px (#47) */
+@media (max-width: 480px) { .settings .row { grid-template-columns: 1fr; gap: 4px; } }
 :is(.settings, .prefs-rows) .row > :last-child { width: 100%; min-width: 0; }
 :is(.settings, .prefs-rows) .row select, :is(.settings, .prefs-rows) .row input[type="number"] { width: 100%; min-width: 0; }
 :is(.settings, .prefs-rows) .row > span:first-child small { color: var(--muted); font-weight: 400; }
@@ -454,6 +457,14 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
 }
 .dropdown.open .dd-menu { display: flex; }
 .dd-option.selected { border-color: var(--accent); }
+/* the language menu in the preferences (#47): the same dropdown with a flag per row; the
+   button takes the room its label needs, the menu the room of its widest row */
+.prefs-rows .row.lang-row { grid-template-columns: auto minmax(0, 1fr); }
+.lang-dropdown { justify-self: end; width: max-content; max-width: 100%; }
+.lang-dropdown .dd-button, .lang-dropdown .dd-option { padding: 6px 10px; }
+.lang-dropdown .dd-menu { inset-inline: auto 0; width: max-content; min-width: 100%; max-width: min(320px, 80vw); }
+.lang-label { display: inline-flex; align-items: center; gap: 8px; }
+.flag { width: 21px; height: 14px; flex: 0 0 auto; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.45); }
 .replay-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
 .replay-filter { flex: 1 1 180px; min-width: 0; max-width: 280px; }
 .replay-kind { flex: 0 0 auto; }

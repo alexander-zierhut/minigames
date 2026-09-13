@@ -34,6 +34,7 @@
 
 const Analysis = (() => {
     const { $ } = Util;
+    const { t } = I18n;
     const NODES = 12000;            // win-chance budget per position (the estimator's middle stage)
     const BOT_NODES = 30000;        // the best move's search budget (a level that finishes quickly)
     const TOLERANCE = 3;            // percentage points: as good as the bot's move still counts as perfect
@@ -181,13 +182,13 @@ const Analysis = (() => {
     // how one move is judged, as text plus the class that colours it
     function verdict(m) {
         if (!m) return null;
-        if (m.best === null) return { cls: "an-unknown", text: "Not analysed" };
+        if (m.best === null) return { cls: "an-unknown", text: t("analysis.notAnalysed") };
         const drop = m.loss === null ? null : Math.round(m.loss);
-        if (m.perfect) return { cls: "an-perfect", text: "Perfect move" };
-        if (drop === null) return { cls: "an-mistake", text: `Best was ${m.best}` };
-        if (drop >= BLUNDER) return { cls: "an-blunder", text: `Blunder: ${drop} % lost, best was ${m.best}` };
-        if (drop >= MISTAKE) return { cls: "an-mistake", text: `Mistake: ${drop} % lost, best was ${m.best}` };
-        return { cls: "an-inaccuracy", text: `Best was ${m.best} (${drop} % lost)` };
+        if (m.perfect) return { cls: "an-perfect", text: t("analysis.perfect") };
+        if (drop === null) return { cls: "an-mistake", text: t("analysis.bestWas", { cell: m.best }) };
+        if (drop >= BLUNDER) return { cls: "an-blunder", text: t("analysis.blunder", { pct: drop, cell: m.best }) };
+        if (drop >= MISTAKE) return { cls: "an-mistake", text: t("analysis.mistake", { pct: drop, cell: m.best }) };
+        return { cls: "an-inaccuracy", text: t("analysis.inaccuracy", { pct: drop, cell: m.best }) };
     }
 
     /* ---------- the cache (the `analysis` store next to the replays) ---------- */
@@ -228,7 +229,7 @@ const Analysis = (() => {
     let playFrom = () => {};        // app.js: open a room from the shown position
 
     const names = () => (ui.doc && ui.doc.players) || [];
-    const seatName = (p) => names()[p] || `Player ${p + 1}`;
+    const seatName = (p) => names()[p] || t("common.player", { n: p + 1 });
 
     // start (or restart) the analysis of the open document, in the background
     async function run() {
@@ -305,10 +306,10 @@ const Analysis = (() => {
     function renderProgress() {
         const box = $("analysis-progress");
         if (!box) return;
-        const [d, t] = ui.progress;
+        const [d, total] = ui.progress;
         box.hidden = !ui.running;
-        $("analysis-bar").style.width = Math.round((100 * d) / Math.max(1, t)) + "%";
-        $("analysis-progress-text").textContent = ui.running ? `Analysing… ${Math.round((100 * d) / Math.max(1, t))} %` : "";
+        $("analysis-bar").style.width = Math.round((100 * d) / Math.max(1, total)) + "%";
+        $("analysis-progress-text").textContent = ui.running ? t("analysis.progress", { pct: Math.round((100 * d) / Math.max(1, total)) }) : "";
     }
 
     function render() {
@@ -327,18 +328,18 @@ const Analysis = (() => {
         const line = $("an-verdict");
         const chance = $("an-chance");
         line.className = "an-verdict";
-        if (!res) { line.textContent = ui.running ? "" : "Analyse this game to see the win chance and the best moves."; chance.textContent = ""; return; }
+        if (!res) { line.textContent = ui.running ? "" : t("analysis.prompt"); chance.textContent = ""; return; }
         const m = moveAt(ui.ply);
         if (!m) {
-            line.textContent = ui.ply === 0 ? "Step forward to see how every move was judged." : "";
+            line.textContent = ui.ply === 0 ? t("analysis.stepForward") : "";
             chance.textContent = "";
         } else {
             const v = verdict(m);
             line.classList.add(v.cls);
-            line.textContent = `Move ${m.ply + 1} · ${seatName(m.player)} · ${v.text}`;
-            chance.textContent = res.chances ? `${seatName(0)} ${pct(res.chances[m.ply])} % → ${pct(res.chances[m.ply + 1])} %` : "";
+            line.textContent = t("analysis.move", { n: m.ply + 1, name: seatName(m.player), verdict: v.text });
+            chance.textContent = res.chances ? t("analysis.chance", { name: seatName(0), before: pct(res.chances[m.ply]), after: pct(res.chances[m.ply + 1]) }) : "";
         }
-        if (res.partial) line.textContent += " (analysis stopped early)";
+        if (res.partial) line.textContent += t("analysis.partial");
     }
 
     // the win chance over the game: one line per seat, a marker at the shown ply, click to jump
@@ -353,7 +354,7 @@ const Analysis = (() => {
         const line = (seat) => c.map((p, k) => `${x(k).toFixed(1)},${y(forSeat(p, seat)).toFixed(1)}`).join(" ");
         const mx = x(Math.min(ui.ply, N)).toFixed(1);
         box.innerHTML =
-            `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="Win chance per move">` +
+            `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="${t("analysis.graphAria")}">` +
             `<line class="an-mid" x1="0" y1="${H / 2}" x2="${W}" y2="${H / 2}"></line>` +
             `<polyline class="an-line an-p1" points="${line(1)}"></polyline>` +
             `<polyline class="an-line an-p0" points="${line(0)}"></polyline>` +
@@ -368,9 +369,9 @@ const Analysis = (() => {
             if (s.score === null) continue;
             const el = document.createElement("div");
             el.className = `an-seat p${s.player}`;
-            const bits = [`${s.perfect}/${s.moves} best`];
-            if (s.blunders) bits.push(`${s.blunders} blunder${s.blunders > 1 ? "s" : ""}`);
-            if (s.mistakes) bits.push(`${s.mistakes} mistake${s.mistakes > 1 ? "s" : ""}`);
+            const bits = [t("analysis.best", { perfect: s.perfect, total: s.moves })];
+            if (s.blunders) bits.push(t("analysis.blunders", { count: s.blunders }));
+            if (s.mistakes) bits.push(t("analysis.mistakes", { count: s.mistakes }));
             el.innerHTML = `<b class="an-score">${s.score}</b><span class="an-seat-name"></span><span class="an-seat-sub"></span>`;
             el.querySelector(".an-seat-name").textContent = seatName(s.player);
             el.querySelector(".an-seat-sub").textContent = bits.join(" · ");

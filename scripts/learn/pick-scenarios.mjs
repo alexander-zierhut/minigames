@@ -49,41 +49,19 @@ const PLAY_CHANCE = [0.45, 0.70];    // and how good it is for you
 const TURNAROUND_CHANCE = 0.35;      // "you look lost" for a turnaround
 const UNSOLVED_DEPTH = 6;            // a proof without a ply count (five's exhaustive draws) reads as this deep
 
-// tag -> the title a player sees; the order is also the order titles are preferred in
-const TAGS = [
-    ["win-in-1", "Win in one move"],
-    ["avoid-trap", "Do not walk into the trap"],
-    ["must-block", "Block the threat"],
-    ["take-box", "Take the free box"],
-    ["sacrifice", "Give away as little as possible"],
-    ["double-deal", "Give two boxes away to keep control"],
-    ["safe-move", "Play a line that hands nothing over"],
-    ["double-threat", "Make two threats at once"],
-    ["win-in-2", "Win in two moves"],
-    ["avoid-loss", "Only one move holds"],
-    ["prefer-win", "Take the win, not the block"],
-    ["win-in-3", "Win in three moves"],
-    ["draw", "Hold the draw"],
-    ["win-in-4", "Win in four moves"],
-    ["win-in-5", "Win in five moves"],
-    ["win-in-6", "Win in six moves"],
-    ["win-in-7", "Win in seven moves"],
-    ["win-in-9", "Win in nine moves"],
-    ["separated", "Win the race for room"],
-];
+// tag -> the title a player sees (as a key of the language files, `learn.title.<tag>`);
+// the order is also the order titles are preferred in
+const TAG_TITLES = ["win-in-1", "avoid-trap", "must-block", "take-box", "sacrifice", "double-deal", "safe-move", "double-threat", "win-in-2", "avoid-loss", "prefer-win", "win-in-3", "draw", "win-in-4", "win-in-5", "win-in-6", "win-in-7", "win-in-9", "separated"];
+const TAGS = TAG_TITLES.map((tag) => [tag, `learn.title.${tag}`]);
 const TITLE = new Map(TAGS);
 const TAG_ORDER = TAGS.map(([t]) => t);
 // tags that describe how a puzzle was produced, not what it teaches
 const TOOLING = ["endgame-exhaustive", "opening", "delay-loss"];
 
 // the title a row of that kind gets (a best-move row prefers the puzzle's own tag title)
-const KIND_TITLE = { "best-move": "Find the best move", trap: "Spot the trap", turnaround: "Behind, but winning", "play-from-here": "Play it out" };
-// the sentence in front of the puzzle's own note
-const KIND_TEXT = {
-    "best-move": "",
-    trap: "The obvious move loses. Find the right one.",
-    turnaround: "You are behind. There is a forced win.",
-};
+const KIND_TITLE = { "best-move": "learn.title.best-move", trap: "learn.title.trap", turnaround: "learn.title.turnaround", "play-from-here": "learn.title.play-from-here" };
+// the sentence in front of the puzzle's own note (a key, see client/lang/en.js learn.text.*)
+const KIND_TEXT = { "best-move": "", trap: "learn.text.trap", turnaround: "learn.text.turnaround" };
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 /* How bad the position looks for you before the move: the lower of the two views, the
    searching estimator (`chance`) and the game's own static heuristic (`look`, what the
@@ -127,6 +105,67 @@ export function kindOf(f) {
 
 const primaryTag = (tags = []) => TAG_ORDER.find((t) => tags.includes(t)) || null;
 const shownTags = (tags = []) => tags.filter((t) => TITLE.has(t) && !TOOLING.includes(t));
+
+/* The sentences a puzzle note may hold, each mapped to a key of the language files (#47)
+   with the numbers it carries as params. The client renders a scenario's text from these
+   descriptors, so the ladder reads in every language. An unknown sentence stops the
+   generator: a new note template needs its key first. */
+const NOTE_SENTENCES = [
+    [/^Close the box and keep the turn\.$/, () => ({ k: "learn.note.boxes.take" })],
+    [/^Give the last two boxes away: the other side has to open the next chain\.$/, () => ({ k: "learn.note.boxes.deal" })],
+    [/^Play a line that hands nothing over\.$/, () => ({ k: "learn.note.boxes.safe" })],
+    [/^Every line opens something: concede as little as possible\.$/, () => ({ k: "learn.note.boxes.sacrifice" })],
+    [/^Every other line loses the game\.$/, () => ({ k: "learn.note.boxes.loses" })],
+    // one sentence, two clauses: the end of best play and the margin to the next best line
+    [/^Best play ends (?:(\d+) boxe?s? (ahead|behind)|level); every other line is at least (\d+) boxe?s? worse\.$/,
+        (m) => [m[2] ? { k: `learn.note.boxes.${m[2]}`, count: +m[1] } : { k: "learn.note.boxes.level" }, { k: "learn.note.boxes.margin", count: +m[3] }]],
+    [/^(\d+) of (\d+) moves take the whole board now\.$/, (m) => ({ k: "learn.note.chain.now", best: +m[1], total: +m[2] })],
+    [/^(\d+) of (\d+) moves force a win in (\d+)\.$/, (m) => ({ k: "learn.note.chain.force", best: +m[1], total: +m[2], moves: +m[3] })],
+    [/^Every other move allows an immediate takeover\.$/, () => ({ k: "learn.note.chain.takeover" })],
+    [/^Two loaded 2×2 blocks facing each other on 6×6\.$/, () => ({ k: "learn.note.chain.blocks" })],
+    [/^Two loaded edges next to the loaded centre: either one takes the board\.$/, () => ({ k: "learn.note.chain.edges" })],
+    [/^The corner is about to blow: one more piece on 0 converts 1 and 3 and the bot owns nothing\.$/, () => ({ k: "learn.note.chain.corner" })],
+    [/^you threatens? to blow the corner; two of the bot's replies walk into it\.$/i, () => ({ k: "learn.note.chain.cornerThreat" })],
+    [/^Blow the corner 8 first: the bot is left with the centre only and every reply meets a takeover\.$/, () => ({ k: "learn.note.chain.corner8" })],
+    [/^you stacked the centre to 3; the bot has two corners and must answer the threat\.$/i, () => ({ k: "learn.note.chain.centre" })],
+    [/^Four corners, one already exploded\.$/, () => ({ k: "learn.note.chain.fourCorners" })],
+    [/^Both edges loaded to two, both sides loaded to one\.$/, () => ({ k: "learn.note.chain.bothEdges" })],
+    [/^Mirror game on 4×4: the first to break symmetry decides it\.$/, () => ({ k: "learn.note.chain.mirror" })],
+    [/^Inner block fully loaded on both sides\.$/, () => ({ k: "learn.note.chain.inner" })],
+    [/^Both sides threaten to complete a line: take your own win\.$/, () => ({ k: "learn.note.five.preferWin" })],
+    [/^Complete the line\.$/, () => ({ k: "learn.note.five.complete" })],
+    [/^Block the four first; the win comes later\.$/, () => ({ k: "learn.note.five.blockWin" })],
+    [/^Block the four to hold the draw\.$/, () => ({ k: "learn.note.five.blockDraw" })],
+    [/^Create two completion cells at once\.$/, () => ({ k: "learn.note.five.double" })],
+    [/^A forcing sequence \(four, then a double threat\) wins\.$/, () => ({ k: "learn.note.five.sequence" })],
+    [/^Forced win in (\d+) moves?\.$/, (m) => ({ k: "learn.note.five.forcedIn", count: +m[1] })],
+    [/^Only these moves hold the draw\.$/, () => ({ k: "learn.note.five.holdDraw" })],
+    [/^Every other move loses by force\.$/, () => ({ k: "learn.note.five.losesForce" })],
+    [/^Every reply the opponent has left makes the losing row\.$/, () => ({ k: "learn.note.five.forcedThree" })],
+    [/^Some moves make the losing row: not those\.$/, () => ({ k: "learn.note.five.avoidThree" })],
+    [/^Complete the four \(and note that 21 would make three for you\)\.$/, () => ({ k: "learn.note.five.completeFour" })],
+    [/^Build the four so that the only block makes the opponent three in a row\.$/, () => ({ k: "learn.note.five.buildFour" })],
+    [/^Open three: extend it to an open four\.$/, () => ({ k: "learn.note.five.openThree" })],
+    [/^Four-three: the four forces a block, then the three becomes an open four\.$/, () => ({ k: "learn.note.five.fourThree" })],
+    [/^Double three: one move makes two open threes\.$/, () => ({ k: "learn.note.five.doubleThree" })],
+    [/^Your four is blocked on the right; the other end still wins\.$/, () => ({ k: "learn.note.five.blockedRight" })],
+    [/^Both sides have an open four: complete your own line instead of blocking\.$/, () => ({ k: "learn.note.five.bothFour" })],
+    [/^Both have a three: whoever moves wins\.$/, () => ({ k: "learn.note.five.bothThree" })],
+    [/^Symmetric threes; the mover attacks first\.$/, () => ({ k: "learn.note.five.symmetric" })],
+    [/^Diagonal three with a free end\.$/, () => ({ k: "learn.note.five.diagonal" })],
+    [/^Break the last tile the other pawn can step on\.$/, () => ({ k: "learn.note.isolation.breakLast" })],
+    [/^Only these moves keep the win\.$/, () => ({ k: "learn.note.isolation.keep" })],
+    [/^Every other move lets the other pawn trap you at once\.$/, () => ({ k: "learn.note.isolation.trapAtOnce" })],
+    [/^The pawns are cut off from each other: it is a race for room\.$/, () => ({ k: "learn.note.isolation.race" })],
+];
+export function sentences(note) {
+    const text = clean(note);
+    if (!text) return [];
+    return text.split(/(?<=\.)\s+/).flatMap((sentence) => {
+        for (const [re, make] of NOTE_SENTENCES) { const m = re.exec(sentence); if (m) return make(m); }
+        throw new Error(`pick-scenarios: no key for the note sentence "${sentence}" (add it to NOTE_SENTENCES and client/lang/*.js)`);
+    });
+}
 
 /* The generated notes are written for the puzzle tooling: they end in a sentence naming the
    board and the ply, count plies and say how the position was solved. Keep the ideas, drop
@@ -189,24 +228,24 @@ export function select(facts) {
         rows.sort((a, b) => (a.difficulty - b.difficulty) || (a.id < b.id ? -1 : 1));   // easy first, whatever came in
         for (const row of rows) out.push({ ...row, tier: tier.id, level: facts.levels[tier.id] });
     });
-    return dress(out, facts);
+    return dress(out);
 }
 
-// titles and texts, and the shape the client reads. Titles are numbered inside a tier, so
-// the numbers stay small and every tier reads like a chapter of its own.
-function dress(rows, facts) {
+// titles and texts, and the shape the client reads (#47: `title` is a key, `no` numbers a
+// title that repeats inside a tier, `text` is a list of message descriptors the client
+// renders in the chosen language). Titles are numbered inside a tier, so the numbers stay
+// small and every tier reads like a chapter of its own.
+function dress(rows) {
     const seen = new Map();
-    const levelLabel = (id) => (facts.levelLabels && facts.levelLabels[id] ? facts.levelLabels[id].toLowerCase() : id);
     return rows.map((row) => {
         const tag = primaryTag(row.tags);
-        let title = row.kind === "best-move" ? (TITLE.get(tag) || KIND_TITLE[row.kind]) : KIND_TITLE[row.kind];
+        const title = row.kind === "best-move" ? (TITLE.get(tag) || KIND_TITLE[row.kind]) : KIND_TITLE[row.kind];
         const key = `${row.tier}/${title}`;
-        const k = (seen.get(key) || 0) + 1;
-        seen.set(key, k);
-        if (k > 1) title = `${title} (${k})`;
+        const no = (seen.get(key) || 0) + 1;
+        seen.set(key, no);
         const text = row.kind === "play-from-here"
-            ? `Win this game from here against the ${levelLabel(row.level)} bot. A draw is not enough.`
-            : [KIND_TEXT[row.kind], clean(row.note)].filter(Boolean).join(" ");
+            ? [{ k: "learn.text.play", level: { k: `level.${row.level}` } }]
+            : [...(KIND_TEXT[row.kind] ? [{ k: KIND_TEXT[row.kind] }] : []), ...sentences(row.note)];
         const sc = {
             id: row.id,
             tier: row.tier,
@@ -214,7 +253,8 @@ function dress(rows, facts) {
             difficulty: row.difficulty,
             level: row.level,
             title,
-            text: text || "Find the move that wins.",
+            ...(no > 1 ? { no } : {}),
+            text: text.length ? text : [{ k: "learn.text.default" }],
             config: row.config,
             history: row.history,
             toMove: 0,

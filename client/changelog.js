@@ -10,9 +10,10 @@
 
 const Changelog = (() => {
     const { $ } = Util;
+    const { t } = I18n;
     const REPO = "https://github.com/alexander-zierhut/minigames";
     const SHOW_DAYS = 7;
-    const TYPE_LABEL = { feature: "New", improvement: "Better", fix: "Fixed", internal: "Internal" };
+    const TYPES = ["feature", "improvement", "fix", "internal"];        // the badge is t("changelog.type.<type>")
     const TOGGLE_KEY = "chainreact.changelog";             // { technical: bool }
     let data = null;
     let showTechnical = !!((Util.load(localStorage, TOGGLE_KEY) || {}).technical);
@@ -37,7 +38,7 @@ const Changelog = (() => {
         head.className = "cl-head";
         const tag = document.createElement("span");
         tag.className = "cl-type";
-        tag.textContent = TYPE_LABEL[e.type] || e.type || "";
+        tag.textContent = TYPES.includes(e.type) ? t("changelog.type." + e.type) : e.type || "";
         head.appendChild(tag);
         for (const ref of e.refs || []) {
             const r = refUrl(ref);
@@ -60,7 +61,7 @@ const Changelog = (() => {
         const days = ((doc && doc.days) || [])
             .map((day) => ({ date: day.date, entries: (day.entries || []).filter((e) => all || !technical(e)) }))
             .filter((day) => day.entries.length > 0);
-        if (days.length === 0) { box.textContent = "No entries yet."; return; }
+        if (days.length === 0) { box.textContent = t("changelog.empty"); return; }
         const older = document.createElement("div");
         older.className = "cl-older";
         older.hidden = true;
@@ -78,7 +79,7 @@ const Changelog = (() => {
             const more = document.createElement("button");
             more.className = "btn small ghost";
             more.id = "changelog-more";
-            more.textContent = `Show older (${older.children.length} more days)`;
+            more.textContent = t("changelog.older", { count: older.children.length });
             more.addEventListener("click", () => { older.hidden = false; more.remove(); });
             box.append(more, older);
         }
@@ -87,13 +88,13 @@ const Changelog = (() => {
     async function open() {
         $("changelog-modal").hidden = false;
         if (!data) {
-            $("changelog-list").textContent = "Loading…";
+            $("changelog-list").textContent = t("changelog.loading");
             try {
                 const res = await fetch(new URL("changelog.json", location.href), { cache: "no-cache" });
                 if (!res.ok) throw new Error(res.status);
                 data = await res.json();
             } catch (e) {
-                $("changelog-list").textContent = "Couldn't load the changelog.";
+                $("changelog-list").textContent = t("changelog.failed");
                 return;
             }
         }

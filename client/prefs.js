@@ -17,6 +17,7 @@
 
 const Prefs = (() => {
     const { $ } = Util;
+    const { t } = I18n;
     const KEY = "chainreact.prefs";
     const CATEGORIES = ["moves", "explosions", "results", "turn", "reactions", "chat"];
     const NAME_MAX = 16;                              // a name has to fit the seat cards and the HUD
@@ -40,11 +41,10 @@ const Prefs = (() => {
         privateIp: false,                             // relay every connection through TURN: nobody in the room sees my IP (#30)
         muteSpectators: false,                        // spectators' chat lines and reactions never show on this device
         developer: false,                             // the developer info panel (#31)
+        language: "auto",                             // "auto" = the browser's choice, else a code I18n speaks (#47)
     };
     // the modal's sections, in the order of the nav rows (#prefs-nav-<key>, .prefs-section[data-section=<key>])
     const SECTIONS = ["profile", "look", "sound", "streaming", "developer", "feedback"];
-    const LOOK_LABELS = { classic: "Classic", mcboard: "Blocks board", mc: "Blocks" };
-    const SET_LABELS = { auto: "Follow the look", classic: "Classic", mc: "Blocks" };
     let section = null;                               // the open section (null = the menu, phones only)
     let onChange = () => {};
     let context = () => ({});                         // app.js: where the user is right now (for feedback)
@@ -62,7 +62,7 @@ const Prefs = (() => {
             if (!ruler) {
                 ruler = document.createElement("span");
                 ruler.setAttribute("aria-hidden", "true");
-                ruler.style.cssText = "position:absolute;left:-9999px;top:0;visibility:hidden;white-space:pre;font-weight:800;font-size:14px;font-family:inherit";
+                ruler.style.cssText = "position:absolute;left:0;top:-9999px;visibility:hidden;white-space:pre;font-weight:800;font-size:14px;font-family:inherit";
                 document.body.appendChild(ruler);
             }
             ruler.textContent = text;
@@ -93,6 +93,7 @@ const Prefs = (() => {
         p.privateIp = !!p.privateIp;
         p.muteSpectators = !!p.muteSpectators;
         p.developer = !!p.developer;
+        if (p.language !== "auto" && !I18n.has(p.language)) p.language = "auto";
         return p;
     }
 
@@ -126,7 +127,7 @@ const Prefs = (() => {
             if (budget) $("menu-name").style.width = `${Math.ceil(budget) + 22}px`;   // + padding and border
         }
         $("pref-volume").value = String(prefs.volume);
-        $("pref-volume-val").textContent = prefs.volume === 0 ? "off" : `${prefs.volume} %`;
+        $("pref-volume-val").textContent = prefs.volume === 0 ? t("prefs.sum.off") : t("prefs.volumePct", { pct: prefs.volume });
         $("pref-soundset").value = prefs.soundSet;
         for (const c of CATEGORIES) { const el = $("pref-snd-" + c); if (el) el.checked = prefs.sounds[c]; }
         if ($("pref-win-graph")) $("pref-win-graph").checked = prefs.winGraph;
@@ -136,8 +137,57 @@ const Prefs = (() => {
         if ($("pref-developer")) $("pref-developer").checked = prefs.developer;
         $("prefs-modal").classList.toggle("muted", prefs.volume === 0);
         renderCreatorButton();
+        renderLanguage();
         renderNav();
     }
+
+    /* ---------- the language (#47) ----------
+       A dropdown like the replays filter (a <select> cannot show a flag): "Automatic" with
+       the browser's choice first, then every language the site speaks under its own name.
+       Picking one saves the preference and reloads the page, which is how every text,
+       every dropdown and the writing direction follow at once. */
+    const langName = (code) => I18n.LANGS.find((l) => l.code === code).name;
+    // the flag and the name of a language; "auto" shows the flag of the language it gives and, in the
+    // menu (`full`), which one that is
+    function langRow(code, full) {
+        const row = document.createElement("span");
+        row.className = "dd-label lang-label";
+        const text = code !== "auto" ? langName(code) : full ? t("prefs.languageAuto", { name: langName(I18n.detect()) }) : t("prefs.languageAutoShort");
+        row.append(I18n.flag(code === "auto" ? I18n.detect() : code), document.createTextNode(text));
+        return row;
+    }
+    function renderLanguage() {
+        const box = $("pref-language");
+        if (!box) return;
+        box.innerHTML = "";
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "dd-button";
+        button.id = "pref-language-button";
+        button.setAttribute("aria-haspopup", "listbox");
+        button.setAttribute("aria-expanded", "false");
+        const chev = document.createElement("span");
+        chev.className = "dd-chev";
+        chev.textContent = "▾";
+        button.append(langRow(prefs.language), chev);
+        button.addEventListener("click", () => { const on = !box.classList.contains("open"); box.classList.toggle("open", on); button.setAttribute("aria-expanded", on ? "true" : "false"); });
+        const menu = document.createElement("div");
+        menu.className = "dd-menu";
+        menu.setAttribute("role", "listbox");
+        for (const code of ["auto", ...I18n.LANGS.map((l) => l.code)]) {
+            const opt = document.createElement("button");
+            opt.type = "button";
+            opt.className = "dd-option" + (code === prefs.language ? " selected" : "");
+            opt.dataset.language = code;
+            opt.setAttribute("role", "option");
+            opt.setAttribute("aria-selected", code === prefs.language ? "true" : "false");
+            opt.appendChild(langRow(code, true));
+            opt.addEventListener("click", () => { box.classList.remove("open"); if (code !== prefs.language) { set({ language: code }); reload(); } });
+            menu.appendChild(opt);
+        }
+        box.append(button, menu);
+    }
+    let reload = () => location.reload();                 // replaceable in tests
 
     // content creator mode = every option of that section on; the button toggles all of them
     const CREATOR = ["hideCode", "privateIp", "muteSpectators"];     // the options the content creator button switches
@@ -146,7 +196,7 @@ const Prefs = (() => {
         const b = $("pref-creator-mode");
         if (!b) return;
         const on = creatorMode();
-        b.textContent = on ? "Turn off content creator mode" : "Turn on content creator mode";
+        b.textContent = t(on ? "prefs.creatorOff" : "prefs.creatorOn");
         b.classList.toggle("primary", !on);
     }
 
@@ -155,11 +205,11 @@ const Prefs = (() => {
     function sectionSummary(key) {
         const p = prefs;
         if (key === "profile") return p.name;
-        if (key === "look") return (LOOK_LABELS[typeof Skins !== "undefined" ? Skins.current : "classic"] || LOOK_LABELS.classic) + (p.winGraph ? "" : " · no win graph");
-        if (key === "sound") return p.volume === 0 ? "off" : `${p.volume} % · ${SET_LABELS[p.soundSet]}`;
-        if (key === "streaming") return creatorMode() ? "on" : CREATOR.some((k) => p[k]) ? "partly on" : "Best for streaming";
-        if (key === "developer") return p.developer ? "on" : "off";
-        if (key === "feedback") return "Report a problem";
+        if (key === "look") return `${t("prefs.skin." + (typeof Skins !== "undefined" ? Skins.current : "classic"))} · ${langName(I18n.lang)}` + (p.winGraph ? "" : t("prefs.sum.noGraph"));
+        if (key === "sound") return p.volume === 0 ? t("prefs.sum.off") : `${t("prefs.volumePct", { pct: p.volume })} · ${t(p.soundSet === "auto" ? "prefs.set.auto" : "prefs.skin." + p.soundSet)}`;
+        if (key === "streaming") return t(creatorMode() ? "prefs.sum.on" : CREATOR.some((k) => p[k]) ? "prefs.sum.partly" : "prefs.sum.streaming");
+        if (key === "developer") return t(p.developer ? "prefs.sum.on" : "prefs.sum.off");
+        if (key === "feedback") return t("prefs.sum.report");
         return "";
     }
 
@@ -202,7 +252,9 @@ const Prefs = (() => {
     function open() { showSection(onePane() ? null : section || SECTIONS[0]); fill(); $("prefs-modal").hidden = false; }
     function close() { $("prefs-modal").hidden = true; }
 
-    // a GitHub "new issue" link with the situation prefilled (no room code, no chat text)
+    // a GitHub "new issue" link with the situation prefilled (no room code, no chat text);
+    // the issue body stays English, that is what the owner reads
+    /* i18n-ignore-start */
     function feedbackUrl() {
         const ctx = context() || {};
         const meta = document.querySelector('meta[name="version"]');
@@ -220,6 +272,7 @@ const Prefs = (() => {
         const title = `Feedback from the ${ctx.screen || "app"} screen`;
         return `${REPO_ISSUES}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(lines.join("\n"))}`;
     }
+    /* i18n-ignore-end */
 
     function init(handlers) {
         onChange = (handlers && handlers.onChange) || onChange;
@@ -236,13 +289,16 @@ const Prefs = (() => {
         if ($("pref-creator-mode")) $("pref-creator-mode").addEventListener("click", () => {
             const on = !creatorMode();
             set(Object.fromEntries(CREATOR.map((k) => [k, on])));
-            Util.toast(on ? "Content creator mode is on." : "Content creator mode is off.");
+            Util.toast(t(on ? "prefs.creatorToastOn" : "prefs.creatorToastOff"));
         });
         if ($("pref-name")) $("pref-name").addEventListener("change", readForm);   // on blur / Enter, so typing is never cut mid-word
         if ($("menu-name")) $("menu-name").addEventListener("change", () => set({ name: $("menu-name").value }));   // the greeting's field, same rules
         for (const key of SECTIONS) { const row = $("prefs-nav-" + key); if (row) row.addEventListener("click", () => showSection(key)); }
         $("btn-prefs-back").addEventListener("click", () => showSection(null));
         $("prefs-panes").addEventListener("click", renderNav);        // the look buttons are Skins', the row summary is ours
+        // the language menu closes on a click next to it and on Escape
+        document.addEventListener("click", (e) => { const box = $("pref-language"); if (box && box.classList.contains("open") && !box.contains(e.target)) box.classList.remove("open"); });
+        document.addEventListener("keydown", (e) => { const box = $("pref-language"); if (e.key === "Escape" && box) box.classList.remove("open"); });
         showSection(onePane() ? null : SECTIONS[0]);
         fill();
     }
@@ -250,5 +306,6 @@ const Prefs = (() => {
     return {
         init, get, set, open, close, feedbackUrl, cleanName, fitName, seatNames, CATEGORIES, SECTIONS, DEFAULT_NAMES, NAME_MAX, showSection, sectionSummary,
         get isOpen() { return !$("prefs-modal").hidden; }, get section() { return section; },
+        get reload() { return reload; }, set reload(fn) { reload = fn; },
     };
 })();
