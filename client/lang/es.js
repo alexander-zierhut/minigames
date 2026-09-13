@@ -151,6 +151,8 @@ I18n.add("es", {
     "replays.players": { one: "{count} jugador", other: "{count} jugadores" },
     "replays.vs": "vs",
     "replays.moves": { one: "{count} movimiento", other: "{count} movimientos" },
+    "replays.botLevel": "Bot {level}",
+    "replays.botLevelNodes": "Bot {level}, {nodes} nodos",
     "replays.unfinished": "Sin terminar",
     "replays.won": "{name} ganó",
     "replays.draw": "Empate",

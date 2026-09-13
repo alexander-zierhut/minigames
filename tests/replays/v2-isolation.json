@@ -1,0 +1,64 @@
+{
+  "format": "alzlper-minigames-replay",
+  "version": 2,
+  "game": "isolation",
+  "config": {
+    "game": "isolation",
+    "players": 2,
+    "n": 7,
+    "timer": 0,
+    "bot": null,
+    "startPlayer": 1
+  },
+  "history": [
+    1872,
+    570,
+    1585,
+    908,
+    1195,
+    1248,
+    1486,
+    1592,
+    1895,
+    1943,
+    1504,
+    1884,
+    1852,
+    1491,
+    2185,
+    1907,
+    1810,
+    1841,
+    2137,
+    2198,
+    1802,
+    2144,
+    1759,
+    1807
+  ],
+  "outs": [],
+  "result": {
+    "over": true,
+    "winner": 0,
+    "why": {
+      "k": "why.isolation.trapped"
+    }
+  },
+  "players": [
+    "Player 1",
+    "Bot"
+  ],
+  "meta": {
+    "playedAt": "2026-09-12T12:26:17.282Z",
+    "mode": "bot",
+    "gameNo": 2,
+    "appVersion": "a6ddd84 2026-09-11",
+    "bot": {
+      "id": "warden-isolation",
+      "version": 1,
+      "difficulty": "normal",
+      "nodes": 10000,
+      "seat": 1
+    }
+  }
+}

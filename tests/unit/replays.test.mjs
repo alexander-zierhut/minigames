@@ -229,3 +229,28 @@ test("Match.watch puts a replay on the board with nobody to move", async () => {
     assert.equal(M.engine.previewPly, null);
     w.close();
 });
+
+test("a replay carries only its own game's settings, and the bot that played with its level and budget (version 2)", () => {
+    const w = loadDom();
+    const R = w.eval("Replays");
+    // an Isolation record whose config came from the settings form with every game's fields
+    const cfg = { game: "isolation", players: 2, n: 7, timer: 0, timerSel: "0", timerCustom: "3", bot: null, speed: 750, chainRule: false, chainLen: 15, winLen: 5, yavalath: false, startPlayer: 1 };
+    assert.deepEqual(JSON.parse(JSON.stringify(R.trimConfig(cfg, "isolation"))), { game: "isolation", players: 2, n: 7, timer: 0, bot: null, startPlayer: 1 }, "Isolation keeps no Five Wins or Chain React field");
+    assert.deepEqual(Object.keys(JSON.parse(JSON.stringify(R.trimConfig(cfg, "five")))).sort(), ["bot", "game", "n", "players", "startPlayer", "timer", "winLen", "yavalath"], "Five Wins keeps its own two");
+    assert.deepEqual(Object.keys(JSON.parse(JSON.stringify(R.trimConfig(cfg, "chain")))).sort(), ["bot", "chainLen", "chainRule", "game", "n", "players", "speed", "startPlayer", "timer"], "Chain React keeps its rows and the flag");
+    const doc = R.fromRecord({ game: "isolation", config: cfg, history: [], outs: [], over: false }, ["Robin", "Bot"], "bot", { finished: false, bot: { id: "warden-isolation", version: 1, difficulty: "normal", nodes: 10000, seat: 1 } });
+    assert.equal(doc.version, 2);
+    assert.equal("yavalath" in doc.config, false, "the file carries the trimmed config");
+    assert.deepEqual(JSON.parse(JSON.stringify(doc.meta.bot)), { id: "warden-isolation", version: 1, difficulty: "normal", nodes: 10000, seat: 1 });
+    const sum = R.summary({ ...doc, history: [1, 2] });
+    assert.equal(sum.bot, true);
+    assert.deepEqual(JSON.parse(JSON.stringify(sum.botLevel)), { difficulty: "normal", nodes: 10000 }, "the list line can say the level and the budget");
+    // a game without a bot, and an older file: no bot in the meta, no level in the summary
+    const plain = R.fromRecord({ game: "five", config: { game: "five", n: 5, winLen: 4, players: 2 }, history: [], outs: [] }, [], "local", { finished: false });
+    assert.equal(plain.meta.bot, null);
+    assert.equal(R.summary({ ...plain, history: [0] }).botLevel, null);
+    const old = R.migrate({ ...plain, version: 1, meta: { playedAt: plain.meta.playedAt, mode: "local", gameNo: 1 } });
+    assert.equal(old.version, 2, "a version 1 file migrates");
+    assert.equal(R.summary({ ...old, history: [0] }).botLevel, null);
+    w.close();
+});

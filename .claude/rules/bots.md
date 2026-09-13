@@ -117,7 +117,7 @@ come out under their own names, `H.ChainRules`, straight from `Rules.keys()`).
   "puzzles" or "not rated"; no rating boilerplate text), a *Parameters* box with the
   `#bot-difficulty` control — hidden with one level — and its hint ("Easy: searches up to
   2 000 positions per move."),
-  Cancel, Play. Default per game = middle difficulty (`Math.floor((n-1)/2)`); remembered
+  Cancel, Play. Default per game = the easiest difficulty (a first game should be winnable); remembered
   `{ id, difficulty }` per game in `localStorage["chainreact.bots"]`;
   `Opponent.current(game)` / `summary(game)` ("Bot · Normal · 100 % vs Random · 100 %
   puzzles") / `Opponent.NAME`.

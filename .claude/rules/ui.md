@@ -212,7 +212,7 @@ One room, one link, the whole evening.
   *Opponent* row. **One bot per game (#21)**, called "Bot" wherever a player sees it
   (`Opponent.NAME`; `Bots.botFor(game, cfg)` picks it): the modal is one step (description,
   scores, difficulty, Cancel / Play). Picking a game does **not** open it (#12): the default
-  is the middle difficulty; the row shows the choice. Offline you are seat 0 and the bot sits
+  is the easiest difficulty (a first game should be winnable); the row shows the choice. Offline you are seat 0 and the bot sits
   on seat 1 unless the config names the seat (`config.bot.seat`, which is how "Play from
   here" (#43) and a Learn scenario seat it; `Settings.BOT_SEAT` 1 is only the default a
   room's bot is filled with). **A room can play a bot too (#36)**, see "The room's bot" in
@@ -493,10 +493,17 @@ and can be analysed. The replays screen itself is under "Flow" above.
 A **replay** is that record plus who played it and when, in a versioned document:
 
 ```
-{ format: "alzlper-minigames-replay", version: 1, game, config, history, outs,
+{ format: "alzlper-minigames-replay", version: 2, game, config, history, outs,
   result: { over, winner, why }, players: [name per seat],
-  meta: { playedAt (ISO), mode: "local" | "bot" | "online", gameNo, appVersion } }
+  meta: { playedAt (ISO), mode: "local" | "bot" | "online", gameNo, appVersion,
+          bot: { id, version, difficulty, nodes, seat } | null } }
 ```
+
+`config` carries only what the game needs (`Replays.trimConfig(config, game)`: `game`,
+`players`, `n`, `timer`, `startPlayer`, `bot` and the game's own settings with their
+flags), never another game's fields. `meta.bot` (version 2) names the bot that played, its
+level and its node budget, so the list line can say "Bot Normal, 10 000 nodes" even when
+the budgets change later; a file without it is an older one or a game without a bot.
 
 `Replays.fromRecord(record, names, mode, { finished, playedAt })` builds one,
 `Replays.parse(text)` reads a file (JSON → `migrate` → `validate` → `{ ok, doc }` or

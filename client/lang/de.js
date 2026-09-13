@@ -152,6 +152,8 @@ I18n.add("de", {
     "replays.players": { one: "{count} Spieler", other: "{count} Spieler" },
     "replays.vs": "gegen",
     "replays.moves": { one: "{count} Zug", other: "{count} Züge" },
+    "replays.botLevel": "Bot {level}",
+    "replays.botLevelNodes": "Bot {level}, {nodes} Knoten",
     "replays.unfinished": "Unbeendet",
     "replays.won": "{name} hat gewonnen",
     "replays.draw": "Unentschieden",

@@ -152,6 +152,8 @@ I18n.add("en", {
     "replays.players": { one: "{count} player", other: "{count} players" },
     "replays.vs": "vs",
     "replays.moves": { one: "{count} move", other: "{count} moves" },
+    "replays.botLevel": "Bot {level}",
+    "replays.botLevelNodes": "Bot {level}, {nodes} nodes",
     "replays.unfinished": "Unfinished",
     "replays.won": "{name} won",
     "replays.draw": "Draw",

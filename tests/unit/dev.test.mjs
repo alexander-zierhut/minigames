@@ -68,7 +68,7 @@ test("the bot reports its search (nodes, depth, value) and the win chance its st
     w.sessionStorage.setItem("chainreact.botseed", "7");
     M.reset("bot");
     M.start({ game: "five", n: 6, winLen: 4, players: 2, timer: 0 }, 1);
-    assert.equal(M.botInfo.id, "sensei-five"); assert.equal(M.botInfo.budget, 10000); assert.equal(M.botInfo.move, undefined);
+    assert.equal(M.botInfo.id, "sensei-five"); assert.equal(M.botInfo.budget, 2000, "the default level is Easy"); assert.equal(M.botInfo.move, undefined);
     await M.engine.play(0);
     await wait(M.THINK_MS + 400);
     assert.equal(M.state.history.length, 2);

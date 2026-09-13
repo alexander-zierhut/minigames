@@ -6,6 +6,29 @@
       "entries": [
         {
           "type": "improvement",
+          "text": "Against a bot, the first game starts at Easy; the level you pick is remembered per game as before.",
+          "refs": []
+        },
+        {
+          "type": "improvement",
+          "technical": true,
+          "text": "A replay of a game against a bot now records which bot played, its level and its search budget, and the replays list says so (\"Bot Normal, 10 000 nodes\").",
+          "refs": []
+        },
+        {
+          "type": "fix",
+          "technical": true,
+          "text": "A replay file only carries the settings of its own game any more, not the other games' fields.",
+          "refs": []
+        },
+        {
+          "type": "fix",
+          "technical": true,
+          "text": "In the replays list on a phone, the From and To date fields have the same length.",
+          "refs": []
+        },
+        {
+          "type": "improvement",
           "text": "On a phone, the back button now steps back inside the site: it closes an open dialog, takes a game back to its room and leaves a room, and only leaves the site from the title screen.",
           "refs": []
         },

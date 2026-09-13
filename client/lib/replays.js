@@ -5,7 +5,12 @@
 
      { format: "alzlper-minigames-replay", version: 1, game, config, history, outs,
        result: { over, winner, why }, players: [name per seat],
-       meta: { playedAt, mode, gameNo, appVersion } }
+       meta: { playedAt, mode, gameNo, appVersion, bot: { id, version, difficulty, nodes, seat } | null } }
+
+   The config carries only what the game needs (`trimConfig`: the shared keys and the
+   game's own settings), never another game's fields. `meta.bot` (version 2) says which
+   bot played, at which level and node budget, so the level stays legible when the
+   budgets change.
 
    Everything here is pure except `Replays.store`, which keeps the documents in IndexedDB
    (fail-safe like Util's storage: a browser without it falls back to memory for this visit
@@ -19,12 +24,14 @@
 
 const Replays = (() => {
     const FORMAT = "alzlper-minigames-replay";
-    const VERSION = 1;
+    const VERSION = 2;
     const MAX_STORED = 200;             // the oldest replays fall out of the list
 
     /* ---------- migrations ---------- */
     // MIGRATIONS[v](doc) upgrades a document of version v to version v + 1.
-    const MIGRATIONS = {};
+    const MIGRATIONS = {
+        1: (doc) => ({ ...doc, version: 2 }),              // v2 added the optional meta.bot; nothing to convert
+    };
 
     // any known version → the current one; null when the file is not a replay or is newer
     // than this page (then it may need keys we cannot invent)
@@ -72,6 +79,7 @@ const Replays = (() => {
         if (!doc.result || typeof doc.result !== "object") return bad("replays.err.noResult");
         if (!Array.isArray(doc.players) || doc.players.length < players || doc.players.some((n) => typeof n !== "string")) return bad("replays.err.noPlayers");
         if (!doc.meta || typeof doc.meta !== "object" || typeof doc.meta.playedAt !== "string") return bad("replays.err.noDate");
+        if (doc.meta.bot != null && typeof doc.meta.bot !== "object") return bad("replays.err.damaged");
         try {
             const state = Rules.create({ ...cfg, game: doc.game }, doc.game);
             const applied = Rules.apply(doc.game, state, doc.history, doc.outs || []);
@@ -100,8 +108,15 @@ const Replays = (() => {
     /* A game record (Match.record()) + who sat where + how it was played → a replay.
        `opts.finished` overrides whether the game really ended (a game left through "Back to
        room" is saved unfinished), `opts.playedAt` the timestamp (tests). */
+    // the keys every game shares; a game's own come from its definition (settings and their flags)
+    const SHARED = ["game", "players", "n", "timer", "startPlayer", "bot"];
+    function trimConfig(config, game) {
+        const own = new Set(SHARED);
+        if (typeof Games !== "undefined" && Games.has(game)) for (const s of Games.get(game).settings) { own.add(s.key); if (s.flag) own.add(s.flag); }
+        return Object.fromEntries(Object.entries(config || {}).filter(([k]) => own.has(k)));
+    }
     function fromRecord(record, names = [], mode = "local", opts = {}) {
-        const cfg = { ...(record.config || {}) };
+        const cfg = trimConfig(record.config, record.game);
         const players = cfg.players || 2;
         const finished = opts.finished === undefined ? !!(record.over && record.why) : !!opts.finished;
         return {
@@ -122,6 +137,7 @@ const Replays = (() => {
                 mode,
                 gameNo: record.gameNo || 0,
                 appVersion: opts.appVersion || appVersion(),
+                bot: opts.bot ? { ...opts.bot } : null,      // which bot at which level and budget (version 2)
             },
         };
     }
@@ -174,7 +190,8 @@ const Replays = (() => {
             mode: doc.meta.mode,
             // played against a bot: the offline bot table, or a room with a bot on a seat
             // (#36, and "Play from here" opens such a room)
-            bot: doc.meta.mode === "bot" || !!(doc.config && doc.config.bot),
+            bot: doc.meta.mode === "bot" || !!(doc.config && doc.config.bot) || !!doc.meta.bot,
+            botLevel: doc.meta.bot ? { difficulty: doc.meta.bot.difficulty, nodes: doc.meta.bot.nodes } : null,   // what the list line says about the bot (version 2)
             over: !!doc.result.over,
             resultText: !doc.result.over ? I18n.t("replays.unfinished") : winner >= 0 ? I18n.t("replays.won", { name: players[winner] || I18n.t("common.player", { n: winner + 1 }) }) : I18n.t("replays.draw"),
         };
@@ -354,5 +371,5 @@ const Replays = (() => {
         return { save, list, get, remove, clear, persistent, analysis, DB_NAME, STORE_NAME, ANALYSIS_STORE, DB_VERSION };
     })();
 
-    return { FORMAT, VERSION, MIGRATIONS, EXT, migrate, validate, parse, fromRecord, idFor, fileName, when, dayOf, summary, filter, store, playback, STEP_MS };
+    return { FORMAT, VERSION, MIGRATIONS, EXT, migrate, validate, parse, fromRecord, trimConfig, idFor, fileName, when, dayOf, summary, filter, store, playback, STEP_MS };
 })();

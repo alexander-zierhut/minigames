@@ -506,8 +506,11 @@ body.settings-locked .game-card.selected:hover { border-color: var(--accent); }
     .replays-head .btn.small { flex: 1 1 100%; }
     .replay-tools { gap: 6px; }
     .replay-filter { flex: 1 1 100%; max-width: none; }
-    .replay-date { flex: 1 1 40%; }
-    .replay-date input { flex: 1; min-width: 0; }
+    /* From / To as one grid: the labels get their own columns, the two inputs the same width */
+    .replay-dates { display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr); column-gap: 6px; row-gap: 6px; }
+    .replay-date { display: contents; }
+    .replay-date input { width: 100%; min-width: 0; }
+    .replay-dates .replay-count { grid-column: 1 / -1; }
     .replay-count { flex: 1 1 100%; margin-left: 0; text-align: right; }
     .replay-body { min-height: 220px; }
     .replay-item { flex-wrap: wrap; gap: 6px; }

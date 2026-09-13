@@ -3,7 +3,7 @@
    so the modal is a single step: the bot's description and scores, the difficulty control
    (hidden with one level) and whatever parameters a bot gets in the future, with Cancel
    and Play. Nothing opens by itself: the lobby's Opponent row shows the current choice
-   and opens the modal (#12). Default = the middle difficulty; the choice is remembered
+   and opens the modal (#12). Default = the easiest difficulty; the choice is remembered
    per game in localStorage["chainreact.bots"] as { game: { id, difficulty } }. */
 
 "use strict";
@@ -18,16 +18,16 @@ const Opponent = (() => {
     let difficulty = null;                                  // difficulty being edited
     let onDone = () => {};
 
-    const middle = (def) => def.difficulties[Math.floor((def.difficulties.length - 1) / 2)].id;
+    const easiest = (def) => def.difficulties[0].id;          // a first game should be winnable (owner, 2026-09-13)
     const level = (def, id) => def.difficulties.find((d) => d.id === id) || def.difficulties[0];
 
     // the bot + difficulty for a game (and its rule variants, cfg): the remembered level if that bot
-    // still has it, else the middle one
+    // still has it, else the easiest
     function current(g, cfg) {
         const def = Bots.botFor(g, cfg);
         if (!def) return null;
         const saved = choices[g];
-        const d = saved && saved.id === def.id && def.difficulties.some((x) => x.id === saved.difficulty) ? saved.difficulty : middle(def);
+        const d = saved && saved.id === def.id && def.difficulties.some((x) => x.id === saved.difficulty) ? saved.difficulty : easiest(def);
         return { id: def.id, difficulty: d, def };
     }
 

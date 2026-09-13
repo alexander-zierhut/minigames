@@ -109,12 +109,22 @@
     // what was played is kept on this device: finished games, and games somebody left
     // through "Back to room" (those are marked unfinished)
     // returns the store's promise, so a screen that lists the replays can wait for it
+    // which bot played at this table, at which level and node budget (the replay carries it):
+    // the table's own bot, or the room's bot another device runs (config.bot names it)
+    function botMeta() {
+        const seat = Match.seats.findIndex((s) => s.kind === "bot");
+        const b = Match.bot ? { id: Match.bot.def.id, difficulty: Match.bot.difficulty, seat } : Match.config.bot ? { ...Match.config.bot } : null;
+        if (!b || !Bots.get(b.id)) return null;
+        const def = Bots.get(b.id);
+        const level = def.difficulties.find((d) => d.id === b.difficulty);
+        return { id: b.id, version: def.version, difficulty: b.difficulty, nodes: level && level.nodes ? level.nodes : null, seat: b.seat };
+    }
     function saveReplay(finished) {
         if (Match.mode === "replay" || Learn.active || !Match.running || !Match.config) return null;   // a lesson is not a game (#41)
         const record = Match.record();
         if (!record.history.length) return null;
         if (!finished && record.over) return null;        // it was already saved when it ended
-        return Replays.store.save(Replays.fromRecord(record, Match.names, Match.mode, { finished }));
+        return Replays.store.save(Replays.fromRecord(record, Match.names, Match.mode, { finished, bot: botMeta() }));
     }
     // watch a replay: the record on the board, nobody to move, the replay bar from move 0
     function watchReplay(doc) {

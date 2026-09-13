@@ -10,14 +10,14 @@ after(async () => { await B?.close(); await server?.close(); });
 
 const myTurn = () => B.waitFor("!ChainGame.state.busy && !FiveGame.state.busy && (document.body.classList.contains('game-five') ? FiveGame : ChainGame).state.current === 0 || (document.body.classList.contains('game-five') ? FiveGame : ChainGame).state.over", { timeout: 20000, what: "my turn or game over" });
 
-test("bot lobby: sane default (middle level), the one-step modal with scores and difficulty, Cancel keeps the choice, Play changes it", async () => {
+test("bot lobby: sane default (the easiest level), the one-step modal with scores and difficulty, Cancel keeps the choice, Play changes it", async () => {
     await B.click("#btn-bot");
     assert.equal(await B.screen(), "screen-lobby");
     assert.equal(await B.text("lobby-kind"), "Against a bot");
     assert.equal(await B.ev("document.getElementById('btn-opponent').hidden"), false);
     await B.selectGame("five");
     assert.equal(await B.ev("document.getElementById('bot-modal').hidden"), true, "picking a game does not open the modal (#12)");
-    assert.match(await B.text("opponent-summary"), /^Bot · Normal · 100 % vs Random · 100 % puzzles$/, "default: the game's bot at its middle level, called Bot");
+    assert.match(await B.text("opponent-summary"), /^Bot · Easy · [\d.]+ % vs Random · [\d.]+ % puzzles$/, "default: the game's bot at its easiest level, called Bot");
     await B.click("#btn-opponent");
     assert.equal(await B.ev("document.getElementById('bot-modal').hidden"), false);
     assert.equal(await B.ev("document.querySelectorAll('.bot-option, #bot-step-list').length"), 0, "no list step any more");
@@ -25,19 +25,25 @@ test("bot lobby: sane default (middle level), the one-step modal with scores and
     assert.match(await B.ev("document.querySelector('#bot-badges .bot-badge').textContent"), /\d+(\.\d+)? % vs Random/, "benchmark score baked in");
     assert.equal(await B.ev("document.getElementById('bot-difficulty-row').hidden"), false);
     assert.equal(await B.ev("document.querySelectorAll('#bot-difficulty button').length"), 4);
-    assert.equal(await B.ev("document.querySelector('#bot-difficulty button.selected').dataset.difficulty"), "normal");
-    await B.click('#bot-difficulty button[data-difficulty="easy"]');
+    assert.equal(await B.ev("document.querySelector('#bot-difficulty button.selected').dataset.difficulty"), "easy", "a first game starts at Easy");
     assert.equal(await B.text("bot-difficulty-hint"), "Easy: searches up to 2\u202f000 positions per move.");
+    await B.click('#bot-difficulty button[data-difficulty="normal"]');
+    assert.equal(await B.text("bot-difficulty-hint"), "Normal: searches up to 10\u202f000 positions per move.");
     assert.equal(await B.ev("document.getElementById('bot-meta')"), null, "no rating boilerplate");
     await B.click("#btn-bot-cancel");
     assert.equal(await B.ev("document.getElementById('bot-modal').hidden"), true);
-    assert.match(await B.text("opponent-summary"), /^Bot · Normal · /, "Cancel keeps the old level");
+    assert.match(await B.text("opponent-summary"), /^Bot · Easy · /, "Cancel keeps the old level");
+    await B.click("#btn-opponent");
+    await B.click('#bot-difficulty button[data-difficulty="normal"]');
+    await B.click("#btn-bot-done");
+    assert.equal(await B.ev("document.getElementById('bot-modal').hidden"), true);
+    assert.match(await B.text("opponent-summary"), /^Bot · Normal · [\d.]+ % vs Random · [\d.]+ % puzzles$/);
+    assert.equal(await B.ev("JSON.parse(localStorage.getItem('chainreact.bots')).five.difficulty"), "normal", "remembered per game");
+    // back to Easy for the game below
     await B.click("#btn-opponent");
     await B.click('#bot-difficulty button[data-difficulty="easy"]');
     await B.click("#btn-bot-done");
-    assert.equal(await B.ev("document.getElementById('bot-modal').hidden"), true);
-    assert.match(await B.text("opponent-summary"), /^Bot · Easy · [\d.]+ % vs Random · [\d.]+ % puzzles$/);
-    assert.equal(await B.ev("JSON.parse(localStorage.getItem('chainreact.bots')).five.difficulty"), "easy", "remembered per game");
+    assert.match(await B.text("opponent-summary"), /^Bot · Easy · /);
 });
 
 test("five wins against the bot (Easy): it moves by itself, the HUD calls it Bot, the game ends", async () => {

@@ -165,7 +165,7 @@ test("against a bot: it draws lines by itself and closes boxes", async () => {
     await B.click("#btn-lobby-back");
     await B.click("#btn-bot");
     await B.selectGame("boxes");
-    assert.match(await B.text("opponent-summary"), /^Bot · Normal · 100 % vs Random · [\d.]+ % puzzles$/);
+    assert.match(await B.text("opponent-summary"), /^Bot · Easy · [\d.]+ % vs Random · [\d.]+ % puzzles$/, "a first game starts at Easy");
     await B.click("#btn-settings"); await B.setting("size", 3); await B.click("#btn-settings-done");
     await B.click("#btn-start");
     assert.equal(await B.text("p1-name"), "Bot");

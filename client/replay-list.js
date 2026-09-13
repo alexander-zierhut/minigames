@@ -95,7 +95,9 @@ const ReplayList = (() => {
             el.dataset.id = r.id;
             el.prepend(previewTile(r.game));                     // the game's small tile in front of the text
             el.querySelector(".replay-title").textContent = `${r.title} · ${r.n} × ${r.n}` + (r.players.length > 2 ? ` · ${t("replays.players", { count: r.players.length })}` : "");
-            el.querySelector(".replay-sub").textContent = [Replays.when(r.playedAt), r.players.join(` ${t("replays.vs")} `), r.resultText, t("replays.moves", { count: r.moves })].join(" · ");
+            const parts = [Replays.when(r.playedAt), r.players.join(` ${t("replays.vs")} `), r.resultText, t("replays.moves", { count: r.moves })];
+            if (r.botLevel) parts.push(r.botLevel.nodes ? t("replays.botLevelNodes", { level: t("level." + r.botLevel.difficulty), nodes: r.botLevel.nodes.toLocaleString(I18n.locale) }) : t("replays.botLevel", { level: t("level." + r.botLevel.difficulty) }));
+            el.querySelector(".replay-sub").textContent = parts.join(" · ");
             box.appendChild(el);
         }
         const note = $("replays-note");

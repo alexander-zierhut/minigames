@@ -148,6 +148,8 @@ I18n.add("ja", {
     "replays.players": { other: "{count}人" },
     "replays.vs": "vs",
     "replays.moves": { other: "{count}手" },
+    "replays.botLevel": "ボット {level}",
+    "replays.botLevelNodes": "ボット {level}、{nodes}ノード",
     "replays.unfinished": "未完了",
     "replays.won": "{name}の勝ち",
     "replays.draw": "引き分け",

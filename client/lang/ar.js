@@ -152,6 +152,8 @@ I18n.add("ar", {
     "replays.players": { zero: "{count} لاعبين", one: "{count} لاعب", two: "{count} لاعبين", few: "{count} لاعبين", many: "{count} لاعب", other: "{count} لاعب" },
     "replays.vs": "ضد",
     "replays.moves": { zero: "{count} حركات", one: "{count} حركة", two: "{count} حركتين", few: "{count} حركات", many: "{count} حركة", other: "{count} حركة" },
+    "replays.botLevel": "بوت {level}",
+    "replays.botLevelNodes": "بوت {level}، {nodes} عقدة",
     "replays.unfinished": "غير مكتملة",
     "replays.won": "فاز {name}",
     "replays.draw": "تعادل",
