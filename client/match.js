@@ -236,7 +236,7 @@ const Match = (() => {
             let i;
             const t0 = performance.now();
             try { i = await bot.move(bot.tools.clone(Game.state)); }
-            catch (e) { console.error(`bot ${bot.def.id} failed`, e); Log.add(I18n.t("log.botCrashed", { name: Opponent.NAME }), "x"); }
+            catch (e) { console.error(`bot ${bot.def.id} failed`, e); Log.add({ k: "log.botCrashed", name: { k: "bot.name" } }, "x"); }
             if (!stillOn()) return;
             if (!Game.isLegal(i, p)) i = bot.tools.pick(bot.tools.legalMoves(Game.state, p));
             st.botInfo = { id: bot.def.id, difficulty: bot.difficulty, budget: bot.tools.budget.nodes, move: i, ms: performance.now() - t0, nodes: bot.tools.lastDeadline ? bot.tools.lastDeadline.nodes() : null, ...(bot.tools.last || {}) };

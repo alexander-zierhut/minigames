@@ -1,6 +1,9 @@
 /* The event log in the HUD (#log): newest line first, the last MAX_LINES kept, the box
    scrolls on desktop and shows the last two lines on phones. Line classes: p<k> (player
-   colour), x (highlight), chat (a chat line: bold name + text, see chat.js). */
+   colour), x (highlight), chat (a chat line: bold name + text, see chat.js). A line is
+   added as a message descriptor ({ k, …params }, rendered by I18n.msg) and keeps it, so
+   `relabel()` can say every line again in a new language (#47); chat lines are content
+   and stay as they are. */
 
 "use strict";
 
@@ -24,9 +27,17 @@ const Log = (() => {
         return div;
     }
 
-    function add(text, cls) {
-        line("log", text, cls);
-        Bus.emit("log", { text, cls });
+    function add(msg, cls) {
+        const text = I18n.msg(msg);
+        const div = line("log", text, cls);
+        if (div && msg && typeof msg === "object") div.dataset.msg = JSON.stringify(msg);   // kept for relabel
+        Bus.emit("log", { text, msg, cls });
+    }
+    // the language changed: every line that knows its descriptor is said again
+    function relabel(id = "log") {
+        const el = Util.$(id);
+        if (!el) return;
+        for (const div of el.children) if (div.dataset.msg) div.textContent = I18n.msg(JSON.parse(div.dataset.msg));
     }
 
     // a chat line in the game log
@@ -40,5 +51,5 @@ const Log = (() => {
         for (const child of [...el.children]) if (!child.classList.contains("chat")) child.remove();
     }
 
-    return { add, chat, clear, line, MAX_LINES };
+    return { add, chat, clear, line, relabel, MAX_LINES };
 })();

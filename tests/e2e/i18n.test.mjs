@@ -73,6 +73,21 @@ test("the language follows the browser, the switch in the preferences changes ev
     assert.deepEqual(B.errors, []);
 });
 
+test("the switch reaches a running game: the log's lines, the HUD and the lobby are said again", async () => {
+    await B.click("#btn-local"); await B.click("#btn-start");                  // German: "Neues Spiel. … beginnt."
+    assert.match(await B.text("log"), /Neues Spiel/);
+    await B.ev("Prefs.set({ language: 'en' }); true");
+    assert.match(await B.text("log"), /New game\. \w+ starts\./, "a line already in the log is said again");
+    assert.doesNotMatch(await B.text("log"), /Neues Spiel/);
+    assert.equal(await B.text("turn-hint"), "to move", "the HUD follows");
+    assert.equal(await B.text("sign-title"), "CHAIN REACT", "the sign follows");
+    assert.equal(await B.text("btn-menu"), "Back to room");
+    await B.click("#btn-menu");
+    assert.equal(await B.text("lobby-kind"), "Local game", "the lobby follows");
+    await B.click("#btn-lobby-back");
+    assert.deepEqual(B.errors, []);
+});
+
 test("Arabic reads right to left; the board, the previews and the clocks stay left to right", async () => {
     await setLanguage("ar");
     assert.equal(await B.ev("document.documentElement.dir"), "rtl");

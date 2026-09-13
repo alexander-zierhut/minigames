@@ -176,7 +176,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Util` | `$`, `sleep`, `clamp`, `restartClass`, `load/save/remove(storage, key[, value])`, `fromTemplate(id, k)`, `toast` |
 | `I18n` | `init(pref) → code` (a code or `"auto"`), `add(code, dict)`, `t(key, params)`, `msg(descriptor | string)`, `apply(root)`, `detect(list)`, `has(code)`, `flag(code) → svg`, `LANGS [{code, name, dir}]`, `DEFAULT`; getters `lang`, `dir`, `locale`; `dict(code)`, `codes()` |
 | `Bus` | `on(event, fn) → off`, `off`, `emit(event, data)` — events listed in "Events" in `.claude/rules/games.md` |
-| `Log` | `add(text, cls)`, `chat(...)`, `clear()`; 40 lines, `#log` only |
+| `Log` | `add(msg, cls)` (a message descriptor `{ k, …params }` or a text; the line keeps the descriptor), `relabel()`, `chat(...)`, `clear()`; 40 lines, `#log` only |
 | `Clock` | `setup(seconds, onFlag, players)`, `setActive`, `pause`, `resume`, `stop`, `snapshot`, `restore`, `isEnabled` |
 | `Net` | `open(code, handlers, preferredRole)` (`"guest"` / `"spectator"`), `send`, `sendTo/sendExcept` (host), `setSeat(id, seat)`, `setMeta(id, patch)` (host), `hostSpectators(specCode)`, `leave`, `retryNow`, `randomCode`, `normalizeCode`, `PREFIX/SPEC_PREFIX`; getters `code, role, status, connected, peers, watching, iceInfo, transport, refused` (the broker keeps turning us away, a rate limit); handlers `onStatus, onRole, onOpen, onClose, onMessage, preferHost, metadata(), admit, relayOnly` |
 | `Install` | `init()`, `offered` |

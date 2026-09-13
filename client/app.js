@@ -61,6 +61,7 @@
         Lobby.render();
         Room.render();
         Learn.relabel();
+        Log.relabel();
         if (phase === "replays") ReplayList.relabel();
         if (!$("replay-bar").hidden) Review.render();
         Analysis.render();
@@ -174,7 +175,7 @@
         Match.gameNo = doc.config.startPlayer || 0;       // …so the next game number starts the recorded starter
         continued = true;
         startGame({ ...Settings.read(), bot: { id: choice.id, difficulty: choice.difficulty, seat: seat === 0 ? 1 : 0 } }, Match.gameNo + 1, prefix);
-        Log.add(t("log.playingOn"), "x");
+        Log.add({ k: "log.playingOn" }, "x");
     }
 
     /* ================= flow ================= */
@@ -459,7 +460,7 @@
             Match.engine.replay(session.history || [], session.outs || []);
             Clock.restore(session.clocks);
             Clock.pause();
-            Log.add(session.watch ? t("log.rejoinSpectator") : t("log.rejoin", { code: Room.codeText() }), "x");
+            Log.add(session.watch ? { k: "log.rejoinSpectator" } : { k: "log.rejoin", code: Room.codeText() }, "x");
         }
         Room.rev = session.rev || 0;
     } else if (watchFromUrl) {

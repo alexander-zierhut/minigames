@@ -5,6 +5,20 @@
       "date": "2026-09-13",
       "entries": [
         {
+          "type": "fix",
+          "technical": true,
+          "text": "A language change now also translates the lines already in the game log.",
+          "refs": [
+            "#47"
+          ]
+        },
+        {
+          "type": "fix",
+          "technical": true,
+          "text": "In a room's lobby, \"Room size\" sits on the line of the room's label and the 2 / 3 / 4 on the code's line, with the same spacing as the Options group.",
+          "refs": []
+        },
+        {
           "type": "improvement",
           "text": "Against a bot, the first game starts at Easy; the level you pick is remembered per game as before.",
           "refs": []

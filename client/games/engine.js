@@ -60,7 +60,7 @@ const Engine = (() => {
             Hud.build(state.players, def.title);
             Log.clear();
             Util.$("overlay").hidden = true;
-            Log.add(I18n.t("log.newGame", { name: hooks.names[state.current] }), "p" + state.current);
+            Log.add({ k: "log.newGame", name: hooks.names[state.current] }, "p" + state.current);
             emit("game:new", { config: cfg, state });
             render();
             settled();
@@ -106,7 +106,7 @@ const Engine = (() => {
             if (hooks.onTurn) hooks.onTurn(state.current);
         }
 
-        const logOut = (p, why) => { if (state.players > 2) Log.add(I18n.t("log.out", { name: hooks.names[p], why: I18n.msg(why) }), "p" + p); };
+        const logOut = (p, why) => { if (state.players > 2) Log.add({ k: "log.out", name: hooks.names[p], why }, "p" + p); };
 
         function finish(winner, why) {
             state.over = true;
@@ -116,7 +116,7 @@ const Engine = (() => {
             const names = hooks.names;
             const won = winner >= 0;
             const reason = I18n.msg(why);                  // `why` is a descriptor from the rules (#47)
-            Log.add(won ? I18n.t("log.wins", { name: names[winner], why: reason }) : I18n.t("log.draw", { why: reason }), won ? "p" + winner : "x");
+            Log.add(won ? { k: "log.wins", name: names[winner], why } : { k: "log.draw", why }, won ? "p" + winner : "x");
             render();
             Hud.overlay(won ? names[winner] : null, winner, `${reason}\n${view.summary(state)}`);
             settled();

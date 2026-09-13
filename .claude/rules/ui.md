@@ -97,10 +97,11 @@ One room, one link, the whole evening.
      spectate-link viewer, class `as-word`) with, online only, the primary `#btn-invite`
      "Invite" beside it (`#lobby-share`), and the seat count (`#row-players`, the segmented
      `#set-players` 2 / 3 / 4). **Where the count lives depends on the mode** and
-     `Lobby.render` moves the one control: in a room on that line as a small right-aligned
-     block with its own label "Room size" over the 2 / 3 / 4 (phones wrap the block under
-     the code, still on the right, so code and count read as two things and are far enough
-     apart to tap), offline in its own section `#group-count` over the game under the label
+     `Lobby.render` moves the one control: in a room the head is a two-column grid, "Room
+     size" on the kind label's line and the 2 / 3 / 4 on the code's line, both on the right
+     (phones put the block under the code, still on the right, so code and count read as
+     two things and are far enough apart to tap; the label-to-control gap is the Options
+     group's), offline in its own section `#group-count` over the game under the label
      "Players" (`Lobby.render` sets the label's key), and against a bot nowhere
      (`Settings.setMode` hides it). Online `#screen-lobby.online` makes the code a
      button: **a tap copies the invite link** (the spectate link for a viewer) and the code
@@ -344,8 +345,9 @@ makes sure none does).
   every row's label and option texts, the timer list, around the values picked),
   `Opponent.relabel()`, `Match.engine.relabel()` (the sign, the HUD, a shown result),
   `renderRematch()`, `Lobby.render()`, `Room.render()`, `Learn.relabel()`, the replays
-  list and the replay bar with its analysis panel when they are open. The log keeps its
-  lines. The Look row's summary names the language.
+  list and the replay bar with its analysis panel when they are open, and `Log.relabel()`
+  says every log line again (a line keeps its descriptor; chat lines are content and stay).
+  The Look row's summary names the language.
 - **Arabic reads right to left**: `I18n.init` sets `dir="rtl"` on `<html>`, so the flex
   rows and the text mirror; `game.css` pins `#board`, the preview tiles, the reaction
   layer, the clocks, the graph and the replay position to `direction: ltr`, so cell 0 is
@@ -739,7 +741,7 @@ howto: {
 
 - `Log.line(id, text, cls, name?)` prepends one line (newest first in the DOM; the box
   is `column-reverse`, so the newest shows at the bottom), keeps `Log.MAX_LINES` = 40.
-  `Log.add(text, cls)` → `#log` + Bus `log`; `Log.chat(name, text, cls)` → `#log` (bold
+  `Log.add(msg, cls)` (a descriptor `{ k, …params }`, kept on the line for `relabel()`) → `#log` + Bus `log {text, msg, cls}`; `Log.chat(name, text, cls)` → `#log` (bold
   `name: ` + text, class `chat p<k>` / `chat x`). `Log.clear()` (new game) removes
   everything but `.chat` lines, so the conversation survives a rematch. Text goes in via
   `textContent` only — never HTML.

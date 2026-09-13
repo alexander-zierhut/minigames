@@ -294,7 +294,7 @@ const Room = (() => {
     function rematchComplete() {
         for (let k = 0; k < playersNow(); k++) if (k !== botSeat() && !r.votes.has(k)) return false;
         startGame(Match.config, Match.gameNo + 1);
-        Log.add(t("log.rematch"), "x");
+        Log.add({ k: "log.rematch" }, "x");
         sendSync();
         return true;
     }
@@ -417,7 +417,7 @@ const Room = (() => {
         const gameNo = msg.g || Match.gameNo;
         if (msg.phase === "game" && msg.config) {
             if (!inGame() || gameNo !== Match.gameNo) startGame(msg.config, gameNo);
-            Log.add(t("log.joined"), "x");
+            Log.add({ k: "log.joined" }, "x");
         } else if (h.phase() !== "lobby") {
             Match.gameNo = gameNo;
             h.backToLobby(false);
@@ -467,7 +467,7 @@ const Room = (() => {
                 if (msg.phase === "game" && msg.config) {
                     if (!inGame() || msg.g !== Match.gameNo) {
                         startGame(msg.config, msg.g);
-                        Log.add(t("log.connectedHost"), "x");
+                        Log.add({ k: "log.connectedHost" }, "x");
                     }
                     r.rev = msg.rev;
                     sendSync();
@@ -511,7 +511,7 @@ const Room = (() => {
         start(msg) {                                  // the host started a game
             if (isHost() || msg.g <= Match.gameNo) return;
             startGame(msg.config, msg.g, msg.prefix);
-            Log.add(t("log.game", { n: msg.g, game: Games.title(msg.config.game) }), "x");
+            Log.add({ k: "log.game", n: msg.g, game: { k: Games.get(msg.config.game).title } }, "x");
         },
         tolobby(msg) {
             if (inGame()) { toast(t("toast.wentBack", { name: who(msg.from) })); h.backToLobby(false); }
@@ -584,7 +584,7 @@ const Room = (() => {
         const g = Match.gameNo + 1;
         netSend({ t: "start", config: cfg, g, ...(prefix && prefix.history && prefix.history.length ? { prefix } : {}) });
         startGame(cfg, g, prefix);
-        Log.add(t("log.game", { n: g, game: Games.title(cfg.game) }), "x");
+        Log.add({ k: "log.game", n: g, game: { k: Games.get(cfg.game).title } }, "x");
     }
 
     /* ---------- moves & sync ---------- */
@@ -641,7 +641,7 @@ const Room = (() => {
         if (isHost()) { sendSync(); return; }                  // the guest rebuilds from us
         const key = `${Match.gameNo}:${(msg.history || []).length}`;
         if (r.rebuiltAt === key) {                              // rebuilt once already and still different: give up
-            Log.add(t("log.outOfSync"), "x");
+            Log.add({ k: "log.outOfSync" }, "x");
             toast(t("toast.outOfSync"));
             h.backToLobby(true);
             return;
@@ -651,7 +651,7 @@ const Room = (() => {
         r.rev--;                                                // a rebuild is not a new phase
         Game().replay(msg.history || [], msg.outs);
         if (msg.clocks) Clock.restore(msg.clocks);
-        Log.add(t("log.resynced"), "x");
+        Log.add({ k: "log.resynced" }, "x");
         sendSync();
         afterSync();
     }

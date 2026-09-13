@@ -161,23 +161,26 @@
    then one primary Start with a quiet Leave under it. A hairline separates the groups,
    so nothing sits in a box inside a box. */
 .lobby-card { max-width: 460px; gap: 12px; }
-/* head: kind label, the room code, and (online) Share plus two small icon buttons (#15) */
-/* the head: the kind centred over one line that holds the room (code, Invite) on the left
-   and, in a room, how many seats on the right, all vertically centred (owner, 2026-09-11) */
-.lobby-head { display: flex; flex-direction: column; align-items: stretch; gap: 8px; text-align: left; }
-.lobby-head .label { text-align: left; }                    /* over the room code, not over the card */
-.lobby-head-row { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; }
-/* the count is a small block on the right: "Room size" over the 2 / 3 / 4, both right-aligned,
-   so the code and the count read as two things and are far enough apart to tap (owner, 2026-09-13) */
-.lobby-head-row #row-players { flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 4px; margin-left: auto; }
-.lobby-head-row #row-players .lobby-row-label { letter-spacing: 1px; }
-.lobby-head-row #row-players .players-seg { margin-left: 0; width: 138px; }
+/* the head is a grid of two columns and two rows (owner, 2026-09-13): the kind label over
+   the room (code, Invite) on the left and, in a room, "Room size" over the 2 / 3 / 4 on
+   the right, both labels on the first line, both controls on the second, the same gap
+   between a label and its control as the Options group has. The row and the count block
+   are `display: contents`, so their children are the grid's items and Lobby.render can
+   still move the one count control between the head and the offline section. */
+.lobby-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: end; text-align: left; }
+.lobby-head .label { text-align: left; grid-area: 1 / 1; }
+.lobby-head-row { display: contents; }
+.lobby-head-row .room-code-row { grid-area: 2 / 1; }
+.lobby-head-row #row-players { display: contents; }
+.lobby-head-row #row-players .lobby-row-label { grid-area: 1 / 2; justify-self: end; }
+.lobby-head-row #row-players .players-seg { grid-area: 2 / 2; justify-self: end; margin-left: 0; width: 138px; }
+.lobby-head:has(#row-players:not([hidden])) .room-code-row { justify-content: flex-start; }
 /* Invite is as tall as the seat count beside it */
 .lobby-actions .btn.small { padding: 5px 10px; font-size: 12px; }
-/* no seat count in the head (offline, or against a bot): the room block has the line to
-   itself, and the kind label centres over it */
+/* no seat count in the head (offline, or against a bot): one column, the kind label and
+   the room block centred */
+.lobby-head:not(:has(#row-players:not([hidden]))) { grid-template-columns: 1fr; }
 .lobby-head:not(:has(#row-players:not([hidden]))) .label { text-align: center; }
-.lobby-head-row:not(:has(#row-players:not([hidden]))) { justify-content: center; text-align: center; }
 /* offline the count is a section of its own, like Game and Options: a heading, then the
    control at full width under it */
 #group-count { border-top: 0; padding-top: 16px; }
@@ -254,11 +257,11 @@
 /* phones: a tighter lobby card so players, picker and buttons fit 360×780 without scrolling */
 @media (max-width: 899px) {
     .lobby-card { gap: 8px; padding: 16px 16px; }
-    /* the head wraps: the room on the first line, the "Room size" block right-aligned under it */
-    .lobby-head { gap: 6px; }
-    .lobby-head-row { gap: 8px; }
-    .lobby-head-row #row-players { margin-top: 2px; }
-    .lobby-head-row #row-players .players-seg { width: 132px; }
+    /* one column: the room block, then "Room size" over its 2 / 3 / 4 on the right, apart
+       from the code and far enough away to tap; the gap is the Options group's */
+    .lobby-head { grid-template-columns: 1fr; gap: 6px; }
+    .lobby-head-row #row-players .lobby-row-label { grid-area: 3 / 1; margin-top: 4px; }
+    .lobby-head-row #row-players .players-seg { grid-area: 4 / 1; width: 132px; }
     /* offline on a phone the section keeps its heading but sits on one line, so the local
        lobby still fits 360×780 */
     #group-count { padding-top: 6px; }

@@ -95,7 +95,7 @@ const ChainView = (() => {
             ctx.renderHud();
             await sleep(speed * 0.35);
         }
-        if (state.chainNow > 0) Log.add(t("game.chain.log.chain", { name: ctx.names()[me], count: state.chainNow }), "x");
+        if (state.chainNow > 0) Log.add({ k: "game.chain.log.chain", name: ctx.names()[me], count: state.chainNow }, "x");
     }
 
     function cellCentre(ctx, i, size) {
