@@ -26,6 +26,7 @@ export const E2E_DIR = join(ROOT, "tests", "e2e");
 export const SIZES = {
     "online-edge.test.mjs": 80,
     "online.test.mjs": 65,
+    "triangles.test.mjs": 50,      // three seeded games to the end, one of them on a 6-peg phone board
     "prefs.test.mjs": 40,
     "i18n.test.mjs": 35,           // #47: six languages, two viewports, every screen
     "online-spectate.test.mjs": 32,

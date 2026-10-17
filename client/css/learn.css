@@ -136,6 +136,14 @@ body.learn-tutorial #hut .win-bar { display: none; }
 @media (max-width: 899px) {
     #screen-learn, #screen-learn-game { padding-top: 56px; }
     #screen-learn-game .menu-card { gap: 10px; padding: 20px 18px; }
+    /* an odd last game card runs across both columns, its texts beside the preview, so a
+       fifth game costs half a row (the lobby's picker does the same) */
+    #learn-games .game-card:last-child:nth-child(odd) {
+        grid-column: 1 / -1; display: grid; grid-template-columns: auto auto; justify-content: center;
+        align-items: center; column-gap: 14px; row-gap: 3px;
+    }
+    #learn-games .game-card:last-child:nth-child(odd) .game-preview { grid-row: 1 / span 3; }
+    #learn-games .game-card:last-child:nth-child(odd) > :not(.game-preview) { justify-self: start; text-align: start; }
 }
 
 @media (min-width: 900px) and (min-aspect-ratio: 1/1) {

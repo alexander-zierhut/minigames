@@ -256,7 +256,7 @@
 }
 /* phones: a tighter lobby card so players, picker and buttons fit 360×780 without scrolling */
 @media (max-width: 899px) {
-    .lobby-card { gap: 8px; padding: 16px 16px; }
+    .lobby-card { gap: 8px; padding: 14px 16px; }
     /* one column: the room block, then "Room size" over its 2 / 3 / 4 on the right, apart
        from the code and far enough away to tap; the gap is the Options group's */
     .lobby-head { grid-template-columns: 1fr; gap: 6px; }
@@ -276,9 +276,22 @@
     .lobby-players { gap: 6px; }
     .lobby-card .game-players { display: none; }
     .lobby-player { padding: 6px 7px; gap: 5px; font-size: 12px; }
-    .lobby-card .game-card { padding: 8px 8px 8px; gap: 4px; }
-    .lobby-card .game-preview { width: 56px; height: 56px; }
-    .lobby-card .settings-summary { padding: 8px 12px; }
+    /* five games make three rows of cards: small previews, tight cards, and an odd last
+       card across both columns with its texts beside the preview (half the height) */
+    .lobby-card .game-picker { gap: 6px; }
+    .lobby-card .game-card { padding: 5px 6px 6px; gap: 3px; }
+    .lobby-card .game-preview { width: 42px; height: 42px; padding: 3px; }
+    .lobby-card .game-desc { line-height: 1.15; }
+    .lobby-card .game-card:last-child:nth-child(odd) {
+        grid-column: 1 / -1; display: grid; grid-template-columns: auto auto; justify-content: center;
+        align-items: center; column-gap: 12px; row-gap: 2px; padding: 6px 12px;
+    }
+    .lobby-card .game-card:last-child:nth-child(odd) .game-preview { grid-row: 1 / span 2; }
+    .lobby-card .game-card:last-child:nth-child(odd) .game-name { align-self: end; text-align: start; }
+    .lobby-card .game-card:last-child:nth-child(odd) .game-desc { align-self: start; text-align: start; }
+    .lobby-card .lobby-gap { min-height: 0; }
+    #screen-lobby .lobby-foot { padding-top: 4px; }
+    .lobby-card .settings-summary { padding: 5px 12px; }
     .lobby-card .btn.big { padding: 12px 20px; }
     .btn.quiet { padding: 6px 12px; }
 }

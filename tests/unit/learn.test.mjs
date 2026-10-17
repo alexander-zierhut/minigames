@@ -7,7 +7,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { loadDom, hooks, wait } from "./dom.mjs";
-import { select, difficultyOf, kindOf, TIERS, KINDS, loadFacts } from "../../scripts/learn/pick-scenarios.mjs";
+import { select, difficultyOf, kindOf, trapText, sentences, TIERS, KINDS, loadFacts } from "../../scripts/learn/pick-scenarios.mjs";
 import { loadPuzzles } from "../../scripts/puzzles/runner.mjs";
 
 const w = loadDom();
@@ -160,6 +160,26 @@ test("the generator's difficulty and kind, on hand-made facts", () => {
     assert.ok(difficultyOf({ ...pfh, tier: "mastery" }) > difficultyOf({ ...pfh, tier: "tactics" }));
     assert.ok(difficultyOf({ ...pfh, tier: "tactics" }) > difficultyOf({ ...pfh, tier: "basics" }));
     assert.ok(difficultyOf({ ...pfh, tier: "basics", chance: 0.5 }) > difficultyOf({ ...pfh, tier: "basics" }));
+});
+
+test("a trap only says the obvious move loses where every other move does", () => {
+    // a set proven on the result: every move outside `best` changes it
+    assert.equal(trapText(sentences("Only these moves keep the win.")), "learn.text.trap");
+    assert.equal(trapText([]), "learn.text.trap");
+    // a set proven on the margin: a move outside `best` may still win, just by less
+    assert.equal(trapText(sentences("Best play ends 6 triangles ahead; every other band is at least 2 triangles worse.")), "learn.text.trapMargin");
+    assert.equal(trapText(sentences("Best play ends 2 boxes ahead; every other line is at least 2 boxes worse.")), "learn.text.trapMargin", "the next best line may draw");
+    // ... unless the note proves that every other move ends below level
+    assert.equal(trapText(sentences("Best play ends level; every other band is at least 2 triangles worse.")), "learn.text.trap");
+    assert.equal(trapText(sentences("Best play ends 1 box ahead; every other line is at least 2 boxes worse.")), "learn.text.trap");
+    assert.equal(trapText(sentences("Best play ends 2 triangles behind; every other band is at least 2 triangles worse.")), "learn.text.trap");
+    assert.equal(trapText(sentences("Every other band loses the game. Best play ends 4 triangles ahead; every other band is at least 2 triangles worse.")), "learn.text.trap");
+    // the committed ladders: a margin trap that opens with "loses" has a note that proves it
+    for (const key of ["boxes", "triangles"]) {
+        for (const sc of Learn.howto(key).scenarios.filter((s) => s.kind === "trap")) {
+            assert.equal(sc.text[0].k, trapText(sc.text.slice(1)), `${sc.id}: the opening sentence`);
+        }
+    }
 });
 
 test("scenarios taken from a puzzle set keep the solver's proven best moves", () => {

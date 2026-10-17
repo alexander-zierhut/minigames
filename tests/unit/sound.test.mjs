@@ -64,6 +64,11 @@ test("events map to cues: place, fuse, blast, win/lose/over, your turn, pop, cha
     Bus.emit("chat", { text: "hi", from: 0, mine: true });
     assert.equal(JSON.stringify(names()), JSON.stringify(["reaction", "reaction", "chat"]), "own chat lines are silent");
     assert.equal(S.map("something:else", {}, ["local", "remote"]), null);
+    played.length = 0;
+    Bus.emit("triangles:claim", { game: "triangles", tris: [4], player: 1, score: 1 });  // a band claimed a triangle: the capture pop
+    assert.equal(JSON.stringify(names()), '["place"]');
+    assert.equal(played[0].rate, 1.5, "the brighter pop, like boxes:capture");
+    assert.equal(JSON.stringify(S.map("triangles:claim", { player: 1 }, ["local", "remote"])), JSON.stringify(S.map("boxes:capture", { player: 1 }, ["local", "remote"])));
     w.close();
 });
 

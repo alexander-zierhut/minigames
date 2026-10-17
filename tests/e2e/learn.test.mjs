@@ -11,7 +11,7 @@ before(async () => { server = await startServer(); B = await launchBrowser(); aw
 after(async () => { await B?.close(); await server?.close(); });
 
 const stepNo = () => B.text("learn-step");
-const cell = (i) => B.ev(`document.querySelectorAll('#board > .cell, #board > .stone, #board > .slab, #board > .edge')[${i}].click(); true`);
+const cell = (i) => B.ev(`document.querySelectorAll('#board > .cell, #board > .stone, #board > .slab, #board > .edge, #board > .band')[${i}].click(); true`);
 
 test("the title screen offers Learn, and it lists every game that teaches something", async () => {
     assert.equal(await B.screen(), "screen-menu");
@@ -372,16 +372,14 @@ test("phone 360×780: the Learn list and a lesson never scroll, the details page
 
     /* A longer step text must not push the board around (#43): the board keeps its rect
        from step to step. Played for every game that has a tutorial, whatever a move of it
-       looks like: `cellOf` says which cell to click first, and a game whose move encodes
-       two clicks (Isolation) takes the second half of the pair as the second one. */
+       looks like: the harness clicks what a person clicks (the view's `clicks` hook: Isolation
+       steps and breaks, Triangles picks one peg and then the other, the rest click a cell). */
     const boardRect = () => B.ev("JSON.stringify((r => ({ left: Math.round(r.left), top: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }))(document.getElementById('board').getBoundingClientRect()))");
     async function stepOn() {
         const at = await B.ev("Learn.active.i");
         const move = await B.ev("(Learn.active.steps[Learn.active.i].expect || [])[0] ?? -1");
         if (move < 0) { await B.click("#learn-next"); return; }
-        const first = await B.ev(`Match.engine.cellOf(${move})`);
-        await cell(first);
-        if (first !== move) await cell(move % (await B.ev("Match.state.cells.length")));
+        await B.cell(move);
         await B.waitFor(`Learn.active.i !== ${at}`, { timeout: 60000, what: "the next step" });
     }
     for (const game of JSON.parse(await B.ev("JSON.stringify(Learn.games().filter(k => Learn.howto(k).tutorial.length >= 3))"))) {

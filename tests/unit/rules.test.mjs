@@ -6,16 +6,17 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
 const ROOT = new URL("../../", import.meta.url).pathname;
-const FILES = ["client/lib/util.js", "client/games/rules.js", "client/games/chain-rules.js", "client/games/five-rules.js", "client/games/boxes-rules.js"];
+const FILES = ["client/lib/util.js", "client/games/rules.js", "client/games/chain-rules.js", "client/games/five-rules.js", "client/games/boxes-rules.js", "client/games/triangles-rules.js"];
 
 function loadRules() {
     const ctx = vm.createContext({ document: undefined });
     for (const f of FILES) vm.runInContext(readFileSync(ROOT + f, "utf8"), ctx, { filename: f });
-    return vm.runInContext("({ Rules, ChainRules, FiveRules, BoxesRules })", ctx);   // top-level consts are not context properties
+    return vm.runInContext("({ Rules, ChainRules, FiveRules, BoxesRules, TrianglesRules })", ctx);   // top-level consts are not context properties
 }
 const chain = (config) => { const { Rules, ChainRules } = loadRules(); return { R: ChainRules, s: ChainRules.create(config, Rules.base(config)) }; };
 const five = (config) => { const { Rules, FiveRules } = loadRules(); return { R: FiveRules, s: FiveRules.create(config, Rules.base(config)) }; };
 const boxes = (config) => { const { Rules, BoxesRules } = loadRules(); return { Rules, R: BoxesRules, s: BoxesRules.create(config, Rules.base(config)) }; };
+const triangles = (config) => { const { Rules, TrianglesRules } = loadRules(); return { Rules, R: TrianglesRules, s: TrianglesRules.create(config, Rules.base(config)) }; };
 function move(R, s, i) {
     const me = s.current;
     assert.equal(R.isLegal(s, i, me), true, `move ${i} legal for ${me}`);
@@ -26,9 +27,10 @@ function move(R, s, i) {
     return r;
 }
 
-test("no DOM needed: Util/Rules/ChainRules/FiveRules/BoxesRules load in a bare context", () => {
-    const { Rules, ChainRules, FiveRules, BoxesRules } = loadRules();
-    assert.ok(Rules && ChainRules && FiveRules && BoxesRules);
+test("no DOM needed: Util/Rules/ChainRules/FiveRules/BoxesRules/TrianglesRules load in a bare context", () => {
+    const { Rules, ChainRules, FiveRules, BoxesRules, TrianglesRules } = loadRules();
+    assert.ok(Rules && ChainRules && FiveRules && BoxesRules && TrianglesRules);
+    assert.equal(Rules.of("triangles"), TrianglesRules);
     assert.equal(typeof ChainRules.legalMoves, "function");
     assert.equal(typeof BoxesRules.legalMoves, "function");
 });
@@ -242,4 +244,76 @@ test("boxes: replay of a record equals playing it move by move", () => {
     assert.equal(JSON.stringify(b.s.boxes), JSON.stringify(a.s.boxes));
     assert.equal(JSON.stringify(b.s.scores), JSON.stringify(a.s.scores));
     assert.equal(b.s.winner, a.s.winner); assert.equal(b.s.current, a.s.current);
+});
+
+/* ---------- Triangles (triangles) ---------- */
+// a band between two pegs given by their axial coordinates (q, r)
+function bandOf(R, s, q1, r1, q2, r2) {
+    const g = R.geometry(s.n);
+    const at = (q, r) => g.pegs.findIndex((p) => p.q === q && p.r === r);
+    return R.encode(s, at(q1, r1), at(q2, r2));
+}
+// a small seeded generator (the bare context has no Bots.rng)
+const lcg = (seed) => () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+
+test("triangles: a band that closes a triangle claims it, and the turn passes anyway", () => {
+    const { R, s } = triangles({ n: 4 });
+    assert.equal(s.band, 3); assert.equal(s.touch, false, "bands anywhere by default"); assert.equal(s.tokens, 21);
+    assert.equal(s.cells.length, 90); assert.equal(s.tris.length, 54);
+    // TA(0, 0) = (0,0) (1,0) (0,1): one 4-peg band through each of its sides
+    move(R, s, bandOf(R, s, -1, 0, 2, 0)); assert.equal(s.current, 1);
+    move(R, s, bandOf(R, s, 0, -1, 0, 2)); assert.equal(s.current, 0);
+    const third = bandOf(R, s, 2, -1, -1, 2);
+    assert.equal(R.claims(s, third), 1);
+    move(R, s, third);
+    assert.equal(JSON.stringify(s.scores), "[1,0]");
+    assert.equal(s.lastTris.length, 1); assert.equal(s.tris[s.lastTris[0]], 0);
+    assert.equal(s.current, 1, "no extra turn for claiming");
+});
+
+test("triangles with three and four players: the turn rotates, the seat that closes a triangle owns it", () => {
+    for (const players of [3, 4]) {
+        const { R, s } = triangles({ n: 4, players, startPlayer: 1 });
+        assert.equal(JSON.stringify(s.scores), JSON.stringify(new Array(players).fill(0)));
+        const seq = [bandOf(R, s, -1, 0, 2, 0), bandOf(R, s, 0, -1, 0, 2), bandOf(R, s, 2, -1, -1, 2)];
+        const movers = [];
+        for (const m of seq) { movers.push(s.current); move(R, s, m); }
+        assert.equal(JSON.stringify(movers), JSON.stringify([1, 2, 3 % players]));
+        assert.equal(s.scores[3 % players], 1, "the third mover took the triangle");
+        assert.equal(s.current, (1 + 3) % players, "and the turn moved on");
+        assert.equal(s.round, 2, "the rotation wrapped once");
+    }
+});
+
+test("triangles: eliminations go through Rules.eliminate, the turn skips the seat, the last one standing wins", () => {
+    const { Rules, R, s } = triangles({ n: 4, players: 3 });
+    move(R, s, bandOf(R, s, -1, 0, 2, 0));
+    assert.equal(s.current, 1);
+    assert.equal(Rules.eliminate(s, 1, { k: "why.time" }), true);
+    assert.equal(s.out[1], true); assert.equal(s.current, 2, "the turn moved off the seat that is out");
+    move(R, s, bandOf(R, s, 0, -1, 0, 2));
+    assert.equal(s.current, 0, "seat 1 is skipped");
+    assert.equal(Rules.eliminate(s, 2, { k: "why.time" }), true);
+    assert.equal(s.over, true); assert.equal(s.winner, 0); assert.equal(JSON.stringify(s.finishWhy), JSON.stringify({ k: "why.time" }));
+    assert.equal(R.legalMoves(s).length, 0);
+});
+
+test("triangles: replay of a seeded game equals playing it move by move, and the record round trips", () => {
+    for (const [config, seed] of [[{ n: 4 }, 3], [{ n: 5, band: 0, tokens: 0, players: 3 }, 8], [{ n: 4, band: 2, touch: true }, 5]]) {
+        const cfg = { game: "triangles", ...config };
+        const a = triangles(cfg);
+        const rnd = lcg(seed);
+        while (!a.s.over) { const ms = a.R.legalMoves(a.s); move(a.R, a.s, ms[Math.floor(rnd() * ms.length)]); }
+        const b = triangles(cfg);
+        assert.equal(b.Rules.apply(b.R, b.s, a.s.history), a.s.history.length);
+        for (const k of ["cells", "tris", "scores", "touched", "movesBy", "lastEdges", "lastTris"]) assert.equal(JSON.stringify(b.s[k]), JSON.stringify(a.s[k]), k);
+        assert.equal(b.s.winner, a.s.winner); assert.equal(b.s.current, a.s.current); assert.equal(JSON.stringify(b.s.finishWhy), JSON.stringify(a.s.finishWhy));
+        // the record: { game, config, history, outs } replays to the same position at the end and halfway
+        const rec = JSON.parse(JSON.stringify({ game: "triangles", config: cfg, history: a.s.history, outs: [] }));
+        const full = a.Rules.replay(rec);
+        assert.equal(JSON.stringify(full.cells), JSON.stringify(a.s.cells)); assert.equal(JSON.stringify(full.scores), JSON.stringify(a.s.scores));
+        assert.equal(full.over, true); assert.equal(full.winner, a.s.winner);
+        const half = a.Rules.replay(rec, a.s.history.length >> 1);
+        assert.equal(half.history.length, a.s.history.length >> 1); assert.equal(half.over, false);
+    }
 });

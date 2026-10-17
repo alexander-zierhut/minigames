@@ -1,0 +1,195 @@
+/* ============================================================
+   Triangles board: a hexagon of pegs placed from the geometry's
+   x, y (the view sets --x / --y per element in lattice units and
+   --tm = pegs per side - 1 on the board). DOM order: triangles,
+   bands (the unit edges, the engine's cells), pegs on top. Only
+   the pegs take clicks. Classic look first, then the Blocks
+   looks (quartz pegs, player blocks as bands, stained glass as
+   the claimed triangles).
+   ============================================================ */
+#board.triangles {
+    display: block;
+    --tpad: calc(var(--board) * .03);
+    --tu: calc((var(--board) - 2 * var(--tpad)) / (2 * var(--tm, 3) + 1));   /* one unit edge in px */
+    --bt: max(3px, calc(var(--tu) * .13));                                     /* band thickness */
+    --stud: max(7px, calc(var(--tu) * .22));                                   /* the peg you see */
+    --hit: max(28px, calc(var(--tu) * .72));                                   /* the peg you tap (>= 28 px on a phone; at 7 pegs per side on 360 px, pegs 25 px apart, neighbours overlap by a sliver and the later peg takes it) */
+}
+
+/* ---- the triangles: clipped boxes, painted by renderBoard, never clicked ---- */
+.tri {
+    position: absolute;
+    left: calc(50% + var(--x) * var(--tu));
+    top: calc(50% + var(--y) * var(--tu));
+    width: var(--tu);
+    height: calc(var(--tu) * .8660254);
+    pointer-events: none;
+}
+.tri.down { clip-path: polygon(0 0, 100% 0, 50% 100%); transform-origin: 50% 33.333%; }
+.tri.up { clip-path: polygon(50% 0, 100% 100%, 0 100%); transform-origin: 50% 66.667%; }
+.tri.taken { background: color-mix(in srgb, var(--pc) 30%, var(--pc-bg)); }   /* a shade brighter than --pc-bg: a triangle is small */
+/* the token on a claimed triangle sits on its centroid */
+.tri.taken::after {
+    content: "";
+    position: absolute; left: 50%;
+    width: calc(var(--tu) * .24); aspect-ratio: 1;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: var(--block);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pc-dark) 80%, transparent);
+}
+.tri.down::after { top: 33.333%; }
+.tri.up::after { top: 66.667%; }
+.tri.won { animation: tri-pop .2s cubic-bezier(.2, 1.4, .4, 1); }   /* as long as POP_MS in triangles.js: the next render takes .won away */
+@keyframes tri-pop {
+    0% { scale: .2; opacity: 0; }
+    60% { scale: 1.12; opacity: 1; }
+    100% { scale: 1; }
+}
+
+/* ---- the bands: one bar per unit edge, rotated along its line ---- */
+.band {
+    position: absolute;
+    left: calc(50% + var(--x) * var(--tu));
+    top: calc(50% + var(--y) * var(--tu));
+    width: var(--tu);
+    height: var(--bt);
+    translate: -50% -50%;
+    rotate: var(--rot);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .06);
+    pointer-events: none;
+    transition: background .15s, box-shadow .15s;
+}
+.band.can-place { background: rgba(150, 165, 255, .14); }
+.band.preview { background: color-mix(in srgb, var(--pc) 55%, transparent); }
+.band.taken {
+    background: linear-gradient(var(--pc-light), var(--pc) 55%, var(--pc-dark));
+    box-shadow: 0 0 8px color-mix(in srgb, var(--pc) 55%, transparent);
+}
+/* the band snaps along its pegs (the individual `scale` works in the bar's own frame) */
+.band.snap { animation: tri-snap .16s ease-out; }
+@keyframes tri-snap { from { scale: .15 1; opacity: .4; } to { scale: 1 1; opacity: 1; } }
+
+/* last move: a ring around every edge of the newest band (the view marks them all; owner: no animation) */
+.band .last-marker {
+    inset: calc(var(--bt) * -.55) calc(var(--bt) * -.2);
+    border-width: 2px;
+    border-radius: 999px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .7), 0 0 8px rgba(255, 255, 255, .7);
+}
+/* the analysis marker (#43) and Learn's hint assume square cells: on a thin bar they go around it */
+#board.triangles > .band.best-move { outline-width: 3px; outline-offset: 2px; }
+#board.triangles > .band.hint { --hint-w: 3px; outline-offset: 2px; background: color-mix(in srgb, var(--accent) 45%, transparent); }
+
+/* ---- the pegs: the element is the tap target, ::before the stud, ::after the ring ---- */
+.peg {
+    position: absolute;
+    left: calc(50% + var(--x) * var(--tu));
+    top: calc(50% + var(--y) * var(--tu));
+    width: var(--hit); height: var(--hit);
+    translate: -50% -50%;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 4;                  /* over a highlighted band (learn.css lifts .hint to 3) */
+    -webkit-tap-highlight-color: transparent;
+}
+.peg::before, .peg::after {
+    content: "";
+    position: absolute; left: 50%; top: 50%;
+    translate: -50% -50%;
+    border-radius: 50%;
+    pointer-events: none;
+}
+.peg::before {
+    width: var(--stud); height: var(--stud);
+    background: radial-gradient(circle at 35% 30%, #7d89c4, #46528a 60%, #283058);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .6);
+    transition: transform .12s;
+}
+.peg.used::before { background: radial-gradient(circle at 35% 30%, #e4e9ff, #a7b2e6 55%, #5b6699); }
+/* nothing to pick: the engine says no (a preview, somebody else's turn, a spectator, an animation),
+   or no band starts at this peg; like `.locked` on the other games' cells */
+#board.idle .peg, .peg.dead { cursor: not-allowed; }
+#board.over .peg, #board.picking .peg:not(.target, .pending) { cursor: default; }
+/* step 1 done: the picked peg in the seat's colour (#board.turn-p<k> gives --pc), and a ring
+   on every peg a band may reach from it */
+.peg.pending::before { transform: scale(1.35); background: var(--block); box-shadow: 0 0 12px color-mix(in srgb, var(--pc) 70%, transparent); }
+.peg.pending::after, .peg.target::after {
+    width: calc(var(--stud) * 2.1); height: calc(var(--stud) * 2.1);
+    box-shadow: inset 0 0 0 2px var(--pc), 0 0 0 1px rgba(0, 0, 0, .5);
+}
+.peg.target:hover::after { background: color-mix(in srgb, var(--pc) 30%, transparent); box-shadow: inset 0 0 0 3px var(--pc), 0 0 0 1px rgba(0, 0, 0, .5); }
+
+/* the picker preview: a triangle lattice (the SVG lines) and claimed triangles at the nine
+   positions of the preview string, row by row */
+.game-preview.triangles {
+    position: relative; display: block; padding: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Cpath d='M0 1.42H60M0 20.47H60M0 39.53H60M0 58.58H60M-25 1.42L8 58.58M-3 1.42L30 58.58M19 1.42L52 58.58M41 1.42L74 58.58M19 1.42L-14 58.58M41 1.42L8 58.58M63 1.42L30 58.58M85 1.42L52 58.58' fill='none' stroke='%23fff' stroke-opacity='.28' stroke-width='1' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
+    background-size: 100% 100%;
+}
+.game-preview.triangles i {
+    position: absolute;
+    width: 36.667%; height: 31.75%;
+    border-radius: 0; background: transparent; box-shadow: none;
+    scale: .78;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.game-preview.triangles i:nth-child(2n) { clip-path: polygon(0 0, 100% 0, 50% 100%); }   /* (row + column) odd: points down */
+.game-preview.triangles i:nth-child(3n + 1) { left: 13.333%; }
+.game-preview.triangles i:nth-child(3n + 2) { left: 31.667%; }
+.game-preview.triangles i:nth-child(3n) { left: 50%; }
+.game-preview.triangles i:nth-child(-n + 3) { top: 2.37%; }
+.game-preview.triangles i:nth-child(n + 4):nth-child(-n + 6) { top: 34.12%; }
+.game-preview.triangles i:nth-child(n + 7) { top: 65.88%; }
+.game-preview.triangles i:is(.p0, .p1, .p2, .p3) { background: var(--block); box-shadow: none; }
+:is(.skin-mc, .skin-mcboard) .game-preview.triangles i { background: transparent; border-radius: 0; }
+:is(.skin-mc, .skin-mcboard) .game-preview.triangles i:is(.p0, .p1, .p2, .p3) { background: var(--tex-p); background-size: cover; image-rendering: pixelated; }
+.skin-mc .game-preview.triangles {
+    padding: 0;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Cpath d='M0 1.42H60M0 20.47H60M0 39.53H60M0 58.58H60M-25 1.42L8 58.58M-3 1.42L30 58.58M19 1.42L52 58.58M41 1.42L74 58.58M19 1.42L-14 58.58M41 1.42L8 58.58M63 1.42L30 58.58M85 1.42L52 58.58' fill='none' stroke='%23fff' stroke-opacity='.28' stroke-width='1' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat, var(--tex-shell) 0 0 / 16px 16px;
+    image-rendering: pixelated;
+}
+
+/* ---- Blocks board (both textured skins): quartz pegs, the seat's block along a band, the
+        matching stained glass as a claimed triangle; no background transitions on textures ---- */
+:is(.skin-mc, .skin-mcboard) .peg::before {
+    border-radius: 0;
+    background: var(--tex-quartz); background-size: cover; image-rendering: pixelated;
+    box-shadow: 0 0 0 1px #000;
+    filter: brightness(.7);
+    transition: transform .12s, filter .1s;
+}
+:is(.skin-mc, .skin-mcboard) .peg.used::before { background: var(--tex-quartz); background-size: cover; filter: none; }
+/* the seat to move colours a picked peg, which carries no seat class */
+:is(.skin-mc, .skin-mcboard) #board.triangles.turn-p0 { --tex-p: var(--tex-p0); }
+:is(.skin-mc, .skin-mcboard) #board.triangles.turn-p1 { --tex-p: var(--tex-p1); }
+:is(.skin-mc, .skin-mcboard) #board.triangles.turn-p2 { --tex-p: var(--tex-p2); }
+:is(.skin-mc, .skin-mcboard) #board.triangles.turn-p3 { --tex-p: var(--tex-p3); }
+:is(.skin-mc, .skin-mcboard) .peg.pending::before { background: var(--tex-p); background-size: cover; filter: none; box-shadow: 0 0 0 1px #000, 0 0 10px var(--pc); }
+:is(.skin-mc, .skin-mcboard) .peg.pending::after, :is(.skin-mc, .skin-mcboard) .peg.target::after { border-radius: 0; box-shadow: inset 0 0 0 2px var(--pc), 0 0 0 2px #000; }
+:is(.skin-mc, .skin-mcboard) .peg.target:hover::after { background: rgba(255, 255, 255, .22); }
+:is(.skin-mc, .skin-mcboard) .band {
+    border-radius: 0;
+    background: rgba(255, 255, 255, .07);
+    transition: filter .1s;      /* no background transition: the classic colours must never bleed into a texture */
+}
+:is(.skin-mc, .skin-mcboard) .band.can-place { background: rgba(255, 255, 255, .13); }
+:is(.skin-mc, .skin-mcboard) .band.preview { background: rgba(255, 255, 255, .34); }
+:is(.skin-mc, .skin-mcboard) .band.taken {
+    background: var(--tex-p); background-size: var(--bt) var(--bt); image-rendering: pixelated;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .65);
+}
+:is(.skin-mc, .skin-mcboard) .tri.taken {
+    background: var(--tex-glass-p); background-size: calc(var(--tu) / 3) calc(var(--tu) / 3); image-rendering: pixelated;
+}
+:is(.skin-mc, .skin-mcboard) .tri.taken::after {
+    border-radius: 0; width: calc(var(--tu) * .2);
+    background: var(--tex-p); background-size: cover; image-rendering: pixelated;
+    box-shadow: 0 0 0 1px #000;
+}
+/* white is invisible on quartz and glass: red ring with a black halo */
+:is(.skin-mc, .skin-mcboard) .band .last-marker {
+    border-radius: 0; border-color: #ff2d2d;
+    box-shadow: 0 0 0 1px #000, inset 0 0 0 1px #000, 0 0 8px rgba(255, 45, 45, .9);
+}

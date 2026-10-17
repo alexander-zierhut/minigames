@@ -64,7 +64,8 @@ come out under their own names, `H.ChainRules`, straight from `Rules.keys()`).
 - **Budgets** (the reason a level is exactly as strong everywhere and tests stay
   deterministic): every difficulty declares `nodes` (an integer ≤ 1 000 000, default
   2 000; Creeper 2 000 / 10 000 / 30 000 / 100 000, Sensei … / 60 000 — Very hard is
-  ~0.15 s resp. ~0.5 s on a desktop). `tools.budget = { ms: Infinity, nodes }` **everywhere**
+  ~0.15 s resp. ~0.5 s on a desktop; Weaver 2 000 / 10 000 / 30 000 / 100 000, Very hard
+  ~0.15 to 0.25 s, about 1 s at worst on 7 pegs per side). `tools.budget = { ms: Infinity, nodes }` **everywhere**
   — the app uses the level's nodes, the conformance tests and the benchmark pass 2 000
   resp. 20 000 — so a searching bot gives identical answers on any machine; there is no
   wall-clock budget in the app any more (owner: difficulty must never depend on the
@@ -81,7 +82,7 @@ come out under their own names, `H.ChainRules`, straight from `Rules.keys()`).
   move — depth, value, a `forced` note — and the deadline that counted its nodes; every
   real bot reports, `Match.botInfo` collects it with the move, the time and the budget for the
   dev panel, #31). Rules modules are also reachable directly (`tools.rules`: chain `tally`,
-  `readyCells`…; five `lineThrough`, `bestRow`). Add generic helpers here, game-specific
+  `readyCells`…; five `lineThrough`, `bestRow`; triangles `claims`, `opens`, `safeMoves`). Add generic helpers here, game-specific
   analysis in the rules module — never in a bot.
 - **Playout**: `Bots.playout(game, config, seats, { maxMoves })` runs a full headless game
   (seats = instances or `state → move` functions) → `{ over, winner, moves, history }`.
@@ -98,10 +99,10 @@ come out under their own names, `H.ChainRules`, straight from `Rules.keys()`).
   compare arrays via `JSON.stringify`.)
 - **Benchmark** (`npm run benchmark` = `scripts/benchmark.mjs [id…]`): every real bot
   (not the baselines) plays a seeded series against the Random bot of its game (chain 6×6,
-  five 9×9, isolation 7×7, boxes 4×4,
+  five 9×9, isolation 7×7, boxes 4×4, triangles 4 pegs per side,
   both colours, highest difficulty) → score = win rate in % (draw = ½) plus
   `games, opponent, avgMoves, version, commit, at` (60 chain / 100 five / 100 isolation /
-  60 boxes games, 20 000-node
+  60 boxes / 60 triangles games, 20 000-node
   budget per move so the series is deterministic), written to
   `client/bots/<id>/benchmark.js` (`Bots.benchmark(id, result)`; `at/commit` kept when the
   numbers didn't change so a re-run never diffs). Those files are listed in `index.html`,
@@ -157,7 +158,15 @@ come out under their own names, `H.ChainRules`, straight from `Rules.keys()`).
   set is all endgames — no draws exist there, so `best` is every move that keeps the win and
   `avoid-trap` means every other move hands over an immediate trap, and the boxes
   set is all `endgame-exhaustive` with its own structural tags `take-box`, `double-deal`,
-  `safe-move`, `sacrifice` and `best` = the lines that reach the best final box difference). Each test
+  `safe-move`, `sacrifice` and `best` = the lines that reach the best final box difference; the
+  triangles set (160 positions, 80 each on 4 and 5 pegs per side, 8 to 14 plies left) is
+  `endgame-exhaustive` as well, one rule set for all of it (4-peg bands anywhere and
+  **`tokens: 0` written into every config**: the solver's table on the covered edges is exact
+  only without a token limit, and `Learn.configFor` would otherwise fill in 21), with the
+  structural tags `claim` (every best band claims, some legal band does not), `safe-move`
+  (every best band hands nothing over, some legal band does) and `sacrifice` (every band
+  hands something over), plus `avoid-loss`; `value` is `"win" | "draw" | "loss"` and the exact
+  triangle difference sits in `margin`). Each test
   folder has `solver.test.mjs` (the solver on hand-made positions + the set's consistency,
   re-solving every puzzle), each script folder a README with the guarantee and the limits.
   `scripts/puzzles/verify.mjs` (`npm run puzzles:verify`) re-proves the tactical puzzles
@@ -167,8 +176,8 @@ come out under their own names, `H.ChainRules`, straight from `Rules.keys()`).
   checks every set (≥ 100, replayable, legal best moves) and prints every bot's score; the
   benchmark stores it as `puzzles: { solved, total, pct, chance }` in `benchmark.js`
   (`chance` = what random picking scores on that set — small boards have few legal
-  moves, so Random gets 23.2 % on the chain set, 20.8 % on the isolation one and 28.9 % on
-  the boxes one, against 5.7 % on five; read scores
+  moves, so Random gets 23.2 % on the chain set, 20.8 % on the isolation one, 28.9 % on
+  the boxes one and 35.3 % on the triangles one, against 5.7 % on five; read scores
   against it). **No test and no
   workflow ever requires 100 % or any fixed puzzle score to pass the build or deploy**
   (owner's rule): the shared test only checks the sets, real bots assert their own
@@ -216,7 +225,7 @@ route respectively.
   Brier from seeded self-play before calling a bar done. Measure the *mover bias* (mean of
   p − the average of its neighbours, per side to move) separately from the raw swing: proven
   wins that the weaker self-play bots then throw away are legitimate 100→0 changes. What the
-  four games taught, in order:
+  five games taught, in order:
   - **Chain React: parity.** A shallow fixed-depth search evaluates "the side to move has the
     initiative" and flips every turn (odd/even horizon effect, side-to-move bias ±0.039).
     What fixed it: even depths only, counting only fully completed depths, averaging the last
@@ -256,12 +265,33 @@ route respectively.
     undecided flips over 15 points 45 of 253 → 0 of 234, mover bias −0.009 → 0.000, stage
     disagreements 12 of 120 → 0 (5 × 5; 7 × 7 went 5.6 % → 0.8 % and 100 of 567 → 0). Being
     right about *nothing* beats being nervous about everything.
+  - **Triangles: predict the band, not the biggest claim.** The safe bands run out after a
+    handful of moves and the game turns into a trade (each band claims what the last one handed
+    over), so the plain lead zigzags (calibration series: undecided step 10.4 %, mover bias 0.10).
+    Version 1 added half of the mover's biggest claim, which is right for a one-triangle trade
+    but overshoots whenever the biggest claim is not the band people play (it often hands more
+    back): the bar still jumped 30 points a move (50, 81, 19, 68, 32, 92, 17 % at 3 : 3), step
+    7.5 %, 128 of 615 undecided steps over 15 points, bias 0.060. Hindsight showed the target:
+    half of the band *actually played next* cuts the bias to 0.005. Version 2 predicts the next
+    two bands with the bot's own alpha-beta on 300 nodes each (a cap of its own) and scores the
+    1 : 2 : 1 average of the lead now, after the band and after the reply: step 3.8 %, 29 flips,
+    bias 0.003, and the lowest out-of-sample Brier of every candidate over 26 seeded series
+    (4 and 5 pegs, touch off and on, 21 tokens and none, self-play, 12 % random moves, against
+    Random; better than version 1 on 21, tied on 4). A full claim-only quiescence was out of
+    reach (claim lines up to 83 bands); a greedy one was a little sharper on some series but
+    flipped three times as often. Same lesson as Dots and Boxes, and one more: when a
+    mover term helps, ask what the mover will really gain, and check it against hindsight.
+    Also: a null-window proof must ask its probes from the mover's side, or a position and its
+    seat swap are proven at different node counts and the score stops being symmetric.
   - **Calibrate, don't guess.** Every bot's own logistic scale was 3–4× too steep compared
     with what self-play outcomes support (Creeper 10 → 31.3, Sensei 300 → 1166). The flatter,
     data-fitted curve is what makes the number calm and honest; it lives in `benchmark.js`
     and is regenerated by the benchmark. Brier scores: chain 0.21, five 0.006, isolation
-    0.206, boxes 0.177 (deterministic self-play is very predictable — don't read the 0.006 as
-    "perfect").
+    0.206, boxes 0.177, triangles 0.165 (deterministic self-play is very predictable — don't
+    read the 0.006 as "perfect"). Weaver's scale is 0.025 (version 2, swing 3.8 %), fitted on
+    the symmetric 30-game series on 4 pegs per side with bands anywhere, the default
+    (`SERIES.triangles` in `scripts/calibrate.mjs`; version 1 read 0.03 at Brier 0.167 and
+    swing 6.5 %).
   - **A calibration needs undecided positions *with different scores*, and a symmetric
     evaluator needs a symmetric fit.** Fencer solves 4 × 4 endgames exactly, so nearly every
     self-play sample came back ±Infinity, the logistic had fewer than 20 finite points and
@@ -292,9 +322,11 @@ route respectively.
   control away, which is the whole point of the "all but two" sacrifice. Only a capture that
   leaves no new three-sided box behind is provably free. The boxes solver ships a
   reduction-free brute force next to the fast engine and the test compares the two on 80
-  positions — that is what turned "I think this is safe" into a checked fact.
+  positions — that is what turned "I think this is safe" into a checked fact. The triangles
+  solver does the same (table and pruning against `solveBrute`, which has neither, and a
+  plain search through the rules, on 48 positions).
 - **Puzzle sets are only as good as their solver's guarantee.** Every solver (chain, five
-  with and without the Yavalath rule, isolation, boxes) is exhaustive or threat-proven and
+  with and without the Yavalath rule, isolation, boxes, triangles) is exhaustive or threat-proven and
   re-solves every puzzle in its own test; `puzzles/verify.mjs` re-proves
   the tactical ones with an independent one-ply check. When a rule changes (the dead-board
   draw), the solver must learn it and the set must be regenerated.

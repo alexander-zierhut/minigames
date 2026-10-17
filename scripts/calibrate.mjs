@@ -14,8 +14,10 @@ import { loadHeadless } from "./headless.mjs";
    0 and takes the series' own seat prior out of the curve (every fifth game is played against
    Random, always on seat 1). Dots and Boxes runs on 7 × 7: Fencer proves 5 × 5 endgames
    exactly, and on that board nearly every position in which a box has already been won is
-   proven, so 95 % of the finite samples were a plain raw 0 and the fit collapsed. */
-export const SERIES = { chain: { games: 30, config: { n: 6, chainRule: false }, maxMoves: 400 }, five: { games: 40, config: { n: 9, winLen: 5 }, maxMoves: 200 }, isolation: { games: 40, config: { n: 7 }, maxMoves: 200 }, boxes: { games: 24, config: { n: 7 }, maxMoves: 200, symmetric: true } };
+   proven, so 95 % of the finite samples were a plain raw 0 and the fit collapsed. Triangles
+   runs on the board people play (4 pegs per side, 21 tokens): Weaver proves only the last
+   stretch there, so about four positions in five stay finite, with all kinds of leads. */
+export const SERIES = { chain: { games: 30, config: { n: 6, chainRule: false }, maxMoves: 400 }, five: { games: 40, config: { n: 9, winLen: 5 }, maxMoves: 200 }, isolation: { games: 40, config: { n: 7 }, maxMoves: 200 }, boxes: { games: 24, config: { n: 7 }, maxMoves: 200, symmetric: true }, triangles: { games: 30, config: { n: 4 }, maxMoves: 200, symmetric: true } };
 // rule variants a bot names with variant(config) get their own curve under `variants`
 // (the board a player actually gets when ticking the rule: 11 × 11, 5 wins / 4 loses. On the
 // benchmark's small 9 × 9 with winLen 4 the engine proves 90 % of the positions outright,

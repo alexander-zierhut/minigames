@@ -1,11 +1,13 @@
 # ALZlper's Minigames
 
-Four nostalgic minigames for two to four players in one static page: **Chain React** (fill a
+Five nostalgic minigames for two to four players in one static page: **Chain React** (fill a
 cell, it explodes into its neighbours, take the whole board), **Five Wins** (five in a row, no
 gravity, with the optional Yavalath rule: one less than the winning length in a row loses
-instead of winning), **Isolation** (step one tile, then break one away until nobody else can move) and
+instead of winning), **Isolation** (step one tile, then break one away until nobody else can move),
 **Dots and Boxes** (draw a line between two dots, close a box and it is yours and
-you go again, most boxes wins). Live at https://minigames.alzlper.com/.
+you go again, most boxes wins) and **Triangles** (stretch a band across the pegs of a
+hexagon, close a small triangle and put your token on it, place all your tokens first).
+Live at https://minigames.alzlper.com/.
 
 Static site, no backend, no framework. Create a room once, share the link, then pick
 games and settings together in the room lobby; rematch or switch games without new links.
@@ -56,7 +58,7 @@ The number of players (two, three or four) is picked right in the lobby, next to
 code online and over the game list offline, and can never be
 set below the people already sitting in the room; the settings
 (board size, animation speed, chess-style timer, the chain win, how many stones in a row,
-the losing row) are dropdowns with a few values that work well and a Custom entry for your
+the losing row, the band length and the tokens) are dropdowns with a few values that work well and a Custom entry for your
 own number, and they are shared live in the room lobby; anyone can change them. The ⚙ button in
 the top-left corner holds the per-device preferences: your name (a short one is picked for
 you on the first visit, change it under Profile; up to 16 characters, everyone in the room

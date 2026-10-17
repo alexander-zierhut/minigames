@@ -9,10 +9,19 @@ import { join, extname } from "node:path";
 
 export const ROOT = new URL("../../", import.meta.url).pathname;
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-// every board's cells in cell order (chain tiles, five stones, Dots and Boxes lines) and
-// the key of the running game, read off the body class
-const CELLS = JSON.stringify("#board > .cell, #board > .stone, #board > .slab, #board > .edge");
+// every board's cells in cell order (chain tiles, five stones, Isolation slabs, Dots and
+// Boxes lines, Triangles edges) and the key of the running game, read off the body class
+const CELLS = JSON.stringify("#board > .cell, #board > .stone, #board > .slab, #board > .edge, #board > .band");
 const GAME_KEY = "String(document.body.className.split(' ').find(c => c.startsWith('game-'))).slice(5)";
+/* A page function that clicks what a person clicks to play `move`: the view's `clicks(state,
+   move)` hook when the game has one (Isolation: step, then break; Triangles: one peg, then the
+   other), else the move's own cell. No game is named here. */
+const CLICK_MOVE = `((move) => {
+    const v = Games.get(${GAME_KEY}).view;
+    const els = v.clicks ? v.clicks(Match.engine.state, move) : [document.querySelectorAll(${CELLS})[move]];
+    for (const el of els) el.click();
+    return els.length;
+})`;
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".json": "application/json", ".ico": "image/x-icon", ".ogg": "audio/ogg" };
 
 /* ---------- static server ---------- */
@@ -181,10 +190,11 @@ export async function launchBrowser({ width = 1400, height = 900, mobile = false
         check: (id, on) => B.ev(`(() => { const e = document.getElementById(${JSON.stringify(id)}); e.checked = ${!!on}; e.dispatchEvent(new Event("change")); return e.checked; })()`),
         text: (id) => B.ev(`document.getElementById(${JSON.stringify(id)}).textContent`),
         screen: () => B.ev("document.querySelector('.screen:not([hidden])')?.id"),
-        // the running game, whatever it is: Match holds the active engine and the game key is
-        // the body class, so a new game needs no change here
-        engine: () => B.ev(`({ chain: 'ChainGame', five: 'FiveGame', isolation: 'IsolationGame', boxes: 'BoxesGame' })[${GAME_KEY}]`),
-        async cell(i) { await B.ev(`document.querySelectorAll(${CELLS})[${i}].click(); true`); },
+        // the running game's engine as an expression to splice into `ev`, whatever the game:
+        // the game key is the body class and Games hands out its engine
+        engine: () => B.ev(`"Games.get(" + JSON.stringify(${GAME_KEY}) + ").engine"`),
+        // play move `i` the way a person does (one click, or the view's clicks), without waiting
+        async cell(i) { await B.ev(`${CLICK_MOVE}(${i}); true`); },
         async idle() { await B.waitFor("!Match.engine.state.busy", { timeout: 60000, every: 40, what: "engine idle" }); },
         async move(i) { await B.cell(i); await B.idle(); },
         state: async () => JSON.parse(await B.ev("JSON.stringify(Match.engine.state)")),
@@ -192,15 +202,15 @@ export async function launchBrowser({ width = 1400, height = 900, mobile = false
         selectGame: (k) => B.click(`.game-card[data-game=${k}]`),
         players: (n) => B.click(`#set-players button[data-players="${n}"]`),     // the lobby's players control (#28)
         /* Seeded "random" legal play until the game is over: the same seed always produces the
-           same game. One click per move, so this is for games whose move is a plain cell id;
-           a game that packs more into it (Isolation, see its own spec) drives its own loop. */
+           same game. Every move is played the way a person plays it (`CLICK_MOVE`), so a game
+           whose move takes two clicks needs no loop of its own. */
         async randomGame(maxMoves = 400, seed = 12345) {
             return JSON.parse(await B.ev(`(async () => {
-                const G = Match.engine, R = Rules.of(${GAME_KEY});
+                const G = Match.engine, R = Rules.of(${GAME_KEY}), play = ${CLICK_MOVE};
                 let m = 0; const rnd = Bots.rng(${seed});
                 while (!G.state.over && m < ${maxMoves}) {
                     const legal = R.legalMoves(G.state, G.state.current);
-                    document.querySelectorAll(${CELLS})[legal[Math.floor(rnd() * legal.length)]].click(); m++;
+                    play(legal[Math.floor(rnd() * legal.length)]); m++;
                     await new Promise(r => { const t = setInterval(() => { if (!G.state.busy) { clearInterval(t); r(); } }, 30); });
                 }
                 return JSON.stringify({ over: G.state.over, moves: m, winner: G.state.winner });

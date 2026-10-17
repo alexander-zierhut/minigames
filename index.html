@@ -6,13 +6,13 @@
     <meta name="theme-color" content="#0f1320">
     <meta name="version" content="dev">
     <title>ALZlper's Minigames</title>
-    <meta name="description" content="Chain React, Five Wins, Isolation and Dots and Boxes: free browser games for two to four friends. One link, no install, bots and spectators.">
+    <meta name="description" content="Chain React, Five Wins, Isolation, Dots and Boxes and Triangles: free browser games for two to four friends. One link, no install, bots and spectators.">
     <!-- link previews (Discord, chat apps, social): absolute URLs are what the crawlers need, so
          this is the one place the site names its own address (share links are built at runtime) -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="ALZlper's Minigames">
     <meta property="og:title" content="ALZlper's Minigames">
-    <meta property="og:description" content="Chain React, Five Wins, Isolation and Dots and Boxes: free browser games for two to four friends. One link, no install, bots and spectators.">
+    <meta property="og:description" content="Chain React, Five Wins, Isolation, Dots and Boxes and Triangles: free browser games for two to four friends. One link, no install, bots and spectators.">
     <meta property="og:url" content="https://minigames.alzlper.com/">
     <meta property="og:image" content="https://minigames.alzlper.com/og-image.png">
     <meta property="og:image:width" content="1200">
@@ -39,6 +39,7 @@
     <link rel="stylesheet" href="client/games/five.css">
     <link rel="stylesheet" href="client/games/isolation.css">
     <link rel="stylesheet" href="client/games/boxes.css">
+    <link rel="stylesheet" href="client/games/triangles.css">
 </head>
 <body>
 
@@ -742,6 +743,8 @@
 <script src="client/games/isolation.js"></script>
 <script src="client/games/boxes-rules.js"></script>
 <script src="client/games/boxes.js"></script>
+<script src="client/games/triangles-rules.js"></script>
+<script src="client/games/triangles.js"></script>
 <script src="client/bots.js"></script>
 <script src="client/winchance.js"></script>
 <script src="client/bots/random-chain/bot.js"></script>
@@ -760,6 +763,10 @@
 <!-- bots: boxes (add new Dots and Boxes bots below this line) -->
 <script src="client/bots/fencer-boxes/bot.js"></script>
 <script src="client/bots/fencer-boxes/benchmark.js"></script>
+<script src="client/bots/random-triangles/bot.js"></script>
+<!-- bots: triangles (add new Triangles bots below this line) -->
+<script src="client/bots/weaver-triangles/bot.js"></script>
+<script src="client/bots/weaver-triangles/benchmark.js"></script>
 <script src="client/skins.js"></script>
 <script src="client/prefs.js"></script>
 <script src="client/settings.js"></script>
@@ -776,6 +783,7 @@
 <script src="client/learn/five-scenarios.js"></script>
 <script src="client/learn/isolation-scenarios.js"></script>
 <script src="client/learn/boxes-scenarios.js"></script>
+<script src="client/learn/triangles-scenarios.js"></script>
 <script src="client/room.js"></script>
 <script src="client/dev.js"></script>
 <script src="client/lobby.js"></script>

@@ -12,6 +12,7 @@ paths:
   - "tests/unit/five.test.mjs"
   - "tests/unit/isolation.test.mjs"
   - "tests/unit/boxes.test.mjs"
+  - "tests/unit/triangles.test.mjs"
   - "tests/unit/party.test.mjs"
   - "tests/unit/premove.test.mjs"
   - "tests/unit/replay.test.mjs"
@@ -20,7 +21,7 @@ paths:
 # Games: engine, rules, records, adding a game
 
 The engine every game plugs into, the HUD model, the game record, the rules of Chain React,
-Five Wins, Isolation and Dots and Boxes, the board / HUD layout rules, the Bus events, the
+Five Wins, Isolation, Dots and Boxes and Triangles, the board / HUD layout rules, the Bus events, the
 table (`match.js`: seats, bots, premoves) and the step-by-step guide for a new game. The
 core context is `AGENTS.md`.
 
@@ -46,7 +47,7 @@ active engine (`Match.engine`) and, like everything else, only uses:
 
 | Member | Contract |
 | --- | --- |
-| `state` (getter) | Current state object: `n, players, current, round, history, movesBy, out, outs, busy, over, winner (-1 = draw/none), finishWhy, cells` + game keys (chain: `chainNow, chainBest, explosions, chainRule, chainLen`; five: `winLen, winLine, yavalath, dead`; isolation: `pawns, trapped, lastFrom, lastRemoved`; boxes: `boxes, scores, lastBoxes, again`). `out[p]` = eliminated from outside the rules (flag fall), `outs` = those eliminations in order `{ p, at: history length then, why }`. |
+| `state` (getter) | Current state object: `n, players, current, round, history, movesBy, out, outs, busy, over, winner (-1 = draw/none), finishWhy, cells` + game keys (chain: `chainNow, chainBest, explosions, chainRule, chainLen`; five: `winLen, winLine, yavalath, dead`; isolation: `pawns, trapped, lastFrom, lastRemoved`; boxes: `boxes, scores, lastBoxes, again`; triangles: `tris, scores, band, touch, tokens, touched, lastEdges, lastTris`). `out[p]` = eliminated from outside the rules (flag fall), `outs` = those eliminations in order `{ p, at: history length then, why }`. |
 | `config` (getter) | The config the running game was started with (incl. `startPlayer`). |
 | `newGame(config, hooks)` | Builds state via `Rules.create`, board DOM via `view.build`, sets `body.game-<key>`, the sign title and `#board`'s class, HUD cards via `Hud.build(players, title)`, clears the log, hides the overlay, logs "New game. X starts.", emits `game:new` + `game:position`, renders, calls `hooks.onTurn`. |
 | `play(i) → Promise<bool>` | A move by the current player (own click, relayed friend move, bot). `false` if busy/illegal. Sets busy, `rules.place`, emits `game:move`, `hooks.onMoveApplied`, `await view.animateMove(ctx, i, me)`, `rules.conclude` → `finish` or next turn (`game:position`, `game:turn` **only when the turn really changed hands** — Dots and Boxes keeps the mover on turn after a closed box, and then no `game:turn` is emitted, so sounds and observers do not fire twice — then `hooks.onTurn`, which always runs). Bails out if `state.over` became true during the animation. |
@@ -263,6 +264,112 @@ HUD model: per seat "Boxes" / "Lines" with the bar = boxes / n², an info box
 `summary` "13 of 25 boxes". Blocks looks: quartz dots, the player's block texture tiled along
 a drawn line, the matching stained glass as a closed box.
 
+## Triangles rules (`triangles-rules.js`)
+
+A pegboard game with rubber bands and cone tokens (the box game has a trademarked name the
+site never uses: the key is `triangles`, "Dreiecke" in German; the pieces are *tokens*, the
+lines *bands*, the holes *pegs*). A hexagon with n pegs per side (the shared *Board size*
+row, 3–7, default 4 = the physical board: 37 pegs, 54 triangles). The row reads "4 pegs per
+side" through the definition's `size.text(n)` (the framework extension this game brought;
+every other game keeps `n × n`), and `minSize` is 4 with 4-peg bands, because on n = 3 such a
+band never reaches the rim and half the triangles would be dead.
+
+**Numbering (binding for history, sync, replay, the record, the puzzle set and the e2e
+tests)**, m = n − 1: the pegs are the lattice points (q, r) with |q|, |r|, |q + r| ≤ m (axial
+coordinates), indexed row by row r = −m…m, q ascending inside a row; V = 3m² + 3m + 1.
+Directions D0 = (1, 0), D1 = (0, 1), D2 = (−1, 1); pixel position x = q + r / 2,
+y = r · √3 / 2 (flat top and bottom, like the real board). **The unit edges are the cells**:
+for every peg in index order and d = 0, 1, 2, the edge (p, p + Dd) when it is inside;
+E = 9m² + 3m. Triangles: for every peg TA(p) = {p, p + D0, p + D1} (points down), then
+TB(p) = {p, p + D1, p + D2} (points up), each when all three pegs are inside; T = 6m².
+`TrianglesRules.geometry(n)` computes all of it once per n (`pegs, edges, tris, trisOf,
+edgeAt, lines, bands`); none of it lives in the state, which bots and the session clone.
+
+- **A move is one band**, one integer `min(a, b) * V + max(a, b)` of its two end pegs on one
+  lattice line (`encode(state, a, b)` normalises the order, so either end may be clicked
+  first; `decode(state, move) → { a, b, d, len, edges, pegs }` or `null`; `bandEdges`).
+  `cellOf` is the band's middle edge (the engine's `last` and the analysis "best move" marker
+  land there; the view puts `last` on every edge of the band from `state.lastEdges`).
+  `canPlay(state, e)` = edge e is uncovered and lies on a legal band; the legal band list is
+  memoised per state object and history length, because the engine asks for every edge on
+  every render.
+- Legal: the length is one `band` allows, at least one edge of the band is still uncovered
+  (a band may run over covered sides), and with `touch` on every band after the first shares a
+  peg (inner ones count) with one already there (`state.touched[p] > 0`).
+- `place` gives the band's uncovered edges to the mover (`cells[e]` = who covered it first)
+  and counts its pegs in `touched`; `settle` gives every triangle next to the band whose third
+  side is now covered to the mover (`tris[t]`, `scores[p]`, `lastTris`). A straight band covers
+  at most one side of any unit triangle, and it can claim up to six at once. **There is no
+  extra turn**: the turn always passes (unlike Dots and Boxes).
+- Settings. `create` reads every key exactly like the settings defaults, so a script's
+  `{ n: 4 }` plays the default game, and never with `||`, because 0 and `null` mean something:
+
+  | Key | Row | Default |
+  | --- | --- | --- |
+  | `band` | select "Band length": `3` = 4 pegs (the box rules), `2` = 3 pegs, `0` = 2 to 4 pegs | 3 |
+  | `touch` | bool "Bands must touch" | off: only `touch === true` turns it on |
+  | `tokens` | preset "Tokens per player": 10 / 15 / 21 / 30, Off, Custom 1–99 | 21; Off reads `null`, and `null` or `0` (Learn and puzzle configs) mean no limit |
+
+  **Why touch is off by default:** the box asks for it, but the players in the video the owner
+  described the game from lay their bands anywhere. It changes the play noticeably (seeded
+  Weaver Normal self-play after a short random opening, 60 games each on 4 pegs with 21
+  tokens): with touch off a safe band exists in 51 % of the positions instead of 63 %, and a
+  game has 17.4 moves without one instead of 12.8, so the trade starts sooner. The bool row
+  needed a framework fix for it: `Settings.write` used to set every bool row from
+  `s[key] ? "on" : "off"`, so a saved config from before the row would have switched it off;
+  now a missing key keeps the row's default (`framework.test.mjs`). The summary names only what
+  differs from the default ("3-peg bands", "bands of 2 to 4 pegs", "bands touch") plus the
+  tokens ("21 tokens" / "no token limit").
+- **Endings** (`conclude`): a seat whose score reaches `tokens` wins at once ("All tokens
+  placed!"; the score may pass the limit, the HUD clamps); otherwise, once no legal band is
+  left, most triangles among the seats still in wins ("12 triangles!") and a tie for the most
+  is a draw ("Tied!", hint "same number of triangles"). With 3 or 4 seats "Everyone else is
+  out." is only a safety net: `Rules.eliminate` ends the game first. 2 to 4 players.
+- Analysis helpers (pure, for the bots, `estimate`, the solver and the puzzle verifier):
+  `sides(state, t)`, `claims(state, move)`, `opens(state, move)` (the unclaimed triangles the
+  band takes to two covered sides, i.e. hands to the next player), `onTable(state)`,
+  `safeMoves`, `claimingMoves`, `left`. `estimate`: the lead over the best other seat plus a
+  share of what is on the table for the seat to move, through `Rules.sigmoid`; nothing on the
+  table means no term, so a quiet position does not flip.
+- **Learn** (#41): six rule bullets and a five-step lesson on the physical board
+  (`{ n: 4, band: 3, tokens: 0 }`: stretch a band, a second one, close a triangle, see what a
+  band hands over, the two endings); the scenarios come from the proven puzzle set, whose tags
+  `claim`, `safe-move` and `sacrifice` are in `pick-scenarios.mjs`'s `TAGS` list, and the
+  puzzle notes map to `learn.note.triangles.*`.
+- **Known limitation** (not fixed on purpose): the analysis verdict ("Best was {cell}")
+  prints the raw move integer for a band, as it does for Isolation's encoded move. The board
+  marker is right, because Review marks `engine.cellOf(best)`.
+
+### View (`triangles.js`)
+`#board.triangles` is a square of `--board` px; every element is placed absolutely from the
+geometry's x, y (`--x`, `--y` in lattice units, `--tm` = m on the board, one unit `--tu`).
+DOM order: the triangles `.tri` (T elements clipped to a triangle, `pointer-events: none`,
+painted by `renderBoard`: `taken p<k>` with a token in the middle, `.won` pops), then the
+**edges, which are the cells** (`BoardView.cells` with a no-op click, because an edge index
+would collide with a move integer; rotated bars `--rot` = d · 60°, class **`.band`**, not
+`.edge`, which `boxes.css` styles unscoped), then the pegs `.peg` on top: V elements with the
+view's own click and a hit area of at least 28 px on a phone (the element is the target,
+`::before` the stud; `--hit` is not capped at the peg spacing, so at 7 pegs per side on a
+360 px phone, pegs 25 px apart, two neighbours overlap by a sliver and the later peg takes
+it). Pegs are not cells, so the engine's `locked` never reaches them: `paintPegs` (run from
+`renderBoard`, after the cells) sets `#board.idle` while no cell carries `can-place` and
+`.dead` on a peg no legal band starts at, both `cursor: not-allowed` like `.locked`.
+**Two clicks like Isolation** (`premove: false`): the first click on a
+peg that starts a legal band, accepted only while some cell carries `can-place` (the engine
+writes it only when this device may move and no preview is shown), makes it `.pending` and
+every peg a band may reach from it `.target` (`#board.picking`); a click on a target submits
+`onClick(encode(a, b))`, the pending peg takes it back, anything else does nothing; hovering a
+target previews the band (`.preview`). `pending`, `pendingAt`, `pendingFor` and
+`keepPending` work like `IsolationView`. **`clicks(state, move) → [peg a, peg b]`** is the
+generic view hook the e2e harness and the Learn suite play a move through (Isolation has one
+too). `animateMove`: the band's edges `.snap` (160 ms), then `settle`, a render, the Bus
+event `triangles:claim` when something was claimed and the `.won` pop (200 ms).
+HUD model: per seat "Triangles" and "Tokens left" ("Bands" without a limit), the bar =
+score / tokens (or / T) with "3 / 21", an info box ("Triangles left" / "On the table", `hot`
+while something is on the table), `line2` "triangles 3 · 2", `summary` "13 of 54 triangles".
+Blocks looks: quartz pegs, the player's block texture along a band, the matching stained
+glass with a block token as a claimed triangle.
+
 ## Board / HUD layout rules
 
 - **Whose turn**: `#board.turn-p<k>` → 4px outline in the active colour. `fitBoard`
@@ -319,6 +426,7 @@ needs), `game:turn {game, player, state}` (after a move settled and the turn **p
 else**; not on replay, and not when a game leaves the mover on turn), `game:finish {game, winner, why, state}`, `chain:prime {cells, player, ms}`
 (full cells start blinking; `ms` = how long), `chain:explode {cells, player, chain}` (one
 wave), `boxes:capture {boxes, player, score}` (Dots and Boxes: a move closed one or two boxes),
+`triangles:claim {tris, player, score}` (Triangles: a band claimed one or more triangles),
 `reaction {emoji, theirs}`, `chat {text, from, mine}` (a chat line was shown),
 `log {text, cls}`. A game may add its own events (`<key>:…`) for sounds and observers.
 
@@ -385,6 +493,14 @@ off, no bot, the record replayed instantly onto the board.
   persona), and its own board sizes in `size.presets`. Everything else — rooms, sync,
   replay, premoves, clocks, spectators, the HUD — worked unchanged, including a board whose
   `cells.length` is 2n(n+1) rather than n².
+- **Triangles: what a fifth game cost the framework.** A hexagonal board whose cells are
+  the unit edges, a move of two clicks on parts that are not cells, and settings with a
+  meaningful 0 and `null` needed three small things: `size.text(n)` (a hexagon is not
+  "4 × 4"), the optional view hook `clicks(state, move)` (so the e2e harness and the Learn
+  suite play any game's move without knowing the game), and the bool row fix in
+  `Settings.write` (a missing key keeps the default instead of turning the row off). The
+  lobby on a phone was the real limit: a third row of cards did not fit 360 × 780 until
+  the media query in `menu.css` got smaller cards and an odd last card across both columns.
 
 # How to add a new game (step by step)
 
@@ -404,7 +520,9 @@ to, extend the definition contract instead (and this file).
 Copy Five Wins (`five-rules.js`, `five.js`, `five.css`, `random-five`, `sensei-five`) — it
 is the smallest complete game. Isolation is the example of a game whose move is not a plain
 cell id (an encoded integer, two clicks, `cellOf` / `canPlay` / `premove: false`), Dots and
-Boxes the example of a board whose cells are not a square grid (`renderBoard`).
+Boxes the example of a board whose cells are not a square grid (`renderBoard`), Triangles
+the example of both at once on a board that is not square at all (`size.text`, clicks on
+elements that are not cells, the `clicks` view hook).
 
 ## 1. Rules `client/games/<key>-rules.js` (pure — no DOM, no settings, no Bus)
 
@@ -446,6 +564,7 @@ Expose `<Name>View` with:
 | `hud(state)` | **Data only** — return the HUD model, the framework renders it (see "HUD" above). One `players` entry per seat (`state.players`, 2–4); `BoardView.leading(values)` gives the `leading` flags. Never write DOM here. |
 | `summary(state)` | Second line of the result overlay ("12 moves"). |
 | `animateMove(ctx, i, player) → Promise` | Show the move. `ctx` gives `state`, `cells`, `board()`, `names()`, `renderCell(i)`, `renderHud()`, `render()`. Use the rules' own step functions for anything that changes state so the instant path (`settle`) stays identical. Return early if `state.over` after an `await`. Emit your own `Bus` events (`<key>:…`) for sounds / observers. |
+| `clicks(state, move) → [Element]` | **Optional.** The elements a human clicks, in order, to play `move`, for a game whose move is not one click on its cell (Isolation: `[tile stepped onto, tile broken]`, Triangles: `[peg a, peg b]`). The e2e harness and the Learn suite play moves through it; without it they click `cells[move]`. The engine never calls it. |
 
 Then register:
 
@@ -455,6 +574,7 @@ const <Name>Game = Games.register({
     tagline: "One sentence under the picker.", desc: "Short card subtitle",
     preview: "...01....",                   // 9 chars: "." empty, digit = player, "#" hole, a/b/c (A/B/C) = 1..3 pieces of player 0 (1); Games.previewClass / previewTile draw it everywhere
     size: { min: 5, max: 19, default: 9, presets: [5, 7, 9, 11] },   // limits and the board-size dropdown
+    // size.text?: (n) => text, how one size reads in that dropdown and the summary (triangles: "4 pegs per side"); default "n × n"
     minSize: (cfg) => 5,                    // optional, may depend on the game fields (five: winLen)
     players: { min: 2, max: 4 },            // optional (default 2–4): the picker grays the card out otherwise (#28)
     premove: false,                         // optional (default true): off when one click is not a whole move (#37)
@@ -475,13 +595,17 @@ const <Name>Game = Games.register({
 `Games.register` throws on a definition that misses a required part, so a typo shows up at
 load. The picker card, the settings rows (`#row-<key>` / `#set-<key>`, lowercased) and the
 config keys (`config.<key>` on both sides of a room, persisted per device) all come from
-this entry — no HTML to add. `.game-picker` is a fixed `1fr 1fr` grid, so the four games
-today fill exactly two rows; what buys the room on a phone is the lobby's own media query
-(`max-width: 899px` in `menu.css`: a tighter `.lobby-card`, `.lobby-card .game-card` padding
-8 px, a 56 px preview and the `.game-players` line hidden) and `.game-name` never wrapping
-(a second line makes the whole row of cards taller; a name too long for a card is cut with
-an ellipsis instead, checked by `mobile.test.mjs`). A fifth game adds a third row, so
-re-check the phone lobby every time.
+this entry — no HTML to add. `.game-picker` is a fixed `1fr 1fr` grid, so the five games
+today make two full rows and an odd fifth card; what buys the room on a phone is the
+lobby's own media query (`max-width: 899px` in `menu.css`: a tighter `.lobby-card`,
+`.lobby-card .game-card` padding 5 px, a 42 px preview, the `.game-players` line hidden, no
+height for the empty tagline line, and an odd last card that runs across both columns with
+its name and description beside the preview, half a row high; `learn.css` does the same for
+the Learn list) and `.game-name` never wrapping (a second line makes the whole row of cards
+taller; a name too long for a card is cut with an ellipsis instead, checked by
+`mobile.test.mjs`). A sixth game fills the third row with two normal cards (about 50 px
+more), so re-check the phone lobby every time (`mobile.test.mjs`, `i18n.test.mjs` and
+`triangles.test.mjs` assert that the local lobby does not scroll at 360 × 780).
 
 **Beyond six games the picker has to change shape** (nothing to do yet): a grid of cards
 does not survive eight or more. The plan, in the order it should happen:
@@ -613,11 +737,15 @@ are filled in), which is what a game without a puzzle set gets.
 - Timer on: clock pauses during your animations, flag fall ends the game on both sides
   (3+ players: the seat is out, play continues).
 - Phone viewport 360×780: lobby, game and result overlay don't scroll; HUD labels fit;
-  the game box (if any) shows only on desktop.
+  the game box (if any) shows only on desktop. The fifth game (Triangles) needed the lobby
+  media query in `menu.css` tightened (42 px previews, tighter cards, the odd last card across
+  both columns, see step 2); a sixth adds about 50 px, so measure in every language
+  (`mobile.test.mjs`, `i18n.test.mjs`).
 - All three skins: board readable, textures don't flicker on hover.
 - Learn: the game shows up in the Learn list, the rule bullets read well, the tutorial runs
   from the first step to the last and `tests/unit/learn.test.mjs` passes; `npm run
-  learn:scenarios` once the puzzle set exists.
+  learn:scenarios` once the puzzle set exists (and again whenever the bot's `evaluate`
+  changes: the play-from-here positions are picked by win chance).
 - No `Runtime.exceptionThrown` in either browser. Update this file (files table, rules
   section for the game, events if you added any), `README.md`, `docs/bots.md` (bot list)
   and `changelog.json`.

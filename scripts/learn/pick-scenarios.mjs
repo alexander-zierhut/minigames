@@ -20,7 +20,8 @@
       re-runs this stage on the committed facts and compares it with the committed file.
 
    Run with `npm run learn:scenarios` (add --facts-only to stop after stage 1, --keep-facts to
-   select from the committed facts without re-running the bots). */
+   select from the committed facts without re-running the bots, --game <key> to build one game
+   only). */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { ROOT, loadHeadless } from "../headless.mjs";
 import { loadPuzzles, puzzleGames, positionOf } from "../puzzles/runner.mjs";
@@ -51,7 +52,7 @@ const UNSOLVED_DEPTH = 6;            // a proof without a ply count (five's exha
 
 // tag -> the title a player sees (as a key of the language files, `learn.title.<tag>`);
 // the order is also the order titles are preferred in
-const TAG_TITLES = ["win-in-1", "avoid-trap", "must-block", "take-box", "sacrifice", "double-deal", "safe-move", "double-threat", "win-in-2", "avoid-loss", "prefer-win", "win-in-3", "draw", "win-in-4", "win-in-5", "win-in-6", "win-in-7", "win-in-9", "separated"];
+const TAG_TITLES = ["win-in-1", "avoid-trap", "must-block", "take-box", "claim", "sacrifice", "double-deal", "safe-move", "double-threat", "win-in-2", "avoid-loss", "prefer-win", "win-in-3", "draw", "win-in-4", "win-in-5", "win-in-6", "win-in-7", "win-in-9", "separated"];
 const TAGS = TAG_TITLES.map((tag) => [tag, `learn.title.${tag}`]);
 const TITLE = new Map(TAGS);
 const TAG_ORDER = TAGS.map(([t]) => t);
@@ -103,6 +104,20 @@ export function kindOf(f) {
     return "best-move";
 }
 
+/* The sentence a trap opens with. "The obvious move loses" is true where every other move
+   loses: a set proven on the result (win / draw / loss), a note that says "every other …
+   loses the game", or a margin note whose best line minus the gap to the next one ends below
+   level. In a set proven on the margin (Dots and Boxes, Triangles) a move outside `best`
+   usually still wins, just by less, and the trap only says what is certain: it gives too
+   much away. `text` = the descriptors parsed out of the note. */
+export function trapText(text) {
+    const margin = text.find((d) => /\.margin$/.test(d.k));
+    if (!margin || text.some((d) => /\.loses$/.test(d.k))) return "learn.text.trap";
+    const end = text.find((d) => /\.(ahead|behind|level)$/.test(d.k));
+    const best = !end || /\.level$/.test(end.k) ? 0 : /\.ahead$/.test(end.k) ? end.count : -end.count;
+    return best - margin.count < 0 ? "learn.text.trap" : "learn.text.trapMargin";
+}
+
 const primaryTag = (tags = []) => TAG_ORDER.find((t) => tags.includes(t)) || null;
 const shownTags = (tags = []) => tags.filter((t) => TITLE.has(t) && !TOOLING.includes(t));
 
@@ -119,6 +134,12 @@ const NOTE_SENTENCES = [
     // one sentence, two clauses: the end of best play and the margin to the next best line
     [/^Best play ends (?:(\d+) boxe?s? (ahead|behind)|level); every other line is at least (\d+) boxe?s? worse\.$/,
         (m) => [m[2] ? { k: `learn.note.boxes.${m[2]}`, count: +m[1] } : { k: "learn.note.boxes.level" }, { k: "learn.note.boxes.margin", count: +m[3] }]],
+    [/^Claim what is on the table\.$/, () => ({ k: "learn.note.triangles.claim" })],
+    [/^Play a band that hands nothing over\.$/, () => ({ k: "learn.note.triangles.safe" })],
+    [/^Every band opens something: concede as little as possible\.$/, () => ({ k: "learn.note.triangles.sacrifice" })],
+    [/^Every other band loses the game\.$/, () => ({ k: "learn.note.triangles.loses" })],
+    [/^Best play ends (?:(\d+) triangles? (ahead|behind)|level); every other band is at least (\d+) triangles? worse\.$/,
+        (m) => [m[2] ? { k: `learn.note.triangles.${m[2]}`, count: +m[1] } : { k: "learn.note.triangles.level" }, { k: "learn.note.triangles.margin", count: +m[3] }]],
     [/^(\d+) of (\d+) moves take the whole board now\.$/, (m) => ({ k: "learn.note.chain.now", best: +m[1], total: +m[2] })],
     [/^(\d+) of (\d+) moves force a win in (\d+)\.$/, (m) => ({ k: "learn.note.chain.force", best: +m[1], total: +m[2], moves: +m[3] })],
     [/^Every other move allows an immediate takeover\.$/, () => ({ k: "learn.note.chain.takeover" })],
@@ -243,9 +264,11 @@ function dress(rows) {
         const key = `${row.tier}/${title}`;
         const no = (seen.get(key) || 0) + 1;
         seen.set(key, no);
+        const said = row.kind === "play-from-here" ? [] : sentences(row.note);
+        const lead = row.kind === "trap" ? trapText(said) : KIND_TEXT[row.kind];
         const text = row.kind === "play-from-here"
             ? [{ k: "learn.text.play", level: { k: `level.${row.level}` } }]
-            : [...(KIND_TEXT[row.kind] ? [{ k: KIND_TEXT[row.kind] }] : []), ...sentences(row.note)];
+            : [...(lead ? [{ k: lead }] : []), ...said];
         const sc = {
             id: row.id,
             tier: row.tier,
@@ -421,12 +444,13 @@ ${rows}
 `;
 }
 
-export async function writeAll({ factsOnly = false, keepFacts = false } = {}) {
+export async function writeAll({ factsOnly = false, keepFacts = false, only = null } = {}) {
     if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
     const H = keepFacts ? null : loadHeadless();
     for (const game of puzzleGames()) {
         // a rule variant is not a game of its own (tests/puzzles/five-yavalath): no facts, no ladder
         if ((loadPuzzles(game) || {}).variant) continue;
+        if (only && game !== only) continue;           // --game <key>: one game, the others stay as they are
         const t0 = Date.now();
         let facts = keepFacts ? loadFacts(game) : await collectFacts(H, game);
         if (!facts) { console.log(`${game}: no facts, skipped`); continue; }
@@ -446,5 +470,5 @@ export async function writeAll({ factsOnly = false, keepFacts = false } = {}) {
 
 // run as a script, not when a test imports the pure part
 if (process.argv[1] && process.argv[1].endsWith("pick-scenarios.mjs")) {
-    await writeAll({ factsOnly: process.argv.includes("--facts-only"), keepFacts: process.argv.includes("--keep-facts") });
+    await writeAll({ factsOnly: process.argv.includes("--facts-only"), keepFacts: process.argv.includes("--keep-facts"), only: process.argv.includes("--game") ? process.argv[process.argv.indexOf("--game") + 1] : null });
 }

@@ -3,7 +3,7 @@
    win-in-1 / must-block / avoid-loss / avoid-trap / avoid-three / forced-three puzzle with a
    plain one- or two-ply look-ahead through the real rules, and prints what blind random
    picking would score on each set (the baseline to read bot scores against).
-   node scripts/puzzles/verify.mjs [chain|five|five-yavalath|isolation|boxes] */
+   node scripts/puzzles/verify.mjs [chain|five|five-yavalath|isolation|boxes|triangles] */
 import { loadHeadless } from "../headless.mjs";
 import { puzzleSets, loadPuzzles, positionOf } from "./runner.mjs";
 
@@ -84,6 +84,26 @@ for (const dir of dirs) {
                 checked++;
                 if (rules.safeMoves(s).length) bad.push(`${p.id}: "sacrifice" but a safe line exists`);
                 if (legal.some((m) => captures(m) > 0)) bad.push(`${p.id}: "sacrifice" with a box still on the table`);
+            }
+        }
+        /* Triangles: the same idea with the rules' own helpers (what a band claims now, what
+           it hands over), no solver. */
+        if (game === "triangles") {
+            const claims = (i) => rules.claims(s, i);
+            const opens = (i) => rules.opens(s, i);
+            if (p.tags.includes("claim")) {
+                checked++;
+                for (const b of p.best) if (claims(b) === 0) bad.push(`${p.id}: "claim" best ${b} claims no triangle`);
+                if (legal.every((m) => claims(m) > 0)) bad.push(`${p.id}: "claim" but every band claims`);
+            }
+            if (p.tags.includes("safe-move")) {
+                checked++;
+                for (const b of p.best) if (opens(b) > 0) bad.push(`${p.id}: "safe-move" best ${b} hands a triangle over`);
+                if (legal.every((m) => opens(m) === 0)) bad.push(`${p.id}: "safe-move" but every band is safe`);
+            }
+            if (p.tags.includes("sacrifice")) {
+                checked++;
+                if (legal.some((m) => opens(m) === 0)) bad.push(`${p.id}: "sacrifice" but a safe band exists`);
             }
         }
     }

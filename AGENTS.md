@@ -8,7 +8,7 @@ files you work on match their `paths:` header; any other agent opens them by han
 
 | Topic file | Read it before touching | What is in it |
 | --- | --- | --- |
-| `.claude/rules/games.md` | `client/games.js`, `client/games/**`, `client/match.js`, a new game | the engine, the rules and view contracts, game records, the rules of all four games, board / HUD layout, Bus events, seats and premoves, **how to add a new game** |
+| `.claude/rules/games.md` | `client/games.js`, `client/games/**`, `client/match.js`, a new game | the engine, the rules and view contracts, game records, the rules of all five games, board / HUD layout, Bus events, seats and premoves, **how to add a new game** |
 | `.claude/rules/online.md` | `client/room.js`, `client/lib/net.js`, `client/session.js`, the online e2e suites | the room protocol, presence, seats, spectators, TURN, desync, every message, the PeerJS gotchas |
 | `.claude/rules/bots.md` | `client/bots.js`, `client/bots/**`, `client/winchance.js`, `scripts/puzzles/**`, `scripts/benchmark.mjs`, `scripts/calibrate.mjs` | the bot framework, budgets, benchmark, calibration, puzzles, persona, the dev panel, the evaluator lessons |
 | `.claude/rules/ui.md` | `client/app.js`, `client/lobby.js`, `client/review.js`, `client/replay-list.js`, `index.html`, `client/css/**`, settings, preferences, skins, sounds, Learn, replays, chat, reactions | the screens and the flow, every modal, the Learn section, replay files and analysis |
@@ -21,8 +21,9 @@ update the matching section in the matching file.
 
 A static site with nostalgic minigames: **Chain React** and **Five Wins** (gomoku without
 gravity), which the owner played on a Minecraft server in 2015, **Isolation** (the
-pen-and-paper Isola: step, then break a tile) and **Dots and Boxes** (the school-exercise-book
-game), for two to four players (plus spectators) in one room. Hosted as plain files on
+pen-and-paper Isola: step, then break a tile), **Dots and Boxes** (the school-exercise-book
+game) and **Triangles** (bands across a hexagonal pegboard, a token on every triangle you
+close), for two to four players (plus spectators) in one room. Hosted as plain files on
 Scaleway Object Storage at `https://minigames.alzlper.com/` (GitHub
 `alexander-zierhut/minigames`, git remote `github`; the old `origin` points at the
 owner's Gitea). The code must never assume that URL; share links are built from
@@ -72,9 +73,11 @@ Scripts, in order (each defines the global named in brackets):
 | `client/games/isolation.js` | `IsolationView`, `IsolationGame` | Isolation view (the two-step click) + registration |
 | `client/games/boxes-rules.js` | `BoxesRules` | Dots and Boxes rules, pure (lines as cells; the analysis helpers bots use) |
 | `client/games/boxes.js` | `BoxesView`, `BoxesGame` | Dots and Boxes view (dots / lines / boxes, `renderBoard`) + registration |
+| `client/games/triangles-rules.js` | `TrianglesRules` | Triangles rules, pure (unit edges of a hexagonal pegboard as cells, a band is one encoded integer, the geometry memoised per size; the analysis helpers bots use) |
+| `client/games/triangles.js` | `TrianglesView`, `TrianglesGame` | Triangles view (triangles / bands / pegs, the two-click band, `clicks`) + registration (`size.text`: "4 pegs per side") |
 | `client/bots.js` | `Bots` | bot registry, the toolset bots play with, headless playout, win-chance estimator |
 | `client/winchance.js` | `WinChance` | win-chance bars: a Bus observer of `game:new` / `game:position` (no engine or game knows it) |
-| `client/bots/<id>/bot.js` | (registers) | one folder per bot: `bot.js`, generated `benchmark.js`, `bot.test.mjs` |
+| `client/bots/<id>/bot.js` | (registers) | one folder per bot: `bot.js`, generated `benchmark.js`, `bot.test.mjs`; per game a `random-<game>` baseline and one real bot (Creeper, Sensei, Warden, Fencer, Weaver; list in `docs/bots.md`) |
 | `client/skins.js` | `Skins` | look per device: body class only |
 | `client/prefs.js` | `Prefs` | per-device preferences ("⚙ Settings & Feedback" top-left): the player's name (#35), look and language (#47), win-chance graph in replays (#43), sound volume / categories, hide the room code, keep my IP private, mute spectators, developer panel, feedback link |
 | `client/settings.js` | `Settings` | settings form ↔ config; the game rows are **built from the game definitions**; picker cards, persistence, summary |
@@ -86,7 +89,7 @@ Scripts, in order (each defines the global named in brackets):
 | `client/session.js` | `Session` | the room session in sessionStorage (survives a refresh) |
 | `client/match.js` | `Match` | **the table**: mode, my seat, seats per player, the active engine, the clock, the bot seat, deferred work while a move animates |
 | `client/learn.js` | `Learn` | the Learn section (#41): the two Learn screens, the guided tutorial, the scenarios, the progress, the lobby's "How to play" modal |
-| `client/learn/<game>-scenarios.js` | (registers) | **generated** scenario ladder (`scripts/learn/pick-scenarios.mjs`, from the proven puzzle sets and seeded self-play) |
+| `client/learn/<game>-scenarios.js` | (registers) | **generated** scenario ladder, one file per game (`scripts/learn/pick-scenarios.mjs`, from the proven puzzle sets and seeded self-play) |
 | `client/room.js` | `Room` | **the online room**: protocol handlers, presence, seat assignment, sync/desync, rematch votes, net box + banner, session save |
 | `client/dev.js` | `Dev` | the developer info panel (#31): a snapshot of network, performance, bot and win chance, rendered by a pure `format` |
 | `client/lobby.js` | `Lobby` | the lobby screen: `render()` paints head, seat cards, options and the Start button from Match / Room / Settings; the Invite modal and its copy confirmations |
@@ -100,7 +103,8 @@ changelog, replays) → `client/css/game.css` (game layout, generic board, HUD i
 `.game-box`, overlay, banner, reactions) → `client/css/learn.css` (the Learn screens, the
 lesson panel in the HUD, the `hint` cell) → `client/css/skin-mc.css` (Blocks board part
 shared by both textured skins + Blocks UI part) → `client/games/chain.css` →
-`client/games/five.css` → `client/games/isolation.css` → `client/games/boxes.css` (each
+`client/games/five.css` → `client/games/isolation.css` → `client/games/boxes.css` →
+`client/games/triangles.css` (each
 game's board, classic first, then its textured-skin rules).
 
 Other: `client/textures/*.png` — 16×16 Mojang block textures from the owner's own
@@ -182,8 +186,8 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Install` | `init()`, `offered` |
 | `Update` | `init({url, current, onTitle, reload})`, `check()`, `isNewer(running, latest)`, `screenChanged()`, `stop()`; getters `available, latest, current`; writable `AUTO_MS`, `reload`; `EVERY_MS`, `TIMEOUT_MS` |
 | `Rules` | `base(config)`, `pass(state, alive)`, `remaining`, `index`, `inside`, `emptyCells(state)`, `placeCell(state, i, p)`, `decided(state) → 1 / 0 / 0.5 / null`, `sigmoid(edge, k)`, `register(key, rules)`, `of(key)`, `keys()`, **`create(config[, rules])`, `step(rules, state, i) → result|null`, `eliminate(state, p, why)`, `apply(rules, state, history, outs) → applied`, `replay(record, ply) → state`** (`rules` = module or key) |
-| rules module | `create, ownerOf, isLegal, legalMoves, place, conclude, estimate` (+ `settle` when a placement has consequences, + optional `cellOf(state, move)` / `canPlay(state, i, player)` for games whose move is not a plain cell id, + game helpers: chain `tally/readyCells/…`, five `lineThrough/bestRow/canWin`, isolation `steps/mobility/territory/encode/decode`, boxes `edgesOf/boxesOf/sides/captures/safeMoves/isFreeCapture/chainFrom`) — pure; a reason a game ends (`conclude`'s `why`, `eliminate`'s `why`) is a message descriptor `{ k: "why.…", …params }`, never a text |
-| view module | `build, renderCell, hud, summary, animateMove` + optional `renderBoard(state)` (board parts that are not cells) |
+| rules module | `create, ownerOf, isLegal, legalMoves, place, conclude, estimate` (+ `settle` when a placement has consequences, + optional `cellOf(state, move)` / `canPlay(state, i, player)` for games whose move is not a plain cell id, + game helpers: chain `tally/readyCells/…`, five `lineThrough/bestRow/canWin`, isolation `steps/mobility/territory/encode/decode`, boxes `edgesOf/boxesOf/sides/captures/safeMoves/isFreeCapture/chainFrom`, triangles `geometry/encode/decode/bandEdges/sides/claims/opens/onTable/safeMoves/claimingMoves/left`) — pure; a reason a game ends (`conclude`'s `why`, `eliminate`'s `why`) is a message descriptor `{ k: "why.…", …params }`, never a text |
+| view module | `build, renderCell, hud, summary, animateMove` + optional `renderBoard(state)` (board parts that are not cells) and `clicks(state, move) → [Element]` (what a player clicks to play a move, for the tests; default `cells[move]`) |
 | `BoardView` | `cells(board, count, onClick, decorate(el, i)) → elements` (marker and click included), `marker()`, `leading(values) → [bool per seat]` |
 | `Games` | `register(def) → engine` (validates: key, title, tagline, desc, a 9-character preview, `size`, rules, view; fills `settings`, `players`, `premove`, `howto`, `describeRules`, `describeOptions`, `minSize`, `size.presets` in), `get/has/keys`, `title(key)` (translated), `previewClass(ch)`, `previewTile(key, {small})` (the one builder of the 3×3 picker tile), `positionAt(record, ply)` |
 | engine | `state, config, previewPly, newGame, play, replay, preview, finish, eliminate, abandon, render, relabel` (the sign, the HUD and a shown result in the new language), `isLegal, cellOf, hash, record` |
@@ -202,7 +206,7 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 | `Changelog` | `init()`, `open/close`, `render(doc[, all])`, `refUrl(ref)`, `technical(entry)`, `showTechnical`, `SHOW_DAYS` |
 | `Preload` | `textures()` |
 | `Learn` | `init({show, exit})`, `open()`, `openGame(key)`, `startTutorial(key)`, `startScenario(key, id)`, `restart()`, `exit()`, `howto(key) → {rules, tutorial, scenarios}`, `scenarios(game, list)` (the generated files register here), `games()`, `configFor(key, cfg)`, `names(base)`, `beforeMove(i)` / `cellClass(i)` / `onLocalMove(i)` (Match handlers), `openHowto(key)` / `closeHowto()`, `relabel()`, `isSolved(game, id)`, `markSolved(game, id)`, `tutorialDone(game)`, `fold(on)` (#43), `tierProgress(game, tier)`, `tierLocked(game, tier)`, `tierOpen(game, tier)` / `toggleTier(game, tier)` (the folded tier cards), `nextScenario(game, id)`, `canAdvance()`, `again()`, `againText()`, `dots(difficulty)`; getters `active` (`null` \| `{kind, game, …}`), `page`, `folded`; `STEP_MS`, `MISS`, `TIERS`, `KINDS`, `UNLOCK` |
-| game definition | `key, title, tagline, desc` (keys of the language files), `preview` (9 chars, see `Games.previewClass`), `size: {min, max, default, presets?}`, `players?`, `premove?`, `minSize?(cfg)`, `settings?: [{key, label (a key, or a function of the config returning a text), type: "select" | "bool" | "preset", def, min?, max?, options? [[value, key]], presets?, off? (true), startOff?, unit? (a plural key), customLabel? (a key), flag?}]`, `describeRules?(cfg)`, `describeOptions?(cfg)` (return texts), `howto?` (keys), `rules`, `view` |
+| game definition | `key, title, tagline, desc` (keys of the language files), `preview` (9 chars, see `Games.previewClass`), `size: {min, max, default, presets?, text?(n)}` (`text`: how one size reads in the dropdown and the summary, default `n × n`), `players?`, `premove?`, `minSize?(cfg)`, `settings?: [{key, label (a key, or a function of the config returning a text), type: "select" | "bool" | "preset", def, min?, max?, options? [[value, key]], presets?, off? (true), startOff?, unit? (a plural key), customLabel? (a key), flag?}]`, `describeRules?(cfg)`, `describeOptions?(cfg)` (return texts), `howto?` (keys), `rules`, `view` |
 | game definition (Learn) | `howto: { rules: [], tutorial: [{text, config?, moves?, expect?, highlight?}], scenarios: [{id, title, text, config, history, toMove, best, tags?, tier, kind, difficulty, level, goal?}] }` (#41, #44) |
 | `Session` | `save(data)`, `load()`, `clear()` (shape incl. `codeHidden`, `watch`, `spec`) |
 | `Replays` | `FORMAT`, `VERSION`, `MIGRATIONS`, `EXT`, `migrate(doc)`, `validate(doc) → {ok, error}`, `parse(text) → {ok, doc, error}`, `fromRecord(record, names, mode, {finished, bot})`, `trimConfig(config, game)`, `idFor`, `fileName`, `when(iso)`, `dayOf(iso)`, `summary(doc, id)`, `filter(items, {game, kind, search, from, to})`, `store.{save, list({game}), get, remove, clear, persistent, analysis.{get, put, remove, clear}}` (async, IndexedDB with a memory fallback), `playback({ply, total, seek, ms, setTimer, clearTimer}) → {start, stop, toggle, playing}`, `STEP_MS` |
@@ -217,8 +221,8 @@ Every global is an IIFE in `client/`; these are the contracts other code relies 
 Node-side (`scripts/`): `loadHeadless()` (util + rules + bots in a VM; every registered
 rules module is handed out under its own global name), `puzzles/runner.mjs`
 (`puzzleSets`, `loadPuzzles`, `setConfig`, `positionOf`, `evaluateBot`), `learn/pick-scenarios.mjs`
-(`collectFacts(H, game)`, `loadFacts(game)`, `select(facts)`, `difficultyOf`, `kindOf`,
-`greedyMove`, `TIERS`, `KINDS`, `writeAll({factsOnly, keepFacts})`), `benchmark.mjs`, `calibrate.mjs`
+(`collectFacts(H, game)`, `loadFacts(game)`, `select(facts)`, `difficultyOf`, `kindOf`, `trapText`,
+`greedyMove`, `TIERS`, `KINDS`, `writeAll({factsOnly, keepFacts, only})`), `benchmark.mjs`, `calibrate.mjs`
 (`collect`, `fitLogistic`, `metrics`, `calibrate`), `puzzles/<game>/solver.mjs` +
 `generate.mjs` (boxes: `solveExhaustive` / `solveBrute` / `canonical`, and its README has the
 guarantee), `puzzles/verify.mjs` (generic tactical re-proof plus a per-game branch, boxes'

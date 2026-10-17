@@ -15,9 +15,9 @@
    preset may name a `flag`, so one control writes two config keys (chain: `chainRule` plus
    `chainLen`) and the config shape never changes.
    Every field of every game is read into the config (`config.<key>`), persisted and
-   mirrored to the room. Board-size limits come from `size` / `minSize(cfg)`, and its label
-   the same for every game. A game
-   declares `players: { min, max }` (default 2–4): the picker grays out games that don't
+   mirrored to the room. Board-size limits come from `size` / `minSize(cfg)`, its label is
+   the same for every game, and `size.text(n)` may say how one size reads (default n × n).
+   A game declares `players: { min, max }` (default 2–4): the picker grays out games that don't
    take the chosen player count, and the selection moves to one that does (#28).
    `setMinPlayers(n)` (the lobby says how many seats are taken) disables every smaller count
    and lifts `read().players` to it, so nobody is pushed out of a seat they sit in (#34).
@@ -141,6 +141,9 @@ const Settings = (() => {
         const raw = el.value === "custom" ? parseInt($("set-size-custom").value, 10) : parseInt(el.value, 10);
         return Number.isFinite(raw) ? raw : 0;
     }
+    // how a board size reads in the dropdown and the summary: the game's own `size.text(n)`
+    // ("4 pegs per side"), else n × n
+    const sizeText = (d, n) => (d.size.text ? d.size.text(n) : `${n} × ${n}`);
     function sizeLimits() {
         const d = def();
         const min = d.minSize ? Math.max(d.size.min, d.minSize(gameValues())) : d.size.min;
@@ -171,7 +174,8 @@ const Settings = (() => {
         if ("bot" in s) bot = normalizeBot(s.bot);      // the room's bot travels with the settings (#36)
         if (s.players) players = clamp(parseInt(s.players, 10) || 2, floor(), 4);   // never below the seats in use (#34)
         for (const f of fields) {
-            if (f.type === "bool") $(f.el).value = s[f.key] ? "on" : "off";
+            // a key the saved config does not have keeps the row as it is (a returning player's settings predate the row)
+            if (f.type === "bool") { if (s[f.key] !== undefined) $(f.el).value = s[f.key] ? "on" : "off"; }
             else if (f.type === "select") { if (s[f.key] !== undefined) $(f.el).value = String(s[f.key]); }
             else if (f.flag ? f.flag in s : s[f.key] !== undefined) writePreset(f, f.flag && !s[f.flag] ? null : s[f.key]);
         }
@@ -229,7 +233,7 @@ const Settings = (() => {
         const chosenCustom = !reset && el.value === "custom";
         const want = clamp((reset ? 0 : sizeValue()) || sizeFor[game] || d.size.default, lim.min, lim.max);
         el.innerHTML = "";
-        for (const v of (d.size.presets || []).filter((v) => v >= lim.min && v <= lim.max)) el.appendChild(option(v, `${v} × ${v}`, v === want));
+        for (const v of (d.size.presets || []).filter((v) => v >= lim.min && v <= lim.max)) el.appendChild(option(v, sizeText(d, v), v === want));
         el.appendChild(option("custom", t("common.custom")));
         const known = !chosenCustom && [...el.options].some((o) => o.value === String(want));
         el.value = known ? String(want) : "custom";
@@ -336,7 +340,7 @@ const Settings = (() => {
     // "6 × 6 · 5 in a row · 3 min timer · 15-chain wins" ("· 3 players" when more than two)
     function summary(cfg = read()) {
         const d = Games.get(cfg.game);
-        const parts = [`${cfg.n} × ${cfg.n}`];
+        const parts = [sizeText(d, cfg.n)];
         if (cfg.players > 2) parts.push(t("summary.players", { count: cfg.players }));
         parts.push(...d.describeRules(cfg));
         parts.push(cfg.timer > 0 ? t("summary.timer", { min: Math.round(cfg.timer / 60 * 10) / 10 }) : t("summary.noTimer"));

@@ -247,15 +247,16 @@ doesn't snap at "1"). Persisted in `localStorage["chainreact.settings"]` togethe
   the dropdown, so a long label in any language has the whole row.
 - Shared rows (in index.html): board size (`#set-size`, options built per game by
   `fillSize` from `size.presets` inside the limits `size` + optional `minSize(cfg)`: chain
-  3–12 default 6, five 5–25 default 11, isolation 5–12 default 7, boxes 2–10 default 5; the
-  label `#size-label` is "Board size" for every game, `#size-hint` the range; a size
-  remembered in `sizeFor` wins over the default), timer per player (`#set-timer`: Off / 1 /
-  3 / 5 / 10 min / custom minutes in `#set-timer-custom`). **Players** is not in the modal:
-  it is the lobby's segmented control (`#set-players`, `Settings.setPlayers(n)` /
-  `Settings.players`; hidden and forced to 2 against a bot, #28). Every game declares
-  `players: { min, max }` (default 2–4); `Settings.supports(key)` says whether the selected
-  count fits, the picker grays the others out and `selectGame` moves off an unsupported
-  game. **Nobody may be pushed out of a seat (#34):** `Settings.setMinPlayers(n)` (called by
+  3–12 default 6, five 5–25 default 11, isolation 5–12 default 7, boxes 2–10 default 5,
+  triangles 3–7 default 4 (presets 4 / 5 / 6, minimum 4 with 4-peg bands); the label
+  `#size-label` is "Board size" for every game, `#size-hint` the range; a size remembered in
+  `sizeFor` wins over the default), timer per player (`#set-timer`: Off / 1 / 3 / 5 / 10 min
+  / custom minutes in `#set-timer-custom`). **Players** is not in the modal: it is the lobby's
+  segmented control (`#set-players`, `Settings.setPlayers(n)` / `Settings.players`;
+  hidden and forced to 2 against a bot, #28). Every game declares `players: { min, max }`
+  (default 2–4); `Settings.supports(key)` says whether the selected count fits,
+  the picker grays the others out and `selectGame` moves off an unsupported game.
+  **Nobody may be pushed out of a seat (#34):** `Settings.setMinPlayers(n)` (called by
   `Lobby.render` with `Room.online ? Room.occupiedSeats() : 2`) disables every smaller count
   (`title` = `Settings.MIN_PLAYERS_HINT`), and `read()` / `write()` / `setPlayers()` lift
   the count to that floor. A locked control (`setLocked`, #29) stays fully disabled.
@@ -265,7 +266,9 @@ doesn't snap at "1"). Persisted in `localStorage["chainreact.settings"]` togethe
   off?, startOff?, unit?, customLabel?, flag? }`; `label` is a key, or a **function of the
   current config** returning a text, re-read on every change and on a game switch
   (`syncLabels`), which is how five's Yavalath row says "Lose when 4 in a row". The types:
-  `select` (`options` = `[[value, key], …]`), `bool` (an Off / On dropdown) and **`preset`**
+  `select` (`options` = `[[value, key], …]`), `bool` (an Off / On dropdown; `Settings.write`
+  leaves it alone when the saved config lacks the key, so a returning player keeps its `def`)
+  and **`preset`**
   (`presets: [numbers]`, `off: true` for an Off entry with `startOff`, `unit` = a plural key
   for the option text, `min` / `max` / `def` and `customLabel` (a key) for the Custom row). A preset may name a **`flag`**: one
   control then writes two config keys, which is how chain's "Win on a long chain" row sets
@@ -276,15 +279,19 @@ doesn't snap at "1"). Persisted in `localStorage["chainreact.settings"]` togethe
   Today: five `winLen` (a preset 3/4/5/6/7, default 5, also the board's minimum) and
   `yavalath` (Off / On); chain `speed` (Slow 1100 / Normal 750 / Fast 350 ms) and the
   `chainLen` preset with the `chainRule` flag (Off, or 10 / 15 / 20 / 30 explosions, or a
-  custom number). Isolation and Dots and Boxes declare none.
+  custom number); Triangles `band` (a select: 4 pegs = 3, 3 pegs = 2, 2 to 4 pegs = 0, default
+  3), `touch` (Off / On, default Off) and the `tokens` preset (10 / 15 / 21 / 30, Off = `null`,
+  default 21). Isolation and Dots and Boxes declare none.
 - `Settings.read()` returns the **config** a game starts with: `{ game, players, n, timer,
   timerSel, timerCustom, bot, …every game field of every game }` (all fields travel so a
   mirrored settings message is complete for any game the room may pick). `bot` (#36) is
   `null` or `{ id, difficulty, seat }` (`Settings.setBot(choice[, announce])` /
   `Settings.bot`, cleared by `setMode` for anything but `online` and by `Room.leave`); it is
   deliberately **not** part of the summary text, the lobby's *Opponent* row shows it.
-- Summary text: `n × n` · (`N players` when more than two) · `describeRules(cfg)` parts ·
-  timer · `describeOptions(cfg)` parts (e.g. "7 × 7 · 5 in a row · 3 min timer").
+- Summary text: `n × n` (or the game's own `size.text(n)`, Triangles: "4 pegs per side"; the
+  size dropdown and the replay list read the same) · (`N players` when more than two) ·
+  `describeRules(cfg)` parts · timer · `describeOptions(cfg)` parts (e.g. "7 × 7 · 5 in a row ·
+  3 min timer").
 - Any change → `onChange(config)` → app sends `lobby {s}` to the friends
   (`Room.settingsChanged`). `Settings.write` runs silently (no echo) when applying the
   friends' settings. `selectGame(key, announce, resetSize)`: `resetSize` takes the size the
@@ -617,8 +624,9 @@ plays a fresh game against the same bot on the same seats.
 (`Match.seats.map(s => s.kind)`) and is the only thing the module knows about the game.
 - **Mapping** (`Sound.map(event, data, kinds)`, pure): `game:move` → `place`;
   `chain:prime` → `prime` (the fuse, stopped after `ms`); `chain:explode` → `explode`
-  (gain and pitch grow a little with the chain length); `boxes:capture` → a second, brighter
-  `place`; `game:finish` → `win` / `lose` from the local human's perspective
+  (gain and pitch grow a little with the chain length); `boxes:capture` and
+  `triangles:claim` → a second, brighter `place`; `game:finish` → `win` / `lose` from the
+  local human's perspective
   (`Sound.me(kinds)`: exactly one local seat among non-local ones — online or against a
   bot; otherwise −1 → neutral `over`, also for a draw); `game:turn` → `turn` only when the
   seat is local and someone else just moved; `reaction` → `reaction` (theirs a bit lower);
@@ -701,10 +709,15 @@ howto: {
      misses it + 1 if Normal misses it + 1 if you look behind, clamped to 1..10; a
      play-from-here row is scored by its tier. `kindOf(f)` = `turnaround` (a proven win
      where either view is ≤ 35 %), else `trap` (the greedy move or Easy's move is not
-     optimal), else `best-move`. `select` cuts the sorted candidates into three bands the
+     optimal), else `best-move`. A trap opens with "The obvious move loses." only where every
+     other move does (`trapText`: a set proven on the result, or a margin note proving that
+     every other move ends below level); in a set proven on the margin (Dots and Boxes,
+     Triangles) a move outside `best` often still wins by less, so it says "The obvious move
+     gives too much away." (`learn.text.trapMargin`). `select` cuts the sorted candidates into three bands the
      size of the tier quotas (6 / 8 / 8 rows, one of them the tier's play-from-here
      position), mixes the kinds inside each tier and writes titles and texts.
-  Deterministic (a re-run never diffs; `--facts-only` / `--keep-facts` split the stages).
+  Deterministic (a re-run never diffs; `--facts-only` / `--keep-facts` split the stages,
+  `--game <key>` builds one game only).
   Hand-written scenarios in `howto.scenarios` are concatenated in front and land in Basics;
   their `best` has to be right (the test only checks that it is legal).
 - **Screens**: `#screen-learn` (one `.game-card` per game that teaches something, with "k /

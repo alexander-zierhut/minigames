@@ -23,6 +23,8 @@ const ReplayList = (() => {
        first and then every registered game with its own tile. */
     const filterLabel = (key) => (key === "all" ? t("replays.allGames") : Games.title(key));
     const previewTile = (key) => Games.previewTile(key, { small: true });
+    // how the board size reads: the game's own size.text (Triangles: "4 pegs per side"), else n × n
+    const sizeText = (key, n) => { const size = Games.has(key) && Games.get(key).size; return size && size.text ? size.text(n) : `${n} × ${n}`; };
     function renderFilter() {
         const box = $("replay-filter");
         box.innerHTML = "";
@@ -94,7 +96,7 @@ const ReplayList = (() => {
             const el = Util.fromTemplate("tpl-replay", 0);
             el.dataset.id = r.id;
             el.prepend(previewTile(r.game));                     // the game's small tile in front of the text
-            el.querySelector(".replay-title").textContent = `${r.title} · ${r.n} × ${r.n}` + (r.players.length > 2 ? ` · ${t("replays.players", { count: r.players.length })}` : "");
+            el.querySelector(".replay-title").textContent = `${r.title} · ${sizeText(r.game, r.n)}` + (r.players.length > 2 ? ` · ${t("replays.players", { count: r.players.length })}` : "");
             const parts = [Replays.when(r.playedAt), r.players.join(` ${t("replays.vs")} `), r.resultText, t("replays.moves", { count: r.moves })];
             if (r.botLevel) parts.push(r.botLevel.nodes ? t("replays.botLevelNodes", { level: t("level." + r.botLevel.difficulty), nodes: r.botLevel.nodes.toLocaleString(I18n.locale) }) : t("replays.botLevel", { level: t("level." + r.botLevel.difficulty) }));
             el.querySelector(".replay-sub").textContent = parts.join(" · ");

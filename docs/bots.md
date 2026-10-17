@@ -36,7 +36,7 @@ file runs in the browser (as a seat) and in Node (tests, benchmark, puzzles).
 Bots.register({
     id: "blast-chain",                 // folder name: [a-z0-9-], unique
     name: "Blast",                     // for the code, the benchmark output and the docs; players see "Bot" (#21)
-    game: "chain",                     // "chain" | "five" | "isolation" | "boxes" — one game per bot
+    game: "chain",                     // "chain" | "five" | "isolation" | "boxes" | "triangles" — one game per bot
     version: 1,                        // bump when the play or the evaluation changes (kept in benchmark.js)
     description: "One sentence for the bot modal.",
     // baseline: true,                 // only the Random bots: benchmark opponent + fallback, never offered, not benchmarked
@@ -78,12 +78,12 @@ order = display order.
 
 | Member | Meaning |
 | --- | --- |
-| `game`, `rules` | game key and the pure rules module (all its functions are fair game: chain `tally`, `readyCells`, `detonate`, `land`; five `lineThrough`, `bestRow`; isolation `steps`, `mobility`, `territory`, `encode`/`decode`; boxes `sides`, `captures`, `safeMoves`, `isFreeCapture`, `chainFrom`) |
+| `game`, `rules` | game key and the pure rules module (all its functions are fair game: chain `tally`, `readyCells`, `detonate`, `land`; five `lineThrough`, `bestRow`; isolation `steps`, `mobility`, `territory`, `encode`/`decode`; boxes `sides`, `captures`, `safeMoves`, `isFreeCapture`, `chainFrom`; triangles `geometry`, `encode`/`decode`, `bandEdges`, `sides`, `claims`, `opens`, `onTable`, `safeMoves`, `claimingMoves`, `left`) |
 | `me`, `players` | the bot's seat and the number of seats |
 | `difficulty`, `seed` | the chosen difficulty id; the seed of this instance |
 | `budget` | `{ ms, nodes }` per move — see §4 |
 | `random()`, `randInt(n)`, `pick(arr)`, `shuffle(arr)` | seeded (mulberry32) — the only randomness a bot may use |
-| `legalMoves(state, p = state.current)` | the moves of that seat (a cell id, or whatever integer the game encodes a move as: Isolation packs step + broken tile into `to * n * n + removed`) |
+| `legalMoves(state, p = state.current)` | the moves of that seat (a cell id, or whatever integer the game encodes a move as: Isolation packs step + broken tile into `to * n * n + removed`, Triangles a band into `min(a, b) * V + max(a, b)` of its two end pegs) |
 | `isLegal(state, i, p)` | pure check |
 | `clone(state)` | deep copy (JSON) |
 | `apply(state, i)` | position after `i` by the current player on a copy (`Rules.step` = place + settle + conclude; sets `over`/`winner`/`finishWhy`) |
@@ -99,7 +99,9 @@ State shape (from `Rules.base` + the game's `create`): `n, players, current, rou
 movesBy, busy, over, winner, finishWhy, cells` (chain: `[{ count, owner, cap }]`, plus
 `chainRule, chainLen, chainNow, chainBest, explosions`; five: owner per cell -1/0/1, plus
 `winLen, winLine`; boxes: owner per **line** -1/0/1, plus `boxes` (owner per box), `scores`,
-`lastBoxes`, `again`). Cell id = `y * n + x` for chain and five; in Dots and Boxes a cell is a
+`lastBoxes`, `again`; triangles: owner per **edge** -1…3, plus `tris` (owner per triangle),
+`scores`, `band`, `touch`, `tokens`, `touched`, `lastEdges`, `lastTris`, and the geometry in
+`TrianglesRules.geometry(n)`, never in the state). Cell id = `y * n + x` for chain and five; in Dots and Boxes a cell is a
 line, `state.n` is the boxes per side and `cells.length` is 2n(n+1) (numbering in
 `client/games/boxes-rules.js`), and a move that closes a box leaves the same player on turn. Five Wins ends in a draw not only on a full board
 but as soon as no window of `winLen` cells is free of enemy stones for any player still in
@@ -174,12 +176,12 @@ calmer.
 - **Puzzles** (`tests/puzzles/<game>/puzzles.json`, proven by `scripts/puzzles/<game>/solver.mjs`):
   `evaluateBot(H, id, { difficulty, budget })` → `{ solved, total, pct, chance, byTag, failures }`.
   `chance` is what blind random picking scores on that set (chain 23.2 %, five 5.7 %,
-  five-yavalath 5.5 %, isolation 20.8 %, boxes 28.9 %): small boards have few legal moves,
+  five-yavalath 5.5 %, isolation 20.8 %, boxes 28.9 %, triangles 35.3 %): small boards have few legal moves,
   so read a bot's score against it and not against 0.
   `npm run puzzles` regenerates the sets, `npm run puzzles:verify` re-proves the tactical
   ones without the solvers.
 - **Benchmark** (`npm run benchmark [id]`): 60 (chain) / 100 (five) / 100 (isolation) / 60 (boxes)
-  seeded games
+  / 60 (triangles, 4 pegs per side) seeded games
   against Random at the highest difficulty, both colours, 20 000-node budget → win rate in %; plus
   the puzzle score. Written to `client/bots/<id>/benchmark.js`, shown in the bot modal and
   the lobby's Opponent row as "47 % vs Random · 22 % puzzles". `.github/workflows/benchmark.yml`
@@ -216,9 +218,11 @@ const r = await H.Bots.playout("chain", { n: 6 }, [a, b], { maxMoves: 600 });
 | `warden-isolation` | Warden | Isolation | 1 | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | Int8Array board with the rules' own "trapped when your turn comes" handling, paranoid alpha-beta (I maximise, everybody else minimises) with iterative deepening; the generator keeps every step but only the broken tiles near an opponent plus the tile just left, capped per level; evaluation = Voronoi territory (one multi-source BFS, king steps) + mobility + tempo, which is also the exact measure once the board falls apart. 100 % vs Random, 198/200 puzzles at Very hard (Easy 68.5 %, Normal 90 %, Hard 97 %). Provides the win chance (evaluate: the same search averaged over "me to move" and "the other seat to move", which removes the tempo artefact; calibrated scale ≈ 693, swing 11.7 %). Plays 2 to 4 seats. See its README. |
 | `random-boxes` | Random | Dots and Boxes | 1 | Normal | any undrawn line; `baseline: true` (benchmark opponent, fallback; never offered) |
 | `fencer-boxes` | Fencer | Dots and Boxes | 2 | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | two engines: an **exact endgame** (alpha-beta negamax to the last line with a transposition table keyed by the bitmask of lines drawn since the root, free captures forced) that solves any two-player position with up to 30 undrawn lines, so it plays the whole second half of a 5 × 5 game perfectly including the "all but two" double-dealing sacrifices; and **chain play** for the rest (take every free box, decline the last two of a chain while control is worth more, play the safe line that commits least, and open the shortest chain when everything is loony). 100 % vs Random, 149/170 puzzles at the 20 000-node benchmark budget (162/170 at its own Very hard budget; take-box, sacrifice and double-deal all 100 %). Provides the win chance (evaluate: the exact final box difference once the endgame is solvable, ±Infinity only for proven results, otherwise the box lead against the boxes still open, and nothing else, because nothing else survived an out-of-sample test; one node cap for every HUD stage; calibrated scale 0.118 shift 0, swing 1.2 %). See its README. |
+| `random-triangles` | Random | Triangles | 1 | Normal | any legal band; `baseline: true` (benchmark opponent, fallback; never offered) |
+| `weaver-triangles` | Weaver | Triangles | 2 | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | a compact typed-array board proven equal to the rules under every config (band length 4 / 3 / any, touch on and off, tokens Off / 0 / 21, 2 to 4 seats) that keeps one band per resulting position; an **exact endgame** for two seats (alpha-beta negamax to the end with a transposition table on the covered edges, plus the scores under a token limit, on half the level's nodes, from 32 uncovered edges down) and otherwise **alpha-beta** with iterative deepening, negamax over me and everybody else (minimax with two seats, paranoid with three or four), claims first, then safe bands, never handing a triangle over at the root while a safe band exists, leaves = the lead after the mover's best claim. 100 % vs Random, 156/160 puzzles at the benchmark budget (Easy 87 %, Normal 93 %, Hard 99 %, Very hard 100 % at their own budgets). Provides the win chance (evaluate, version 2: ±Infinity when the scores, a null-window endgame proof under its own 20 000-node cap or a token win with the next band decide it, otherwise the lead smoothed along the next two bands its own alpha-beta predicts on 300 nodes each, `(lead now + 2 × after the band + after the reply) / 4 / (triangles left + 1)`, measured against the plain lead, half the biggest claim and a claim-only quiescence on 26 seeded series, see its README; calibrated on the default, bands anywhere: scale 0.025 shift 0, Brier 0.165, swing 3.8 %). Very hard ≈ 0.15 to 0.25 s per move on a desktop (worst about 1 s on 7 pegs), yielding to the page inside the search tree, never more than about 4 400 nodes apart (2 400 with three or four seats). See its README. |
 
 Each bot folder's README describes its search and evaluation; `benchmark.js` carries the
-scores shown in the bot modal. Players see Creeper, Sensei, Warden and Fencer as "Bot". The
+scores shown in the bot modal. Players see Creeper, Sensei, Warden, Fencer and Weaver as "Bot". The
 `v` column is the definition's `version`: bump it whenever the play or the evaluation
 changes, because cached replay analyses are stamped with it (#43) and the Learn ladder's
 "play from here" positions are picked by win chance, so `npm run learn:scenarios` has to run
@@ -249,20 +253,20 @@ rules' fallback estimate drives the rest).
 ## 11. Designing an evaluator (what the win-chance work taught us)
 
 The HUD's win chance is the most visible thing a bot does besides playing, and it is easy
-to make it look nervous. All four evaluators went through this cycle, each failing its own
+to make it look nervous. All five evaluators went through this cycle, each failing its own
 way; the numbers are from seeded self-play at the 12 000-node stage and the same story is
 told for the project as a whole under "Lessons learned" in `.claude/rules/bots.md`.
 
-| | Creeper (Chain React) | Sensei (Five Wins) | Warden (Isolation) | Fencer (Dots and Boxes) |
-| --- | --- | --- | --- | --- |
-| first version | 600-node ~3-ply search, steep logistic | static patterns + a ±1000 penalty for facing an open three | depth-2 Voronoi search whose root maximised for whoever was to move | exact endgame on the caller's node budget, plus a safe-line parity term worth up to 4 boxes |
-| symptom | 80 → 10 → 80 flips every turn (side-to-move bias ±0.039) | mean move-to-move change 0.166, 243 jumps > 0.25 in 10 games | 85 → 53 → 90 → 53 every turn; swing 32 %, shift 464 | 43 ↔ 72 on quiet moves, then 0 → 47 → 68 → 100 → 0 as the proof came and went; 45 of 253 undecided steps flipped > 15 points |
-| what fixed it | even depths only, completed depths only, mean of the last three completed depths, 10-ply quiescence over explosive captures, proven results → ±∞ | depth-2 search where forced fours cost no depth, open-three extension through the restricted defence set instead of a penalty, VCF/VCT on long budgets, dead-board draw terminal | a root that minimises when the other seat moves (a real bug), then averaging the search of the position with the search of the same position with the other seat to move, and a narrower generator to buy depth | one node cap of its own for every HUD stage, a null-window proof (sign only, 91 % → 95 % of 5 × 5 endgames proven at 30 000 nodes), and deleting the parity term: nothing beat the plain box lead out of sample |
-| result | bias ±0.008, swing 0.05 (undecided 0.04) | swing 0.031, bias ±0.006 | swing 0.117, shift 271 | undecided swing 0.18 % (was 4.9), 0 of 234 undecided steps over 15 points (was 45 of 253), mover bias 0.0000 (was −0.009), 0 stage disagreements (was 12 of 120) |
-| own scale guess | 10 | 300 | — | — |
-| calibrated scale | 31.3 (shift −5.5) | 1166 (shift −62) | 693 (shift +271) | 0.118 (shift 0, pinned by fitting the mirrored samples too) |
-| Brier | 0.21 | 0.006 | 0.206 | 0.177 |
-| ms per call (2k / 12k / 60k nodes) | 2 / 15 / 59 (6×6) | 0.6 / 45 / 177 (9×9), 0.9 / 84 / 353 (15×15) | 3 / 12 / 55 (7×7) | 1.7 at every stage (5×5), worst call 21 |
+| | Creeper (Chain React) | Sensei (Five Wins) | Warden (Isolation) | Fencer (Dots and Boxes) | Weaver (Triangles) |
+| --- | --- | --- | --- | --- | --- |
+| first version | 600-node ~3-ply search, steep logistic | static patterns + a ±1000 penalty for facing an open three | depth-2 Voronoi search whose root maximised for whoever was to move | exact endgame on the caller's node budget, plus a safe-line parity term worth up to 4 boxes | the lead plus half the mover's biggest claim on the table, an exact endgame proof |
+| symptom | 80 → 10 → 80 flips every turn (side-to-move bias ±0.039) | mean move-to-move change 0.166, 243 jumps > 0.25 in 10 games | 85 → 53 → 90 → 53 every turn; swing 32 %, shift 464 | 43 ↔ 72 on quiet moves, then 0 → 47 → 68 → 100 → 0 as the proof came and went; 45 of 253 undecided steps flipped > 15 points | 50, 81, 19, 68, 32, 92, 17 % at 3 : 3 in the trade phase: the biggest claim is often not the band people play; undecided step 7.5 %, 128 of 615 steps over 15 points, mover bias 0.060 |
+| what fixed it | even depths only, completed depths only, mean of the last three completed depths, 10-ply quiescence over explosive captures, proven results → ±∞ | depth-2 search where forced fours cost no depth, open-three extension through the restricted defence set instead of a penalty, VCF/VCT on long budgets, dead-board draw terminal | a root that minimises when the other seat moves (a real bug), then averaging the search of the position with the search of the same position with the other seat to move, and a narrower generator to buy depth | one node cap of its own for every HUD stage, a null-window proof (sign only, 91 % → 95 % of 5 × 5 endgames proven at 30 000 nodes), and deleting the parity term: nothing beat the plain box lead out of sample | predicting the next two bands with its own alpha-beta (300 nodes each, a cap of its own) and scoring the 1 : 2 : 1 average of the lead now, after the band and after the reply; null-window probes asked from the mover's side, so a position and its seat swap are proven together |
+| result | bias ±0.008, swing 0.05 (undecided 0.04) | swing 0.031, bias ±0.006 | swing 0.117, shift 271 | undecided swing 0.18 % (was 4.9), 0 of 234 undecided steps over 15 points (was 45 of 253), mover bias 0.0000 (was −0.009), 0 stage disagreements (was 12 of 120) | undecided step 3.8 %, 29 of 610 steps over 15 points, mover bias 0.003, the lowest out-of-sample Brier over 26 seeded series |
+| own scale guess | 10 | 300 | — | — | — |
+| calibrated scale | 31.3 (shift −5.5) | 1166 (shift −62) | 693 (shift +271) | 0.118 (shift 0, pinned by fitting the mirrored samples too) | 0.025 (shift 0, symmetric fit) |
+| Brier | 0.21 | 0.006 | 0.206 | 0.177 | 0.165 |
+| ms per call (2k / 12k / 60k nodes) | 2 / 15 / 59 (6×6) | 0.6 / 45 / 177 (9×9), 0.9 / 84 / 353 (15×15) | 3 / 12 / 55 (7×7) | 1.7 at every stage (5×5), worst call 21 | 1.5 to 5 at every stage (4 to 7 pegs), worst call 43 |
 
 Rules of thumb:
 1. Return a consistent raw score and let `scripts/calibrate.mjs` fit the curve; your own
@@ -293,4 +297,13 @@ Rules of thumb:
    played against Random, always on seat 1), and the fit happily leans a couple of points
    toward that seat. `symmetric: true` on the series fits the samples together with their
    mirrors and pins the shift at 0.
-
+9. **Predict the band, not the biggest claim (Weaver).** In Triangles the safe bands run out
+   after a handful of moves and the game becomes a trade, each band claiming what the last one
+   handed over, so the plain lead zigzags. Half of the mover's biggest claim (version 1) fixed
+   the one-triangle trade but overshot whenever the biggest claim was not the band people play,
+   and the bar still jumped 30 points a move. Hindsight named the target (half of the band
+   actually played next: mover bias 0.005), and a 300-node prediction of the next two bands,
+   averaged 1 : 2 : 1 with the lead now, got close: undecided step 7.5 % → 3.8 %, flips over 15
+   points 128 → 29 of about 610, bias 0.060 → 0.003, and the lowest out-of-sample Brier over 26
+   seeded series. Keep the term the out-of-sample fit keeps, and check a mover term against
+   what the mover really gains.

@@ -66,7 +66,7 @@ test("HUD: player stat rows and the game box come from the view's model (chain h
 test("settings rows are generated from the game definitions and read into the config", () => {
     const w = loadDom(); const d = w.document; const S = w.eval("Settings");
     S.init({});
-    assert.equal(JSON.stringify(S.fields), JSON.stringify(["speed", "chainLen", "winLen", "yavalath"]), "every field of every game, in registration order");
+    assert.equal(JSON.stringify(S.fields), JSON.stringify(["speed", "chainLen", "winLen", "yavalath", "band", "touch", "tokens"]), "every field of every game, in registration order");
     for (const id of ["row-speed", "row-chainlen", "row-chainlen-custom", "row-winlen", "set-speed", "set-chainlen", "set-chainlen-custom", "set-winlen"]) assert.ok(d.getElementById(id), id);
     // every control is a dropdown (2026-09-11), and a preset carries its own Custom row
     for (const id of ["set-speed", "set-chainlen", "set-winlen", "set-yavalath", "set-size", "set-timer"]) assert.equal(d.getElementById(id).tagName, "SELECT", id);
@@ -96,6 +96,31 @@ test("settings rows are generated from the game definitions and read into the co
     assert.equal(d.getElementById("set-chainlen").value, "off", "their chain rule is off");
     assert.equal(S.read().winLen, 6);
     assert.equal(S.summary({ game: "chain", n: 5, players: 2, timer: 0, chainRule: true, chainLen: 20 }), "5 × 5 · no timer · 20-chain wins");
+    // a game may say how one board size reads (size.text); the others keep n × n
+    assert.equal(S.summary({ game: "triangles", n: 5, players: 2, timer: 0, band: 3, touch: true, tokens: 21 }), "5 pegs per side · 21 tokens · no timer · bands touch");
+    assert.equal(S.summary({ game: "triangles", n: 5, players: 2, timer: 0, band: 3, touch: false, tokens: 21 }), "5 pegs per side · 21 tokens · no timer", "bands anywhere is the default");
+    w.close();
+});
+
+test("settings: a bool row keeps its default (and what is picked) when a saved config lacks the key", () => {
+    const w = loadDom(); const d = w.document; const S = w.eval("Settings"); const Games = w.eval("Games");
+    // a game with a bool row that is on by default, registered before the rows are built
+    Games.register({ key: "duo", title: "Duo", tagline: "t", desc: "d", preview: ".........", size: { min: 3, max: 9, default: 5 },
+        settings: [{ key: "always", label: "always", type: "bool", def: true }], rules: w.eval("FiveRules"), view: w.eval("FiveView") });
+    S.init({});
+    assert.equal(d.getElementById("set-always").value, "on", "the default");
+    S.write({ game: "five", winLen: 5 });                                  // a returning player's settings predate the row
+    assert.equal(d.getElementById("set-always").value, "on", "a missing key keeps the default");
+    assert.equal(S.read().always, true);
+    S.write({ game: "five", always: false });
+    assert.equal(d.getElementById("set-always").value, "off", "a key that is there still sets the row");
+    S.write({ game: "five", always: true });
+    assert.equal(d.getElementById("set-always").value, "on");
+    // and a row switched on by hand is not switched off by a config without it
+    d.getElementById("set-yavalath").value = "on";
+    S.write({ game: "five", winLen: 6 });
+    assert.equal(d.getElementById("set-yavalath").value, "on");
+    assert.equal(S.read().yavalath, true);
     w.close();
 });
 

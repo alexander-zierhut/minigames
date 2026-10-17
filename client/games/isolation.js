@@ -124,7 +124,14 @@ const IsolationView = (() => {
         if (cells[gone]) cells[gone].classList.remove("dropping");
     }
 
-    return { build, renderCell, hud, summary, animateMove, get pending() { return pending; } };
+    // the tiles a player clicks, in order, to play `move` (the generic view hook the e2e
+    // harness and the Learn suite use): the tile to step onto, then the one to break
+    function clicks(state, move) {
+        const { to, removed } = IsolationRules.decode(state, move);
+        return [cells[to], cells[removed]];
+    }
+
+    return { build, renderCell, hud, summary, animateMove, clicks, get pending() { return pending; } };
 })();
 
 const IsolationGame = Games.register({
