@@ -162,6 +162,8 @@ export async function launchBrowser({ width = 1400, height = 900, mobile = false
                 info = await B.ev(`JSON.stringify({ screen: document.querySelector('.screen:not([hidden])')?.id, net: typeof Net === 'undefined' ? null : { status: Net.status, role: Net.role, code: Net.code, connected: Net.connected }, lobby: document.getElementById('lobby-status')?.textContent, banner: document.getElementById('net-banner')?.hidden === false ? document.getElementById('net-banner-text').textContent : null, log: [...document.querySelectorAll('#log div')].map(d => d.textContent).slice(0, 3) })`);
                 await B.screenshot(`timeout-${Date.now()}.png`);
             } catch (e) { /* page gone */ }
+            // the page's own errors (exceptions, console.error) tell a timeout from a crash
+            if (errors.length) info += `\n  errors: ${JSON.stringify(errors.slice(-5))}`;
             return info;
         },
         // ---- game helpers ----
