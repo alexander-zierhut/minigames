@@ -6,6 +6,11 @@
       "entries": [
         {
           "type": "fix",
+          "technical": true,
+          "text": "A game that just ended always shows up in the replays list, also on a slow device where the list used to be read before the game was stored."
+        },
+        {
+          "type": "fix",
           "text": "Triangles and Isolation: you can set a premove while the bot or a friend is thinking, like in the other games: pick the whole move with two clicks and it is played the moment your turn comes."
         },
         {

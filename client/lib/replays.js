@@ -320,9 +320,20 @@ const Replays = (() => {
             return backendP;
         }
         // one failed operation is enough: the rest of the visit uses memory instead of throwing
-        async function safe(fn, fallback) {
+        async function attempt(fn, fallback) {
             try { return await fn(await backend()); }
             catch (e) { backendP = Promise.resolve(memory); try { return await fn(memory); } catch (e2) { return fallback; } }
+        }
+        /* Every operation waits for the one asked before it, so what a caller asks for in
+           order happens in order: a save is a read and then a write in two transactions,
+           and a list asked right after it (the replays screen after a game on a slow device,
+           where opening the database took a while) used to slip in between and miss the
+           game. The queue never breaks: a failed operation only returns its fallback. */
+        let queue = Promise.resolve();
+        function safe(fn, fallback) {
+            const turn = queue.then(() => attempt(fn, fallback));
+            queue = turn.catch(() => {});
+            return turn;
         }
 
         const persistent = () => safe(async (b) => b.persistent, false);

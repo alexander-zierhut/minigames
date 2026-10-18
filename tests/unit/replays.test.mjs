@@ -164,6 +164,23 @@ test("file name, date and summary read like the list shows them", () => {
     w.close();
 });
 
+test("the store runs its operations in call order: a list asked right after a save sees the game", async () => {
+    const w = loadDom();
+    const R = w.eval("Replays");
+    const five = JSON.parse(read("v1-five.json"));
+    await R.store.clear();
+    // the list is asked while the save is still under way (what the replays screen does
+    // right after a game ends on a slow device): it has to come back with the game in it
+    const saving = R.store.save(five);
+    const list = await R.store.list();
+    await saving;
+    assert.equal(list.length, 1, "the save that was asked first lands first");
+    const removing = R.store.remove(R.idFor(five));
+    assert.equal((await R.store.list()).length, 0, "and so does a removal");
+    await removing;
+    w.close();
+});
+
 test("the store keeps replays: newest first, per game, one entry per game played", async () => {
     const w = loadDom();
     const R = w.eval("Replays");

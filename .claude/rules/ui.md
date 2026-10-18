@@ -539,7 +539,10 @@ version has no sample or no migration; the `bad-*.json` files there must stay re
 `replays`, keyed by id, indexes `game` and `playedAt`, the oldest dropped past 200):
 `save(doc)`, `list({ game })` (newest first, summaries), `get(id)`, `remove(id)`, `clear()`,
 `persistent()` — all async and fail-safe: without IndexedDB (private mode, jsdom) it falls
-back to memory for the visit and `persistent()` says false. The same database has a
+back to memory for the visit and `persistent()` says false. **Operations run in call order**
+(one queue inside `safe`): a `list` asked right after a `save` sees the saved game, even
+when the save is still waiting for the database to open (a save is a read and a write in
+two transactions, and on a slow device the replays screen used to read between them). The same database has a
 **second object store `analysis`** (#43, `store.analysis.get/put/remove/clear`) keyed by
 the same `idFor(doc)`; it is derived data, so it never enters the replay document and goes
 away with the replay it belongs to. Adding another store means bumping `DB_VERSION` and

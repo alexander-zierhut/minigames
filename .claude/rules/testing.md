@@ -226,3 +226,12 @@ end, one on a 6-peg phone board) until a CI run measures it.
   IndexedDB before they act, so an assertion on the next line runs before the click's
   handler has finished. **Wait for the outcome with `waitFor`** after any click whose
   handler awaits IndexedDB (fixed in commit 2af2eed).
+
+- **A test that passes locally and fails on every CI run is a timing bug in the code, not
+  in the test.** `i18n` en/phone timed out on "the replay in the list" twice in a row on
+  CI after the premove change (which did not touch replays), never locally, not even pinned
+  to one busy core. The page reported no error (the harness's timeout message now lists
+  the page's own errors), so the store was read: `save` was a read and a write in two
+  transactions, `list` a read, and on the runner the fresh database took long enough to
+  open that the screen's `list` slipped between the two. One queue in the store (`safe`)
+  fixed it, with a unit test that reproduces the race in memory.
