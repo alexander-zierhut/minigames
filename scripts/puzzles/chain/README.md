@@ -14,8 +14,8 @@ Files:
   `puzzles.json` deterministically (seeded playouts + hand-crafted positions, fixed node
   budgets, no wall-clock decisions). ~30 s on a laptop. The `generated` date is kept when
   the puzzles did not change, so a re-run never creates a diff.
-- `puzzles.json` — the set (159 puzzles: 3×3, 4×4, 5×5, 6×6; both colours to move).
-- `solver.test.mjs` — `node --test tests/puzzles/chain/solver.test.mjs` (< 2 s).
+- `../../../tests/puzzles/chain/puzzles.json` — the set (159 puzzles: 3×3, 4×4, 5×5, 6×6; both colours to move).
+- `../../../tests/puzzles/chain/solver.test.mjs` — `node --test tests/puzzles/chain/solver.test.mjs` (< 2 s).
 
 ## What the solver guarantees
 
@@ -82,7 +82,8 @@ player to move; `best` lists every perfect move; `depth` is in plies (see above)
 Only positions where at most half of the legal moves are perfect are kept (a puzzle where
 everything is right grades nothing). Positions equal under one of the 8 board symmetries
 are kept once. Per board size, tag and colour to move there is a quota so the set stays
-mixed.
+mixed. The hand-crafted positions are exempt from the half rule and from the quota (a
+position where every legal move is perfect is still dropped).
 
 ## Limits
 

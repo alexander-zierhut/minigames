@@ -4,8 +4,11 @@
    `.pending` tile and every removable tile lights up), the second one picks the tile to
    remove and submits the encoded move `to * cells + removed`. Clicking the pending tile
    again takes the choice back; anything else does nothing. The first click is only
-   accepted on a tile the engine marked `can-place`, so a preview, a friend's turn and a
-   spectator are handled by the framework, not here. */
+   accepted on a tile the engine marked `can-place` (this device moves now) or
+   `can-premove` (#37: somebody else is to move and the table takes a premove), so a
+   preview, a spectator and local play are handled by the framework, not here. The seat
+   the move is composed for comes from the engine (`ctx.seat()`), and a premove goes
+   through the very same onClick: Match stores it while it is not my turn. */
 
 "use strict";
 
@@ -17,22 +20,29 @@ const IsolationView = (() => {
 
     let cells = [];                       // the tile elements of the running game
     let pending = -1;                     // the tile picked by the first click (-1 = none)
-    let pendingAt = -1;                   // history length when it was picked (a friend's move drops it)
     let pendingFor = -1;                  // the seat it was picked for
-    let base = [];                        // what the engine last painted per cell: 0 plain, 1 can-place, 2 locked
+    let base = [];                        // what the engine last painted per cell: 0 plain, 1 can-place, 2 locked, 3 can-premove
+    let seatOf = () => -1;                // the seat this device composes a move for now (the engine's ctx.seat)
+    const MODE = ["", "can-place", "locked", "can-premove"];
 
-    // is the choice still about the position on the screen?
+    /* is the choice still about the position on the screen? Dropped at the end, when the
+       seat this device composes for changed (the next seat on one device) and when the
+       tile is no step any more (a friend's or the bot's move took it); a premove picked
+       while the bot thinks survives the bot's move and becomes my move */
     function keepPending(state) {
-        if (pending >= 0 && (state.history.length !== pendingAt || state.current !== pendingFor || state.over)) pending = -1;
+        if (pending >= 0 && (state.over || seatOf(state) !== pendingFor || !IsolationRules.canPlay(state, pending, pendingFor))) pending = -1;
         return pending;
     }
     // may this tile be removed once the pawn stepped onto `pending`?
     const removable = (state, i) => i !== pending
-        && (state.cells[i] === IsolationRules.FREE || i === state.pawns[state.current]);
+        && (state.cells[i] === IsolationRules.FREE || i === state.pawns[pendingFor]);
+    // the class the second step lights the breakable tiles with: what the engine used for the first
+    const stepClass = (state) => (state.current === pendingFor ? "can-place" : "can-premove");
 
-    function build(board, state, config, onClick) {
+    function build(board, state, config, onClick, ctx) {
         base = [];
-        pending = -1; pendingAt = -1; pendingFor = -1;
+        pending = -1; pendingFor = -1;
+        seatOf = (s) => (ctx ? ctx.seat() : s.current);
         cells = BoardView.cells(board, state.cells.length, (i) => click(state, i, onClick), (slab) => {
             slab.className = "slab";
             const pawn = document.createElement("i");
@@ -45,9 +55,11 @@ const IsolationView = (() => {
     function click(state, i, onClick) {
         keepPending(state);
         if (pending < 0) {
-            // step 1: only where the framework says this device may play (can-place)
-            if (!cells[i] || !cells[i].classList.contains("can-place")) return;
-            pending = i; pendingAt = state.history.length; pendingFor = state.current;
+            // step 1: only where the framework says this device may play or premove
+            if (!cells[i] || !(cells[i].classList.contains("can-place") || cells[i].classList.contains("can-premove"))) return;
+            const seat = seatOf(state);
+            if (seat < 0) return;
+            pending = i; pendingFor = seat;
             paint(state);
             return;
         }
@@ -61,15 +73,20 @@ const IsolationView = (() => {
 
     // step 2 is on: the picked tile plus every tile that may still be broken
     function overlay(el, state, i) {
+        const on = removable(state, i), cls = stepClass(state);
         el.classList.toggle("pending", i === pending);
-        el.classList.toggle("can-place", removable(state, i));
-        el.classList.toggle("locked", !removable(state, i) && i !== pending);
+        // the step being put together in the colour of the seat it is for, not the seat to
+        // move (#37: a premove); the pending tile is free, so it has no seat class of its own
+        if (i === pending) el.classList.add("p" + pendingFor);
+        el.classList.remove("can-place", "can-premove");
+        if (on) el.classList.add(cls);
+        el.classList.toggle("locked", !on && i !== pending);
     }
     // step 2 is off again: back to what the engine painted (the steps of the pawn)
     function restore(el, i) {
+        if (el.classList.contains("pending") && !el.classList.contains("taken")) el.classList.remove("p0", "p1", "p2", "p3");
         el.classList.remove("pending");
-        el.classList.toggle("can-place", base[i] === 1);
-        el.classList.toggle("locked", base[i] === 2);
+        for (let k = 1; k < MODE.length; k++) el.classList.toggle(MODE[k], base[i] === k);
     }
     // after a click changed the choice; the engine is not involved, nothing of the game moved
     function paint(state) {
@@ -80,8 +97,8 @@ const IsolationView = (() => {
     function renderCell(el, state, i) {
         el.classList.toggle("hole", state.cells[i] === IsolationRules.HOLE);
         el.classList.remove("dropping", "stepping");
-        base[i] = el.classList.contains("can-place") ? 1 : el.classList.contains("locked") ? 2 : 0;
-        if (keepPending(state) >= 0) overlay(el, state, i); else el.classList.remove("pending");
+        base[i] = el.classList.contains("can-place") ? 1 : el.classList.contains("locked") ? 2 : el.classList.contains("can-premove") ? 3 : 0;
+        if (keepPending(state) >= 0) overlay(el, state, i); else restore(el, i);
     }
 
     function hud(state) {
@@ -142,7 +159,6 @@ const IsolationGame = Games.register({
     preview: "0.#.#.#.1",                  // two pawns, three tiles already broken (# = hole)
     size: { min: 5, max: 12, default: 7, presets: [5, 7, 9, 11] },
     players: { min: 2, max: 4 },
-    premove: false,                       // a move is two clicks: a premove would need both of them
     settings: [],
     /* Learn (#41). A tutorial step's `expect` holds whole moves, and an Isolation move is the
        encoded pair `to * cells + removed` — so the gate only fires on the second click, and

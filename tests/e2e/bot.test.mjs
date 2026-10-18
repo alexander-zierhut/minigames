@@ -118,16 +118,16 @@ test("premove (#37): a cell clicked while the bot thinks is marked and played ri
     await B.cell(0);                                           // my move, then the bot thinks
     const set = await premoveWhileBotThinks([35]);
     assert.equal(set.pre, 35, "the click is remembered");
-    assert.match(set.cls, /\bpremove\b/, "the cell is marked");
+    assert.match(set.cls, /(^|\s)premove(\s|$)/, "the cell is marked");
     assert.match(set.hint, /^thinking… · premove set$/);
     assert.equal(set.moves, 1, "nothing played yet");
     await B.waitFor("FiveGame.state.history.length === 3 && Match.premove === -1", { timeout: 20000, what: "the bot moved and my premove followed" });
     assert.equal((await B.state()).history[2], 35, "my premoved cell");
-    assert.equal((await B.ev("document.querySelectorAll('#board > .stone')[35].className")).includes("premove"), false);
+    assert.equal((await B.ev("document.querySelectorAll('#board > .stone')[35].className")).split(" ").includes("premove"), false);
     // the same cell twice takes the premove back: only the bot's move follows
     const back = await premoveWhileBotThinks([34, 34]);
     assert.equal(back.pre, -1, "taken back");
-    assert.equal(back.cls.includes("premove"), false);
+    assert.equal(back.cls.split(" ").includes("premove"), false);
     assert.doesNotMatch(back.hint, /premove/);
     await B.waitFor("FiveGame.state.history.length === 4", { timeout: 20000, what: "the bot moved" });
     await B.idle();

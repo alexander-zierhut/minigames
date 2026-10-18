@@ -392,7 +392,7 @@ const click = (w, el) => el.dispatchEvent(new w.Event("click"));
 const OPENING = [573, 702, 129, 345];
 const CLAIM = 438;                                       // claims triangle 20
 
-test("registry: 3 to 7 pegs per side, default 4, its own size text, no premoves, three dropdown rows", () => {
+test("registry: 3 to 7 pegs per side, default 4, its own size text, premoves on, three dropdown rows", () => {
     const { w } = fresh();
     const def = w.eval("Games.get('triangles')");
     assert.equal(def.size.min, 3); assert.equal(def.size.max, 7); assert.equal(def.size.default, 4);
@@ -400,7 +400,7 @@ test("registry: 3 to 7 pegs per side, default 4, its own size text, no premoves,
     assert.equal(def.size.text(5), "5 pegs per side");
     assert.equal(def.minSize({ band: 3 }), 4, "a 4-peg band never reaches the rim of n = 3");
     assert.equal(def.minSize({ band: 2 }), 3); assert.equal(def.minSize({ band: 0 }), 3);
-    assert.equal(def.premove, false, "a move is two clicks");
+    assert.equal(def.premove, true, "a two-click band is premoved like any other move (#37)");
     assert.equal(w.eval("Games").title("triangles"), "Triangles");
     assert.equal(J(def.settings.map((s) => [s.key, s.type, s.def])), '[["band","select",3],["touch","bool",false],["tokens","preset",21]]');
     assert.equal(def.settings[2].flag, undefined, "the token limit is one key: null when Off");

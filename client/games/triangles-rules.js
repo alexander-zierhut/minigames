@@ -115,6 +115,8 @@ const TrianglesRules = (() => {
         return band && allowed(state, band.len) ? band : null;
     }
     const bandEdges = (state, move) => { const b = decode(state, move); return b ? b.edges.slice() : []; };
+    // every cell of a move (the premove marker, #37): the band's edges
+    const cellsOf = bandEdges;
     // the middle edge of the band: the last-move and best-move marker
     const cellOf = (state, move) => { const b = decode(state, move); return b ? b.edges[(b.len - 1) >> 1] : -1; };
 
@@ -265,7 +267,7 @@ const TrianglesRules = (() => {
 
     return {
         create, ownerOf, isLegal, legalMoves, place, settle, conclude, estimate,
-        cellOf, canPlay, geometry, encode, decode, bandEdges,
+        cellOf, cellsOf, canPlay, geometry, encode, decode, bandEdges,
         sides, claims, opens, onTable, safeMoves, claimingMoves, left, MAX_LEN,
     };
 })();

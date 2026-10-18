@@ -179,22 +179,23 @@ One room, one link, the whole evening.
 - **Replays** (`#screen-replays`, `ReplayList`, #42): the list of the games this device
   played (`Replays.store`, newest first), a **tool, not a small card**: 860 px wide on
   desktop, the head row holds the title and `#btn-replay-upload` "Open a replay file" (the
-  hidden `#replay-file` input, `accept` `.replay,.json`: parse → migrate → validate → save
+  hidden `#replay-file` input, `accept` `.replay,.json,application/json`: parse → migrate → validate → save
   → watch). **Filters** in `.replay-tools`: the game **dropdown** (`#replay-filter`, #43:
   `.dropdown` = a `.dd-button` showing the picked game's small preview tile and title, and
   a `.dd-menu` of `.dd-option[data-filter]` rows, "All games" first; a click next to it or
   Escape closes it; only this screen uses `.dropdown`, because a `<select>` cannot show the
   tiles), the segmented `#replay-kind` (All / Bot / No bot; a game counts as a bot game when
   `Replays.summary(doc).bot` says so: `meta.mode === "bot"` or a room whose `config.bot`
-  seats one), the name search `#replay-search` and the date range `#replay-from` /
+  seats one, or a `meta.bot` (version 2)), the name search `#replay-search` and the date range `#replay-from` /
   `#replay-to` (`type="date"`, inclusive, local calendar days through `Replays.dayOf`). All
   of it is `Replays.filter(items, { game, kind, search, from, to })` over `store.list({})`;
   `#replay-count` says "12 replays" or "3 of 12 replays". The rows come in **pages** of
   `ReplayList.PAGE` = 10 (`#replay-pager` with `#replay-page-prev` "‹ Newer",
   `#replay-page` "Page 1 of 2", `#replay-page-next` "Older ›", hidden with one page; every
   filter change goes back to page 1). One `.replay-item` per row from `#tpl-replay` (the
-  small preview tile, the title "Five Wins · 5 × 5", the sub line "date · names · result ·
-  moves") with **Watch** / a download icon (`ReplayList.download`) / a trash icon.
+  small preview tile, the title "Five Wins · 5 × 5" in the game's `size.text`, plus "· 3 players" with more than
+  two, the sub line "date · names · result · moves" plus "Bot Normal, 10 000 nodes" when the
+  file names its bot) with **Watch** / a download icon (`ReplayList.download`) / a trash icon.
   `.replay-body` keeps a minimum height and `#replays-hint` is the centred **empty state**
   ("No replays yet…" or "No replay matches…"); `#replays-note` warns when the browser has
   no IndexedDB. **Nothing scrolls inside the card**: the screen scrolls, the pagination
@@ -449,7 +450,7 @@ DOM as `textContent`. On the **first visit** one of the ~40 short names in
 once; clearing the field falls back to that drawn name. `Prefs.seatNames(count)` = the
 seats when everybody plays on one device: me first, then the first default names that are
 not mine (pure and deterministic). The title screen's `#menu-name` is a second field for the
-same preference (`Prefs.fill` writes both, sized to the width budget of a name). app.js
+same preference (prefs.js's internal `fill` writes both, sized to the width budget of a name). app.js
 compares `p.name` in `onChange` and only then calls `Room.nameChanged()` and re-renders.
 Nothing else here is sent to the room, and none of it is part of `Settings.read()`.
 
@@ -514,9 +515,11 @@ flags), never another game's fields. `meta.bot` (version 2) names the bot that p
 level and its node budget, so the list line can say "Bot Normal, 10 000 nodes" even when
 the budgets change later; a file without it is an older one or a game without a bot.
 
-`Replays.fromRecord(record, names, mode, { finished, playedAt })` builds one,
+`Replays.fromRecord(record, names, mode, { finished, bot, playedAt, appVersion })` builds one
+(`bot` becomes `meta.bot`),
 `Replays.parse(text)` reads a file (JSON → `migrate` → `validate` → `{ ok, doc }` or
-`{ ok: false, error }`, the error being the sentence the player is shown).
+`{ ok: false, error }`, the error being a key (`replays.err.*`) that the screen renders with
+`I18n.t`).
 `migrate(doc)` walks `MIGRATIONS[v]` up to the current `VERSION` (a file of a newer version
 is refused, never guessed at); `validate(doc)` checks the shape, that the game is registered
 and that every move replays with the game's own rules — it deliberately does **not** compare
@@ -582,8 +585,8 @@ score    = 100 × (0.6 × accuracy + 0.4 × max(0, 1 − average loss / 50))
 ```
 
 The run yields to the page between plies (`breathe`), reports progress, stops when the panel
-is closed (`cancelled`) and gives up after `Analysis.MAX_MS` / `MAX_PLIES` with
-`partial: true`. A partial result is **never cached**. Finished results go into the
+is closed (`cancelled`) and gives up after 60 s (`MAX_MS`, internal; `opts.maxMs` overrides it) or
+`Analysis.MAX_PLIES` (300) plies with `partial: true`. A partial result is **never cached**. Finished results go into the
 `analysis` store under the replay's id, stamped with `{ bot, version, nodes, botNodes }`:
 `Analysis.load(id, stamp)` returns nothing when any of them changed, so a new bot version or
 a new budget re-analyses instead of showing old numbers.
@@ -597,7 +600,8 @@ asks `Analysis.at(ply)` for the cell to mark and hands it to `Match.mark(i)`, wh
 best move, then Learn's highlight; a game whose moves are not plain cell ids is asked with
 `engine.cellOf`), `Review.hide` tears it down. The panel shows, for the move that led to the
 shown position: the verdict (`Perfect move` / `Best was 12 (4 % lost)` / `Mistake: …` /
-`Blunder: …`, colour-coded), the win chance before and after it, the **win-chance line
+`Blunder: …`, colour-coded; `Not analysed` when the bot gave no move and a plain `Best was 12`
+without a win chance, as with 3 to 4 players), the win chance before and after it, the **win-chance line
 graph** (inline SVG, one line per seat, a marker at the shown ply, a click jumps to that
 move; two players only, and only while the `winGraph` preference is on) and one row per
 seat with the score, `perfect / total`, blunders and mistakes. `#btn-analyse` starts a run
@@ -609,7 +613,7 @@ collapsed (the head row only) and `#an-toggle` opens the body; desktop always sh
 "Against a bot"; until #52 it opened an online room, which greeted the player with "Waiting
 for your friend…" and left them in a room lobby): the human takes the seat that is to move
 at the shown position and the bot the other one through `config.bot = { id, difficulty,
-seat }`, which `Match.makeSeats` honours offline too. `Match.gameNo` is set so that
+seat }`, which Match's internal `makeSeats` honours offline too. `Match.gameNo` is set so that
 `startPlayerFor` gives the recorded game's starter, and the moves up to `ply` travel as the
 **start prefix**: `startGame(cfg, gameNo, prefix)` replays `{ history, outs }` into the fresh
 game right after `Match.start` (a room's `start {config, g, prefix}` carries a prefix the
@@ -624,14 +628,15 @@ plays a fresh game against the same bot on the same seats.
 (`Match.seats.map(s => s.kind)`) and is the only thing the module knows about the game.
 - **Mapping** (`Sound.map(event, data, kinds)`, pure): `game:move` → `place`;
   `chain:prime` → `prime` (the fuse, stopped after `ms`); `chain:explode` → `explode`
-  (gain and pitch grow a little with the chain length); `boxes:capture` and
+  (the gain grows a little with the chain length and the pitch drops a little; the number
+  of cells raises it slightly); `boxes:capture` and
   `triangles:claim` → a second, brighter `place`; `game:finish` → `win` / `lose` from the
   local human's perspective
   (`Sound.me(kinds)`: exactly one local seat among non-local ones — online or against a
   bot; otherwise −1 → neutral `over`, also for a draw); `game:turn` → `turn` only when the
   seat is local and someone else just moved; `reaction` → `reaction` (theirs a bit lower);
   `chat` → `chat` for other people's lines only.
-- **Gate**: `Prefs.volume` (0 = silent; gain = `(volume/100)^1.6`) and the category of the
+- **Gate**: `Prefs.get().volume` (0 = silent; gain = `(volume/100)^1.6`) and the category of the
   cue (`Sound.CATEGORY`: place → moves, prime/explode → explosions, win/lose/over →
   results, turn → turn, reaction → reactions, chat → chat). What passes lands in
   `Sound.log` (last 30 `{ name, set, at }`, the e2e hook) and goes to the player.
@@ -667,13 +672,13 @@ howto: {
   any other click plays nothing and the panel says "Try the highlighted cell." Without
   `expect` a **Next** button advances. `highlight` defaults to `expect` and paints the cells
   with the class `hint`. **`expect` holds whole moves, not cells**: for a game that packs
-  more than a cell id into its move integer (Isolation) the gate fires on the click that
+  more than a cell id into its move integer (Isolation, Triangles) the gate fires on the click that
   *completes* the move, and such a game names its `highlight` cells itself. After the last
   step the panel says the lesson is done and the game is remembered as finished.
 - **Scenario**: a real game against the game's bot from `history` (`Match.reset("bot")` +
   `Match.start` + `engine.replay`), so `toMove` must be 0. Every scenario carries `tier`
   (`basics | tactics | mastery`), `kind`, `difficulty` (1..10) and `level` (the bot
-  difficulty id it is played out against; `Learn.scenarioConfig` puts it into `config.bot`,
+  difficulty id it is played out against; Learn's internal `scenarioConfig` puts it into `config.bot`,
   the same door the room's bot uses; an unknown level or a game without a bot falls back to
   the Opponent choice). `Learn.howto` fills every missing field in (`tier: "basics"`, `kind:
   "best-move"`, `difficulty: 3`) and sorts the list tier by tier.

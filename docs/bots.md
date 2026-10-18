@@ -1,6 +1,7 @@
 # Bots — system, API and the current bots
 
-Bots play the offline "Play against a bot" mode. This document is the reference for the
+Bots play the bot seat: "Against a bot" on one device, the room's "Add a bot" seat online (#36),
+Learn's scenarios and a replay's "Play from here". This document is the reference for the
 bot system; `AGENTS.md` holds the project-wide context (the bot chapter is `.claude/rules/bots.md`) and `docs/` is never deployed.
 
 ## 1. Architecture in one picture
@@ -91,17 +92,19 @@ order = display order.
 | `opponents(p = me)` | the other seats |
 | `deadline(ms = budget.ms)` | `{ expired(), tick(n = 1), left(), nodes() }` — expires on time **or** on `budget.nodes` |
 | `yield()` | `await tools.yield()` lets the page breathe (every ~2 000 nodes on long levels) |
+| `report(info)`, `last`, `lastDeadline` | what the bot tells about its last move (depth, value, a forced note; `report` merges into `last`) and the deadline that counted its nodes (`deadline()` stores itself there); `Match.botInfo` collects them for the dev panel (#31) |
 
 `apply`/`clone` are convenient but slow (JSON): a searching bot keeps its own compact board
 (typed arrays, make/unmake) and proves in its tests that it matches the real rules.
 
 State shape (from `Rules.base` + the game's `create`): `n, players, current, round, history,
-movesBy, busy, over, winner, finishWhy, cells` (chain: `[{ count, owner, cap }]`, plus
+movesBy, out, outs, busy, over, winner, finishWhy, cells` (chain: `[{ count, owner, cap }]`, plus
 `chainRule, chainLen, chainNow, chainBest, explosions`; five: owner per cell -1/0/1, plus
-`winLen, winLine`; boxes: owner per **line** -1/0/1, plus `boxes` (owner per box), `scores`,
+`winLen, winLine, yavalath, dead`; isolation: -2 a hole, -1 a free tile, the seat index where
+a pawn stands, plus `pawns, trapped, lastFrom, lastRemoved`; boxes: owner per **line** -1/0/1, plus `boxes` (owner per box), `scores`,
 `lastBoxes`, `again`; triangles: owner per **edge** -1…3, plus `tris` (owner per triangle),
 `scores`, `band`, `touch`, `tokens`, `touched`, `lastEdges`, `lastTris`, and the geometry in
-`TrianglesRules.geometry(n)`, never in the state). Cell id = `y * n + x` for chain and five; in Dots and Boxes a cell is a
+`TrianglesRules.geometry(n)`, never in the state). Cell id = `y * n + x` for chain, five and isolation; in Dots and Boxes a cell is a
 line, `state.n` is the boxes per side and `cells.length` is 2n(n+1) (numbering in
 `client/games/boxes-rules.js`), and a move that closes a box leaves the same player on turn. Five Wins ends in a draw not only on a full board
 but as soon as no window of `winLen` cells is free of enemy stones for any player still in
@@ -213,7 +216,7 @@ const r = await H.Bots.playout("chain", { n: 6 }, [a, b], { maxMoves: 600 });
 | `random-chain` | Random | Chain React | 1 | Normal | any legal move; `baseline: true` (benchmark opponent, fallback; never offered) |
 | `creeper-chain` | Creeper | Chain React | 1 | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | negamax alpha-beta with iterative deepening, Zobrist TT, killers/history, PVS + LMR, quiescence over explosive captures, on an Int8Array engine proven equal to the rules; evaluation = pieces + safe corner/edge bonus − exposure penalty, tuned by self-play. 100 % vs Random, 159/159 puzzles at Very hard (Easy 32 %, Normal 87 %, Hard 95 %). Provides the win chance (evaluate: even-depth iterative deepening with full explosion quiescence, mean of the last completed depths; calibrated scale ≈ 31, swing 2.2 %). See its README. |
 | `random-five` | Random | Five Wins | 1 | Normal | any empty cell; `baseline: true` (benchmark opponent, fallback; never offered) |
-| `sensei-five` | Sensei | Five Wins | 2 | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 60 000 nodes | Int8Array board with incremental line-pattern records (fours, threes, four-makers), alpha-beta negamax with iterative deepening, Zobrist TT, killers/history, exact forced-move handling (own four, enemy fours, open threes), VCF/VCT threat searches with exact mate distance; works for any board size and win length. 100 % vs Random, 154/154 puzzles at Very hard (Easy 69 %, Normal 98 %, Hard 100 %). It also plays the **Yavalath rule** (winLen wins, winLen - 1 loses): suicide cells per line, a forced block on one of them is a terminal loss, and the threat searches hunt exactly that; rated separately (`variants.yavalath` in `benchmark.js`: 100 % vs Random on 9 × 9 with winLen 4, and 119/124 on its own proven set `tests/puzzles/five-yavalath`). Provides the win chance (evaluate: depth-2 search with forced fours free, open-three extension, VCF/VCT on long budgets; calibrated scale ≈ 1166, swing 0.9 %, and a second curve for the variant at scale ≈ 112, swing 10.9 %). 9×9 with sound defence is drawish; its edge grows on bigger boards. See its README. |
+| `sensei-five` | Sensei | Five Wins | 2 | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 60 000 nodes | Int8Array board with incremental line-pattern records (fours, threes, four-makers), alpha-beta negamax with iterative deepening, Zobrist TT, killers/history, exact forced-move handling (own four, enemy fours, open threes), VCF/VCT threat searches with exact mate distance; works for any board size and win length. 100 % vs Random, 154/154 puzzles at Very hard (Easy 63 %, Normal 98 %, Hard 100 %). It also plays the **Yavalath rule** (winLen wins, winLen - 1 loses): suicide cells per line, a forced block on one of them is a terminal loss, and the threat searches hunt exactly that; rated separately (`variants.yavalath` in `benchmark.js`: 100 % vs Random on 9 × 9 with winLen 4, and 119/124 on its own proven set `tests/puzzles/five-yavalath`). Provides the win chance (evaluate: depth-2 search with forced fours free, open-three extension, VCF/VCT on long budgets; calibrated scale ≈ 1166, swing 0.9 %, and a second curve for the variant at scale ≈ 112, swing 10.9 %). 9×9 with sound defence is drawish; its edge grows on bigger boards. See its README. |
 | `random-isolation` | Random | Isolation | 1 | Normal | any legal step and any tile to break; `baseline: true` (benchmark opponent, fallback; never offered) |
 | `warden-isolation` | Warden | Isolation | 1 | Easy 2 000 · Normal 10 000 · Hard 30 000 · Very hard 100 000 nodes | Int8Array board with the rules' own "trapped when your turn comes" handling, paranoid alpha-beta (I maximise, everybody else minimises) with iterative deepening; the generator keeps every step but only the broken tiles near an opponent plus the tile just left, capped per level; evaluation = Voronoi territory (one multi-source BFS, king steps) + mobility + tempo, which is also the exact measure once the board falls apart. 100 % vs Random, 198/200 puzzles at Very hard (Easy 68.5 %, Normal 90 %, Hard 97 %). Provides the win chance (evaluate: the same search averaged over "me to move" and "the other seat to move", which removes the tempo artefact; calibrated scale ≈ 693, swing 11.7 %). Plays 2 to 4 seats. See its README. |
 | `random-boxes` | Random | Dots and Boxes | 1 | Normal | any undrawn line; `baseline: true` (benchmark opponent, fallback; never offered) |

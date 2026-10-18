@@ -57,18 +57,37 @@ active engine (`Match.engine`) and, like everything else, only uses:
 | `abandon()` | Marks a running game over without a result (Back to room). |
 | `hash()` | 32-bit fingerprint of cells/current/over/winner/movesBy/out; equal on clients that are in sync (used by `move`/`sync`). |
 | `record()` | The game as data: `{ game, config, history, outs, over, winner, why }` — see "Game records". |
-| `render()` | No-op until a board exists. Renders the shown position (the preview if there is one, else the live state): every cell (shared classes `p<k>`, `taken`, `last` (the cell of `cellOf(last move)`), `can-place`/`locked` (from the optional rules function `canPlay(state, i, player)` when the game has one, else `isLegal` — Isolation's move needs two clicks, so `canPlay` says which tiles *start* a move), then the one class `hooks.cellClass(i)` asks for, then `view.renderCell`), then **`view.renderBoard(state)` if the view has one** (a board part that is not a cell: Dots and Boxes paints its boxes there), and the HUD from `view.hud(...)`. |
+| `render()` | No-op until a board exists. Renders the shown position (the preview if there is one, else the live state): every cell (shared classes `p<k>`, `taken`, `last` (the cell of `cellOf(last move)`), `can-place`/`locked` (from the optional rules function `canPlay(state, i, player)` when the game has one, else `isLegal` — Isolation's move needs two clicks, so `canPlay` says which tiles *start* a move), `can-premove` instead of `locked` where `hooks.mayPremove` names a seat and `canPlay` holds for it (#37, see "Cell classes" below), then the one class `hooks.cellClass(i)` asks for, then `view.renderCell`), then **`view.renderBoard(state)` if the view has one** (a board part that is not a cell: Dots and Boxes paints its boxes there), and the HUD from `view.hud(...)`. |
 | `isLegal(i, player)` | Pure check via the rules. |
-| `cellOf(move)` | The board cell a move belongs to. Games whose move is not a plain cell id say so through the optional rules function `cellOf(state, move)` (Isolation: a move is `to * cells + removed`, and the cell is `to`); everything else keeps the identity. Used for the `last` marker and by `Match` for the premove and best-move markers. |
+| `cellOf(move)` | The board cell a move belongs to. Games whose move is not a plain cell id say so through the optional rules function `cellOf(state, move)` (Isolation: a move is `to * cells + removed`, and the cell is `to`); everything else keeps the identity. Used for the `last` marker and by Review for the best-move marker. |
+| `cellsOf(move)` | Every cell a move touches, from the optional rules function `cellsOf(state, move)` (Isolation: `[to, removed]`, Triangles: the band's edges); default `[cellOf(move)]`. `Match` puts the `premove` marker on all of them. |
 | `preview(ply)` | **View only** (#38, the replay bar): show the position after `ply` moves (`Rules.replay(record(), ply)`) instead of the live one and re-render; `null` (or a `ply` at / past the end) goes back to the live position. Returns the new `previewPly`. It never touches the live state, the record, `hash()`, the session or the Bus, and while it is on every cell is `locked` and clicks are dropped, so a preview can never leak into play or into what the friends receive. |
 | `previewPly` (getter) | How many moves the shown position has, `null` when the live position is shown. |
 
 Hooks (built once in `Match`, the engine never sees the app): `names` (getter → the name of
 whoever sits in each seat, #35; bot seats show the bot's name), `mayPlay(p)` (may this device move for p
-now: local seat + `live()`), `turnHint(p)`, `cellClass(i)` (one extra class the table wants
+now: local seat + `live()`), `mayPremove(p) → seat | -1` (#37: while p, a bot or a friend, is to
+move, the local seat that may premove now, else -1; optional, without it no `can-premove`), `turnHint(p)`, `cellClass(i)` (one extra class the table wants
 on that cell, `""` for none — that is how the premove marker and Learn's `hint` get on the
 board without any game knowing it), `onCellClick(i)`, `onMoveApplied(i, p)`, `onTurn(p)`,
 `onBusy(bool)`, `onFinish(winner, why)`. Tests build their own (`tests/unit/dom.mjs`).
+
+### Cell classes (what the engine paints on every cell)
+
+| Class | When |
+| --- | --- |
+| `p<k>`, `taken` | `ownerOf(state, i)` is seat k |
+| `last` | the cell of `cellOf(last move)` |
+| `can-place` | this device moves now (`mayPlay(current)`), nothing animates, and `canPlay(state, i, current)` |
+| `can-premove` | somebody else is to move, `mayPremove(current)` names my seat and `canPlay(state, i, mySeat)`; painted while their move animates too; never together with `locked`; `cursor: pointer` (`game.css`), otherwise it looks like any cell |
+| `locked` | a preview, or nothing of the above while the engine is idle |
+| `hooks.cellClass(i)` | one class of the table: `premove` (every cell of `cellsOf(premove)`), `best-move`, Learn's `hint` |
+
+A view whose move takes two clicks (Isolation, Triangles) treats `can-place` **or**
+`can-premove` as "this device may compose a move now" and reads the seat it composes for from
+`ctx.seat()` (the fifth argument of `view.build`: the seat to move when it is mine and idle,
+else the premove seat, -1 for nobody). The composed move goes through the same `onClick`;
+Match stores it as the premove when it is not my turn.
 
 ### HUD (`client/games/hud.js`, generic — a game only supplies a model)
 
@@ -193,14 +212,21 @@ right edge (3), so 2, 3 and 4 players all start symmetrically.
   on a seat that is out); `line2` = "free moves 5 · 3"; the overlay says how many moves.
   `estimate` (until the bot answers) compares Voronoi territory and mobility.
 - The view owns the **two-step click** (`IsolationView`): the first click on a tile the engine
-  marked `can-place` (via `IsolationRules.canPlay`) becomes `.pending` and lights every
-  breakable tile in red, the second one submits `onClick(to * cells + removed)`, a click on the
-  pending tile takes it back, anything else does nothing. The overlay is painted by the view
+  marked `can-place` or `can-premove` (via `IsolationRules.canPlay`) becomes `.pending` and
+  lights every breakable tile in red, the second one submits `onClick(to * cells + removed)`, a
+  click on the pending tile takes it back, anything else does nothing. The pending tile is kept
+  while the seat it was picked for (`ctx.seat()`) stays the same and it is still a step, so a
+  step picked while the bot thinks survives the bot's move. The pending tile carries
+  `p<pendingFor>` itself, so the ghost pawn shows the colour of the seat the move is for, not
+  of `#board.turn-p<k>` (during a premove that is the bot or the friend). The overlay is painted by the view
   alone (it remembers what the engine last painted per cell and restores it), so nothing of
   the framework knows about it. `animateMove` slides the pawn from `state.lastFrom` (Web
   Animations) and drops the broken tile away (`.dropping`, 300 ms).
-- Premoves are off for this game (`premove: false` in the definition, honoured by `Match`):
-  one click is not a move here.
+- **Premoves work like in every game** (#37): while the bot or a friend is to move, my pawn's
+  steps carry `can-premove` (a ring only under the pointer, so the board does not look like it
+  is my turn), the two clicks compose the move, and Match marks both tiles (`cellsOf` =
+  `[to, removed]`). It is dropped when it went illegal (the step or the broken tile got taken).
+  Until 2026-10-18 the definition said `premove: false`; see "Lessons learned".
 - Board: `.slab` per tile (the element is the pit, `::before` the tile face, `::after` the
   highlight ring, `i.pawn` the pawn), so a broken tile really looks like a hole. Blocks looks:
   quartz tiles on obsidian, the seat's block as the pawn.
@@ -247,7 +273,7 @@ c = 0…n. Box `r * n + c` is closed by `h(r,c)`, `h(r+1,c)`, `v(r,c)` and `v(r,
   building, play a safe line, close the box you were given, notice that it is still your
   turn); the scenarios are generated from the proven puzzle set, and its tags
   (`take-box`, `sacrifice`, `double-deal`, `safe-move`) are in `pick-scenarios.mjs`'s
-  `TAGS` list with the titles a player reads.
+  `TAG_TITLES` list with the titles a player reads.
 
 ### View (`boxes.js`)
 One CSS grid of (2n+1) × (2n+1) tracks: thin `--bx-line` tracks for the dot rows/columns,
@@ -282,12 +308,12 @@ y = r · √3 / 2 (flat top and bottom, like the real board). **The unit edges a
 for every peg in index order and d = 0, 1, 2, the edge (p, p + Dd) when it is inside;
 E = 9m² + 3m. Triangles: for every peg TA(p) = {p, p + D0, p + D1} (points down), then
 TB(p) = {p, p + D1, p + D2} (points up), each when all three pegs are inside; T = 6m².
-`TrianglesRules.geometry(n)` computes all of it once per n (`pegs, edges, tris, trisOf,
-edgeAt, lines, bands`); none of it lives in the state, which bots and the session clone.
+`TrianglesRules.geometry(n)` computes all of it once per n (`m, V, E, T, pegs, edges, tris, trisOf,
+edgeAt, lines, bands, bandOf`); none of it lives in the state, which bots and the session clone.
 
 - **A move is one band**, one integer `min(a, b) * V + max(a, b)` of its two end pegs on one
   lattice line (`encode(state, a, b)` normalises the order, so either end may be clicked
-  first; `decode(state, move) → { a, b, d, len, edges, pegs }` or `null`; `bandEdges`).
+  first; `decode(state, move) → { move, a, b, d, len, edges, pegs }` or `null`; `bandEdges`).
   `cellOf` is the band's middle edge (the engine's `last` and the analysis "best move" marker
   land there; the view puts `last` on every edge of the band from `state.lastEdges`).
   `canPlay(state, e)` = edge e is uncovered and lies on a legal band; the legal band list is
@@ -328,13 +354,13 @@ edgeAt, lines, bands`); none of it lives in the state, which bots and the sessio
 - Analysis helpers (pure, for the bots, `estimate`, the solver and the puzzle verifier):
   `sides(state, t)`, `claims(state, move)`, `opens(state, move)` (the unclaimed triangles the
   band takes to two covered sides, i.e. hands to the next player), `onTable(state)`,
-  `safeMoves`, `claimingMoves`, `left`. `estimate`: the lead over the best other seat plus a
+  `safeMoves`, `claimingMoves`, `left`, and `MAX_LEN` (3, the longest band in unit edges). `estimate`: the lead over the best other seat plus a
   share of what is on the table for the seat to move, through `Rules.sigmoid`; nothing on the
   table means no term, so a quiet position does not flip.
 - **Learn** (#41): six rule bullets and a five-step lesson on the physical board
   (`{ n: 4, band: 3, tokens: 0 }`: stretch a band, a second one, close a triangle, see what a
   band hands over, the two endings); the scenarios come from the proven puzzle set, whose tags
-  `claim`, `safe-move` and `sacrifice` are in `pick-scenarios.mjs`'s `TAGS` list, and the
+  `claim`, `safe-move` and `sacrifice` are in `pick-scenarios.mjs`'s `TAG_TITLES` list, and the
   puzzle notes map to `learn.note.triangles.*`.
 - **Known limitation** (not fixed on purpose): the analysis verdict ("Best was {cell}")
   prints the raw move integer for a band, as it does for Isolation's encoded move. The board
@@ -352,15 +378,24 @@ view's own click and a hit area of at least 28 px on a phone (the element is the
 `::before` the stud; `--hit` is not capped at the peg spacing, so at 7 pegs per side on a
 360 px phone, pegs 25 px apart, two neighbours overlap by a sliver and the later peg takes
 it). Pegs are not cells, so the engine's `locked` never reaches them: `paintPegs` (run from
-`renderBoard`, after the cells) sets `#board.idle` while no cell carries `can-place` and
-`.dead` on a peg no legal band starts at, both `cursor: not-allowed` like `.locked`.
-**Two clicks like Isolation** (`premove: false`): the first click on a
-peg that starts a legal band, accepted only while some cell carries `can-place` (the engine
-writes it only when this device may move and no preview is shown), makes it `.pending` and
+`renderBoard`, after the cells) sets `#board.idle` while no cell carries `can-place` or
+`can-premove`, `.used` on every peg a band runs
+through and, while this device may move or premove and no band is half picked, `.dead` on a peg no legal
+band starts at; `idle` and `dead` are `cursor: not-allowed` like `.locked`.
+**Two clicks like Isolation**: the first click on a
+peg that starts a legal band, accepted only while some cell carries `can-place` or
+`can-premove` (the engine writes them only when this device may move or premove and no preview
+is shown), makes it `.pending` and
 every peg a band may reach from it `.target` (`#board.picking`); a click on a target submits
 `onClick(encode(a, b))`, the pending peg takes it back, anything else does nothing; hovering a
-target previews the band (`.preview`). `pending`, `pendingAt`, `pendingFor` and
-`keepPending` work like `IsolationView`. **`clicks(state, move) → [peg a, peg b]`** is the
+target previews the band (`.preview`). The pending and target pegs and the previewed bands
+carry `p<pendingFor>` (the view puts it on, an untaken band only), so a band being put
+together shows the colour of the seat it is for, not the seat to move (a premove). `pending`, `pendingFor` and `keepPending` work like
+`IsolationView` (kept while the seat stays and a band still starts at the peg). **Premoves**
+(#37): while the bot or a friend is to move the same two clicks compose a premove; Match marks
+every edge of the band (`cellsOf` = `bandEdges`, the bars get an outline around them) and
+`paintPegs` rings the band's two end pegs (`.peg.premove`, the pegs that occur once among the
+edges marked `premove`). A band whose edges all got covered meanwhile is illegal and dropped. **`clicks(state, move) → [peg a, peg b]`** is the
 generic view hook the e2e harness and the Learn suite play a move through (Isolation has one
 too). `animateMove`: the band's edges `.snap` (160 ms), then `settle`, a render, the Bus
 event `triangles:claim` when something was claimed and the `.won` pop (200 ms).
@@ -395,7 +430,7 @@ glass with a block token as a claimed triangle.
   once the game is over (owner: "a four in a row may show 99 %"). Phones show only the
   win bar (`#hut .stat-bar` hidden), desktop shows the game's stat bar and the win bar.
   Rows are hidden with 3–4 players. Tests: `tests/unit/winchance.test.mjs`, `calibrate.test.mjs`.
-- **Premove** (#37): the premoved cell gets the class `premove` (from `hooks.cellClass`) →
+- **Premove** (#37): every cell of the premoved move (`engine.cellsOf`) gets the class `premove` (from `hooks.cellClass`) →
   `#board > .premove` in `game.css`: a dashed outline of `--premove-w` (2–4 px with the
   board size) inset into the cell, in `--premove` = my seat's colour, which `Match` writes
   on `#board` when a game starts or a seat changes. Static (owner: no marker animation);
@@ -417,18 +452,19 @@ glass with a block token as a claimed triangle.
 ## Events (`Bus`)
 
 Fire-and-forget notifications for observers (WinChance, Sound, BotPersona subscribe here;
-the log emits too so a chat could mirror it). Current events and payloads (`game` = the
+Learn listens to `game:position` / `game:finish` and the dev panel to `game:move` /
+`game:position` for its move timing; the log emits too so a chat could mirror it). Current events and payloads (`game` = the
 game key everywhere):
 `game:new {game, config, state}`, `game:move {game, cell, player}` (a piece was placed,
 before its animation), `game:position {game, state}` (**the settled position changed**:
 new game, a move settled, replay, elimination, end — the one event a position observer
 needs), `game:turn {game, player, state}` (after a move settled and the turn **passed to somebody
-else**; not on replay, and not when a game leaves the mover on turn), `game:finish {game, winner, why, state}`, `chain:prime {cells, player, ms}`
+else**; not on replay, and not when a game leaves the mover on turn; also after an elimination that passes the turn, `engine.eliminate`), `game:finish {game, winner, why, state}`, `chain:prime {cells, player, ms}`
 (full cells start blinking; `ms` = how long), `chain:explode {cells, player, chain}` (one
 wave), `boxes:capture {boxes, player, score}` (Dots and Boxes: a move closed one or two boxes),
 `triangles:claim {tris, player, score}` (Triangles: a band claimed one or more triangles),
 `reaction {emoji, theirs}`, `chat {text, from, mine}` (a chat line was shown),
-`log {text, cls}`. A game may add its own events (`<key>:…`) for sounds and observers.
+`log {text, msg, cls}` (`msg` = the descriptor the line was built from). A game may add its own events (`<key>:…`) for sounds and observers.
 
 ## Seats, bots and more players (`client/match.js`)
 
@@ -453,10 +489,14 @@ the game as before.
 
 **Premoves (#37, `Match.premove`)** exist only where somebody else moves in between: this
 device holds exactly one `local` seat (`mySeat()`), so against a bot or online with a seat,
-never in local multiplayer, never for a spectator and never for a game whose definition says
-`premove: false` (Isolation, where a move takes two clicks). A click while a non-local seat is to
-move does not fall through any more: `onCellClick` remembers the cell (the same cell takes
-it back, another one moves it, no legality check yet), `hooks.cellClass` marks it and
+never in local multiplayer and never for a spectator. **Every game takes them** (a definition
+could still say `premove: false`, none does; `capabilities.test.mjs` fails on it). The hook
+`mayPremove(p)` tells the engine which seat that is, so it paints `can-premove`, which is what
+lets a two-click view (Isolation, Triangles) compose a premove at all. A click (or a composed
+move) while a non-local seat is to
+move does not fall through any more: `onCellClick` remembers the move (the same move takes
+it back, another one moves it, no legality check yet), `hooks.cellClass` marks every cell of it
+(`engine.cellsOf`, cached per move and state object, since a move's cells depend on the board size) and
 `turnHint` appends " · premove set". When `onTurn` names my seat, `firePremove` clears it
 and plays it through the very same path as a click (`onLocalMove` + `Game.play`, so the
 room, the session and the sounds see no difference) unless the position moved on: over,
@@ -486,6 +526,18 @@ off, no bot, the record replayed instantly onto the board.
 
 ## Lessons learned
 
+- **Premoves for two-click games, and why they were missing (2026-10-18).** Isolation and
+  Triangles shipped with `premove: false` because the engine painted `can-place` only on my
+  turn and both views refused a first click without it, so a composed move could never reach
+  Match. The definition flag and the step-by-step guide called that "optional" ("off when one
+  click is not a whole move"), and nothing listed premove as something every game must have,
+  so the second two-click game copied the first one's opt-out without anyone asking. The fix
+  was framework-sized, not game-sized: a second class `can-premove` from a new hook
+  `mayPremove`, `ctx.seat()` for the views, and `cellsOf` for the marker. The lesson is the
+  section "What every game must have" plus `capabilities.test.mjs`: an opt-out in a contract
+  invites copying, so the capabilities a player expects everywhere are now listed and enforced
+  per game.
+
 - **A move that keeps the mover on turn changes framework assumptions, not the framework.**
   Dots and Boxes (a closed box means another turn) needed exactly three small things: a
   `view.renderBoard` hook for board parts that are not cells, `game:turn` only when the turn
@@ -504,6 +556,36 @@ off, no bot, the record replayed instantly onto the board.
 
 # How to add a new game (step by step)
 
+## What every game must have
+
+A game is not done when it plays. Every game on the site has the same set of capabilities,
+and a player expects all of them in every game: a game that lacks one feels broken, not
+"simpler". Some come from the framework for nothing, as long as the game keeps to the
+contracts; the rest the game must bring. **`tests/unit/capabilities.test.mjs` checks every
+providable item for every `Games.keys()` entry** (data-driven, no game named), so a new game
+that forgets one fails the unit suite instead of reaching the owner.
+
+| Capability | Who provides it | Checked by |
+| --- | --- | --- |
+| 2 to 4 players where the rules allow (`players.max >= 2`; the engine, the HUD, `Rules.pass` and `state.out` handle 3 and 4) | the game's rules (rotation, eliminations) | `capabilities` (player range), `rules.test.mjs`, the game's own suite |
+| Local play on one device | automatic | the game's e2e suite |
+| Online play, rooms, spectators, reconnect, the clock | automatic: no game-specific network code, as long as a move is one integer and `Rules.step` is the only resolver | `online*.test.mjs` (generic) |
+| **Premove** (#37) | automatic for a one-click move; a two-click view must accept `can-premove` like `can-place`, read the seat from `ctx.seat()`, and the rules give `cellsOf` when a move has more than one cell | `capabilities` (`premove !== false`; `cellsOf` contains `cellOf` and covers every cell the move changes; and per game the premove itself: the view's `clicks` while the friend is to move set it, every `cellsOf` cell is marked, it is played after the friend's move), `premove.test.mjs` |
+| A bot: one real bot with four levels and `evaluate`, a `random-<key>` baseline, a committed benchmark and a calibration, a bot test | the game (step 6) | `capabilities`, `bots.test.mjs` |
+| A solver-proven puzzle set `tests/puzzles/<key>/puzzles.json` with its `solver.test.mjs` | the game (step 6.4) | `capabilities`, `puzzles.test.mjs` |
+| Learn: rule bullets, a tutorial, the generated ladder `client/learn/<key>-scenarios.js` loaded from `index.html` | the game (step 7) | `capabilities`, `learn.test.mjs` |
+| Replays, the replay bar and the analysis | automatic through `Rules.replay`; the game keeps `cellOf` right (the last and best-move markers) | `capabilities` (`cellOf` is a cell), `replays.test.mjs`, `analysis.test.mjs` |
+| The win chance | automatic once the bot has `evaluate` (else the rules' `estimate`) | `capabilities` (`evaluate`), `winchance.test.mjs` |
+| Sound cues: the move (generic `game:move`) and a claim / capture style event where the game has one (`<key>:…` in `Sound.map`) | generic part automatic, the game's own event by the game (step 5) | `capabilities` (generic cues), `sound.test.mjs` |
+| Six languages: every key of the definition in all of `client/lang/*.js` | the game | `capabilities` (title, tagline, desc), `i18n.test.mjs` (every key) |
+| A unit suite `tests/unit/<key>.test.mjs` | the game | `capabilities` |
+| An e2e suite `tests/e2e/<key>.test.mjs` with a `SIZES` entry in `scripts/ci/shards.mjs` | the game | `capabilities` (the first two games, older than the rule, are played by name in at least three shared suites instead) |
+| Docs: its sections here, `bots.md` / `docs/bots.md`, `testing.md`, the files table in `AGENTS.md` | the game | review |
+| A changelog entry | the game | `changelog.test.mjs` (format only) |
+
+When a game cannot offer one of them, that is a decision for the owner, not a default: write it
+down here with the reason, and make the test say so explicitly.
+
 A game is three files (pure rules, view + registration, CSS) plus tags in `index.html`, and
 usually a bot folder. Everything else is the framework and is generic: rooms and the host
 relay for 2–4 seats, lobby sync of the settings, start / rematch / back to room, reconnect +
@@ -519,7 +601,7 @@ to, extend the definition contract instead (and this file).
 
 Copy Five Wins (`five-rules.js`, `five.js`, `five.css`, `random-five`, `sensei-five`) — it
 is the smallest complete game. Isolation is the example of a game whose move is not a plain
-cell id (an encoded integer, two clicks, `cellOf` / `canPlay` / `premove: false`), Dots and
+cell id (an encoded integer, two clicks, `cellOf` / `cellsOf` / `canPlay`, premoves composed on `can-premove`), Dots and
 Boxes the example of a board whose cells are not a square grid (`renderBoard`), Triangles
 the example of both at once on a board that is not square at all (`size.text`, clicks on
 elements that are not cells, the `clicks` view hook).
@@ -538,8 +620,9 @@ Expose a global `<Name>Rules` with these functions and register it (`Rules.regis
 | `settle(state, player)` | **Optional.** Resolve everything that follows a placement instantly (chain waves, boxes closing). Leave it out when nothing follows. |
 | `conclude(state, player)` | Return `{ winner, why }` (winner -1 = draw) or `Rules.pass(state[, alive])` and return `null`. Respect `state.out` (eliminated seats): use `Rules.remaining(state)` / `Rules.pass`, which skip them; with 3–4 players decide what "everyone else is out" means (five: the last one wins). |
 | `estimate(state)` | Optional heuristic P(player 0 wins) in 0..1 for the win chance until a bot offers `evaluate` (see step 6). Start with `Rules.decided(state)` (the answer for a finished game, `null` otherwise) and map your edge through `Rules.sigmoid(edge, k)`. |
-| `cellOf(state, move)` | Optional. The board cell a move belongs to, when a move packs more than a cell id into its integer (Isolation: `to * cells + removed` → `to`). The engine uses it for the `last` marker and exposes it as `engine.cellOf`, which is how `Match` marks a premove. Default: the move itself. |
-| `canPlay(state, i, player)` | Optional. May this player *start* a move on cell `i`? Drives `can-place` / `locked`, so a game whose move needs two clicks still highlights the right cells. Default: `isLegal`. |
+| `cellOf(state, move)` | Optional. The board cell a move belongs to, when a move packs more than a cell id into its integer (Isolation: `to * cells + removed` → `to`). The engine uses it for the `last` marker and exposes it as `engine.cellOf` (also the replay's best-move marker); the premove marker uses `cellsOf`. Default: the move itself. |
+| `cellsOf(state, move)` | Optional. Every cell a move touches (Isolation: `[to, removed]`, Triangles: the band's edges), so the premove marker covers the whole move. Must contain `cellOf(state, move)` (`capabilities.test.mjs`). Default: `[cellOf(state, move)]`. |
+| `canPlay(state, i, player)` | Optional. May this player *start* a move on cell `i`? Drives `can-place` / `can-premove` / `locked`, so a game whose move needs two clicks still highlights the right cells, also for a premove (it is asked with the premoving seat, which is not `state.current`). Default: `isLegal`. |
 
 `Rules.step(rules, state, i)` = place + settle + conclude is the **only** way any
 framework code resolves a move (engine replay, bots' `tools.apply`, playout, puzzle
@@ -558,7 +641,7 @@ Expose `<Name>View` with:
 
 | Function | Contract |
 | --- | --- |
-| `build(board, state, config, onClick)` | Create one element per cell inside `board`, in cell order, and return the element array. `BoardView.cells(board, count, onClick, decorate)` does it: `decorate(el, i)` sets the class and the game's own children, the last-move marker and the click come for free. Board parts that are not cells (Dots and Boxes's dots and boxes) are appended by hand. Set CSS vars you need (chain sets `--speed`). |
+| `build(board, state, config, onClick, ctx)` | Create one element per cell inside `board`, in cell order, and return the element array. `ctx` is the animation context plus `ctx.seat()` (the seat this device may compose a move for right now: its own turn, or a premove; -1 = nobody), which a two-click view needs. `BoardView.cells(board, count, onClick, decorate)` does it: `decorate(el, i)` sets the class and the game's own children, the last-move marker and the click come for free. Board parts that are not cells (Dots and Boxes's dots and boxes) are appended by hand. Set CSS vars you need (chain sets `--speed`). |
 | `renderCell(el, state, i)` | Game-specific classes only (the engine already set `p<k>`, `taken`, `last`, `can-place`, `locked`). |
 | `renderBoard(state)` | **Optional.** Called once per render, after every cell: paint the parts of the board that are not cells. It gets the *shown* position, so a replay-bar preview is painted too. |
 | `hud(state)` | **Data only** — return the HUD model, the framework renders it (see "HUD" above). One `players` entry per seat (`state.players`, 2–4); `BoardView.leading(values)` gives the `leading` flags. Never write DOM here. |
@@ -570,20 +653,20 @@ Then register:
 
 ```js
 const <Name>Game = Games.register({
-    key: "<key>", title: "Nice Name",
-    tagline: "One sentence under the picker.", desc: "Short card subtitle",
+    key: "<key>", title: "game.<key>.title",   // every text is a key of client/lang/*.js (#47)
+    tagline: "game.<key>.tagline", desc: "game.<key>.desc",
     preview: "...01....",                   // 9 chars: "." empty, digit = player, "#" hole, a/b/c (A/B/C) = 1..3 pieces of player 0 (1); Games.previewClass / previewTile draw it everywhere
     size: { min: 5, max: 19, default: 9, presets: [5, 7, 9, 11] },   // limits and the board-size dropdown
-    // size.text?: (n) => text, how one size reads in that dropdown and the summary (triangles: "4 pegs per side"); default "n × n"
+    // size.text?: (n) => text, how one size reads in that dropdown, the summary and the replay list (triangles: "4 pegs per side"); default "n × n"
     minSize: (cfg) => 5,                    // optional, may depend on the game fields (five: winLen)
     players: { min: 2, max: 4 },            // optional (default 2–4): the picker grays the card out otherwise (#28)
-    premove: false,                         // optional (default true): off when one click is not a whole move (#37)
+    // premove: true by default and required (#37): a two-click view composes on `can-premove`
     settings: [                             // optional: the game's rows in #settings-modal, built by settings.js
         // every control is a dropdown: presets, "Off" where it applies, and "Custom…" with a number row
-        { key: "winLen", label: "In a row to win", type: "preset", presets: [3, 4, 5, 6], def: 5, min: 3, max: 25, customLabel: "Custom stones (3–25)" },
-        { key: "speed", label: "Animation speed", type: "select", def: 750, options: [[1100, "Slow"], [750, "Normal"]] },
-        { key: "rule", label: "Optional rule", type: "bool", def: false },                 // an Off / On dropdown
-        { key: "ruleN", flag: "rule", label: "Win on N", type: "preset", off: "Off", startOff: true, presets: [10, 15], suffix: " x", def: 15, min: 1, max: 99 },
+        { key: "winLen", label: "game.<key>.set.winLen", type: "preset", presets: [3, 4, 5, 6], def: 5, min: 3, max: 25, customLabel: "game.<key>.set.winLenCustom" },
+        { key: "speed", label: "game.<key>.set.speed", type: "select", def: 750, options: [[1100, "game.<key>.speed.slow"], [750, "game.<key>.speed.normal"]] },
+        { key: "rule", label: "game.<key>.set.rule", type: "bool", def: false },                 // an Off / On dropdown
+        { key: "ruleN", flag: "rule", label: "game.<key>.set.ruleN", type: "preset", off: true, startOff: true, presets: [10, 15], unit: "game.<key>.unit.x", def: 15, min: 1, max: 99 },   // off: an "Off" entry; unit: a plural key for the option texts
     ],
     describeRules: (cfg) => [],             // optional summary parts before the timer ("5 in a row")
     describeOptions: (cfg) => [],           // optional summary parts after the timer ("15-chain wins")
@@ -591,6 +674,10 @@ const <Name>Game = Games.register({
     rules: <Name>Rules, view: <Name>View,
 });
 ```
+
+Every text in the definition (`title`, `tagline`, `desc`, the settings' labels, options and
+units, the `howto` texts) is a key: add each one to `client/lang/en.js` and the other five
+language files (`tests/unit/i18n.test.mjs` fails on a missing or extra key).
 
 `Games.register` throws on a definition that misses a required part, so a typo shows up at
 load. The picker card, the settings rows (`#row-<key>` / `#set-<key>`, lowercased) and the
@@ -645,16 +732,24 @@ HUD styling (rare) goes under `body.game-<key> …`.
 after the last game and before `bots.js`. The build, the unit-test loader and the headless
 loader (`scripts/headless.mjs` matches `games/<key>-rules.js` and hands the module out as
 `H.<Name>Rules` from the registry) pick them up from there; the bot conformance suite needs
-a `CONFIGS` entry in `tests/unit/bots.test.mjs` (what board to test bots on). Once the game
+a `CONFIGS` entry in `tests/unit/bots.test.mjs` (what board to test bots on). A few test
+lists are written by hand too: a new cell class goes into the `CELLS` selector of
+`tests/e2e/harness.mjs` and its copy in `tests/e2e/learn.test.mjs`, the rules file into
+`FILES` (and the destructured globals) of `tests/unit/rules.test.mjs`, and the game's settings
+keys into the `S.fields` assertion of `tests/unit/framework.test.mjs`; a suite of the game's
+own (`tests/e2e/<key>.test.mjs`) may get a measured `SIZES` entry in `scripts/ci/shards.mjs`.
+Once the game
 has generated Learn scenarios (step 7), one more tag:
 `<script src="client/learn/<key>-scenarios.js">` next to the other scenario files.
 
 ## 5. Sounds (optional)
 
 The generic events (`game:move`, `game:turn`, `game:finish`, reactions, chat) already
-sound. For your own events add a case to `Sound.map` (event → cue), a synthesized cue to
-`SYNTH`, a file to `Sound.FILES` for the Blocks set and a category in `Prefs.CATEGORIES`
-only if none fits. Keep `Sound.map` pure (it is unit-tested with a fake player).
+sound. For your own events add the event to the subscription list in `Sound.init` (Sound
+hears only the events named there) and a case to `Sound.map` (event → cue). A new cue name
+also needs a synthesized cue in `SYNTH`, a file in `Sound.FILES` (`play` skips a cue without
+one, in the Classic set too), an entry in `Sound.CATEGORY` (cue → preference category) and a
+category in `Prefs.CATEGORIES` only if none fits. Keep `Sound.map` pure (it is unit-tested with a fake player).
 
 ## 6. A bot (expected for every game — the win chance and "Against a bot" depend on it)
 
@@ -689,15 +784,15 @@ which is a poor first impression — write at least the rule bullets.
 ```js
 howto: {
     // one short sentence per rule; they show on the details page and in the lobby modal
-    rules: ["Players take turns…", "…", "…"],
+    rules: ["game.<key>.rule.1", "game.<key>.rule.2", "game.<key>.rule.3"],
     // a guided lesson on a real board; the first step names the config, later steps inherit it
     tutorial: [
-        { config: { n: 4, speed: 350 }, moves: [], text: "Click the top left corner.", expect: [0] },
-        { moves: [0], text: "Now the other colour: the far corner.", expect: [15] },
-        { moves: [0, 15, 0], text: "It burst. Here is why…" },          // no `expect` = a Next button
+        { config: { n: 4, speed: 350 }, moves: [], text: "game.<key>.tutorial.1", expect: [0] },   // "Click the top left corner."
+        { moves: [0], text: "game.<key>.tutorial.2", expect: [15] },
+        { moves: [0, 15, 0], text: "game.<key>.tutorial.3" },          // no `expect` = a Next button
     ],
     // optional hand-written training positions; `best` must really be the optimal moves
-    scenarios: [{ id: "<key>-intro", title: "…", text: "…", config: { n: 9 }, history: [], toMove: 0, best: [40], tags: ["opening"] }],
+    scenarios: [{ id: "<key>-intro", title: "game.<key>.sc.intro", text: "game.<key>.sc.introText", config: { n: 9 }, history: [], toMove: 0, best: [40], tags: ["opening"] }],
 }
 ```
 
@@ -712,9 +807,12 @@ Once the game has a puzzle set (step 6.4) **and** a bot, the whole ladder is gen
 Mastery), computes a difficulty per position, marks traps and turnarounds and adds one
 "play from here" game per tier from seeded self-play, then writes
 `scripts/learn/facts/<key>.json` (the measurements, committed, never deployed) and
-`client/learn/<key>-scenarios.js`. Nothing in it is game specific: the greedy move comes
-from the game's own `rules.estimate`, the levels from `Bots.botFor(<key>).difficulties`, the
-self-play board from the biggest config in the puzzle set. Add the scenario file's
+`client/learn/<key>-scenarios.js`. Almost nothing in it is game specific: the greedy move
+comes from the game's own `rules.estimate`, the levels from `Bots.botFor(<key>).difficulties`,
+the self-play board from the biggest config in the puzzle set. Two tables are: every sentence
+of the puzzle notes needs an entry in `NOTE_SENTENCES` and its `learn.note.<key>.*` key in
+every language file (the generator stops on a sentence it cannot match), and a new tag needs
+an entry in `TAG_TITLES` and a `learn.title.<tag>` key. Add the scenario file's
 `<script>` tag to `index.html` next to the other ones and commit both files; the unit test
 re-runs the pure selection stage and fails if the committed file is stale.
 Hand-written scenarios still work and simply land in Basics (`tier`, `kind`, `difficulty`
@@ -722,6 +820,9 @@ are filled in), which is what a game without a puzzle set gets.
 
 ## 8. Checklist before calling it done
 
+- `tests/unit/capabilities.test.mjs` passes (see "What every game must have" above), and the
+  premove really works in the browser: against the bot, set one while it thinks and watch it
+  being played (for a two-click move, compose the whole move while the bot thinks).
 - Unit: rules in `tests/unit/rules.test.mjs` (no DOM; 2 and 3+ players, eliminations) and
   an engine spec like `five.test.mjs` (win, draw if possible, replay == play, HUD texts via
   `p{k}-stat-<j>`, win-chance rows for 2 players); a bot folder test; the conformance

@@ -141,14 +141,14 @@ test("premove (#37): the guest clicks while the host is to move, it is played th
         return JSON.stringify({ pre: Match.premove, cls: document.querySelectorAll('#board > .stone')[10].className, hint: document.getElementById('turn-hint').textContent, moves: FiveGame.state.history.length });
     })()`));
     assert.equal(set.pre, 10, "the click on the host's turn is remembered");
-    assert.match(set.cls, /\bpremove\b/, "the cell is marked");
+    assert.match(set.cls, /(^|\s)premove(\s|$)/, "the cell is marked");
     assert.match(set.hint, /premove set$/);
     assert.equal(set.moves, 4, "nothing played yet");
     await A.move(11);
     await B.waitFor("FiveGame.state.history.length === 6 && Match.premove === -1", { what: "the guest's premove followed the host's move" });
     await A.waitFor("FiveGame.state.history.length === 6", { what: "the host received the premove" });
     assert.equal(JSON.stringify((await A.state()).history.slice(-3)), "[32,11,10]");
-    assert.equal((await B.ev("document.querySelectorAll('#board > .stone')[10].className")).includes("premove"), false, "the marker is gone once it was played");
+    assert.equal((await B.ev("document.querySelectorAll('#board > .stone')[10].className")).split(" ").includes("premove"), false, "the marker is gone once it was played");
     // premove on a cell the host then takes: dropped, nothing is sent
     assert.equal(await B.ev("(() => { document.querySelectorAll('#board > .stone')[12].click(); return Match.premove; })()"), 12);
     await A.move(12);

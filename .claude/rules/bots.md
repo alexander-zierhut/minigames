@@ -84,8 +84,8 @@ come out under their own names, `H.ChainRules`, straight from `Rules.keys()`).
   dev panel, #31). Rules modules are also reachable directly (`tools.rules`: chain `tally`,
   `readyCells`…; five `lineThrough`, `bestRow`; triangles `claims`, `opens`, `safeMoves`). Add generic helpers here, game-specific
   analysis in the rules module — never in a bot.
-- **Playout**: `Bots.playout(game, config, seats, { maxMoves })` runs a full headless game
-  (seats = instances or `state → move` functions) → `{ over, winner, moves, history }`.
+- **Playout**: `Bots.playout(game, config, seats, { maxMoves = 2000, rules })` runs a full headless game
+  (seats = instances or `state → move` functions) → `{ over, winner, moves, history, state }`.
 - **Tests**: `tests/unit/bots.test.mjs` covers the framework (registry and validation, the
   seeded rng, the toolset, `playout`) and holds a **conformance suite every registered bot
   must pass** for every difficulty, all of it at the fixed 2 000-node budget: only legal
@@ -101,7 +101,7 @@ come out under their own names, `H.ChainRules`, straight from `Rules.keys()`).
   (not the baselines) plays a seeded series against the Random bot of its game (chain 6×6,
   five 9×9, isolation 7×7, boxes 4×4, triangles 4 pegs per side,
   both colours, highest difficulty) → score = win rate in % (draw = ½) plus
-  `games, opponent, avgMoves, version, commit, at` (60 chain / 100 five / 100 isolation /
+  `games, opponent, difficulty, avgMoves, version, commit, at` (60 chain / 100 five / 100 isolation /
   60 boxes / 60 triangles games, 20 000-node
   budget per move so the series is deterministic), written to
   `client/bots/<id>/benchmark.js` (`Bots.benchmark(id, result)`; `at/commit` kept when the
@@ -170,7 +170,9 @@ come out under their own names, `H.ChainRules`, straight from `Rules.keys()`).
   folder has `solver.test.mjs` (the solver on hand-made positions + the set's consistency,
   re-solving every puzzle), each script folder a README with the guarantee and the limits.
   `scripts/puzzles/verify.mjs` (`npm run puzzles:verify`) re-proves the tactical puzzles
-  with a solver-independent one-ply check and prints the blind-random baseline. `scripts/puzzles/runner.mjs` replays a puzzle (`positionOf`) and grades a bot
+  with a solver-independent one- or two-ply look-ahead through the rules, checks the structural
+  tags of the boxes set (`take-box`, `double-deal`, `safe-move`, `sacrifice`) and the triangles
+  set (`claim`, `safe-move`, `sacrifice`) with the rules' own helpers, and prints the blind-random baseline. `scripts/puzzles/runner.mjs` replays a puzzle (`positionOf`) and grades a bot
   (`evaluateBot` → solved/total/pct, per tag, failures; `runner.mjs`'s `puzzleSets()` lists
   the folders and `setConfig(data)` the rules a set is graded with); `tests/unit/puzzles.test.mjs`
   checks every set (≥ 100, replayable, legal best moves) and prints every bot's score; the
@@ -328,5 +330,6 @@ route respectively.
 - **Puzzle sets are only as good as their solver's guarantee.** Every solver (chain, five
   with and without the Yavalath rule, isolation, boxes, triangles) is exhaustive or threat-proven and
   re-solves every puzzle in its own test; `puzzles/verify.mjs` re-proves
-  the tactical ones with an independent one-ply check. When a rule changes (the dead-board
+  the tactical ones with an independent one- or two-ply look-ahead and the structural tags with
+  the rules' own helpers. When a rule changes (the dead-board
   draw), the solver must learn it and the set must be regenerated.

@@ -80,6 +80,13 @@
 }
 /* the analysis marker (#43) and Learn's hint assume square cells: on a thin bar they go around it */
 #board.triangles > .band.best-move { outline-width: 3px; outline-offset: 2px; }
+/* the premove (#37): every edge of the band around the bar, and its two end pegs ringed */
+#board.triangles > .band.premove { --premove-w: 2px; outline-offset: 2px; }
+.peg.premove::after {
+    width: calc(var(--stud) * 2.1); height: calc(var(--stud) * 2.1);
+    box-sizing: border-box;
+    border: 2px dashed var(--premove, #fff);
+}
 #board.triangles > .band.hint { --hint-w: 3px; outline-offset: 2px; background: color-mix(in srgb, var(--accent) 45%, transparent); }
 
 /* ---- the pegs: the element is the tap target, ::before the stud, ::after the ring ---- */
@@ -112,8 +119,9 @@
    or no band starts at this peg; like `.locked` on the other games' cells */
 #board.idle .peg, .peg.dead { cursor: not-allowed; }
 #board.over .peg, #board.picking .peg:not(.target, .pending) { cursor: default; }
-/* step 1 done: the picked peg in the seat's colour (#board.turn-p<k> gives --pc), and a ring
-   on every peg a band may reach from it */
+/* step 1 done: the picked peg in the colour of the seat the band is for (the view gives it
+   and the targets `p<k>`: during a premove that is not the seat to move), and a ring on
+   every peg a band may reach from it */
 .peg.pending::before { transform: scale(1.35); background: var(--block); box-shadow: 0 0 12px color-mix(in srgb, var(--pc) 70%, transparent); }
 .peg.pending::after, .peg.target::after {
     width: calc(var(--stud) * 2.1); height: calc(var(--stud) * 2.1);
@@ -161,11 +169,7 @@
     transition: transform .12s, filter .1s;
 }
 :is(.skin-mc, .skin-mcboard) .peg.used::before { background: var(--tex-quartz); background-size: cover; filter: none; }
-/* the seat to move colours a picked peg, which carries no seat class */
-:is(.skin-mc, .skin-mcboard) #board.triangles.turn-p0 { --tex-p: var(--tex-p0); }
-:is(.skin-mc, .skin-mcboard) #board.triangles.turn-p1 { --tex-p: var(--tex-p1); }
-:is(.skin-mc, .skin-mcboard) #board.triangles.turn-p2 { --tex-p: var(--tex-p2); }
-:is(.skin-mc, .skin-mcboard) #board.triangles.turn-p3 { --tex-p: var(--tex-p3); }
+/* a picked peg carries its seat's class (the view), so --tex-p comes from skin-mc.css */
 :is(.skin-mc, .skin-mcboard) .peg.pending::before { background: var(--tex-p); background-size: cover; filter: none; box-shadow: 0 0 0 1px #000, 0 0 10px var(--pc); }
 :is(.skin-mc, .skin-mcboard) .peg.pending::after, :is(.skin-mc, .skin-mcboard) .peg.target::after { border-radius: 0; box-shadow: inset 0 0 0 2px var(--pc), 0 0 0 2px #000; }
 :is(.skin-mc, .skin-mcboard) .peg.target:hover::after { background: rgba(255, 255, 255, .22); }

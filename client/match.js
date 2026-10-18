@@ -35,7 +35,10 @@
    while the friend / bot is to move remembers that cell instead of dropping the click. The
    same cell takes it back, another cell moves it. When the turn comes it is played through
    the very same path as a click (onLocalMove + Game.play), or dropped when it became
-   illegal. The engine marks it on the board through the cellClass hook. */
+   illegal. The engine marks it on the board through the cellClass hook (every cell of the
+   move, `engine.cellsOf`) and paints `can-premove` where `mayPremove` allows one, which is
+   how a view whose move takes two clicks (Isolation, Triangles) composes a premove: its
+   composed move arrives through the same onCellClick. */
 
 "use strict";
 
@@ -87,10 +90,18 @@ const Match = (() => {
         const local = st.seats.map((s, p) => (s.kind === "local" ? p : -1)).filter((p) => p >= 0);
         return local.length === 1 ? local[0] : -1;
     };
-    // premoves make sense only when somebody else moves in between (bot or online seat)
-    // (a game whose move needs more than one click says premove: false in its definition)
+    // premoves make sense only when somebody else moves in between (bot or online seat);
+    // every game takes them (#37), a definition may still say premove: false
     const premovable = () => running && !st.spectator && st.mode !== "local" && mySeat() >= 0
         && (!st.config || Games.get(st.config.game).premove !== false);
+    // the cells of the premoved move (Isolation: step and broken tile, Triangles: the band's
+    // edges), computed once per premove and position instead of once per cell and render;
+    // keyed on the state too, since a move's cells depend on the board size
+    let premoveCells = { state: null, move: -1, cells: [] };
+    function premoveCellsOf(move) {
+        if (premoveCells.move !== move || premoveCells.state !== Game.state) premoveCells = { state: Game.state, move, cells: Game.cellsOf(move) };
+        return premoveCells.cells;
+    }
     // seat names for the HUD: what the people at the table are called; a bot seat is simply
     // "Bot" (#21) — in a room on every device, not only on the one that runs it (#36)
     const names = () => h.names().map((n, p) => ((isBot(p) && st.bot) || p === roomBotSeat() ? Opponent.NAME : n));
@@ -99,16 +110,19 @@ const Match = (() => {
     const hooks = {
         get names() { return names(); },
         mayPlay: (p) => isLocal(p) && h.live(),          // bot seats move in onTurn
+        // the seat this device may premove for while p (a bot, a friend) is to move (#37): the
+        // engine paints `can-premove` from it, so a two-click view lets the move be composed
+        mayPremove: (p) => (!isLocal(p) && premovable() ? mySeat() : -1),
         turnHint: (p) => {
             const hint = isBot(p) ? I18n.t("hud.thinking") : h.turnHint(p);
             return st.premove >= 0 && !isLocal(p) ? I18n.t("hud.premoveSet", { hint }) : hint;
         },
         /* One class per cell: the premove wins, then the replay analysis' best move (#43),
            then whatever the app wants there (Learn's highlight). They never overlap in
-           practice: a lesson is not a finished game and a replay has no premove. Both
-           markers sit on the cell the move belongs to, which the engine knows (Isolation
-           packs two cells into one move integer; `st.marked` arrives as a cell already). */
-        cellClass: (i) => (st.premove >= 0 && Game.cellOf(st.premove) === i ? "premove" : i === st.marked ? "best-move" : h.cellClass(i)),
+           practice: a lesson is not a finished game and a replay has no premove. The
+           premove marks every cell of its move (`engine.cellsOf`: Isolation's step and broken
+           tile, a Triangles band's edges); `st.marked` arrives as a cell already. */
+        cellClass: (i) => (st.premove >= 0 && premoveCellsOf(st.premove).includes(i) ? "premove" : i === st.marked ? "best-move" : h.cellClass(i)),
         onCellClick: (i) => {
             const s = Game.state;
             if (s.over) return;

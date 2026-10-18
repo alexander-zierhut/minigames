@@ -48,7 +48,10 @@
     transition: opacity .12s;
 }
 .slab.can-place::after { opacity: 1; box-shadow: inset 0 0 0 2px #5a68a8, inset 0 0 0 4px rgba(0, 0, 0, .35); }
-.slab.can-place:hover::after { box-shadow: inset 0 0 0 3px #8b9aec, inset 0 0 0 5px rgba(0, 0, 0, .4); background: rgba(120, 140, 235, .16); }
+/* a premove (#37) while somebody else is to move: a step shows only under the pointer, so
+   the board does not look like it is my turn; once a step is picked the breakable tiles show */
+.slab.can-premove:hover::after, #board.isolation:has(.slab.pending) .slab.can-premove::after { opacity: 1; }
+.slab.can-premove:hover::after, .slab.can-place:hover::after { box-shadow: inset 0 0 0 3px #8b9aec, inset 0 0 0 5px rgba(0, 0, 0, .4); background: rgba(120, 140, 235, .16); }
 
 /* the pawn */
 .pawn {
@@ -66,12 +69,13 @@
 }
 .slab.taken::before { box-shadow: inset 0 0 0 2px var(--pc-dark), 0 2px 0 rgba(0, 0, 0, .35); }
 
-/* step 1 done: the tile the pawn will step onto (a ghost pawn in the seat's colour) and,
+/* step 1 done: the tile the pawn will step onto (a ghost pawn in the colour of the seat the
+   move is for: the view gives the free tile `p<k>`, during a premove not the seat to move) and,
    in red, every tile that may still be broken */
 .slab.pending::after { opacity: 1; box-shadow: inset 0 0 0 3px var(--pc), 0 0 16px color-mix(in srgb, var(--pc) 55%, transparent); background: color-mix(in srgb, var(--pc) 12%, transparent); }
 .slab.pending .pawn { opacity: .4; transform: scale(.86); background: var(--block); }
-#board.isolation:has(.slab.pending) .slab.can-place::after { box-shadow: inset 0 0 0 2px #ff6b5f, inset 0 0 0 4px rgba(0, 0, 0, .4); background: none; }
-#board.isolation:has(.slab.pending) .slab.can-place:hover::after { box-shadow: inset 0 0 0 3px #ff9a90, inset 0 0 0 5px rgba(0, 0, 0, .45); background: rgba(255, 90, 80, .18); }
+#board.isolation:has(.slab.pending) :is(.slab.can-place, .slab.can-premove)::after { box-shadow: inset 0 0 0 2px #ff6b5f, inset 0 0 0 4px rgba(0, 0, 0, .4); background: none; }
+#board.isolation:has(.slab.pending) :is(.slab.can-place, .slab.can-premove):hover::after { box-shadow: inset 0 0 0 3px #ff9a90, inset 0 0 0 5px rgba(0, 0, 0, .45); background: rgba(255, 90, 80, .18); }
 
 /* the move: the pawn slides (Web Animations, in the view), the broken tile falls away */
 .slab.stepping .pawn { z-index: 4; }
@@ -94,11 +98,7 @@
     background-image: var(--tex-shell); background-size: calc(var(--board) / var(--n)) calc(var(--board) / var(--n)); image-rendering: pixelated;
     --iso-gap: calc(var(--board) / var(--n) * 0.05);
 }
-/* the seat to move colours the ghost pawn of a pending step, which carries no seat class */
-:is(.skin-mc, .skin-mcboard) #board.isolation.turn-p0 { --tex-p: var(--tex-p0); }
-:is(.skin-mc, .skin-mcboard) #board.isolation.turn-p1 { --tex-p: var(--tex-p1); }
-:is(.skin-mc, .skin-mcboard) #board.isolation.turn-p2 { --tex-p: var(--tex-p2); }
-:is(.skin-mc, .skin-mcboard) #board.isolation.turn-p3 { --tex-p: var(--tex-p3); }
+/* the pending tile carries its seat's class (the view), so --tex-p comes from skin-mc.css */
 :is(.skin-mc, .skin-mcboard) .slab { border-radius: 0; background: none; box-shadow: none; }   /* the obsidian floor is the pit */
 :is(.skin-mc, .skin-mcboard) .slab::before {
     box-shadow: none;

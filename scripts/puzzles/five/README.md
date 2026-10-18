@@ -12,7 +12,8 @@ node --test tests/puzzles/five/solver.test.mjs
 ```
 
 Files: `solver.mjs` (the solver), `generate.mjs` (seeded playouts + hand-crafted positions →
-`puzzles.json`), `puzzles.json` (the data), `solver.test.mjs`.
+`puzzles.json`), `../../../tests/puzzles/five/puzzles.json` (the data) and `solver.test.mjs`
+next to it (the variant's pair in `tests/puzzles/five-yavalath/`).
 
 ## Format
 
@@ -85,6 +86,10 @@ knows the rule the same way. Two extra tags: `avoid-three` (a move that makes th
 is on the board and no best move is one) and `forced-three` (after the best move every reply
 the opponent has left loses). `scripts/puzzles/verify.mjs` re-proves both without the solver.
 
+Two counts differ from the standard set below: `win-in-N` there means `depth` 2N-1 or 2N (the
+opponent can lose on its own move by making the losing row), and the generator takes up to 3
+puzzles per playout instead of 2.
+
 ## Tags
 
 | tag | meaning |
@@ -104,12 +109,13 @@ generator keeps the counts within 6 of each other). Per-board tag caps keep the 
 ## Limits — what is NOT covered
 
 - Big, open boards (7×7 and larger with > ~20–30 empty cells) are only covered by the
-  threat search, i.e. only as **win** puzzles with `depth ≤ 5`. Draws, must-blocks and
-  longer forced wins on such boards are not provable here and are not included: the
-  "must-block" puzzles come from boards small/full enough to exhaust, so their value is
-  known (a must-block on a big board would have an unknown value after the block).
-- Forced wins deeper than 5 plies only appear when the board was exhausted (`win-in-4`,
-  `win-in-5` on small boards); the threat search never claims anything beyond 5 plies and
+  threat search, i.e. only as **win** puzzles with `depth ≤ 5`. Draws and longer forced
+  wins on such boards are not provable here and are not included. A must-block with a draw
+  value always comes from a board small/full enough to exhaust; on a bigger board a
+  must-block only appears as a proven win of at most 5 plies (the block first, then the
+  threat search's forced win), and one whose value after the block is unknown is left out.
+- Forced wins deeper than 5 plies only appear when the board was exhausted (`win-in-4` to
+  `win-in-6` on small boards); the threat search never claims anything beyond 5 plies and
   never claims a draw or a loss.
 - `best` for a win means *fastest* win. A bot that plays a slower forced win is not
   counted as "perfect" on that puzzle (`moveValues` from `solveExhaustive` tells win/draw/loss

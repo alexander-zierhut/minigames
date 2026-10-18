@@ -75,6 +75,9 @@ body.board-covered #board-cover {
     outline: var(--premove-w) dashed var(--premove, #fff);
     outline-offset: calc(var(--premove-w) * -1);
 }
+/* a cell where this device may premove while somebody else is to move (`can-premove`,
+   painted by the engine instead of `locked`): clickable, otherwise it looks like any cell */
+#board > .can-premove { cursor: pointer; }
 
 /* ---- HUD ("hut"), mobile first: compact, never scrolls ---- */
 #hut {

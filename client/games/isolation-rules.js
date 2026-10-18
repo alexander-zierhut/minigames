@@ -170,15 +170,18 @@ const IsolationRules = (() => {
     }
 
     /* Framework hooks for games whose move is not a plain cell (see .claude/rules/games.md):
-       cellOf  — the board cell a move belongs to (the last-move marker, a premove marker)
+       cellOf  — the board cell a move belongs to (the last-move marker, the best-move marker)
+       cellsOf — every cell of a move (the premove marker)
        canPlay — may this player start a move on cell i (the `can-place` highlight) */
     const cellOf = (state, move) => Math.floor(move / state.cells.length);
+    // every cell of a move (the premove marker, #37): the tile stepped onto and the one broken
+    const cellsOf = (state, move) => [Math.floor(move / state.cells.length), move % state.cells.length];
     const canPlay = (state, i, player) => !state.over && active(state, player)
         && state.cells[i] === FREE && steps(state, player).includes(i);
 
     return {
         create, ownerOf, isLegal, legalMoves, place, conclude, estimate,
-        cellOf, canPlay, steps, mobility, territory, alive, active, startCell, encode, decode, HOLE, FREE,
+        cellOf, cellsOf, canPlay, steps, mobility, territory, alive, active, startCell, encode, decode, HOLE, FREE,
     };
 })();
 Rules.register("isolation", IsolationRules);

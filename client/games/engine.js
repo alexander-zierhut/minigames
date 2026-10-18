@@ -4,7 +4,8 @@
 
      state (getter)   config (getter)   newGame(config, hooks)   play(i) -> Promise<bool>
      replay(history, outs)   finish(winner, why)   eliminate(p, why)   abandon()   render()
-     isLegal(i, player)   cellOf(move)   hash()   record()   preview(ply)   previewPly (getter)
+     isLegal(i, player)   cellOf(move)   cellsOf(move)   hash()   record()   preview(ply)
+     previewPly (getter)
 
    Bus events (payloads in .claude/rules/games.md "Events"): game:new, game:move, game:turn,
    game:finish and game:position (the settled position changed; observers such as the win
@@ -32,12 +33,16 @@ const Engine = (() => {
             renderCell: (i) => renderCell(i),
             renderHud: () => renderHud(),
             render: () => render(),
+            seat: () => composer(position()),
         };
 
         /* Games whose move is not a plain cell id (Isolation encodes step + broken tile in one
            integer) say which board cell a move belongs to and which cells start a move;
            everything else works on plain cell ids. */
         const cellOf = (s, move) => (rules.cellOf ? rules.cellOf(s, move) : move);
+        // every cell a move touches (the premove marker): Isolation's step and broken tile,
+        // a Triangles band's edges; default: the one cell of cellOf
+        const cellsOf = (s, move) => (rules.cellsOf ? rules.cellsOf(s, move) : [cellOf(s, move)]);
         const canPlay = (s, i, p) => (rules.canPlay ? rules.canPlay(s, i, p) : rules.isLegal(s, i, p));
 
         const emit = (event, data) => Bus.emit(event, { game: def.key, ...data });
@@ -55,7 +60,7 @@ const Engine = (() => {
             const el = board();
             el.className = def.key;
             el.innerHTML = "";
-            cells = view.build(el, state, cfg, (i) => { if (!shown && hooks.onCellClick) hooks.onCellClick(i); });
+            cells = view.build(el, state, cfg, (i) => { if (!shown && hooks.onCellClick) hooks.onCellClick(i); }, ctx);
             extra = [];
             Hud.build(state.players, def.title);
             Log.clear();
@@ -185,6 +190,18 @@ const Engine = (() => {
         }
         const previewPly = () => (shown ? shown.history.length : null);
         const position = () => shown || state;
+        // may this device play for the seat to move right now (no hook: every seat is local)
+        const mine = (s) => !hooks.mayPlay || hooks.mayPlay(s.current);
+        // the local seat that may premove while somebody else (a bot, a friend) is to move, -1 = none (#37)
+        const premover = (s) => (hooks.mayPremove && !mine(s) ? hooks.mayPremove(s.current) : -1);
+        /* The seat this device may compose a move for right now: the seat to move when it is
+           mine (and nothing animates), else the premove seat, -1 = nobody (a preview, the end,
+           a spectator). A view whose move takes two clicks reads it through ctx.seat(). */
+        function composer(s) {
+            if (shown || s.over) return -1;
+            if (mine(s)) return s.busy ? -1 : s.current;
+            return premover(s);
+        }
 
         function render() {
             if (!hooks.names || cells.length === 0 || cells.length !== state.cells.length) return;
@@ -195,21 +212,25 @@ const Engine = (() => {
             renderHud();
         }
 
-        // shared cell classes (owner, last move, may I play here, the table's own marker);
-        // the view adds its own on top
+        /* shared cell classes (owner, last move, may I play here, may I premove here, the
+           table's own marker); the view adds its own on top. `can-place`: this device moves
+           now and may start a move here. `can-premove` (#37): somebody else is to move and the
+           table lets this device premove here (`hooks.mayPremove`), also while their move
+           animates; never `locked`. */
         function renderCell(i) {
             const s = position();
             const el = cells[i];
             if (!el) return;
             const owner = rules.ownerOf(s, i);
-            el.classList.remove("p0", "p1", "p2", "p3", "taken", "can-place", "locked", "last");
+            el.classList.remove("p0", "p1", "p2", "p3", "taken", "can-place", "can-premove", "locked", "last");
             if (owner >= 0) el.classList.add("p" + owner, "taken");
             if (s.history.length && cellOf(s, s.history[s.history.length - 1]) === i) el.classList.add("last");
             if (shown) el.classList.add("locked");                  // a preview is never playable
-            else if (!s.over && !s.busy) {
-                const mine = !hooks.mayPlay || hooks.mayPlay(s.current);
-                if (mine && canPlay(s, i, s.current)) el.classList.add("can-place");
-                else el.classList.add("locked");
+            else if (!s.over) {
+                const pre = premover(s);
+                if (!s.busy && mine(s) && canPlay(s, i, s.current)) el.classList.add("can-place");
+                else if (pre >= 0 && canPlay(s, i, pre)) el.classList.add("can-premove");
+                else if (!s.busy) el.classList.add("locked");
             }
             // one class the table may add without the game knowing about it (Match: "premove")
             if (extra[i]) { el.classList.remove(extra[i]); extra[i] = ""; }
@@ -228,6 +249,7 @@ const Engine = (() => {
             newGame, play, replay, finish, eliminate, abandon, render, relabel, hash, record, preview,
             isLegal: (i, player) => rules.isLegal(state, i, player),
             cellOf: (move) => cellOf(state, move),
+            cellsOf: (move) => cellsOf(state, move),
         };
     }
 

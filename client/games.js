@@ -15,7 +15,7 @@ const Games = (() => {
     const DEFAULTS = {
         settings: [],                                   // rows in the settings modal
         players: { min: 2, max: 4 },                    // how many seats the game takes (#28)
-        premove: true,                                  // off when one click is not a whole move (#37)
+        premove: true,                                  // every game takes premoves (#37); a two-click move composes on `can-premove`
         howto: { rules: [], tutorial: [], scenarios: [] },   // the Learn data (#41)
         describeRules: () => [],                        // summary parts before the timer ("5 in a row")
         describeOptions: () => [],                      // summary parts after the timer ("15-chain wins")

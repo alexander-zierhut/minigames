@@ -37,14 +37,14 @@ personal-use assets and are not licensed at all.
   steps are one tap away under "How to play".
 - **Online:** one player creates a room and shares the link (or the 5-letter code).
   Everybody typing the same code also works; a room seats two, three or four players
-  (the *Players* setting). Uses PeerJS: the public PeerJS broker only brokers the
+  (the *Room size* control in the lobby). Uses PeerJS: the public PeerJS broker only brokers the
   handshake, then the game runs peer to peer (the room's host relays between guests).
   Anyone who joins when every seat is taken watches as a spectator, and the lobby's
   Invite button offers a link for spectators, which invites people to watch on purpose. That
   link carries a code of its own, so a viewer can watch without ever learning the room code.
   In the room you can also swap: a player steps back with "Watch instead", a spectator
-  sits down with "Take a seat", so three people can take turns at two seats. Waiting alone
-  in a room? "Against a bot instead" puts a bot on the empty seat, and your friends can
+  sits down with "Sit here", so three people can take turns at two seats. Waiting alone
+  in a room? "Add a bot" puts a bot on the empty seat, and your friends can
   watch that game or take the seat over when they arrive.
   A page refresh, leaving and coming back by the same link, even the room creator
   leaving: the room survives as long as one player is in it, and everybody keeps
@@ -52,19 +52,22 @@ personal-use assets and are not licensed at all.
 
 Online and against the bot you can already click your answer while the other side is
 thinking: the premove is marked on the board and played the moment it is your turn
-(clicking the same cell again takes it back).
+(clicking the same move again takes it back). In every game, including Isolation and
+Triangles, where you pick the whole move with its two clicks.
 
 The number of players (two, three or four) is picked right in the lobby, next to the room
 code online and over the game list offline, and can never be
 set below the people already sitting in the room; the settings
 (board size, animation speed, chess-style timer, the chain win, how many stones in a row,
-the losing row, the band length and the tokens) are dropdowns with a few values that work well and a Custom entry for your
-own number, and they are shared live in the room lobby; anyone can change them. The ⚙ button in
+the losing row, the band length, whether bands must touch and the tokens) are dropdowns with a few values that work well and a Custom entry for your
+own number, and they are shared live in the room lobby; anyone can change them. The "Settings & Feedback" button in
 the top-left corner holds the per-device preferences: your name (a short one is picked for
 you on the first visit, change it under Profile; up to 16 characters, everyone in the room
 sees it), the look (Classic, Blocks board,
-Blocks) and the sounds (volume, categories; the Classic look uses synthesized cues, the
-Blocks looks pixel block, explosion and level-up sounds). Emoji reactions for
+Blocks), the language, the sounds (volume, categories; the Classic look uses synthesized cues, the
+Blocks looks pixel block, explosion and level-up sounds), the win-chance graph in replays,
+streaming (hide the room code, keep my IP private, mute spectators), the developer info
+panel and the feedback link. Emoji reactions for
 trash talk are in the top-right corner; a room chat lives under the game log (phones:
 behind the ☰ button). When a game is over, "Look at board" opens a replay bar to step
 through it move by move (or let Play walk through it), in step with everyone else in the
@@ -89,7 +92,7 @@ npm test           # unit tests (jsdom + pure rules) and end-to-end tests (headl
 npm run build      # hashed bundle in dist/
 ```
 
-CI runs the whole suite on every push and pull request; `main` deploys only after a
+CI runs the whole suite on every push to `main` and every pull request; `main` deploys only after a
 green run and requires the check to merge. `AGENTS.md` is the core agent context (files,
 contracts, rules); the detail per topic, incl. the room protocol and how to add a game,
 lives in `.claude/rules/`.
@@ -97,16 +100,17 @@ lives in `.claude/rules/`.
 ## Layout
 
 - `index.html`: markup, templates, and the ordered list of stylesheets and scripts
-- `client/lib/`: `util`, `bus` (events), `log`, `clock`, `net` (PeerJS rooms), `preload`, `sound`, `install`, `replays` (replay files + the IndexedDB store), `analysis` (replay analysis + its panel), `update` (a new build is offered on the title screen)
+- `client/lib/`: `util`, `i18n` (translations), `icons` (line icons), `bus` (events), `log`, `clock`, `net` (PeerJS rooms), `preload`, `sound`, `install`, `replays` (replay files + the IndexedDB store), `analysis` (replay analysis + its panel), `update` (a new build is offered on the title screen)
+- `client/lang/`: one dictionary per language (en, de, es, fr, ja, ar); `client/vendor/`: PeerJS, vendored
 - `client/games/rules.js`: the pure game loop (`Rules.create / step / eliminate / apply / replay`) every headless path shares, and the building blocks a rules module uses
 - `client/games.js`, `client/games/engine.js`, `client/games/hud.js`, `client/games/view.js`: the game registry, the engine shell every game shares, the generic HUD (rendered from a model the game returns) and the shared board-view helpers
 - `client/games/`: per game: pure `<key>-rules.js`, `<key>.js` (view + registration incl. its settings rows), `<key>.css`
-- `client/bots.js`, `client/bots/<id>/`: bot registry + toolset; one folder per bot with its tests and benchmark score; `client/winchance.js` shows the bars
+- `client/bots.js`, `client/bots/<id>/`: bot registry + toolset; one folder per bot; the real bots carry their tests, a README and the generated `benchmark.js`; `client/winchance.js` shows the bars
 - `client/learn.js`, `client/learn/`: the Learn section: rules, tutorial and scenarios per game (the data lives in the game definitions; `client/learn/<game>-scenarios.js` is generated from the proven puzzle sets)
 - `scripts/`: `headless.mjs` (rules + bots in Node), `benchmark.mjs` (`npm run benchmark`), puzzle solvers, verify, `learn/pick-scenarios.mjs` (`npm run learn:scenarios`), screenshots
 - `client/match.js` (the table: seats, engine, clock, bot seat), `client/room.js` (online protocol, presence, sync), `client/session.js`, `client/app.js` (screens, flow), `client/lobby.js`, `client/review.js` (the replay bar and analysis panel), `client/replay-list.js` (the replays screen)
-- `client/skins.js` (the look), `client/prefs.js` (⚙ per-device preferences incl. your name), `client/settings.js`, `client/opponent.js`, `client/reactions.js`, `client/chat.js`, `client/changelog.js`
+- `client/skins.js` (the look), `client/prefs.js` (⚙ per-device preferences incl. your name), `client/settings.js`, `client/opponent.js`, `client/reactions.js`, `client/chat.js`, `client/changelog.js`, `client/bot-persona.js` (the bot's emoji reactions), `client/dev.js` (developer info panel)
 - `client/lib/sound.js`, `client/sounds/`: sound cues (synthesized Classic set, the Blocks .ogg files)
-- `client/css/`: base tokens, menu/lobby, game screen, the Blocks skins
+- `client/css/`: base tokens, menu/lobby, game screen, Learn, the Blocks skins
 - `client/textures/`: 16×16 block textures used by the Blocks skins
 - `tests/unit`, `tests/e2e`, `build.mjs`, `.github/workflows/ci.yml`

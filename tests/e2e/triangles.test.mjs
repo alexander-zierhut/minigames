@@ -313,8 +313,7 @@ test("against a bot: Bot stretches bands by itself", async () => {
         cursors.add(await cursor());
     }
     assert.ok(cursors.has("0:pointer"), `a pointer on my turn (${[...cursors]})`);
-    assert.ok(![...cursors].some((c) => /^(1|busy):pointer$/.test(c)), `no pointer while the bot thinks or a band animates (${[...cursors]})`);
-    assert.ok(cursors.has("1:not-allowed"), `not-allowed while the bot thinks (${[...cursors]})`);
+    assert.ok(!cursors.has("1:not-allowed"), `a pointer while the bot thinks too: a premove may be composed (#37) (${[...cursors]})`);
     await mine();
     const st = await B.state();
     assert.ok(st.movesBy[1] >= 5, `the bot stretched bands (${st.movesBy[1]})`);
@@ -322,4 +321,53 @@ test("against a bot: Bot stretches bands by itself", async () => {
     assert.ok(st.cells.some((c) => c === 1), "its bands are on the board in its colour");
     assert.deepEqual(B.errors, [], "no page errors");
     assert.deepEqual(B.failedRequests, [], "no failed requests");
+});
+
+/* premove (#37): two peg clicks while the bot thinks compose a band; it is marked on its
+   edges and its end pegs, announced in the turn hint and played the moment the bot has
+   moved (dropped only if the bot stretched the very same band, which covers every edge) */
+test("against a bot: a band composed while the bot thinks is the premove and is played right after its move", async () => {
+    await B.waitFor("!Match.engine.state.busy && (Match.engine.state.current === 0 || Match.engine.state.over)", { timeout: 30000, what: "my turn" });
+    assert.equal((await B.state()).over, false, "six bands each leave the game running");
+    const legal = JSON.parse(await B.ev("JSON.stringify(TrianglesRules.legalMoves(Match.engine.state))"));
+    /* my band and the premove in one evaluate: the wait starts while my band still animates,
+       so it catches the bot's think time (THINK_MS) every time, and it has a deadline that
+       answers with a message instead of hanging until the runner's timeout */
+    const set = JSON.parse(await B.ev(`(async () => {
+        const wait = (test, ms) => new Promise(r => { const t0 = Date.now(), t = setInterval(() => { const ok = test(); if (ok || Date.now() - t0 > ms) { clearInterval(t); r(ok); } }, 5); });
+        const s = Match.engine.state;
+        for (const el of TrianglesView.clicks(s, ${legal[0]})) el.click();      // my band, now the bot thinks
+        if (!(await wait(() => s.current === 1 && !s.busy, 10000))) return JSON.stringify({ missed: s.history.length });
+        const R = TrianglesRules;
+        const move = R.legalMoves(s).reverse().find((m) => R.bandEdges(s, m).every((e) => s.cells[e] === -1));
+        const before = s.history.length;
+        const [first, ...rest] = TrianglesView.clicks(s, move);
+        first.click();
+        const pending = first.className;                          // half picked: in my colour, not the bot's
+        for (const el of rest) el.click();
+        const bands = [...document.querySelectorAll('#board > .band')], pegs = [...document.querySelectorAll('#board > .peg')];
+        return JSON.stringify({
+            move, pre: Match.premove, before, after: s.history.length,
+            marked: bands.map((el, i) => el.classList.contains('premove') ? i : -1).filter((i) => i >= 0),
+            edges: R.bandEdges(s, move).sort((a, b) => a - b),
+            ends: pegs.map((el, i) => el.classList.contains('premove') ? i : -1).filter((i) => i >= 0),
+            pegs: [R.decode(s, move).a, R.decode(s, move).b].sort((a, b) => a - b),
+            hint: document.getElementById('turn-hint').textContent,
+            pending,
+        });
+    })()`));
+    assert.equal(set.missed, undefined, `the bot's turn was caught after my band (history ${set.missed})`);
+    assert.match(set.pending, /\bpending\b/, "the first peg is picked");
+    assert.match(set.pending, /\bp0\b/, "in my colour while the bot is to move, not the bot's");
+    assert.equal(set.after, set.before, "the bot had not moved yet: nothing played");
+    assert.equal(set.pre, set.move, "the composed band is the premove");
+    assert.deepEqual(set.marked, set.edges, "every edge of the band is marked");
+    assert.deepEqual(set.ends, set.pegs, "and its two end pegs");
+    assert.match(set.hint, /^thinking… · premove set$/);
+    await B.waitFor(`Match.premove === -1 && Match.engine.state.history.length >= ${set.before + 1} && !Match.engine.state.busy`, { timeout: 30000, what: "the bot moved" });
+    await B.waitFor(`Match.engine.state.history.length >= ${set.before + 2} || Match.engine.state.current === 0 || Match.engine.state.over`, { timeout: 30000, what: "my premove followed" });
+    const st = await B.state();
+    if (st.history[set.before] === set.move) assert.equal(st.current, 0, "the bot took that very band: dropped, still my move");
+    else assert.equal(st.history[set.before + 1], set.move, "my premoved band was played right after the bot's");
+    assert.deepEqual(B.errors, [], "no page errors");
 });

@@ -5,7 +5,7 @@
    segmented row (#set-players, #28) so everyone sees the room takes two to four; the game-specific rows are
    BUILT here from every registered game's `settings` list (see Games / .claude/rules/ui.md "Settings"):
      { key, label, type: "select" | "bool" | "preset", def, min?, max?, options?, presets?,
-       off?, startOff?, suffix?, customLabel?, flag? }
+       off?, startOff?, unit?, customLabel?, flag? }
    into #game-settings, as `<label class="row" id="row-<key>" data-setting="<key>">` with the
    control `#set-<key>` (key lowercased). A row shows when the selected game lists that key.
    **Every control is a dropdown** (owner, 2026-09-11): a `select` picks from `options`, a

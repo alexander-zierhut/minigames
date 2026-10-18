@@ -65,7 +65,7 @@ The PeerJS transport, the room protocol and its every message, seats and presenc
   settings, so a rule variant picks a bot that knows it), `#btn-room-bot-off` clears it; if the
   room's rules change under a bot that cannot play them, `Match.setupBot` puts
   the one `Opponent.current(game, config)` names on the seat instead.
-  The **transport host runs the seat** (`Match.makeSeats` asks `hostsBot()` =
+  The **transport host runs the seat** (Match's internal `makeSeats` asks `hostsBot()` =
   `Room.isHost`; for everybody else it is a `remote` seat called "Bot"): `botTurn` relays its
   move through `onLocalMove` like a click, its persona's reactions go out through
   `onBotReact` as `react {from: <bot seat>}`, and `Room.onRole` → `Match.refreshSeats()` hands the

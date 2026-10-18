@@ -9,8 +9,10 @@
    (one that starts a legal band) becomes `.pending` and every peg a band may reach from it
    lights up as `.target`, the second one submits the encoded band, the pending peg takes
    it back, anything else does nothing. The first click is only accepted while some cell
-   carries `can-place`, so a preview, a friend's turn and a spectator are handled by the
-   framework, not here. */
+   carries `can-place` (this device moves now) or `can-premove` (#37: somebody else is to
+   move and the table takes a premove), so a preview, a spectator and local play are
+   handled by the framework, not here. A premove goes through the very same onClick: Match
+   stores it while it is not my turn, and its band's edges carry the `premove` marker. */
 
 "use strict";
 
@@ -25,14 +27,16 @@ const TrianglesView = (() => {
     let pegEls = [];                      // one `.peg` per peg
     let triEls = [];                      // one `.tri` per triangle
     let pending = -1;                     // the peg picked by the first click (-1 = none)
-    let pendingAt = -1;                   // history length when it was picked (a friend's move drops it)
     let pendingFor = -1;                  // the seat it was picked for
+    let seatOf = () => -1;                // the seat this device composes a move for now (the engine's ctx.seat)
     let snapping = new Set();             // edges of the band that is animating
     let reach = { state: null, at: -1, last: -1, from: new Map() };   // peg -> [{ to, move }] of the live position
 
-    // is the choice still about the position on the screen?
+    /* is the choice still about the position on the screen? Dropped at the end, when the
+       seat this device composes for changed (the next seat on one device) and when no band
+       starts at the peg any more; a peg picked while the bot thinks survives its move */
     function keepPending(state) {
-        if (pending >= 0 && (state.history.length !== pendingAt || state.current !== pendingFor || state.over)) pending = -1;
+        if (pending >= 0 && (state.over || seatOf(state) !== pendingFor || !targetsOf(state, pending).length)) pending = -1;
         return pending;
     }
     // every legal band by its two end pegs, cached per state object and position
@@ -50,17 +54,19 @@ const TrianglesView = (() => {
         return from;
     }
     const targetsOf = (state, p) => reachOf(state).get(p) || [];
-    // the engine wrote `can-place` somewhere: this device may move now and no preview is shown
-    const allowed = () => cells.some((el) => el.classList.contains("can-place"));
+    // the engine wrote `can-place` or `can-premove` somewhere: this device may compose a move
+    // now (its own, or a premove while somebody else is to move) and no preview is shown
+    const allowed = () => cells.some((el) => el.classList.contains("can-place") || el.classList.contains("can-premove"));
 
     function place(el, x, y) {
         el.style.setProperty("--x", x.toFixed(4));
         el.style.setProperty("--y", y.toFixed(4));
     }
 
-    function build(board, state, config, onClick) {
+    function build(board, state, config, onClick, ctx) {
         const g = R().geometry(state.n);
-        pending = -1; pendingAt = -1; pendingFor = -1;
+        pending = -1; pendingFor = -1;
+        seatOf = (s) => (ctx ? ctx.seat() : s.current);
         snapping = new Set();
         reach = { state: null, at: -1, last: -1, from: new Map() };
         board.style.setProperty("--tm", g.m);
@@ -97,7 +103,9 @@ const TrianglesView = (() => {
         if (pending < 0) {
             // step 1: only while the framework lets this device play, and only on a peg a band starts at
             if (!allowed() || !targetsOf(state, p).length) return;
-            pending = p; pendingAt = state.history.length; pendingFor = state.current;
+            const seat = seatOf(state);
+            if (seat < 0) return;
+            pending = p; pendingFor = seat;
             paintPegs(state);
             return;
         }
@@ -109,31 +117,56 @@ const TrianglesView = (() => {
         onClick(hit.move);
     }
 
+    /* a move being put together is lit in the colour of the seat it is for, which is not the
+       seat to move while it is a premove (#37): the pending and target pegs and the preview
+       band carry `p<seat>` themselves instead of inheriting --pc from #board.turn-p<k> */
+    const SEATS = ["p0", "p1", "p2", "p3"];
+    const seatClass = (el, on) => {
+        if (el.classList.contains("taken")) return;          // a taken band keeps its owner's class
+        el.classList.remove(...SEATS);
+        if (on) el.classList.add("p" + pendingFor);
+    };
     // hovering a target shows the band it would stretch (`.preview` on its edges)
     function preview(state, p) {
-        for (const el of cells) el.classList.remove("preview");
+        for (const el of cells) if (el.classList.contains("preview")) { el.classList.remove("preview"); seatClass(el, false); }
         if (p < 0 || keepPending(state) < 0) return;
         const hit = targetsOf(state, pending).find((x) => x.to === p);
-        if (hit) for (const e of R().decode(state, hit.move).edges) cells[e].classList.add("preview");
+        if (hit) for (const e of R().decode(state, hit.move).edges) { cells[e].classList.add("preview"); seatClass(cells[e], true); }
     }
 
     /* the pegs: `used` once a band runs through them, `pending` / `target` while a band is
-       half picked, `dead` when no band starts there; the board is `idle` while the engine
-       lets nobody on this device move (run after the cells are painted, so `allowed` is current) */
+       half picked, `dead` when no band starts there, `premove` on the two end pegs of the
+       band the table marked as the premove (#37: its edges carry the engine's `premove`
+       class); the board is `idle` while the engine lets nobody on this device move or
+       premove (run after the cells are painted, so `allowed` and the marker are current) */
     function paintPegs(state) {
         const on = keepPending(state) >= 0;
         const idle = !allowed();
         const targets = new Set(on ? targetsOf(state, pending).map((x) => x.to) : []);
+        const ends = premoveEnds(state);
         for (let p = 0; p < pegEls.length; p++) {
             const el = pegEls[p];
+            el.classList.toggle("premove", ends.has(p));
             el.classList.toggle("used", state.touched[p] > 0);
             el.classList.toggle("pending", p === pending);
             el.classList.toggle("target", targets.has(p));
+            seatClass(el, p === pending || targets.has(p));
             el.classList.toggle("dead", !idle && !on && !targetsOf(state, p).length);
         }
-        if (!on) for (const el of cells) el.classList.remove("preview");
+        // the engine's render strips the seat class off a previewed band: put it back
+        for (const el of cells) if (el.classList.contains("preview")) { if (!on) el.classList.remove("preview"); seatClass(el, on); }
         const board = pegEls.length ? pegEls[0].parentElement : null;
         if (board) { board.classList.toggle("picking", on); board.classList.toggle("idle", idle); }
+    }
+
+    // the pegs that occur once among the edges marked `premove`: the ends of the premoved band
+    function premoveEnds(state) {
+        const g = R().geometry(state.n), seen = new Map();
+        for (let e = 0; e < cells.length; e++) {
+            if (!cells[e].classList.contains("premove")) continue;
+            for (const p of [g.edges[e].a, g.edges[e].b]) seen.set(p, (seen.get(p) || 0) + 1);
+        }
+        return new Set([...seen].filter(([, k]) => k === 1).map(([p]) => p));
     }
 
     // the engine marks the band's middle edge `last`; the whole band carries it here
@@ -212,7 +245,6 @@ const TrianglesGame = Games.register({
     size: { min: 3, max: 7, default: 4, presets: [4, 5, 6], text: (n) => I18n.t("game.triangles.size", { n }) },
     minSize: (cfg) => (cfg.band === 3 ? 4 : 3),   // a 4-peg band never reaches the rim of n = 3
     players: { min: 2, max: 4 },
-    premove: false,                         // a move is two clicks: a premove would need both of them
     settings: [
         { key: "band", label: "game.triangles.set.band", type: "select", def: 3,
             options: [[3, "game.triangles.set.band4"], [2, "game.triangles.set.band3"], [0, "game.triangles.set.bandAny"]] },

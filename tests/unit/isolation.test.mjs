@@ -158,12 +158,12 @@ function fresh(config = {}) {
 }
 const code = (G, to, removed) => to * G.state.cells.length + removed;
 
-test("registry: 5–12 tiles, default 7, two to four players, no premove", () => {
+test("registry: 5–12 tiles, default 7, two to four players, premoves on", () => {
     const { w } = fresh();
     const def = w.eval("Games.get('isolation')");
     assert.equal(def.size.min, 5); assert.equal(def.size.max, 12); assert.equal(def.size.default, 7);
     assert.equal(def.players.min, 2); assert.equal(def.players.max, 4);
-    assert.equal(def.premove, false, "a two-click move cannot be premoved");
+    assert.equal(def.premove, true, "a two-click move is premoved like any other (#37)");
     assert.equal(J(def.settings), "[]", "board size and players are the only settings");
     w.close();
 });
